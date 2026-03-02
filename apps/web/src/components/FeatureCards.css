@@ -1,0 +1,67 @@
+.features-section {
+  position: relative;
+  z-index: 1;
+  padding: 0 1.5rem 5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  margin-top: 20px;
+}
+
+.features-heading {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #e0cef7;
+  text-align: center;
+  margin-bottom: 1.75rem;
+  letter-spacing: 0.02em;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1.25rem;
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(160, 80, 255, 0.2);
+  border-radius: 14px;
+  padding: 1.75rem 1.5rem;
+  transition: border-color 0.25s, transform 0.25s, background 0.25s;
+  animation: cardIn 0.6s ease both;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.feature-card:hover {
+  border-color: rgba(160, 80, 255, 0.5);
+  background: rgba(147, 51, 234, 0.08);
+  transform: translateY(-4px);
+}
+
+.feature-icon {
+  color: #a855f7;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.feature-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f0e6ff;
+  margin: 0 0 0.6rem;
+}
+
+.feature-desc {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  color: #a08cbf;
+  line-height: 1.6;
+  margin: 0;
+}

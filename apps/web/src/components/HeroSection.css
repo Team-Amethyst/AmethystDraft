@@ -1,0 +1,159 @@
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 80px 1.5rem 3rem;
+}
+
+/* Stadium background illusion */
+/* .hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 110%, rgba(100, 20, 200, 0.45) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(80, 0, 160, 0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(80, 0, 160, 0.3) 0%, transparent 60%),
+    linear-gradient(180deg, #0a0514 0%, #120820 40%, #1a0a30 100%);
+  z-index: 0;
+} */
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/baseball_field_2.jpg');
+  background-size: cover;
+  background-position: center bottom;
+  z-index: 0;
+}
+
+/* Faux stadium lights */
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle 120px at 15% 30%, rgba(160, 80, 255, 0.25) 0%, transparent 70%),
+    radial-gradient(circle 120px at 85% 30%, rgba(160, 80, 255, 0.25) 0%, transparent 70%),
+    radial-gradient(circle 80px at 5% 55%, rgba(120, 40, 220, 0.2) 0%, transparent 60%),
+    radial-gradient(circle 80px at 95% 55%, rgba(120, 40, 220, 0.2) 0%, transparent 60%);
+}
+
+/* Ground field glow */
+/* .hero-bg::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 40%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(90, 20, 180, 0.35) 0%, transparent 70%);
+} */
+
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 5, 20, 0.85) 0%,
+    rgba(80, 0, 160, 0.75) 50%,
+    rgba(10, 5, 20, 0.95) 100%
+  );
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 720px;
+  animation: fadeUp 0.8s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero-eyebrow {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.25em;
+  color: #9d6cd4;
+  margin-bottom: 1.25rem;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.8rem, 7vw, 5.5rem);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin: 0 0 0.15em;
+}
+
+.hero-title-accent {
+  font-style: italic;
+  background: linear-gradient(135deg, #bf7fff 0%, #9333ea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  color: #c4aee8;
+  line-height: 1.7;
+  margin: 1.5rem auto 2.25rem;
+  max-width: 560px;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta-primary {
+  background: linear-gradient(135deg, #9333ea, #7c3aed);
+  border: none;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75rem 2.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 24px rgba(147, 51, 234, 0.4);
+}
+
+.cta-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(147, 51, 234, 0.6);
+}
+
+.cta-outline {
+  background: transparent;
+  border: 1.5px solid rgba(200, 160, 255, 0.4);
+  color: #e0cef7;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.75rem 2.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+
+.cta-outline:hover {
+  border-color: rgba(200, 160, 255, 0.75);
+  background: rgba(147, 51, 234, 0.1);
+  transform: translateY(-2px);
+}

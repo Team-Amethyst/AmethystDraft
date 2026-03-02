@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
+import HomePage from './pages/HomePage';
 // import { Dashboard } from "./pages/Dashboard";
 // import { Rankings } from "./pages/Rankings";
 // import { CheatSheet } from "./pages/CheatSheet";
@@ -15,19 +16,14 @@ import { Home } from "./pages/Home";
 export const router = createBrowserRouter([
   {
     path: "/",
+    Component: HomePage,  // ← swap this in temporarily
+  },
+  {
+    path: "/old-home",
     Component: Layout,
     children: [
-      { index: true, Component: Home },
-    //   { path: "dashboard", Component: Dashboard },
-    //   { path: "rankings", Component: Rankings },
-    //   { path: "cheat-sheet", Component: CheatSheet },
-    //   { path: "mock-draft", Component: MockDraft },
-    //   { path: "sleepers", Component: Sleepers },
-    //   { path: "draft-room", Component: DraftRoom },
-    //   { path: "news", Component: News },
-    //   { path: "ratings", Component: Ratings },
-    //   { path: "auth", Component: Auth },
-    //   { path: "forgot-password", Component: ForgotPassword },
+      { index: true, Component: Home },  // ← your old work is safe here
     ],
   },
 ]);
+
