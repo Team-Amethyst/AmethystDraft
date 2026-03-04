@@ -1,0 +1,110 @@
+.auth-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 56px;
+  background: rgba(10, 5, 20, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(138, 43, 226, 0.2);
+}
+
+.auth-navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.auth-navbar-logo:hover {
+  opacity: 0.8;
+}
+
+.auth-navbar-center {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.nav-link:hover {
+  color: #fff;
+  background: rgba(139, 60, 247, 0.15);
+}
+
+.nav-link-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nav-link-disabled:hover {
+  color: #ccc;
+  background: transparent;
+}
+
+.auth-navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ccc;
+  font-size: 0.875rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(139, 60, 247, 0.1);
+  border: 1px solid rgba(138, 43, 226, 0.2);
+}
+
+.user-info svg {
+  color: #a855f7;
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid rgba(138, 43, 226, 0.3);
+  color: #ccc;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-logout:hover {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #ef4444;
+}
+
+.btn-logout svg {
+  width: 14px;
+  height: 14px;
+}

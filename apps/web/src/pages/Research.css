@@ -1,0 +1,43 @@
+.research-page {
+  min-height: 100vh;
+  background: #0a0514;
+  padding-top: 56px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.research-layout {
+  display: flex;
+  height: calc(100vh - 56px);
+}
+
+.research-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.research-error {
+  margin-bottom: 1rem;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.25);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9070b8;
+  text-align: center;
+}
+
+.coming-soon h2 {
+  font-size: 1.5rem;
+  color: #f0e6ff;
+  margin-bottom: 0.5rem;
+}
