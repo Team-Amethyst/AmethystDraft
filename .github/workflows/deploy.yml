@@ -27,6 +27,8 @@ jobs:
         run: pnpm install
 
       - name: Build Web Frontend
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: pnpm --filter web build
 
       - name: Configure AWS Credentials
