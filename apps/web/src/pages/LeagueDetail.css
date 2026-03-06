@@ -1,0 +1,198 @@
+.league-detail-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top center, rgba(157, 78, 221, 0.12), transparent 30%),
+    linear-gradient(180deg, #04020b 0%, #060210 100%);
+  color: #f4ecff;
+  font-family: "DM Sans", sans-serif;
+}
+
+.league-detail-topbar {
+  height: 58px;
+  border-bottom: 1px solid rgba(181, 111, 255, 0.15);
+  background: rgba(22, 10, 35, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+}
+
+.league-detail-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.league-detail-brand-icon {
+  color: #c56cff;
+}
+
+.league-detail-profile {
+  color: #8a809a;
+}
+
+.league-detail-main {
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.league-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: #8f849f;
+  cursor: pointer;
+  margin-bottom: 22px;
+  font: inherit;
+}
+
+.league-detail-hero {
+  background: rgba(23, 10, 34, 0.96);
+  border: 1px solid rgba(190, 108, 255, 0.14);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.league-detail-status {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(170, 83, 247, 0.14);
+  color: #e5c9ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.league-detail-hero h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  color: #f1e8ff;
+}
+
+.league-detail-hero p {
+  margin: 0;
+  color: #9f96ad;
+}
+
+.league-detail-meta-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.league-detail-meta-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #d8d0e4;
+  font-size: 0.85rem;
+}
+
+.league-detail-card {
+  background: rgba(23, 10, 34, 0.96);
+  border: 1px solid rgba(190, 108, 255, 0.14);
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.league-detail-section-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #9f96ad;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.league-detail-links {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.league-detail-link-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.league-detail-link-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(170, 83, 247, 0.16);
+  color: #efdbff;
+}
+
+.league-detail-link-title {
+  font-weight: 700;
+  color: #f1e8ff;
+  margin-bottom: 6px;
+}
+
+.league-detail-link-desc {
+  font-size: 0.82rem;
+  color: #9f96ad;
+  line-height: 1.4;
+}
+
+.league-detail-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.league-detail-snapshot-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.league-detail-snapshot-label {
+  font-size: 0.74rem;
+  color: #9f96ad;
+  margin-bottom: 8px;
+}
+
+.league-detail-snapshot-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f1e8ff;
+}
+
+@media (max-width: 860px) {
+  .league-detail-hero,
+  .league-detail-links,
+  .league-detail-snapshot-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .league-detail-meta-grid {
+    justify-content: flex-start;
+  }
+}

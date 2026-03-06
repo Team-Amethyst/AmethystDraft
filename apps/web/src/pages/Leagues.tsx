@@ -32,12 +32,12 @@ export default function Leagues() {
   };
 
   const handleJoinLeague = () => {
-    // TODO: Implement join league modal
+    navigate("/leagues/join");
     console.log("Join league clicked");
   };
 
   const handleLeagueClick = (leagueId: string) => {
-    // TODO: Navigate to league detail page
+    navigate(`/leagues/${leagueId}`);
     console.log("League clicked:", leagueId);
   };
 
