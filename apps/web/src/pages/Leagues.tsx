@@ -1,8 +1,11 @@
 import { Plus, Users, Calendar, DollarSign, Trophy } from "lucide-react";
 import AuthNavbar from "../components/AuthNavbar";
 import "./Leagues.css";
+import { useNavigate } from "react-router";
+
 
 export default function Leagues() {
+  const navigate = useNavigate();
   // Mock data - replace with real API calls later
   const leagues = [
     {
@@ -24,7 +27,7 @@ export default function Leagues() {
   ];
 
   const handleCreateLeague = () => {
-    // TODO: Implement create league modal/page
+    navigate("/leagues/create");
     console.log("Create league clicked");
   };
 
