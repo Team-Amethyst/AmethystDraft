@@ -108,3 +108,9 @@
   width: 14px;
   height: 14px;
 }
+
+
+.nav-link-active {
+  color: #c4b5fd;
+  border-bottom: 2px solid #a78bfa;
+}
