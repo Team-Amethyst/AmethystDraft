@@ -164,7 +164,7 @@
 
 
 import { useState } from "react";
-import { Search, Star, RefreshCw, RotateCcw } from "lucide-react";
+import { Search, Star, RotateCcw } from "lucide-react";
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import "./PlayerTable.css";
@@ -245,14 +245,14 @@ function getValDiff(player: Player): number {
   return player.value - adpValue;
 }
 
-function formatStat(player: Player, statBasis: string): string {
-  const useProjections = statBasis === "projections" || statBasis === "3-year-avg";
-  const bat = useProjections ? player.projection?.batting : player.stats?.batting;
-  const pit = useProjections ? player.projection?.pitching : player.stats?.pitching;
-  if (bat) return bat.avg;
-  if (pit) return pit.era;
-  return "-";
-}
+// function formatStat(player: Player, statBasis: string): string {
+//   const useProjections = statBasis === "projections" || statBasis === "3-year-avg";
+//   const bat = useProjections ? player.projection?.batting : player.stats?.batting;
+//   const pit = useProjections ? player.projection?.pitching : player.stats?.pitching;
+//   if (bat) return bat.avg;
+//   if (pit) return pit.era;
+//   return "-";
+// }
 
 export default function PlayerTable({
   players,
