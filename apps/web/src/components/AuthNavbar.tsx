@@ -89,7 +89,10 @@ export default function AuthNavbar() {
         >
           Command Center
         </button>
-        <button className="nav-link nav-link-disabled">
+        <button
+          className={"nav-link" + (isActive('/my-draft') ? " nav-link-active" : "")}
+          onClick={() => navigate('/my-draft')}
+        >
           My Draft
         </button>
       </div>

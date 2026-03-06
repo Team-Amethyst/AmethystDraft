@@ -6,6 +6,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Leagues from './pages/Leagues';
 import Research from './pages/Research';
 import CommandCenter from "./pages/CommandCenter";
+import MyDraft from "./pages/MyDraft";
 
 
 
@@ -18,7 +19,8 @@ export const router = createBrowserRouter([
   { path: "/forgot-password", Component: ForgotPassword },
   { path: "/leagues", Component: Leagues },
   { path: "/research", Component: Research },
-{ path: "/command-center", Component: CommandCenter },
+  { path: "/my-draft", Component: MyDraft },
+  { path: "/command-center", Component: CommandCenter },
 
 ]);
 
