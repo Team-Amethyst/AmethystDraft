@@ -12,7 +12,8 @@
 .cc-layout {
   display: grid;
   grid-template-columns: 330px 1fr 280px;
-  flex: 1;
+  margin-top: 56px; /* matches fixed navbar height */
+  height: calc(100vh - 56px);
   overflow: hidden;
   min-height: 0;
 }
