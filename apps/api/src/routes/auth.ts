@@ -44,6 +44,7 @@ const register: RequestHandler = async (req: Request, res: Response): Promise<vo
         id: user._id,
         displayName: user.displayName,
         email: user.email,
+        createdAt: user.createdAt,
       },
     });
   } catch (err) {
@@ -89,6 +90,7 @@ const login: RequestHandler = async (req: Request, res: Response): Promise<void>
         id: user._id,
         displayName: user.displayName,
         email: user.email,
+        createdAt: user.createdAt,
       },
     });
   } catch (err) {

@@ -66,6 +66,11 @@ export default function Account() {
           <div>
             <h1>{user?.displayName}</h1>
             <p>{user?.email}</p>
+            {user?.createdAt && (
+              <p className="account-member-since">
+                Member since {new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+              </p>
+            )}
           </div>
         </div>
 
