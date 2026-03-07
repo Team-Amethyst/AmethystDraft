@@ -6,6 +6,7 @@ import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import { getPlayers, getPlayersCached } from "../api/players";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
+import { useLeague } from "../contexts/LeagueContext";
 import "./Research.css";
 
 export default function Research() {
@@ -13,6 +14,7 @@ export default function Research() {
   const { id: leagueId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
+  const { league } = useLeague();
   const [selectedView, setSelectedView] = useState("player-database");
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState("all");
@@ -115,6 +117,7 @@ export default function Research() {
                   statBasis={statBasis}
                   onStatBasisChange={setStatBasis}
                   onPlayerClick={handlePlayerClick}
+                  scoringCategories={league?.scoringCategories}
                 />
               )}
             </>

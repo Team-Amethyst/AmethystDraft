@@ -71,7 +71,7 @@ function getStatByCategory(
     if (name === "W" || name === "WINS") return p.wins;
     if (name === "K" || name === "SO") return p.strikeouts;
     if (name === "ERA") return parseFloat(p.era) || 0;
-    if (name === "WHIP") return parseFloat(p.whip) || 0;
+    if (name === "WHIP" || name === "WALKS + HITS PER IP") return parseFloat(p.whip) || 0;
     if (name === "SV" || name === "SAVES") return p.saves;
     if (name === "IP") return parseFloat(p.innings) || 0;
     return 0;
@@ -854,6 +854,13 @@ function AuctionCenter({
   const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
   const slotOptions = eligible.filter((s) => available.has(s));
 
+  const hittingCats = (league?.scoringCategories ?? []).filter(
+    (c) => c.type === "batting",
+  );
+  const pitchingCats = (league?.scoringCategories ?? []).filter(
+    (c) => c.type === "pitching",
+  );
+
   // Auto-correct draftedToSlot when player or team changes
   useEffect(() => {
     if (slotOptions.length > 0 && !slotOptions.includes(draftedToSlot)) {
@@ -1043,49 +1050,100 @@ function AuctionCenter({
 
           {statView === "pitching" ? (
             <div className="pac-stat-boxes">
-              <div className="stat-box">
-                <div className="sb-label">ERA</div>
-                <div className="sb-val">{sp?.era ?? "--"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">K/9</div>
-                <div className="sb-val">{k9}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">WHIP</div>
-                <div className="sb-val">{sp?.whip ?? "--"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">W</div>
-                <div className="sb-val">{sp?.wins ?? "--"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">SV</div>
-                <div className="sb-val">{sp?.saves ?? "--"}</div>
-              </div>
+              {pitchingCats.length > 0 ? (
+                pitchingCats.map((cat) => {
+                  const label =
+                    cat.name.match(/\(([^)]+)\)$/)?.[1] ??
+                    (cat.name === "Walks + Hits per IP" ? "WHIP" : cat.name);
+                  const raw = selectedPlayer
+                    ? getStatByCategory(selectedPlayer, cat.name, "pitching")
+                    : 0;
+                  const isRate = ["ERA", "WHIP", "WALKS + HITS PER IP"].includes(
+                    cat.name.toUpperCase(),
+                  );
+                  const display =
+                    raw === 0 ? "--" : isRate ? raw.toFixed(2) : String(Math.round(raw));
+                  return (
+                    <div key={cat.name} className="stat-box">
+                      <div className="sb-label">{label}</div>
+                      <div className="sb-val">{display}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  <div className="stat-box">
+                    <div className="sb-label">ERA</div>
+                    <div className="sb-val">{sp?.era ?? "--"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">K/9</div>
+                    <div className="sb-val">{k9}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">WHIP</div>
+                    <div className="sb-val">{sp?.whip ?? "--"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">W</div>
+                    <div className="sb-val">{sp?.wins ?? "--"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">SV</div>
+                    <div className="sb-val">{sp?.saves ?? "--"}</div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="pac-stat-boxes">
-              <div className="stat-box">
-                <div className="sb-label">AVG</div>
-                <div className="sb-val">{sb?.avg ?? ".---"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">HR</div>
-                <div className="sb-val">{sb?.hr ?? "--"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">RBI</div>
-                <div className="sb-val">{sb?.rbi ?? "--"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">R</div>
-                <div className="sb-val">{sb?.runs ?? "--"}</div>
-              </div>
-              <div className="stat-box">
-                <div className="sb-label">SB</div>
-                <div className="sb-val">{sb?.sb ?? "--"}</div>
-              </div>
+              {hittingCats.length > 0 ? (
+                hittingCats.map((cat) => {
+                  const label =
+                    cat.name.match(/\(([^)]+)\)$/)?.[1] ?? cat.name;
+                  const raw = selectedPlayer
+                    ? getStatByCategory(selectedPlayer, cat.name, "batting")
+                    : 0;
+                  const isRate = ["AVG", "OBP", "SLG"].includes(
+                    cat.name.toUpperCase(),
+                  );
+                  const display =
+                    raw === 0
+                      ? "--"
+                      : isRate
+                        ? raw.toFixed(3)
+                        : String(Math.round(raw));
+                  return (
+                    <div key={cat.name} className="stat-box">
+                      <div className="sb-label">{label}</div>
+                      <div className="sb-val">{display}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  <div className="stat-box">
+                    <div className="sb-label">AVG</div>
+                    <div className="sb-val">{sb?.avg ?? ".---"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">HR</div>
+                    <div className="sb-val">{sb?.hr ?? "--"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">RBI</div>
+                    <div className="sb-val">{sb?.rbi ?? "--"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">R</div>
+                    <div className="sb-val">{sb?.runs ?? "--"}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="sb-label">SB</div>
+                    <div className="sb-val">{sb?.sb ?? "--"}</div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
