@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 interface AuthUser {
   id: string;
-  username: string;
+  displayName: string;
   email: string;
 }
 

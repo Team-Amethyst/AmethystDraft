@@ -4,20 +4,20 @@ interface AuthResponse {
   token: string;
   user: {
     id: string;
-    username: string;
+    displayName: string;
     email: string;
   };
 }
 
 export async function registerUser(
-  username: string,
+  displayName: string,
   email: string,
   password: string
 ): Promise<AuthResponse> {
   const res = await fetch(API_BASE + "/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, email, password }),
+    body: JSON.stringify({ displayName, email, password }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Registration failed");

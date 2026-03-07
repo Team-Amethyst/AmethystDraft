@@ -8,9 +8,9 @@ const router: Router = Router();
 // POST /api/auth/register
 const register: RequestHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, email, password } = req.body;
+    const { displayName, email, password } = req.body;
 
-    if (!username || !email || !password) {
+    if (!displayName || !email || !password) {
       res.status(400).json({ message: "All fields are required" });
       return;
     }
@@ -20,16 +20,14 @@ const register: RequestHandler = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }],
-    });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      res.status(409).json({ message: "Email or username already in use" });
+      res.status(409).json({ message: "Email already in use" });
       return;
     }
 
     const user = await User.create({
-      username,
+      displayName,
       email,
       passwordHash: password,
     });
@@ -44,7 +42,7 @@ const register: RequestHandler = async (req: Request, res: Response): Promise<vo
       token,
       user: {
         id: user._id,
-        username: user.username,
+        displayName: user.displayName,
         email: user.email,
       },
     });
@@ -89,7 +87,7 @@ const login: RequestHandler = async (req: Request, res: Response): Promise<void>
       token,
       user: {
         id: user._id,
-        username: user.username,
+        displayName: user.displayName,
         email: user.email,
       },
     });

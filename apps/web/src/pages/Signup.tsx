@@ -13,7 +13,7 @@ export default function Signup() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +22,7 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      const data = await registerUser(username, email, password);
+      const data = await registerUser(displayName, email, password);
       login(data.token, data.user);
       navigate("/leagues");
     } catch (err: unknown) {
@@ -50,8 +50,8 @@ export default function Signup() {
             <label className="signup-label">Display Name</label>
             <input
               type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
               required
               className="signup-input"
               placeholder="Your name"

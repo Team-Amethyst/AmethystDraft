@@ -48,7 +48,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Zap, User, LogOut, ChevronDown, Settings } from "lucide-react";
+import { Zap, ChevronDown, Settings, LogOut, UserCog } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import "./AuthNavbar.css";
@@ -59,7 +59,9 @@ export default function AuthNavbar() {
   const { user, logout } = useAuth();
   const { league, allLeagues } = useLeague();
   const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -72,6 +74,18 @@ export default function AuthNavbar() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [leagueDropdownOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    };
+    if (userDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userDropdownOpen]);
 
   const handleLogout = () => {
     logout();
@@ -151,14 +165,29 @@ export default function AuthNavbar() {
             )}
           </div>
         )}
-        <div className="user-info">
-          <User size={16} />
-          <span>{user?.username}</span>
+        <div className="user-avatar-wrap" ref={userDropdownRef}>
+          <button
+            className="user-avatar-btn"
+            onClick={() => setUserDropdownOpen((o) => !o)}
+            title={user?.displayName}
+          >
+            {user?.displayName?.[0]?.toUpperCase() ?? "?"}
+          </button>
+          {userDropdownOpen && (
+            <div className="user-dropdown">
+              <div className="user-dropdown-greeting">Hi, {user?.displayName ?? "there"}</div>
+              <div className="user-dropdown-divider" />
+              <button className="user-dropdown-item" onClick={() => { navigate("/account"); setUserDropdownOpen(false); }}>
+                <UserCog size={14} />
+                <span>Manage Account</span>
+              </button>
+              <button className="user-dropdown-item user-dropdown-signout" onClick={() => { handleLogout(); setUserDropdownOpen(false); }}>
+                <LogOut size={14} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
-        <button className="btn-logout" onClick={handleLogout}>
-          <LogOut size={16} />
-          <span>Logout</span>
-        </button>
       </div>
     </nav>
   );
