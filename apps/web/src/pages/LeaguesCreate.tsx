@@ -30,19 +30,34 @@ export default function LeagueCreate() {
   const [error, setError] = useState<string | null>(null);
 
   const {
-    leagueName, setLeagueName,
-    teams, setTeams,
-    budget, setBudget,
-    rosterSlots, totalRosterSpots,
-    playerPool, setPlayerPool,
-    selectedHitting, setSelectedHitting,
-    selectedPitching, setSelectedPitching,
+    leagueName,
+    setLeagueName,
+    teams,
+    setTeams,
+    budget,
+    setBudget,
+    rosterSlots,
+    totalRosterSpots,
+    playerPool,
+    setPlayerPool,
+    selectedHitting,
+    setSelectedHitting,
+    selectedPitching,
+    setSelectedPitching,
     teamNames,
-    activeKeeperTeam, setActiveKeeperTeam,
-    playerSearch, setPlayerSearch,
-    currentKeepers, remainingBudget, completionPercent,
+    activeKeeperTeam,
+    setActiveKeeperTeam,
+    playerSearch,
+    setPlayerSearch,
+    currentKeepers,
+    remainingBudget,
+    completionPercent,
     filteredPlayers,
-    toggleStat, updateRosterCount, updateTeamName, addKeeper, removeKeeper,
+    toggleStat,
+    updateRosterCount,
+    updateTeamName,
+    addKeeper,
+    removeKeeper,
   } = useLeagueForm({ initialName: "Friendly League" });
 
   const goBack = () => {
@@ -72,7 +87,7 @@ export default function LeagueCreate() {
     };
 
     const rosterSlotsMap = Object.fromEntries(
-      rosterSlots.map((s) => [s.position, s.count])
+      rosterSlots.map((s) => [s.position, s.count]),
     );
 
     setSubmitting(true);
@@ -85,12 +100,18 @@ export default function LeagueCreate() {
           budget,
           rosterSlots: rosterSlotsMap,
           scoringCategories: [
-            ...selectedHitting.map((s) => ({ name: extractAbbr(s), type: "batting" as const })),
-            ...selectedPitching.map((s) => ({ name: extractAbbr(s), type: "pitching" as const })),
+            ...selectedHitting.map((s) => ({
+              name: extractAbbr(s),
+              type: "batting" as const,
+            })),
+            ...selectedPitching.map((s) => ({
+              name: extractAbbr(s),
+              type: "pitching" as const,
+            })),
           ],
           playerPool: playerPoolMap[playerPool] ?? "Mixed",
         },
-        token!
+        token!,
       );
       refreshLeagues();
       navigate(`/leagues/${league.id}/research`);
@@ -109,12 +130,12 @@ export default function LeagueCreate() {
           <span>DRAFTROOM</span>
         </div>
         <button
-            className="user-avatar-btn"
-            onClick={() => navigate("/account")}
-            title={user?.displayName}
-          >
-            {user?.displayName?.[0]?.toUpperCase() ?? "?"}
-          </button>
+          className="user-avatar-btn"
+          onClick={() => navigate("/account")}
+          title={user?.displayName}
+        >
+          {user?.displayName?.[0]?.toUpperCase() ?? "?"}
+        </button>
       </header>
 
       <div className="league-create-main">
@@ -127,11 +148,15 @@ export default function LeagueCreate() {
           <div className="league-create-steps">
             {[1, 2, 3, 4].map((n) => (
               <div key={n} className="league-create-step-item">
-                <div className={`league-create-step-circle ${step >= n ? "active" : ""}`}>
+                <div
+                  className={`league-create-step-circle ${step >= n ? "active" : ""}`}
+                >
                   {n}
                 </div>
                 {n < 4 && (
-                  <div className={`league-create-step-line ${step > n ? "active" : ""}`} />
+                  <div
+                    className={`league-create-step-line ${step > n ? "active" : ""}`}
+                  />
                 )}
               </div>
             ))}
@@ -176,7 +201,9 @@ export default function LeagueCreate() {
               </div>
 
               <div className="league-create-section">
-                <div className="league-create-section-title">ROSTER SLOTS (MLB STANDARD)</div>
+                <div className="league-create-section-title">
+                  ROSTER SLOTS (MLB STANDARD)
+                </div>
 
                 <div className="league-create-roster-table">
                   <div className="league-create-roster-header">
@@ -185,15 +212,24 @@ export default function LeagueCreate() {
                   </div>
 
                   {rosterSlots.map((slot) => (
-                    <div key={slot.position} className="league-create-roster-row">
+                    <div
+                      key={slot.position}
+                      className="league-create-roster-row"
+                    >
                       <span>{slot.position}</span>
 
                       <div className="league-create-roster-controls">
-                        <button type="button" onClick={() => updateRosterCount(slot.position, -1)}>
+                        <button
+                          type="button"
+                          onClick={() => updateRosterCount(slot.position, -1)}
+                        >
                           −
                         </button>
                         <span>{slot.count}</span>
-                        <button type="button" onClick={() => updateRosterCount(slot.position, 1)}>
+                        <button
+                          type="button"
+                          onClick={() => updateRosterCount(slot.position, 1)}
+                        >
                           +
                         </button>
                       </div>
@@ -201,7 +237,9 @@ export default function LeagueCreate() {
                   ))}
                 </div>
 
-                <div className="league-create-total">Total: {totalRosterSpots} roster spots</div>
+                <div className="league-create-total">
+                  Total: {totalRosterSpots} roster spots
+                </div>
               </div>
             </>
           )}
@@ -220,7 +258,9 @@ export default function LeagueCreate() {
                         playerPool === option ? "selected" : ""
                       }`}
                       onClick={() =>
-                        setPlayerPool(option as "Mixed MLB" | "AL-Only" | "NL-Only")
+                        setPlayerPool(
+                          option as "Mixed MLB" | "AL-Only" | "NL-Only",
+                        )
                       }
                     >
                       <strong>{option}</strong>
@@ -228,8 +268,8 @@ export default function LeagueCreate() {
                         {option === "Mixed MLB"
                           ? "All players available"
                           : option === "AL-Only"
-                          ? "American League only"
-                          : "National League only"}
+                            ? "American League only"
+                            : "National League only"}
                       </span>
                     </button>
                   ))}
@@ -237,9 +277,12 @@ export default function LeagueCreate() {
               </div>
 
               <div className="league-create-stats-wrap">
-                <div className="league-create-section-title">STAT SELECTION</div>
+                <div className="league-create-section-title">
+                  STAT SELECTION
+                </div>
                 <p className="league-create-mini-copy">
-                  Select the individual stats for your Rotisserie league scoring.
+                  Select the individual stats for your Rotisserie league
+                  scoring.
                 </p>
 
                 <div className="league-create-stats-grid">
@@ -252,7 +295,11 @@ export default function LeagueCreate() {
                             type="checkbox"
                             checked={selectedHitting.includes(stat)}
                             onChange={() =>
-                              toggleStat(stat, selectedHitting, setSelectedHitting)
+                              toggleStat(
+                                stat,
+                                selectedHitting,
+                                setSelectedHitting,
+                              )
                             }
                           />
                           <span>{stat}</span>
@@ -270,7 +317,11 @@ export default function LeagueCreate() {
                             type="checkbox"
                             checked={selectedPitching.includes(stat)}
                             onChange={() =>
-                              toggleStat(stat, selectedPitching, setSelectedPitching)
+                              toggleStat(
+                                stat,
+                                selectedPitching,
+                                setSelectedPitching,
+                              )
                             }
                           />
                           <span>{stat}</span>
@@ -322,7 +373,9 @@ export default function LeagueCreate() {
 
               <div className="league-create-keepers-layout">
                 <div className="league-create-keeper-panel dark">
-                  <div className="league-create-keeper-title">1. AVAILABLE PLAYERS</div>
+                  <div className="league-create-keeper-title">
+                    1. AVAILABLE PLAYERS
+                  </div>
 
                   <div className="league-create-searchbar">
                     <Search size={15} />
@@ -353,12 +406,20 @@ export default function LeagueCreate() {
                         </div>
 
                         <div className="league-create-player-main">
-                          <div className="league-create-player-name">{player.name}</div>
-                          <div className="league-create-player-meta">{player.team}</div>
+                          <div className="league-create-player-name">
+                            {player.name}
+                          </div>
+                          <div className="league-create-player-meta">
+                            {player.team}
+                          </div>
                         </div>
 
-                        <div className="league-create-player-badge">{player.pos}</div>
-                        <div className="league-create-player-adp">ADP {player.adp}</div>
+                        <div className="league-create-player-badge">
+                          {player.pos}
+                        </div>
+                        <div className="league-create-player-adp">
+                          ADP {player.adp}
+                        </div>
 
                         <button type="button" onClick={() => addKeeper(player)}>
                           +
@@ -375,7 +436,8 @@ export default function LeagueCreate() {
 
                   <div className="league-create-progress-copy">
                     <span>
-                      {completionPercent}% Completed ({currentKeepers.length}/{keeperSlots.length})
+                      {completionPercent}% Completed ({currentKeepers.length}/
+                      {keeperSlots.length})
                     </span>
                   </div>
 
@@ -383,18 +445,27 @@ export default function LeagueCreate() {
                     <div style={{ width: `${completionPercent}%` }} />
                   </div>
 
-                  <div className="league-create-budget">Remaining Budget: ${remainingBudget}</div>
+                  <div className="league-create-budget">
+                    Remaining Budget: ${remainingBudget}
+                  </div>
 
                   <div className="league-create-roster-list">
                     {keeperSlots.map((slot, index) => {
                       const keeper = currentKeepers[index];
 
                       return (
-                        <div key={`${slot}-${index}`} className="league-create-roster-keeper-row">
-                          <div className="league-create-roster-slot">{slot}</div>
+                        <div
+                          key={`${slot}-${index}`}
+                          className="league-create-roster-keeper-row"
+                        >
+                          <div className="league-create-roster-slot">
+                            {slot}
+                          </div>
 
                           <div className="league-create-roster-player">
-                            {keeper ? `${keeper.playerName} (${keeper.team})` : "(EMPTY SLOT)"}
+                            {keeper
+                              ? `${keeper.playerName} (${keeper.team})`
+                              : "(EMPTY SLOT)"}
                           </div>
 
                           <div className="league-create-roster-cost">
@@ -429,7 +500,13 @@ export default function LeagueCreate() {
               onClick={goNext}
               disabled={submitting}
             >
-              <span>{step === 4 ? (submitting ? "Creating…" : "Create League") : "Continue"}</span>
+              <span>
+                {step === 4
+                  ? submitting
+                    ? "Creating…"
+                    : "Create League"
+                  : "Continue"}
+              </span>
               {step !== 4 && <ChevronRight size={16} />}
             </button>
           </div>

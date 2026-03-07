@@ -12,7 +12,9 @@ export default function Research() {
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortBy, setSortBy] = useState("adp");
-  const [statBasis, setStatBasis] = useState<"projections" | "last-year" | "3-year-avg">("projections");
+  const [statBasis, setStatBasis] = useState<
+    "projections" | "last-year" | "3-year-avg"
+  >("projections");
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
   const [playersError, setPlayersError] = useState("");
@@ -23,10 +25,14 @@ export default function Research() {
       setPlayersError("");
 
       try {
-        const playersFromApi = await getPlayers(sortBy as "adp" | "value" | "name");
+        const playersFromApi = await getPlayers(
+          sortBy as "adp" | "value" | "name",
+        );
         setPlayers(playersFromApi);
       } catch (err) {
-        setPlayersError(err instanceof Error ? err.message : "Failed to load players");
+        setPlayersError(
+          err instanceof Error ? err.message : "Failed to load players",
+        );
       } finally {
         setIsLoadingPlayers(false);
       }
@@ -41,7 +47,8 @@ export default function Research() {
     return players.filter((player) => {
       const playerName = player.name?.toLowerCase() ?? "";
       const matchesSearch = playerName.includes(searchQuery.toLowerCase());
-      const matchesPosition = positionFilter === "all" || player.position === positionFilter;
+      const matchesPosition =
+        positionFilter === "all" || player.position === positionFilter;
       return matchesSearch && matchesPosition;
     });
   }, [players, searchQuery, positionFilter]);

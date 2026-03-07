@@ -12,12 +12,12 @@ export default function Account() {
   const { user, logout } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
-  const [email,    setEmail]    = useState(user?.email    ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
 
   const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword,     setNewPassword]     = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError,   setPasswordError]   = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const handleSaveProfile = () => {
     // TODO(db): PATCH /users/:id with updated displayName/email
@@ -62,13 +62,19 @@ export default function Account() {
         </button>
 
         <div className="account-header">
-          <div className="account-avatar">{user?.displayName?.[0]?.toUpperCase() ?? "?"}</div>
+          <div className="account-avatar">
+            {user?.displayName?.[0]?.toUpperCase() ?? "?"}
+          </div>
           <div>
             <h1>{user?.displayName}</h1>
             <p>{user?.email}</p>
             {user?.createdAt && (
               <p className="account-member-since">
-                Member since {new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                Member since{" "}
+                {new Date(user.createdAt).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
               </p>
             )}
           </div>
@@ -81,11 +87,18 @@ export default function Account() {
             <div className="account-form">
               <div className="account-field">
                 <label>Display Name</label>
-                <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
               </div>
               <div className="account-field">
                 <label>Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
             </div>
             <button className="account-save-btn" onClick={handleSaveProfile}>
@@ -100,17 +113,31 @@ export default function Account() {
             <div className="account-form">
               <div className="account-field">
                 <label>Current Password</label>
-                <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
               </div>
               <div className="account-field">
                 <label>New Password</label>
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
               </div>
               <div className="account-field">
                 <label>Confirm New Password</label>
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
               </div>
-              {passwordError && <div className="account-error">{passwordError}</div>}
+              {passwordError && (
+                <div className="account-error">{passwordError}</div>
+              )}
             </div>
             <button className="account-save-btn" onClick={handleChangePassword}>
               <Save size={14} />
@@ -121,7 +148,13 @@ export default function Account() {
 
         {/* Danger zone */}
         <div className="account-danger">
-          <button className="account-signout-btn" onClick={() => { logout(); navigate("/"); }}>
+          <button
+            className="account-signout-btn"
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
+          >
             Sign Out
           </button>
           <button className="account-delete-btn" onClick={handleDeleteAccount}>

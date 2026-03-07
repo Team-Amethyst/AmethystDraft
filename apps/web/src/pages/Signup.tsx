@@ -51,7 +51,7 @@ export default function Signup() {
             <input
               type="text"
               value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
+              onChange={(e) => setDisplayName(e.target.value)}
               required
               className="signup-input"
               placeholder="Your name"
@@ -62,7 +62,7 @@ export default function Signup() {
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="signup-input"
               placeholder="you@email.com"
@@ -73,7 +73,7 @@ export default function Signup() {
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
               className="signup-input"
@@ -87,7 +87,9 @@ export default function Signup() {
         </form>
         <p className="signup-footer">
           Already have an account?{" "}
-          <Link to="/login" className="signup-link">Sign in</Link>
+          <Link to="/login" className="signup-link">
+            Sign in
+          </Link>
         </p>
       </div>
     </div>

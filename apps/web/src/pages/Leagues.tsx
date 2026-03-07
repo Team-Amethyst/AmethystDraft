@@ -1,4 +1,11 @@
-import { Plus, Users, Calendar, DollarSign, Trophy, Settings } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Calendar,
+  DollarSign,
+  Trophy,
+  Settings,
+} from "lucide-react";
 import AuthNavbar from "../components/AuthNavbar";
 import "./Leagues.css";
 import { useNavigate } from "react-router";
@@ -11,7 +18,8 @@ export default function Leagues() {
   const { allLeagues: leagues, loading } = useLeague();
 
   const handleCreateLeague = () => navigate("/leagues/create");
-  const handleLeagueClick = (leagueId: string) => navigate(`/leagues/${leagueId}/research`);
+  const handleLeagueClick = (leagueId: string) =>
+    navigate(`/leagues/${leagueId}/research`);
 
   const handleSettingsClick = (e: React.MouseEvent, leagueId: string) => {
     e.stopPropagation();
@@ -20,10 +28,14 @@ export default function Leagues() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "pre-draft":   return "Pre-Draft";
-      case "in-progress": return "In Progress";
-      case "completed":   return "Completed";
-      default:            return status;
+      case "pre-draft":
+        return "Pre-Draft";
+      case "in-progress":
+        return "In Progress";
+      case "completed":
+        return "Completed";
+      default:
+        return status;
     }
   };
 
@@ -62,7 +74,9 @@ export default function Leagues() {
                     <h3 className="league-card-title">{league.name}</h3>
                   </div>
                   <div className="league-card-header-right">
-                    <span className={`league-card-status status-${league.draftStatus}`}>
+                    <span
+                      className={`league-card-status status-${league.draftStatus}`}
+                    >
                       {getStatusLabel(league.draftStatus)}
                     </span>
                     <button
@@ -86,7 +100,9 @@ export default function Leagues() {
                   {league.draftDate && (
                     <div className="league-meta-item">
                       <Calendar />
-                      <span>{new Date(league.draftDate).toLocaleDateString()}</span>
+                      <span>
+                        {new Date(league.draftDate).toLocaleDateString()}
+                      </span>
                     </div>
                   )}
                 </div>

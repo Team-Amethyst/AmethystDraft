@@ -1,4 +1,4 @@
-import { Router, Request, Response, RequestHandler } from "express";
+import { Router, Response, RequestHandler } from "express";
 import { AxiosError } from "axios";
 import { amethyst } from "../lib/amethyst";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
@@ -25,7 +25,7 @@ function handleEngineError(err: unknown, res: Response): void {
 
 const calculateValuation: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { data } = await amethyst.post("/valuation/calculate", req.body);
@@ -39,7 +39,7 @@ const calculateValuation: RequestHandler = async (
 
 const analyzeScarcity: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { data } = await amethyst.post("/analysis/scarcity", req.body);
@@ -53,7 +53,7 @@ const analyzeScarcity: RequestHandler = async (
 
 const simulateMockPick: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { data } = await amethyst.post("/simulation/mock-pick", req.body);
@@ -67,10 +67,13 @@ const simulateMockPick: RequestHandler = async (
 
 const getNewsSignals: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { days, signal_type } = req.query as Record<string, string | undefined>;
+    const { days, signal_type } = req.query as Record<
+      string,
+      string | undefined
+    >;
     const params: Record<string, string> = {};
     if (days) params.days = days;
     if (signal_type) params.signal_type = signal_type;

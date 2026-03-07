@@ -43,14 +43,16 @@ export default function Login() {
           <span>DRAFTROOM</span>
         </div>
         <h1 className="login-title">Sign In</h1>
-        <p className="login-subtitle">Enter your credentials to access your draft room.</p>
+        <p className="login-subtitle">
+          Enter your credentials to access your draft room.
+        </p>
         <form onSubmit={handleLogin} className="login-form">
           <div className="login-field">
             <label className="login-label">Email</label>
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="login-input"
               placeholder="you@email.com"
@@ -61,7 +63,7 @@ export default function Login() {
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
               className="login-input"
               placeholder="••••••••"
@@ -75,9 +77,13 @@ export default function Login() {
         <div className="login-footer">
           <p className="login-footer-text">
             Don&apos;t have an account?{" "}
-            <Link to="/signup" className="login-link">Sign up</Link>
+            <Link to="/signup" className="login-link">
+              Sign up
+            </Link>
           </p>
-          <Link to="/forgot-password" className="login-link">Forgot password?</Link>
+          <Link to="/forgot-password" className="login-link">
+            Forgot password?
+          </Link>
         </div>
       </div>
     </div>

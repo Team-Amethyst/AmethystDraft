@@ -59,13 +59,13 @@ const rosterEntrySchema = new Schema<IRosterEntry>(
       default: Date.now,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Compound index: one player per team per league
 rosterEntrySchema.index(
   { leagueId: 1, userId: 1, externalPlayerId: 1 },
-  { unique: true }
+  { unique: true },
 );
 
 export default mongoose.model<IRosterEntry>("RosterEntry", rosterEntrySchema);

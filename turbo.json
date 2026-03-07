@@ -9,7 +9,14 @@
       "env": ["PORT"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint"],
+      "env": [
+        "CORS_ORIGIN",
+        "MONGO_URI",
+        "JWT_SECRET",
+        "AMETHYST_API_URL",
+        "AMETHYST_API_KEY"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"]

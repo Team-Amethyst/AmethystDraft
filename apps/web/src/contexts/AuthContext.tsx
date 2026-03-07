@@ -1,7 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 
-
 interface AuthUser {
   id: string;
   displayName: string;
@@ -21,7 +20,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(
-    sessionStorage.getItem("token")
+    sessionStorage.getItem("token"),
   );
   const [user, setUser] = useState<AuthUser | null>(() => {
     const stored = sessionStorage.getItem("user");

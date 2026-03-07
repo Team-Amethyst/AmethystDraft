@@ -66,7 +66,8 @@ const playerSchema = new Schema<IPlayer>(
   {
     collection: "players",
     strict: false,
-  }
+  },
 );
 
-export default mongoose.models.Player || mongoose.model<IPlayer>("Player", playerSchema);
+export default mongoose.models.Player ||
+  mongoose.model<IPlayer>("Player", playerSchema);

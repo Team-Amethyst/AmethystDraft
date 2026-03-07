@@ -2,7 +2,6 @@ import { BarChart2, Target, Shield } from "lucide-react";
 import "./FeatureCards.css";
 import type { JSX } from "react/jsx-dev-runtime";
 
-
 interface Feature {
   icon: JSX.Element;
   title: string;

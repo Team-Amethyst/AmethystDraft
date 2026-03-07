@@ -5,7 +5,6 @@ import type { JSX } from "react/jsx-dev-runtime";
 import HeroSection from "../components/HeroSection";
 import PhasesSection from "../components/PhasesSection";
 
-
 export default function HomePage(): JSX.Element {
   return (
     <div className="home-page">
@@ -16,6 +15,3 @@ export default function HomePage(): JSX.Element {
     </div>
   );
 }
-
-
-

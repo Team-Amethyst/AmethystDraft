@@ -1,7 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { ReactNode } from 'react';
-import { getMyLeagues } from '../api/leagues';
-import { useAuth } from './AuthContext';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import type { ReactNode } from "react";
+import { getMyLeagues } from "../api/leagues";
+import { useAuth } from "./AuthContext";
 
 export interface League {
   id: string;
@@ -56,10 +62,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  useEffect(() => { fetchLeagues(); }, [fetchLeagues]);
+  useEffect(() => {
+    fetchLeagues();
+  }, [fetchLeagues]);
 
   return (
-    <LeagueContext.Provider value={{ league: null, allLeagues, loading, refreshLeagues: fetchLeagues }}>
+    <LeagueContext.Provider
+      value={{
+        league: null,
+        allLeagues,
+        loading,
+        refreshLeagues: fetchLeagues,
+      }}
+    >
       {children}
     </LeagueContext.Provider>
   );

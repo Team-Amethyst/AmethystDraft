@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useNavigate } from "react-router";
 import { Zap } from "lucide-react";
 import "./Navbar.css";
 
@@ -12,8 +12,12 @@ export default function Navbar() {
         <span className="logo-text">DRAFTROOM</span>
       </div>
       <div className="navbar-actions">
-        <button className="btn-ghost" onClick={() => navigate('/login')}>Sign In</button>
-        <button className="btn-primary" onClick={() => navigate('/signup')}>Get Started</button>
+        <button className="btn-ghost" onClick={() => navigate("/login")}>
+          Sign In
+        </button>
+        <button className="btn-primary" onClick={() => navigate("/signup")}>
+          Get Started
+        </button>
       </div>
     </nav>
   );

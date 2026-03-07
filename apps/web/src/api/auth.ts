@@ -12,7 +12,7 @@ interface AuthResponse {
 export async function registerUser(
   displayName: string,
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> {
   const res = await fetch(API_BASE + "/api/auth/register", {
     method: "POST",
@@ -26,7 +26,7 @@ export async function registerUser(
 
 export async function loginUser(
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> {
   const res = await fetch(API_BASE + "/api/auth/login", {
     method: "POST",

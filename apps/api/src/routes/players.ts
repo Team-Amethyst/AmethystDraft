@@ -1,41 +1,3 @@
-// import { Router, Request, Response, RequestHandler } from "express";
-// import Player from "../models/Player";
-
-// const router: Router = Router();
-
-// const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<void> => {
-//   try {
-//     const sortBy = typeof req.query.sortBy === "string" ? req.query.sortBy : "adp";
-
-//     let sortOptions: Record<string, 1 | -1> = { adp: 1 };
-//     if (sortBy === "value") {
-//       sortOptions = { value: -1 };
-//     } else if (sortBy === "name") {
-//       sortOptions = { name: 1 };
-//     }
-
-//     const players = await Player.find({}).sort(sortOptions).lean();
-
-//     const normalizedPlayers = players.map((player) => {
-//       const { _id, __v, ...rest } = player as Record<string, unknown>;
-//       return {
-//         ...rest,
-//         id: String((player as { id?: string }).id ?? _id),
-//       };
-//     });
-
-//     res.json({ players: normalizedPlayers, count: normalizedPlayers.length });
-//   } catch (err) {
-//     console.error("Get players error:", err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-// router.get("/", getPlayers);
-
-// export default router;
-
-
 import { Router, Request, Response, RequestHandler } from "express";
 
 const router: Router = Router();
@@ -108,7 +70,7 @@ function calcPitcherValue(stat: Record<string, string | number>): number {
   const ip = parseFloat(String(stat.inningsPitched ?? "0"));
   if (ip < 20 && sv < 5) return 0;
   const score =
-    (4.20 - era) * ip * 0.5 +
+    (4.2 - era) * ip * 0.5 +
     (1.28 - whip) * ip * 1.2 +
     (k - 150) * 0.18 +
     (w - 9) * 2.5 +
@@ -131,51 +93,94 @@ interface PlayerData {
   headshot: string;
   stats: {
     batting?: {
-      avg: string; hr: number; rbi: number; runs: number;
-      sb: number; obp: string; slg: string;
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+      obp: string;
+      slg: string;
     };
     pitching?: {
-      era: string; whip: string; wins: number;
-      saves: number; strikeouts: number; innings: string;
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      strikeouts: number;
+      innings: string;
     };
   };
   projection: {
-    batting?: { avg: string; hr: number; rbi: number; runs: number; sb: number };
-    pitching?: { era: string; whip: string; wins: number; saves: number; strikeouts: number };
+    batting?: {
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+    };
+    pitching?: {
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      strikeouts: number;
+    };
   };
   outlook: string;
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
-const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<void> => {
+const getPlayers: RequestHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const sortBy = (req.query.sortBy as string) || "value";
     const season = new Date().getFullYear() - 1; // use last completed season
 
     // Fetch batting and pitching stats in parallel
     const [batRes, pitRes] = await Promise.all([
-      fetch(MLB_API + "/stats?stats=season&group=hitting&season=" + season + "&playerPool=ALL&limit=400&sportId=1"),
-      fetch(MLB_API + "/stats?stats=season&group=pitching&season=" + season + "&playerPool=ALL&limit=300&sportId=1"),
+      fetch(
+        MLB_API +
+          "/stats?stats=season&group=hitting&season=" +
+          season +
+          "&playerPool=ALL&limit=400&sportId=1",
+      ),
+      fetch(
+        MLB_API +
+          "/stats?stats=season&group=pitching&season=" +
+          season +
+          "&playerPool=ALL&limit=300&sportId=1",
+      ),
     ]);
 
-    const batJson = (await batRes.json()) as { stats: { splits: MlbStatSplit[] }[] };
-    const pitJson = (await pitRes.json()) as { stats: { splits: MlbStatSplit[] }[] };
+    const batJson = (await batRes.json()) as {
+      stats: { splits: MlbStatSplit[] }[];
+    };
+    const pitJson = (await pitRes.json()) as {
+      stats: { splits: MlbStatSplit[] }[];
+    };
 
     const batSplits: MlbStatSplit[] = batJson.stats?.[0]?.splits ?? [];
     const pitSplits: MlbStatSplit[] = pitJson.stats?.[0]?.splits ?? [];
 
     // Fetch player bio info (age, position) for batters
-    const playerIds = [...new Set([
-      ...batSplits.map(s => s.player.id),
-      ...pitSplits.map(s => s.player.id),
-    ])].slice(0, 500);
+    const playerIds = [
+      ...new Set([
+        ...batSplits.map((s) => s.player.id),
+        ...pitSplits.map((s) => s.player.id),
+      ]),
+    ].slice(0, 500);
 
     // Build a map of playerId -> bio from a batch people call
     const bioMap = new Map<number, MlbPlayer>();
     try {
       const bioRes = await fetch(
-        MLB_API + "/people?personIds=" + playerIds.join(",") + "&hydrate=currentTeam"
+        MLB_API +
+          "/people?personIds=" +
+          playerIds.join(",") +
+          "&hydrate=currentTeam",
       );
       const bioJson = (await bioRes.json()) as { people: MlbPlayer[] };
       for (const p of bioJson.people ?? []) bioMap.set(p.id, p);
@@ -185,8 +190,8 @@ const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<
 
     // Process batters
     const batters = batSplits
-      .filter(s => Number(s.stat.atBats ?? 0) >= 100)
-      .map(s => {
+      .filter((s) => Number(s.stat.atBats ?? 0) >= 100)
+      .map((s) => {
         const bio = bioMap.get(s.player.id);
         const value = calcBatterValue(s.stat);
         const stat = s.stat;
@@ -195,12 +200,18 @@ const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<
           mlbId: s.player.id,
           name: s.player.fullName,
           team: s.team?.abbreviation ?? bio?.currentTeam?.abbreviation ?? "--",
-          position: s.position?.abbreviation ?? bio?.primaryPosition?.abbreviation ?? "OF",
+          position:
+            s.position?.abbreviation ??
+            bio?.primaryPosition?.abbreviation ??
+            "OF",
           age: calcAge(bio?.birthDate),
           adp: 0,
           value,
           tier: assignTier(value),
-          headshot: "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" + s.player.id + "/headshot/67/current",
+          headshot:
+            "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" +
+            s.player.id +
+            "/headshot/67/current",
           stats: {
             batting: {
               avg: String(stat.avg ?? ".000"),
@@ -227,8 +238,12 @@ const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<
 
     // Process pitchers
     const pitchers = pitSplits
-      .filter(s => parseFloat(String(s.stat.inningsPitched ?? "0")) >= 20 || Number(s.stat.saves ?? 0) >= 5)
-      .map(s => {
+      .filter(
+        (s) =>
+          parseFloat(String(s.stat.inningsPitched ?? "0")) >= 20 ||
+          Number(s.stat.saves ?? 0) >= 5,
+      )
+      .map((s) => {
         const bio = bioMap.get(s.player.id);
         const value = calcPitcherValue(s.stat);
         const stat = s.stat;
@@ -237,12 +252,18 @@ const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<
           mlbId: s.player.id,
           name: s.player.fullName,
           team: s.team?.abbreviation ?? bio?.currentTeam?.abbreviation ?? "--",
-          position: s.position?.abbreviation ?? bio?.primaryPosition?.abbreviation ?? "SP",
+          position:
+            s.position?.abbreviation ??
+            bio?.primaryPosition?.abbreviation ??
+            "SP",
           age: calcAge(bio?.birthDate),
           adp: 0,
           value,
           tier: assignTier(value),
-          headshot: "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" + s.player.id + "/headshot/67/current",
+          headshot:
+            "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" +
+            s.player.id +
+            "/headshot/67/current",
           stats: {
             pitching: {
               era: String(stat.era ?? "0.00"),
@@ -268,12 +289,15 @@ const getPlayers: RequestHandler = async (req: Request, res: Response): Promise<
 
     // Deduplicate (some players appear in both — keep higher value)
     const allMap = new Map<string, PlayerData>();
-    for (const p of [...(batters as PlayerData[]), ...(pitchers as PlayerData[])]) {
+    for (const p of [
+      ...(batters as PlayerData[]),
+      ...(pitchers as PlayerData[]),
+    ]) {
       const existing = allMap.get(p.id);
       if (!existing || p.value > existing.value) allMap.set(p.id, p);
     }
 
-    let players = Array.from(allMap.values()).filter(p => p.value > 0);
+    let players = Array.from(allMap.values()).filter((p) => p.value > 0);
 
     // Assign ADP rank by value as proxy (real ADP would need a paid source)
     players.sort((a, b) => b.value - a.value);

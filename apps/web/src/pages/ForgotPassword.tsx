@@ -33,8 +33,9 @@ export default function ForgotPassword() {
         <div className="fp-container">
           <h1 className="fp-title">Check your email</h1>
           <p className="fp-subtitle">
-            We sent a reset link to <strong style={{ color: "#f0e6ff" }}>{email}</strong>.
-            Check your inbox and follow the instructions.
+            We sent a reset link to{" "}
+            <strong style={{ color: "#f0e6ff" }}>{email}</strong>. Check your
+            inbox and follow the instructions.
           </p>
           <Link to="/login" className="fp-back">
             <ArrowLeft size={15} /> Back to sign in
@@ -57,7 +58,7 @@ export default function ForgotPassword() {
           <input
             type="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             required
             className="fp-input"
             placeholder="you@email.com"

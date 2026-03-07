@@ -23,7 +23,7 @@ function authHeaders(token: string): Record<string, string> {
 
 export async function createLeague(
   data: CreateLeaguePayload,
-  token: string
+  token: string,
 ): Promise<League> {
   const res = await fetch(`${API_BASE}/api/leagues`, {
     method: "POST",
@@ -47,7 +47,7 @@ export async function getMyLeagues(token: string): Promise<League[]> {
 export async function updateLeague(
   id: string,
   data: Partial<CreateLeaguePayload>,
-  token: string
+  token: string,
 ): Promise<League> {
   const res = await fetch(`${API_BASE}/api/leagues/${id}`, {
     method: "PATCH",

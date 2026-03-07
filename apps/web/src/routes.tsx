@@ -1,16 +1,16 @@
 import { createBrowserRouter, Navigate } from "react-router";
-import HomePage from './pages/HomePage';
-import Signup from './pages/Signup';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import Account from './pages/Account';
-import Leagues from './pages/Leagues';
-import LeagueCreate from './pages/LeaguesCreate';
-import LeagueLayout from './components/LeagueLayout';
-import LeagueSettings from './pages/LeagueSettings';
-import MyDraft from './pages/MyDraft';
-import CommandCenter from './pages/CommandCenter';
-import Research from './pages/Research';
+import HomePage from "./pages/HomePage";
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import Account from "./pages/Account";
+import Leagues from "./pages/Leagues";
+import LeagueCreate from "./pages/LeaguesCreate";
+import LeagueLayout from "./components/LeagueLayout";
+import LeagueSettings from "./pages/LeagueSettings";
+import MyDraft from "./pages/MyDraft";
+import CommandCenter from "./pages/CommandCenter";
+import Research from "./pages/Research";
 
 export const router = createBrowserRouter([
   { path: "/", Component: HomePage },
@@ -32,4 +32,3 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
-

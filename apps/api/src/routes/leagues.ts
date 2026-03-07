@@ -24,13 +24,19 @@ function serializeLeague(league: InstanceType<typeof League>) {
 
 const createLeague: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const {
-      name, teams, budget, hitterBudgetPct,
-      rosterSlots, scoringFormat, scoringCategories,
-      playerPool, draftDate,
+      name,
+      teams,
+      budget,
+      hitterBudgetPct,
+      rosterSlots,
+      scoringFormat,
+      scoringCategories,
+      playerPool,
+      draftDate,
     } = req.body;
 
     if (!name?.trim()) {
@@ -63,7 +69,7 @@ const createLeague: RequestHandler = async (
 
 const getMyLeagues: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const leagues = await League.find({ memberIds: req.user!._id });
@@ -78,7 +84,7 @@ const getMyLeagues: RequestHandler = async (
 
 const getLeague: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const league = await League.findOne({
@@ -102,7 +108,7 @@ const getLeague: RequestHandler = async (
 
 const updateLeague: RequestHandler = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const league = await League.findOne({
@@ -116,20 +122,28 @@ const updateLeague: RequestHandler = async (
     }
 
     const {
-      name, teams, budget, hitterBudgetPct,
-      rosterSlots, scoringFormat, scoringCategories,
-      playerPool, draftDate,
+      name,
+      teams,
+      budget,
+      hitterBudgetPct,
+      rosterSlots,
+      scoringFormat,
+      scoringCategories,
+      playerPool,
+      draftDate,
     } = req.body;
 
-    if (name           !== undefined) league.name           = String(name).trim();
-    if (teams          !== undefined) league.teams          = teams;
-    if (budget         !== undefined) league.budget         = budget;
+    if (name !== undefined) league.name = String(name).trim();
+    if (teams !== undefined) league.teams = teams;
+    if (budget !== undefined) league.budget = budget;
     if (hitterBudgetPct !== undefined) league.hitterBudgetPct = hitterBudgetPct;
-    if (rosterSlots    !== undefined) league.rosterSlots    = rosterSlots;
-    if (scoringFormat  !== undefined) league.scoringFormat  = scoringFormat;
-    if (scoringCategories !== undefined) league.scoringCategories = scoringCategories;
-    if (playerPool     !== undefined) league.playerPool     = playerPool;
-    if (draftDate      !== undefined) league.draftDate      = draftDate ? new Date(draftDate) : undefined;
+    if (rosterSlots !== undefined) league.rosterSlots = rosterSlots;
+    if (scoringFormat !== undefined) league.scoringFormat = scoringFormat;
+    if (scoringCategories !== undefined)
+      league.scoringCategories = scoringCategories;
+    if (playerPool !== undefined) league.playerPool = playerPool;
+    if (draftDate !== undefined)
+      league.draftDate = draftDate ? new Date(draftDate) : undefined;
 
     await league.save();
     res.json(serializeLeague(league));

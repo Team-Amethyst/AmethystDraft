@@ -39,6 +39,7 @@ This project uses a structured branch naming convention to maintain clarity and 
 **Format**: `<type>/<ticket-id>-<description>`
 
 **Branch Types**:
+
 - `feat/` - New features
 - `fix/` - Bug fixes
 - `test/` - Testing and experimentation
@@ -47,6 +48,7 @@ This project uses a structured branch naming convention to maintain clarity and 
 - `refactor/` - Code refactoring without functional changes
 
 **Examples**:
+
 ```
 feat/KAN-123-add-user-authentication
 fix/KAN-456-resolve-socket-disconnect

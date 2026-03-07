@@ -71,8 +71,17 @@ const leagueSchema = new Schema<ILeague>(
     rosterSlots: {
       type: Schema.Types.Mixed,
       default: {
-        C: 1, "1B": 1, "2B": 1, "3B": 1, SS: 1,
-        OF: 3, UTIL: 1, SP: 2, RP: 2, P: 3, BN: 5,
+        C: 1,
+        "1B": 1,
+        "2B": 1,
+        "3B": 1,
+        SS: 1,
+        OF: 3,
+        UTIL: 1,
+        SP: 2,
+        RP: 2,
+        P: 3,
+        BN: 5,
       },
     },
     draftStatus: {
@@ -99,7 +108,7 @@ const leagueSchema = new Schema<ILeague>(
       default: "Mixed",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model<ILeague>("League", leagueSchema);

@@ -52,13 +52,10 @@ const draftPickSchema = new Schema<IDraftPick>(
       default: Date.now,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Compound index: one pick per player per league
-draftPickSchema.index(
-  { leagueId: 1, externalPlayerId: 1 },
-  { unique: true }
-);
+draftPickSchema.index({ leagueId: 1, externalPlayerId: 1 }, { unique: true });
 
 export default mongoose.model<IDraftPick>("DraftPick", draftPickSchema);

@@ -1,6 +1,5 @@
 import "./PhasesSection.css";
 
-
 interface Phase {
   number: string;
   title: string;

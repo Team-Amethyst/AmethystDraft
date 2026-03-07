@@ -9,7 +9,7 @@ export interface AuthRequest extends Request {
 const authMiddleware = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
@@ -29,11 +29,15 @@ const authMiddleware = async (
     const secret = process.env.JWT_SECRET;
 
     if (!secret) {
-      res.status(500).json({ message: "Server misconfiguration: missing JWT secret" });
+      res
+        .status(500)
+        .json({ message: "Server misconfiguration: missing JWT secret" });
       return;
     }
 
-    const decoded = (jwt.verify as (token: string, secret: string) => JwtPayload)(token, secret);
+    const decoded = (
+      jwt.verify as (token: string, secret: string) => JwtPayload
+    )(token, secret);
 
     if (!decoded || typeof decoded.userId !== "string") {
       res.status(401).json({ message: "Invalid token payload" });

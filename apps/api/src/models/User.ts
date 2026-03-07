@@ -34,7 +34,7 @@ const userSchema = new Schema<IUser>(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Hash password before saving.
@@ -49,7 +49,7 @@ userSchema.pre("save", function (): Promise<void> {
 
 // Compare password helper method
 userSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };

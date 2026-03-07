@@ -41,13 +41,16 @@ const watchlistEntrySchema = new Schema<IWatchlistEntry>(
       trim: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Compound index: one watchlist entry per player per user per league
 watchlistEntrySchema.index(
   { leagueId: 1, userId: 1, externalPlayerId: 1 },
-  { unique: true }
+  { unique: true },
 );
 
-export default mongoose.model<IWatchlistEntry>("WatchlistEntry", watchlistEntrySchema);
+export default mongoose.model<IWatchlistEntry>(
+  "WatchlistEntry",
+  watchlistEntrySchema,
+);

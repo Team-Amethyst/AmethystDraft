@@ -6,7 +6,10 @@ import User from "../models/User";
 const router: Router = Router();
 
 // POST /api/auth/register
-const register: RequestHandler = async (req: Request, res: Response): Promise<void> => {
+const register: RequestHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { displayName, email, password } = req.body;
 
@@ -16,7 +19,9 @@ const register: RequestHandler = async (req: Request, res: Response): Promise<vo
     }
 
     if (password.length < 6) {
-      res.status(400).json({ message: "Password must be at least 6 characters" });
+      res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
       return;
     }
 
@@ -35,7 +40,7 @@ const register: RequestHandler = async (req: Request, res: Response): Promise<vo
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.status(201).json({
@@ -54,7 +59,10 @@ const register: RequestHandler = async (req: Request, res: Response): Promise<vo
 };
 
 // POST /api/auth/login
-const login: RequestHandler = async (req: Request, res: Response): Promise<void> => {
+const login: RequestHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { email, password } = req.body;
 
@@ -81,7 +89,7 @@ const login: RequestHandler = async (req: Request, res: Response): Promise<void>
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.json({
@@ -100,7 +108,10 @@ const login: RequestHandler = async (req: Request, res: Response): Promise<void>
 };
 
 // POST /api/auth/forgot-password
-const forgotPassword: RequestHandler = async (req: Request, res: Response): Promise<void> => {
+const forgotPassword: RequestHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
@@ -124,9 +135,3 @@ router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 
 export default router;
-
-
-
-
-
-
