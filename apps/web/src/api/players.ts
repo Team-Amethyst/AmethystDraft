@@ -9,9 +9,14 @@ interface PlayersResponse {
   count: number;
 }
 
+const playersCache = new Map<string, Player[]>();
+
 export async function getPlayers(
   sortBy: "adp" | "value" | "name" = "value",
 ): Promise<Player[]> {
+  if (playersCache.has(sortBy)) {
+    return playersCache.get(sortBy)!;
+  }
   const query = new URLSearchParams({ sortBy });
   const res = await fetch(API_BASE + "/api/players?" + query.toString());
   const data = (await res.json()) as PlayersResponse;
@@ -20,5 +25,7 @@ export async function getPlayers(
       (data as { message?: string }).message || "Failed to fetch players",
     );
   }
-  return data.players ?? [];
+  const players = data.players ?? [];
+  playersCache.set(sortBy, players);
+  return players;
 }
