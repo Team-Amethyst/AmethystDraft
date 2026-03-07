@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, X } from "lucide-react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import type { Player } from "../types/player";
@@ -275,7 +275,7 @@ export default function MyDraft() {
 													onClick={() => removeFromWatchlist(player.id)}
 													title="Remove from watchlist"
 												>
-													-
+													<X size={13} strokeWidth={2.4} />
 												</button>
 											</td>
 										</tr>

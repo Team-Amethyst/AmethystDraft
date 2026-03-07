@@ -320,16 +320,24 @@
 }
 
 .unstar-btn {
-  border: 0;
-  background: transparent;
-  color: #8e7caf;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
   cursor: pointer;
-  font-size: 0.95rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .unstar-btn:hover {
-  color: #f17878;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(252, 165, 165, 0.65);
 }
 
 .watchlist-empty {
