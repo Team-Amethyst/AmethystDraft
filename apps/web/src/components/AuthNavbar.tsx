@@ -46,21 +46,26 @@
 // }
 
 
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Zap, User, LogOut } from "lucide-react";
+import { Zap, User, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useLeague } from "../contexts/LeagueContext";
 import "./AuthNavbar.css";
 
 export default function AuthNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { league } = useLeague();
+  const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
+  const leagueBase = league ? `/leagues/${league.id}` : '';
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -69,35 +74,59 @@ export default function AuthNavbar() {
         <Zap size={18} className="logo-icon" />
         <span className="logo-text">DRAFTROOM</span>
       </div>
-      
-      <div className="auth-navbar-center">
-        <button
-          className={"nav-link" + (isActive('/leagues') ? " nav-link-active" : "")}
-          onClick={() => navigate('/leagues')}
-        >
-          Leagues
-        </button>
-        <button
-          className={"nav-link" + (isActive('/research') ? " nav-link-active" : "")}
-          onClick={() => navigate('/research')}
-        >
-          Research
-        </button>
-        <button
-          className={"nav-link" + (isActive('/command-center') ? " nav-link-active" : "")}
-          onClick={() => navigate('/command-center')}
-        >
-          Command Center
-        </button>
-        <button
-          className={"nav-link" + (isActive('/my-draft') ? " nav-link-active" : "")}
-          onClick={() => navigate('/my-draft')}
-        >
-          My Draft
-        </button>
-      </div>
+
+      {league && (
+        <div className="auth-navbar-center">
+          <button
+            className={"nav-link" + (isActive(`${leagueBase}/research`) ? " nav-link-active" : "")}
+            onClick={() => navigate(`${leagueBase}/research`)}
+          >
+            Research
+          </button>
+          <button
+            className={"nav-link" + (isActive(`${leagueBase}/my-draft`) ? " nav-link-active" : "")}
+            onClick={() => navigate(`${leagueBase}/my-draft`)}
+          >
+            My Draft
+          </button>
+          <button
+            className={"nav-link" + (isActive(`${leagueBase}/command-center`) ? " nav-link-active" : "")}
+            onClick={() => navigate(`${leagueBase}/command-center`)}
+          >
+            Command Center
+          </button>
+        </div>
+      )}
 
       <div className="auth-navbar-actions">
+        {league && (
+          <div className="league-selector">
+            <button
+              className="league-selector-btn"
+              onClick={() => setLeagueDropdownOpen((o) => !o)}
+            >
+              <span>{league.name}</span>
+              <ChevronDown size={14} className={"league-selector-chevron" + (leagueDropdownOpen ? " chevron-open" : "")} />
+            </button>
+            {leagueDropdownOpen && (
+              <div className="league-selector-dropdown">
+                <button
+                  className="league-selector-item league-selector-current"
+                  onClick={() => { navigate(leagueBase); setLeagueDropdownOpen(false); }}
+                >
+                  {league.name}
+                </button>
+                <div className="league-selector-divider" />
+                <button
+                  className="league-selector-item"
+                  onClick={() => { navigate('/leagues'); setLeagueDropdownOpen(false); }}
+                >
+                  Switch League
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="user-info">
           <User size={16} />
           <span>{user?.username}</span>

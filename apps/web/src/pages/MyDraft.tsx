@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
 import { Star } from "lucide-react";
-import AuthNavbar from "../components/AuthNavbar";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import type { Player } from "../types/player";
 import "./MyDraft.css";
@@ -128,8 +127,6 @@ export default function MyDraft() {
 
 	return (
 		<div className="mydraft-page">
-			<AuthNavbar />
-
 			<main className="mydraft-shell">
 				<section className="mydraft-top panel-card">
 					<div className="top-budget">

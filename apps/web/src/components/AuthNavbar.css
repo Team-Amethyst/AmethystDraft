@@ -114,3 +114,92 @@
   color: #c4b5fd;
   border-bottom: 2px solid #a78bfa;
 }
+
+/* League selector dropdown */
+.league-selector {
+  position: relative;
+}
+
+.league-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(139, 60, 247, 0.12);
+  border: 1px solid rgba(138, 43, 226, 0.35);
+  color: #e2d9f3;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-family: inherit;
+  max-width: 200px;
+}
+
+.league-selector-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league-selector-btn:hover {
+  background: rgba(139, 60, 247, 0.22);
+  border-color: rgba(138, 43, 226, 0.6);
+  color: #fff;
+}
+
+.league-selector-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  color: #a78bfa;
+}
+
+.league-selector-chevron.chevron-open {
+  transform: rotate(180deg);
+}
+
+.league-selector-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: rgba(18, 10, 35, 0.97);
+  border: 1px solid rgba(138, 43, 226, 0.3);
+  border-radius: 8px;
+  padding: 0.4rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  z-index: 200;
+}
+
+.league-selector-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.league-selector-item:hover {
+  background: rgba(139, 60, 247, 0.18);
+  color: #fff;
+}
+
+.league-selector-current {
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+.league-selector-divider {
+  height: 1px;
+  background: rgba(138, 43, 226, 0.2);
+  margin: 0.3rem 0.5rem;
+}

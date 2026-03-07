@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import AuthNavbar from "../components/AuthNavbar";
 import ResearchSidebar from "../components/ResearchSidebar";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
@@ -47,7 +46,6 @@ export default function Research() {
 
   return (
     <div className="research-page">
-      <AuthNavbar />
       <div className="research-layout">
         <ResearchSidebar 
           selectedView={selectedView} 

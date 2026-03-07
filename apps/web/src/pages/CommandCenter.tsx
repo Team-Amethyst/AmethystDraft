@@ -1,5 +1,4 @@
 import { useState } from "react";
-import AuthNavbar from "../components/AuthNavbar";
 import "./CommandCenter.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -563,7 +562,6 @@ export default function CommandCenter() {
 
   return (
     <div className="cc-page">
-      <AuthNavbar />
       <div className="cc-layout">
         <LeftPanel activeTab={activeTab} setActiveTab={setActiveTab} />
         <AuctionCenter />

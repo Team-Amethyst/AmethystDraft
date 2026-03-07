@@ -1,71 +1,49 @@
 import { ArrowLeft, Calendar, DollarSign, Users, BarChart3, Bell, Star } from "lucide-react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate } from "react-router";
+import { useLeague } from "../contexts/LeagueContext";
 import "./LeagueDetail.css";
-
-const mockLeagueMap: Record<string, any> = {
-  "1": {
-    id: "1",
-    name: "Fantasy Masters 2026",
-    status: "Pre-Draft",
-    teams: 12,
-    budget: 260,
-    draftDate: "March 15, 2026",
-    format: "Rotisserie",
-  },
-  "2": {
-    id: "2",
-    name: "Office League",
-    status: "In Progress",
-    teams: 10,
-    budget: 200,
-    draftDate: "March 1, 2026",
-    format: "Head-to-Head",
-  },
-};
 
 const quickLinks = [
   {
     title: "Research Players",
     description: "Search players, compare values, and build your watchlist.",
     icon: BarChart3,
+    path: "research",
   },
   {
     title: "My Draft",
     description: "Track budget, category balance, and strategy targets.",
     icon: Star,
+    path: "my-draft",
   },
   {
     title: "Command Center",
     description: "Run the live draft experience and record picks in real time.",
     icon: Bell,
+    path: "command-center",
   },
 ];
 
 export default function LeagueDetail() {
   const navigate = useNavigate();
-  const { leagueId } = useParams();
+  const { league } = useLeague();
 
-  const league =
-    (leagueId && mockLeagueMap[leagueId]) || {
-      id: leagueId ?? "unknown",
-      name: "League",
-      status: "Pre-Draft",
-      teams: 12,
-      budget: 260,
-      draftDate: "TBD",
-      format: "Rotisserie",
-    };
+  if (!league) {
+    return (
+      <div className="league-detail-page">
+        <main className="league-detail-main">
+          <button className="league-detail-back" onClick={() => navigate("/leagues")}>
+            <ArrowLeft size={16} />
+            <span>Back to Leagues</span>
+          </button>
+          <p style={{ color: "#ccc" }}>League not found.</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="league-detail-page">
-      <header className="league-detail-topbar">
-        <div className="league-detail-brand">
-          <span className="league-detail-brand-icon">⚡</span>
-          <span>DRAFTROOM</span>
-        </div>
-        <div className="league-detail-profile">◦</div>
-      </header>
-
       <main className="league-detail-main">
         <button className="league-detail-back" onClick={() => navigate("/leagues")}>
           <ArrowLeft size={16} />
@@ -106,7 +84,7 @@ export default function LeagueDetail() {
                 <button
                   key={item.title}
                   className="league-detail-link-card"
-                  onClick={() => console.log("Navigate to:", item.title)}
+                  onClick={() => navigate(`/leagues/${league.id}/${item.path}`)}
                 >
                   <div className="league-detail-link-icon">
                     <Icon size={18} />
