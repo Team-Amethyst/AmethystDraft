@@ -484,6 +484,10 @@
 }
 
 .log-select.full { width: 100%; box-sizing: border-box; }
+.log-select--warn {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
 
 .log-price-input-wrap {
   display: flex;

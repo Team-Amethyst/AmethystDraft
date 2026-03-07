@@ -794,9 +794,61 @@ function AuctionCenter({
   })();
 
   const teamNames = league?.teamNames ?? [];
-  const slotOptions = league?.rosterSlots
+  const allSlotOptions = league?.rosterSlots
     ? Object.keys(league.rosterSlots)
-    : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "Bench"];
+    : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"];
+
+  // Which roster slots a player position is eligible to fill
+  function getEligibleSlots(pos: string, slots: string[]): string[] {
+    const pos_ = pos.toUpperCase();
+    return slots.filter((slot) => {
+      const s = slot.toUpperCase();
+      if (s === pos_) return true;
+      if (s === "UTIL") return true; // every position can fill UTIL
+      if (s === "BN" || s === "BENCH") return true;
+      if (s === "MI") return ["SS", "2B"].includes(pos_);
+      if (s === "CI") return ["1B", "3B"].includes(pos_);
+      if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(pos_);
+      if (s === "P") return ["SP", "RP"].includes(pos_);
+      return false;
+    });
+  }
+
+  // Slots still open on the chosen team (not yet at capacity)
+  function getAvailableSlots(
+    teamName: string,
+    slots: string[],
+    roster: RosterEntry[],
+  ): Set<string> {
+    if (!league) return new Set(slots);
+    const teamIdx = league.teamNames.indexOf(teamName);
+    if (teamIdx === -1) return new Set(slots);
+    const teamId = `team_${teamIdx + 1}`;
+    const teamRoster = roster.filter((e) => e.teamId === teamId);
+    const filled = new Map<string, number>();
+    teamRoster.forEach((e) => {
+      filled.set(e.rosterSlot, (filled.get(e.rosterSlot) ?? 0) + 1);
+    });
+    return new Set(
+      slots.filter(
+        (s) => (filled.get(s) ?? 0) < (league.rosterSlots[s] ?? 1),
+      ),
+    );
+  }
+
+  const eligible = selectedPlayer
+    ? getEligibleSlots(selectedPlayer.position, allSlotOptions)
+    : allSlotOptions;
+  const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
+  const slotOptions = eligible.filter((s) => available.has(s));
+
+  // Auto-correct draftedToSlot when player or team changes
+  useEffect(() => {
+    if (slotOptions.length > 0 && !slotOptions.includes(draftedToSlot)) {
+      setDraftedToSlot(slotOptions[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlayer?.id, wonBy]);
 
   return (
     <div className="cc-center">
@@ -1117,10 +1169,13 @@ function AuctionCenter({
             <div className="log-field">
               <label className="log-label">DRAFTED TO SLOT</label>
               <select
-                className="log-select"
+                className={"log-select" + (slotOptions.length === 0 ? " log-select--warn" : "")}
                 value={draftedToSlot}
                 onChange={(e) => setDraftedToSlot(e.target.value)}
               >
+                {slotOptions.length === 0 && (
+                  <option value="">— no eligible slots —</option>
+                )}
                 {slotOptions.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
@@ -1131,7 +1186,7 @@ function AuctionCenter({
           <button
             className="log-result-btn"
             onClick={() => void handleLogResult()}
-            disabled={submitting || !wonBy || !finalPrice}
+            disabled={submitting || !wonBy || !finalPrice || slotOptions.length === 0}
           >
             {submitting ? "Logging…" : "Log Result"}
           </button>
