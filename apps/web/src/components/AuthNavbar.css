@@ -28,26 +28,29 @@
 
 .auth-navbar-center {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  align-items: stretch;
+  gap: 0;
 }
 
 .nav-link {
   background: transparent;
   border: none;
+  border-bottom: 2px solid transparent;
   color: #ccc;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  transition: all 0.2s;
+  padding: 0 1rem;
+  border-radius: 0;
+  transition: color 0.2s, border-color 0.2s;
   font-family: inherit;
+  display: flex;
+  align-items: center;
 }
 
 .nav-link:hover {
   color: #fff;
-  background: rgba(139, 60, 247, 0.15);
+  background: transparent;
 }
 
 .nav-link-disabled {
@@ -112,7 +115,7 @@
 
 .nav-link-active {
   color: #c4b5fd;
-  border-bottom: 2px solid #a78bfa;
+  border-bottom-color: #a78bfa;
 }
 
 /* League selector dropdown */

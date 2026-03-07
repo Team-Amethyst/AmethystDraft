@@ -24,6 +24,7 @@ export interface League {
   isPublic: boolean;
   draftDate?: string;
   playerPool: "Mixed" | "AL" | "NL";
+  teamNames: string[];
   createdAt: string;
 }
 

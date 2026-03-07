@@ -14,6 +14,8 @@ export type TeamKeeper = {
   playerName: string;
   team: string;
   cost: number;
+  playerId: string;
+  entryId?: string;
 };
 export type TeamKeepersMap = Record<string, TeamKeeper[]>;
 
@@ -82,3 +84,51 @@ export const keeperSlots = [
   "IF",
   "P",
 ];
+
+// ─── Position → eligible roster slot types ───────────────────────────────────
+
+const POSITION_ELIGIBILITY: Record<string, string[]> = {
+  C: ["C", "UTIL", "BN"],
+  "1B": ["1B", "CI", "UTIL", "BN"],
+  "2B": ["2B", "MI", "UTIL", "BN"],
+  "3B": ["3B", "CI", "UTIL", "BN"],
+  SS: ["SS", "MI", "UTIL", "BN"],
+  MI: ["MI", "UTIL", "BN"],
+  CI: ["CI", "UTIL", "BN"],
+  OF: ["OF", "UTIL", "BN"],
+  SP: ["SP", "P", "BN"],
+  RP: ["RP", "P", "BN"],
+  TWP: ["SP", "RP", "P", "BN"],
+  DH: ["UTIL", "BN"],
+  IF: ["1B", "2B", "3B", "SS", "CI", "MI", "UTIL", "BN"],
+  P: ["SP", "RP", "BN"],
+};
+
+export function getEligibleSlots(
+  player: Player,
+  rosterSlots: RosterSlot[],
+  currentKeepers: TeamKeeper[],
+): string[] {
+  const rawPositions = player.pos.split("/").map((p) => p.trim());
+  const eligibleTypes = new Set<string>();
+  for (const pos of rawPositions) {
+    for (const slot of POSITION_ELIGIBILITY[pos] ?? ["UTIL", "BN"]) {
+      eligibleTypes.add(slot);
+    }
+  }
+  const usedCounts: Record<string, number> = {};
+  for (const k of currentKeepers) {
+    usedCounts[k.slot] = (usedCounts[k.slot] ?? 0) + 1;
+  }
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const rs of rosterSlots) {
+    if (!eligibleTypes.has(rs.position) || rs.count === 0) continue;
+    const used = usedCounts[rs.position] ?? 0;
+    if (used < rs.count && !seen.has(rs.position)) {
+      seen.add(rs.position);
+      result.push(rs.position);
+    }
+  }
+  return result;
+}

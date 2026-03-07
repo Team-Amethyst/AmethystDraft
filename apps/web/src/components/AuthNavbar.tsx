@@ -91,6 +91,15 @@ export default function AuthNavbar() {
           >
             Command Center
           </button>
+          <button
+            className={
+              "nav-link" +
+              (isActive(`${leagueBase}/overview`) ? " nav-link-active" : "")
+            }
+            onClick={() => navigate(`${leagueBase}/overview`)}
+          >
+            Overview
+          </button>
         </div>
       )}
 

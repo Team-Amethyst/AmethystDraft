@@ -5,7 +5,7 @@ import {
   type TeamKeepersMap,
   rosterDefaults,
   availablePlayers,
-  keeperSlots,
+  getEligibleSlots,
 } from "../types/league";
 
 interface UseLeagueFormOptions {
@@ -16,6 +16,8 @@ interface UseLeagueFormOptions {
   initialHitting?: string[];
   initialPitching?: string[];
   initialRosterSlots?: Record<string, number>;
+  initialTeamNames?: string[];
+  initialKeepers?: TeamKeepersMap;
 }
 
 export function useLeagueForm({
@@ -26,6 +28,8 @@ export function useLeagueForm({
   initialHitting,
   initialPitching,
   initialRosterSlots,
+  initialTeamNames,
+  initialKeepers,
 }: UseLeagueFormOptions = {}) {
   const [leagueName, setLeagueName] = useState(initialName);
   const [teams, setTeams] = useState(initialTeams);
@@ -61,21 +65,22 @@ export function useLeagueForm({
     ],
   );
 
-  // Initialize with enough slots for the maximum supported team count (20).
-  // Components slice to `teams` when rendering.
   const [teamNames, setTeamNames] = useState<string[]>(
-    Array.from({ length: 20 }, (_, i) => `Team ${i + 1}`),
+    initialTeamNames && initialTeamNames.length > 0
+      ? Array.from(
+          { length: 20 },
+          (_, i) => initialTeamNames[i] ?? `Team ${i + 1}`,
+        )
+      : Array.from({ length: 20 }, (_, i) => `Team ${i + 1}`),
   );
 
-  const [activeKeeperTeam, setActiveKeeperTeam] = useState("Team 1");
+  const [activeKeeperTeam, setActiveKeeperTeam] = useState(
+    () => initialTeamNames?.[0] ?? "Team 1",
+  );
   const [playerSearch, setPlayerSearch] = useState("");
-  const [teamKeepers, setTeamKeepers] = useState<TeamKeepersMap>({
-    "Team 1": [
-      { slot: "C", playerName: "J.T. Realmuto", team: "PHI", cost: 29 },
-      { slot: "SS", playerName: "Bobby Witt Jr.", team: "KC", cost: 19 },
-      { slot: "OF", playerName: "Ronald Acuña Jr.", team: "ATL", cost: 17 },
-    ],
-  });
+  const [teamKeepers, setTeamKeepers] = useState<TeamKeepersMap>(
+    initialKeepers ?? {},
+  );
 
   const totalRosterSpots = useMemo(
     () => rosterSlots.reduce((sum, s) => sum + s.count, 0),
@@ -93,9 +98,10 @@ export function useLeagueForm({
   const currentKeepers = teamKeepers[activeKeeperTeam] ?? [];
   const keeperBudgetUsed = currentKeepers.reduce((sum, k) => sum + k.cost, 0);
   const remainingBudget = budget - keeperBudgetUsed;
-  const completionPercent = Math.round(
-    (currentKeepers.length / keeperSlots.length) * 100,
-  );
+  const completionPercent =
+    totalRosterSpots > 0
+      ? Math.round((currentKeepers.length / totalRosterSpots) * 100)
+      : 0;
 
   const toggleStat = (
     stat: string,
@@ -126,22 +132,25 @@ export function useLeagueForm({
       setActiveKeeperTeam(value || `Team ${index + 1}`);
   };
 
-  const addKeeper = (player: Player) => {
+  const addKeeper = (player: Player, slot: string) => {
     const current = teamKeepers[activeKeeperTeam] ?? [];
-    if (current.length >= keeperSlots.length) return;
     setTeamKeepers({
       ...teamKeepers,
       [activeKeeperTeam]: [
         ...current,
         {
-          slot: keeperSlots[current.length],
+          slot,
           playerName: player.name,
           team: player.team,
           cost: Math.floor(player.adp * 2 + 10),
+          playerId: String(player.id),
         },
       ],
     });
   };
+
+  const getEligibleSlotsForPlayer = (player: Player): string[] =>
+    getEligibleSlots(player, rosterSlots, currentKeepers);
 
   const removeKeeper = (index: number) => {
     const current = teamKeepers[activeKeeperTeam] ?? [];
@@ -172,6 +181,7 @@ export function useLeagueForm({
     playerSearch,
     setPlayerSearch,
     teamKeepers,
+    setTeamKeepers,
     currentKeepers,
     remainingBudget,
     completionPercent,
@@ -181,5 +191,6 @@ export function useLeagueForm({
     updateTeamName,
     addKeeper,
     removeKeeper,
+    getEligibleSlotsForPlayer,
   };
 }

@@ -380,6 +380,12 @@
   cursor: pointer;
 }
 
+.league-create-filter-row button.active {
+  background: rgba(204, 127, 255, 0.22);
+  border-color: rgba(204, 127, 255, 0.5);
+  color: #f0dbff;
+}
+
 .league-create-player-list,
 .league-create-roster-list {
   display: flex;
@@ -450,6 +456,51 @@
   color: white;
   cursor: pointer;
   font-size: 1rem;
+}
+
+.league-create-player-row button:hover:not(:disabled) {
+  background: rgba(170, 83, 247, 0.35);
+}
+
+.league-create-player-row button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.league-create-player-row .lc-btn-cancel {
+  background: rgba(220, 60, 60, 0.22);
+}
+
+.league-create-player-row.lc-player-pending {
+  border: 1px solid rgba(167, 139, 250, 0.5);
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.lc-pos-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 8px 52px;
+  flex-wrap: wrap;
+}
+
+.lc-pos-picker span {
+  font-size: 0.72rem;
+  color: #9890a6;
+}
+
+.lc-pos-picker button {
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.12);
+  color: #f0dbff;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.lc-pos-picker button:hover {
+  background: rgba(167, 139, 250, 0.3);
 }
 
 .league-create-progress-copy {

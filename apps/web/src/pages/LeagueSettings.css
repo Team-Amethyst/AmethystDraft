@@ -383,6 +383,20 @@
   font-size: 0.72rem;
   cursor: pointer;
   font-family: inherit;
+  transition: all 0.15s;
+}
+
+.ls-filter-row button:hover {
+  background: rgba(170, 83, 247, 0.15);
+  border-color: rgba(170, 83, 247, 0.3);
+  color: #e2d9f3;
+}
+
+.ls-filter-row button.active {
+  background: rgba(170, 83, 247, 0.22);
+  border-color: rgba(170, 83, 247, 0.5);
+  color: #e2d9f3;
+  font-weight: 600;
 }
 
 .ls-player-list {
@@ -451,6 +465,63 @@
   cursor: pointer;
   font-size: 1rem;
   font-family: inherit;
+  transition: background 0.15s;
+}
+
+.ls-add-btn:hover:not(:disabled) {
+  background: rgba(170, 83, 247, 0.35);
+}
+
+.ls-add-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.ls-add-btn.ls-add-btn-cancel {
+  background: rgba(220, 38, 38, 0.18);
+  font-size: 0.9rem;
+}
+
+.ls-add-btn.ls-add-btn-cancel:hover {
+  background: rgba(220, 38, 38, 0.32);
+}
+
+.ls-player-row.ls-player-pending {
+  background: rgba(170, 83, 247, 0.1);
+  border: 1px solid rgba(170, 83, 247, 0.25);
+}
+
+.ls-pos-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  flex-wrap: wrap;
+}
+
+.ls-pos-picker span {
+  font-size: 0.7rem;
+  color: #9890a6;
+  white-space: nowrap;
+}
+
+.ls-pos-picker button {
+  border: 1px solid rgba(170, 83, 247, 0.4);
+  background: rgba(170, 83, 247, 0.15);
+  color: #e2d9f3;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.ls-pos-picker button:hover {
+  background: rgba(170, 83, 247, 0.3);
+  border-color: rgba(170, 83, 247, 0.7);
 }
 
 .ls-progress-copy {

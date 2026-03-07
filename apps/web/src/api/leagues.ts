@@ -12,6 +12,7 @@ export interface CreateLeaguePayload {
   scoringCategories: { name: string; type: "batting" | "pitching" }[];
   playerPool: "Mixed" | "AL" | "NL";
   draftDate?: string;
+  teamNames?: string[];
 }
 
 function authHeaders(token: string): Record<string, string> {

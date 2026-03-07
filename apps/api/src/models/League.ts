@@ -28,6 +28,7 @@ export interface ILeague extends Document {
   isPublic: boolean;
   draftDate?: Date;
   playerPool: PlayerPool;
+  teamNames: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +107,10 @@ const leagueSchema = new Schema<ILeague>(
       type: String,
       enum: ["Mixed", "AL", "NL"],
       default: "Mixed",
+    },
+    teamNames: {
+      type: [String],
+      default: [],
     },
   },
   { timestamps: true },

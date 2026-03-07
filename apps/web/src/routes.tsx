@@ -8,6 +8,7 @@ import Leagues from "./pages/Leagues";
 import LeagueCreate from "./pages/LeaguesCreate";
 import LeagueLayout from "./components/LeagueLayout";
 import LeagueSettings from "./pages/LeagueSettings";
+import LeagueOverview from "./pages/LeagueOverview";
 import MyDraft from "./pages/MyDraft";
 import CommandCenter from "./pages/CommandCenter";
 import Research from "./pages/Research";
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: "research", Component: Research },
       { path: "my-draft", Component: MyDraft },
       { path: "command-center", Component: CommandCenter },
+      { path: "overview", Component: LeagueOverview },
       { path: "settings", Component: LeagueSettings },
     ],
   },

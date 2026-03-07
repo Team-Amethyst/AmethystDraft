@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { ArrowLeft, ChevronRight, Search } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useLeagueForm } from "../hooks/useLeagueForm";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { hittingStats, pitchingStats, keeperSlots } from "../types/league";
+import {
+  hittingStats,
+  pitchingStats,
+  type Player,
+  type TeamKeeper,
+} from "../types/league";
 import { createLeague } from "../api/leagues";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -58,7 +63,11 @@ export default function LeagueCreate() {
     updateTeamName,
     addKeeper,
     removeKeeper,
+    getEligibleSlotsForPlayer,
   } = useLeagueForm({ initialName: "Friendly League" });
+
+  const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
+  const [posFilter, setPosFilter] = useState("ALL");
 
   const goBack = () => {
     if (step === 1) {
@@ -110,6 +119,7 @@ export default function LeagueCreate() {
             })),
           ],
           playerPool: playerPoolMap[playerPool] ?? "Mixed",
+          teamNames: teamNames.slice(0, teams),
         },
         token!,
       );
@@ -356,141 +366,227 @@ export default function LeagueCreate() {
             </>
           )}
 
-          {step === 4 && (
-            <>
-              <div className="league-create-keeper-select">
-                <select
-                  value={activeKeeperTeam}
-                  onChange={(e) => setActiveKeeperTeam(e.target.value)}
-                >
-                  {teamNames.slice(0, teams).map((team, index) => (
-                    <option key={index} value={team}>
-                      Managing Keepers for: {team}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {step === 4 &&
+            (() => {
+              const keepersBySlot: Record<
+                string,
+                { keeper: TeamKeeper; keeperIdx: number }[]
+              > = {};
+              currentKeepers.forEach((k, i) => {
+                if (!keepersBySlot[k.slot]) keepersBySlot[k.slot] = [];
+                keepersBySlot[k.slot].push({ keeper: k, keeperIdx: i });
+              });
 
-              <div className="league-create-keepers-layout">
-                <div className="league-create-keeper-panel dark">
-                  <div className="league-create-keeper-title">
-                    1. AVAILABLE PLAYERS
-                  </div>
+              const keeperRosterRows = rosterSlots.flatMap((s) =>
+                Array.from({ length: s.count }, (_, i) => ({
+                  pos: s.position,
+                  entry: keepersBySlot[s.position]?.[i] ?? null,
+                })),
+              );
 
-                  <div className="league-create-searchbar">
-                    <Search size={15} />
-                    <input
-                      placeholder="Search..."
-                      value={playerSearch}
-                      onChange={(e) => setPlayerSearch(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="league-create-filter-row">
-                    {["ALL", "C", "IF", "OF", "P"].map((filter) => (
-                      <button key={filter} type="button">
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="league-create-player-list">
-                    {filteredPlayers.map((player) => (
-                      <div key={player.id} className="league-create-player-row">
-                        <div className="league-create-avatar">
-                          {player.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .slice(0, 2)
-                            .join("")}
-                        </div>
-
-                        <div className="league-create-player-main">
-                          <div className="league-create-player-name">
-                            {player.name}
-                          </div>
-                          <div className="league-create-player-meta">
-                            {player.team}
-                          </div>
-                        </div>
-
-                        <div className="league-create-player-badge">
-                          {player.pos}
-                        </div>
-                        <div className="league-create-player-adp">
-                          ADP {player.adp}
-                        </div>
-
-                        <button type="button" onClick={() => addKeeper(player)}>
-                          +
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="league-create-keeper-panel dark">
-                  <div className="league-create-keeper-title">
-                    2. {activeKeeperTeam.toUpperCase()} KEEPER ROSTER
-                  </div>
-
-                  <div className="league-create-progress-copy">
-                    <span>
-                      {completionPercent}% Completed ({currentKeepers.length}/
-                      {keeperSlots.length})
-                    </span>
-                  </div>
-
-                  <div className="league-create-progressbar">
-                    <div style={{ width: `${completionPercent}%` }} />
-                  </div>
-
-                  <div className="league-create-budget">
-                    Remaining Budget: ${remainingBudget}
-                  </div>
-
-                  <div className="league-create-roster-list">
-                    {keeperSlots.map((slot, index) => {
-                      const keeper = currentKeepers[index];
-
-                      return (
-                        <div
-                          key={`${slot}-${index}`}
-                          className="league-create-roster-keeper-row"
-                        >
-                          <div className="league-create-roster-slot">
-                            {slot}
-                          </div>
-
-                          <div className="league-create-roster-player">
-                            {keeper
-                              ? `${keeper.playerName} (${keeper.team})`
-                              : "(EMPTY SLOT)"}
-                          </div>
-
-                          <div className="league-create-roster-cost">
-                            ${keeper ? keeper.cost : 0}
-                          </div>
-
-                          {keeper ? (
-                            <button
-                              type="button"
-                              className="league-create-remove"
-                              onClick={() => removeKeeper(index)}
-                            >
-                              REMOVE
-                            </button>
-                          ) : (
-                            <div className="league-create-empty">—</div>
-                          )}
-                        </div>
+              const POS_CATS: Record<string, string[]> = {
+                IF: ["1B", "2B", "3B", "SS", "MI", "CI", "IF"],
+                P: ["SP", "RP", "P", "TWP"],
+              };
+              const keeperDisplayPlayers =
+                posFilter === "ALL"
+                  ? filteredPlayers
+                  : filteredPlayers.filter((p) => {
+                      const pps = p.pos.split("/").map((x) => x.trim());
+                      return pps.some((pp) =>
+                        (POS_CATS[posFilter] ?? [posFilter]).includes(pp),
                       );
-                    })}
+                    });
+
+              return (
+                <>
+                  <div className="league-create-keeper-select">
+                    <select
+                      value={activeKeeperTeam}
+                      onChange={(e) => {
+                        setActiveKeeperTeam(e.target.value);
+                        setPendingPlayer(null);
+                      }}
+                    >
+                      {teamNames.slice(0, teams).map((team, index) => (
+                        <option key={index} value={team}>
+                          Managing Keepers for: {team}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </div>
-              </div>
-            </>
-          )}
+
+                  <div className="league-create-keepers-layout">
+                    <div className="league-create-keeper-panel dark">
+                      <div className="league-create-keeper-title">
+                        1. AVAILABLE PLAYERS
+                      </div>
+
+                      <div className="league-create-searchbar">
+                        <Search size={15} />
+                        <input
+                          placeholder="Search..."
+                          value={playerSearch}
+                          onChange={(e) => setPlayerSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="league-create-filter-row">
+                        {(["ALL", "C", "IF", "OF", "P"] as const).map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            className={posFilter === f ? "active" : ""}
+                            onClick={() => {
+                              setPosFilter(f);
+                              setPendingPlayer(null);
+                            }}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="league-create-player-list">
+                        {keeperDisplayPlayers.map((player) => {
+                          const isPending = pendingPlayer?.id === player.id;
+                          const eligible = getEligibleSlotsForPlayer(player);
+                          return (
+                            <Fragment key={player.id}>
+                              <div
+                                className={
+                                  "league-create-player-row" +
+                                  (isPending ? " lc-player-pending" : "")
+                                }
+                              >
+                                <div className="league-create-avatar">
+                                  {player.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .slice(0, 2)
+                                    .join("")}
+                                </div>
+
+                                <div className="league-create-player-main">
+                                  <div className="league-create-player-name">
+                                    {player.name}
+                                  </div>
+                                  <div className="league-create-player-meta">
+                                    {player.team}
+                                  </div>
+                                </div>
+
+                                <div className="league-create-player-badge">
+                                  {player.pos}
+                                </div>
+                                <div className="league-create-player-adp">
+                                  ADP {player.adp}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className={
+                                    "league-create-player-btn" +
+                                    (isPending ? " lc-btn-cancel" : "")
+                                  }
+                                  disabled={!isPending && eligible.length === 0}
+                                  onClick={() => {
+                                    if (isPending) {
+                                      setPendingPlayer(null);
+                                      return;
+                                    }
+                                    if (eligible.length === 1) {
+                                      addKeeper(player, eligible[0]);
+                                    } else {
+                                      setPendingPlayer(player);
+                                    }
+                                  }}
+                                >
+                                  {isPending ? "×" : "+"}
+                                </button>
+                              </div>
+                              {isPending && (
+                                <div className="lc-pos-picker">
+                                  <span>Place in slot:</span>
+                                  {eligible.map((slot) => (
+                                    <button
+                                      key={slot}
+                                      type="button"
+                                      onClick={() => {
+                                        addKeeper(player, slot);
+                                        setPendingPlayer(null);
+                                      }}
+                                    >
+                                      {slot}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="league-create-keeper-panel dark">
+                      <div className="league-create-keeper-title">
+                        2. {activeKeeperTeam.toUpperCase()} KEEPER ROSTER
+                      </div>
+
+                      <div className="league-create-progress-copy">
+                        <span>
+                          {completionPercent}% Completed (
+                          {currentKeepers.length}/{keeperRosterRows.length})
+                        </span>
+                      </div>
+
+                      <div className="league-create-progressbar">
+                        <div style={{ width: `${completionPercent}%` }} />
+                      </div>
+
+                      <div className="league-create-budget">
+                        Remaining Budget: ${remainingBudget}
+                      </div>
+
+                      <div className="league-create-roster-list">
+                        {keeperRosterRows.map(({ pos, entry }, i) => (
+                          <div
+                            key={`${pos}-${i}`}
+                            className="league-create-roster-keeper-row"
+                          >
+                            <div className="league-create-roster-slot">
+                              {pos}
+                            </div>
+
+                            <div className="league-create-roster-player">
+                              {entry
+                                ? `${entry.keeper.playerName} (${entry.keeper.team})`
+                                : "(EMPTY SLOT)"}
+                            </div>
+
+                            <div className="league-create-roster-cost">
+                              ${entry ? entry.keeper.cost : 0}
+                            </div>
+
+                            {entry ? (
+                              <button
+                                type="button"
+                                className="league-create-remove"
+                                onClick={() => removeKeeper(entry.keeperIdx)}
+                              >
+                                REMOVE
+                              </button>
+                            ) : (
+                              <div className="league-create-empty">—</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
           <div className="league-create-actions">
             {error && <p className="league-create-error">{error}</p>}

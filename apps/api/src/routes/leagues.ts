@@ -1,5 +1,6 @@
 import { Router, RequestHandler, Response } from "express";
 import League from "../models/League";
+import RosterEntry from "../models/RosterEntry";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
 
 const router: Router = Router();
@@ -37,6 +38,7 @@ const createLeague: RequestHandler = async (
       scoringCategories,
       playerPool,
       draftDate,
+      teamNames,
     } = req.body;
 
     if (!name?.trim()) {
@@ -56,6 +58,7 @@ const createLeague: RequestHandler = async (
       scoringCategories: scoringCategories ?? [],
       playerPool: playerPool ?? "Mixed",
       draftDate: draftDate ? new Date(draftDate) : undefined,
+      teamNames: teamNames ?? [],
     });
 
     res.status(201).json(serializeLeague(league));
@@ -131,6 +134,7 @@ const updateLeague: RequestHandler = async (
       scoringCategories,
       playerPool,
       draftDate,
+      teamNames,
     } = req.body;
 
     if (name !== undefined) league.name = String(name).trim();
@@ -144,11 +148,122 @@ const updateLeague: RequestHandler = async (
     if (playerPool !== undefined) league.playerPool = playerPool;
     if (draftDate !== undefined)
       league.draftDate = draftDate ? new Date(draftDate) : undefined;
+    if (teamNames !== undefined) league.teamNames = teamNames;
 
     await league.save();
     res.json(serializeLeague(league));
   } catch (err) {
     console.error("Update league error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── GET /api/leagues/:id/roster ──────────────────────────────────────────────
+
+const getRoster: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const league = await League.findOne({
+      _id: req.params.id,
+      memberIds: req.user!._id,
+    });
+    if (!league) {
+      res.status(404).json({ message: "League not found" });
+      return;
+    }
+    const entries = await RosterEntry.find({ leagueId: req.params.id }).sort({
+      rosterSlot: 1,
+    });
+    res.json(entries);
+  } catch (err) {
+    console.error("Get roster error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── POST /api/leagues/:id/roster ─────────────────────────────────────────────
+
+const addRosterEntry: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const league = await League.findOne({
+      _id: req.params.id,
+      memberIds: req.user!._id,
+    });
+    if (!league) {
+      res.status(404).json({ message: "League not found" });
+      return;
+    }
+    const {
+      externalPlayerId,
+      playerName,
+      playerTeam,
+      positions,
+      price,
+      rosterSlot,
+      userId,
+      isKeeper,
+    } = req.body;
+    const memberIds = league.memberIds.map(String);
+    const requesterId = String(req.user!._id);
+    const isCommissioner = String(league.commissionerId) === requesterId;
+    if (userId && userId !== requesterId && !isCommissioner) {
+      res
+        .status(403)
+        .json({
+          message: "Only the commissioner can add entries for other teams",
+        });
+      return;
+    }
+    const resolvedUserId =
+      userId && isCommissioner ? String(userId) : requesterId;
+    const teamIndex = memberIds.indexOf(resolvedUserId);
+    const teamId = teamIndex >= 0 ? `team_${teamIndex + 1}` : `team_1`;
+    const entry = await RosterEntry.create({
+      leagueId: String(req.params.id),
+      userId: resolvedUserId,
+      teamId,
+      externalPlayerId,
+      playerName,
+      playerTeam: playerTeam ?? "",
+      positions: positions ?? [],
+      price,
+      rosterSlot,
+      isKeeper: isKeeper ?? false,
+    });
+    res.status(201).json(entry);
+  } catch (err) {
+    console.error("Add roster entry error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── DELETE /api/leagues/:id/roster/:entryId ──────────────────────────────────
+
+const removeRosterEntry: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const league = await League.findOne({
+      _id: req.params.id,
+      memberIds: req.user!._id,
+    });
+    if (!league) {
+      res.status(404).json({ message: "League not found" });
+      return;
+    }
+    await RosterEntry.findOneAndDelete({
+      _id: req.params.entryId,
+      leagueId: req.params.id,
+    });
+    res.status(204).send();
+  } catch (err) {
+    console.error("Remove roster entry error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -159,5 +274,8 @@ router.post("/", createLeague);
 router.get("/", getMyLeagues);
 router.get("/:id", getLeague);
 router.patch("/:id", updateLeague);
+router.get("/:id/roster", getRoster);
+router.post("/:id/roster", addRosterEntry);
+router.delete("/:id/roster/:entryId", removeRosterEntry);
 
 export default router;

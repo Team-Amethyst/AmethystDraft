@@ -3,12 +3,14 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IRosterEntry extends Document {
   leagueId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
+  teamId: string;
   externalPlayerId: string;
   playerName: string;
   playerTeam: string;
   positions: string[];
   price: number;
   rosterSlot: string;
+  isKeeper: boolean;
   acquiredAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -26,8 +28,10 @@ const rosterEntrySchema = new Schema<IRosterEntry>(
       ref: "User",
       required: true,
     },
-    // External player ID from MLB Stats API or similar source.
-    // This solves the duplicate name problem - always reference by ID.
+    teamId: {
+      type: String,
+      required: true,
+    },
     externalPlayerId: {
       type: String,
       required: true,
@@ -57,6 +61,10 @@ const rosterEntrySchema = new Schema<IRosterEntry>(
     acquiredAt: {
       type: Date,
       default: Date.now,
+    },
+    isKeeper: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },
