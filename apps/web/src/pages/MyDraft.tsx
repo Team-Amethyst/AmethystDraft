@@ -47,6 +47,7 @@ export default function MyDraft() {
   usePageTitle("My Draft");
   const { watchlist, removeFromWatchlist } = useWatchlist();
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
+  const [priorityOverrides, setPriorityOverrides] = useState<Record<string, "High" | "Medium" | "Low">>({});
   // TODO(storage): Persist notes per league/user in backend; this is local-only state.
   const [draftNotes, setDraftNotes] = useState("");
   const [notesHeight, setNotesHeight] = useState(96);
@@ -290,7 +291,7 @@ export default function MyDraft() {
                     const pos = normalizePosition(player.position || "UTIL");
                     // TODO(data): Replace with backend target-by-player (or target-by-tier) instead of value proxy.
                     const targetAtPos = Math.round(player.value ?? 0);
-                    const priority = getPriority(player);
+                    const priority = priorityOverrides[player.id] ?? getPriority(player);
 
                     return (
                       <tr key={player.id}>
@@ -317,11 +318,20 @@ export default function MyDraft() {
                         </td>
                         <td>{targetAtPos > 0 ? `$${targetAtPos}` : "--"}</td>
                         <td>
-                          <span
-                            className={`priority ${priority.toLowerCase()}`}
+                          <select
+                            className={`priority-select ${priority.toLowerCase()}`}
+                            value={priority}
+                            onChange={(e) =>
+                              setPriorityOverrides((prev) => ({
+                                ...prev,
+                                [player.id]: e.target.value as "High" | "Medium" | "Low",
+                              }))
+                            }
                           >
-                            {priority}
-                          </span>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                          </select>
                         </td>
                         <td>
                           <button
