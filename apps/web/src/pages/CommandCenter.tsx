@@ -818,7 +818,7 @@ function RightPanel({
   const catPace: Record<string, number> = {};
   for (const cat of allCats) {
     const n = cat.name.toUpperCase();
-    const isLowerBetter = ["ERA", "WHIP", "WALKS + HITS PER IP"].includes(n);
+    const isLowerBetter = ["ERA", "WHIP"].includes(n);
     const isRate = isLowerBetter || ["AVG", "OBP", "SLG"].includes(n);
     const getVal = (entry: RosterEntry) => {
       const p = allPlayers.find((a) => a.id === entry.externalPlayerId);

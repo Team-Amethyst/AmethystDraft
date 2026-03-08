@@ -37,10 +37,10 @@ export default function Research() {
         (localStorage.getItem("amethyst-research-statbasis") as
           | "projections"
           | "last-year"
-          | "3-year-avg") ?? "projections"
+          | "3-year-avg") ?? "last-year"
       );
     } catch {
-      return "projections";
+      return "last-year";
     }
   });
   const [players, setPlayers] = useState<Player[]>(

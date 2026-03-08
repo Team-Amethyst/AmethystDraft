@@ -14,6 +14,13 @@ interface MlbPlayer {
   birthDate?: string;
 }
 
+interface MlbTransaction {
+  person?: { id: number };
+  typeCode?: string;
+  effectiveDate?: string;
+  resolutionDate?: string;
+}
+
 interface MlbStatSplit {
   player: { id: number; fullName: string };
   team?: { id: number; abbreviation?: string };
@@ -125,6 +132,91 @@ function calcPitcherValue(stat: Record<string, string | number>): number {
   return Math.round(Math.max(1, score * 0.22 + 12));
 }
 
+// ─── Multi-year weighted projection helpers ─────────────────────────────────
+
+type StatRecord = Record<string, string | number>;
+
+function projectBatting(
+  yr1: StatRecord,
+  yr2?: StatRecord | null,
+  yr3?: StatRecord | null,
+): { avg: string; hr: number; rbi: number; runs: number; sb: number } {
+  const years = [yr1, yr2, yr3];
+  const W = [5, 3, 2];
+  let wTotal = 0, wH = 0, wAB = 0, wHR = 0, wRBI = 0, wRuns = 0, wSB = 0;
+  for (let i = 0; i < years.length; i++) {
+    const s = years[i];
+    if (!s) continue;
+    const ab = Number(s.atBats ?? 0);
+    if (ab < 50) continue;
+    const w = W[i] ?? 1;
+    wHR += Number(s.homeRuns ?? 0) * w;
+    wRBI += Number(s.rbi ?? 0) * w;
+    wRuns += Number(s.runs ?? 0) * w;
+    wSB += Number(s.stolenBases ?? 0) * w;
+  }
+  if (wTotal === 0) return {
+    avg: String(yr1.avg ?? ".000"),
+    hr: Number(yr1.homeRuns ?? 0),
+    rbi: Number(yr1.rbi ?? 0),
+    runs: Number(yr1.runs ?? 0),
+    sb: Number(yr1.stolenBases ?? 0),
+  };
+  const avg = wAB > 0 ? wH / wAB : 0;
+  return {
+    avg: avg.toFixed(3),
+    hr: Math.round(wHR / wTotal),
+    rbi: Math.round(wRBI / wTotal),
+    runs: Math.round(wRuns / wTotal),
+    sb: Math.round(wSB / wTotal),
+  };
+}
+
+function projectPitching(
+  yr1: StatRecord,
+  yr2?: StatRecord | null,
+  yr3?: StatRecord | null,
+): { era: string; whip: string; wins: number; saves: number; holds: number; strikeouts: number; completeGames: number } {
+  const years = [yr1, yr2, yr3];
+  const W = [5, 3, 2];
+  let wTotal = 0, wIP = 0, wER = 0, wBR = 0, wK = 0, wWins = 0, wSV = 0, wHLD = 0, wCG = 0;
+  for (let i = 0; i < years.length; i++) {
+    const s = years[i];
+    if (!s) continue;
+    const ip = parseFloat(String(s.inningsPitched ?? "0"));
+    const sv = Number(s.saves ?? 0);
+    if (ip < 15 && sv < 3) continue;
+    const w = W[i] ?? 1;
+    wER += Number(s.earnedRuns ?? 0) * w;
+    wBR += (Number(s.hits ?? 0) + Number(s.baseOnBalls ?? 0)) * w;
+    wK += Number(s.strikeOuts ?? 0) * w;
+    wWins += Number(s.wins ?? 0) * w;
+    wSV += Number(s.saves ?? 0) * w;
+    wHLD += Number(s.holds ?? 0) * w;
+    wCG += Number(s.completeGames ?? 0) * w;
+  }
+  if (wTotal === 0) return {
+    era: String(yr1.era ?? "0.00"),
+    whip: String(yr1.whip ?? "0.00"),
+    wins: Number(yr1.wins ?? 0),
+    saves: Number(yr1.saves ?? 0),
+    holds: Number(yr1.holds ?? 0),
+    strikeouts: Number(yr1.strikeOuts ?? 0),
+    completeGames: Number(yr1.completeGames ?? 0),
+  };
+  const era = wIP > 0 ? (wER / wIP) * 9 : 0;
+  const whip = wIP > 0 ? wBR / wIP : 0;
+  return {
+    era: era.toFixed(2),
+    whip: whip.toFixed(2),
+    wins: Math.round(wWins / wTotal),
+    saves: Math.round(wSV / wTotal),
+    holds: Math.round(wHLD / wTotal),
+    strikeouts: Math.round(wK / wTotal),
+    completeGames: Math.round(wCG / wTotal),
+  };
+}
+
 // ─── Shared player shape ─────────────────────────────────────────────────────
 
 interface PlayerData {
@@ -178,6 +270,11 @@ interface PlayerData {
     };
   };
   outlook: string;
+  injuryStatus?: string;
+  springStats?: {
+    batting?: { avg: string; hr: number; rbi: number; runs: number; sb: number; ab: number };
+    pitching?: { era: string; whip: string; wins: number; saves: number; strikeouts: number; innings: string };
+  };
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -188,33 +285,93 @@ const getPlayers: RequestHandler = async (
 ): Promise<void> => {
   try {
     const sortBy = (req.query.sortBy as string) || "value";
-    const season = new Date().getFullYear() - 1; // use last completed season
+    const currentYear = new Date().getFullYear();
+    const season = currentYear - 1; // last completed season
+    const season2 = season - 1;
+    const season3 = season - 2;
 
-    // Fetch batting and pitching stats in parallel
-    const [batRes, pitRes] = await Promise.all([
-      fetch(
-        MLB_API +
-          "/stats?stats=season&group=hitting&season=" +
-          season +
-          "&playerPool=ALL&limit=400&sportId=1",
-      ),
-      fetch(
-        MLB_API +
-          "/stats?stats=season&group=pitching&season=" +
-          season +
-          "&playerPool=ALL&limit=300&sportId=1",
-      ),
+    // Date range for injury transactions (last 90 days)
+    const today = new Date();
+    const ninetyDaysAgo = new Date(today);
+    ninetyDaysAgo.setDate(today.getDate() - 90);
+    const fmtDate = (d: Date) => d.toISOString().split("T")[0];
+
+    // Fetch 3 seasons of stats + spring training + transactions in parallel
+    const [
+      batRes, pitRes,
+      bat2Res, pit2Res,
+      bat3Res, pit3Res,
+      batSpringRes, pitSpringRes,
+      txRes,
+    ] = await Promise.all([
+      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&limit=400&sportId=1`),
+      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${season}&playerPool=ALL&limit=300&sportId=1`),
+      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${season2}&playerPool=ALL&limit=400&sportId=1`),
+      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${season2}&playerPool=ALL&limit=300&sportId=1`),
+      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${season3}&playerPool=ALL&limit=400&sportId=1`),
+      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${season3}&playerPool=ALL&limit=300&sportId=1`),
+      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${currentYear}&playerPool=ALL&limit=400&sportId=1&gameType=S`),
+      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${currentYear}&playerPool=ALL&limit=300&sportId=1&gameType=S`),
+      fetch(`${MLB_API}/transactions?sportId=1&startDate=${fmtDate(ninetyDaysAgo)}&endDate=${fmtDate(today)}`),
     ]);
 
-    const batJson = (await batRes.json()) as {
-      stats: { splits: MlbStatSplit[] }[];
-    };
-    const pitJson = (await pitRes.json()) as {
-      stats: { splits: MlbStatSplit[] }[];
+    const parseSplits = async (res: globalThis.Response): Promise<MlbStatSplit[]> => {
+      try {
+        const j = (await res.json()) as unknown as { stats: { splits: MlbStatSplit[] }[] };
+        return j.stats?.[0]?.splits ?? [];
+      } catch { return []; }
     };
 
-    const batSplits: MlbStatSplit[] = batJson.stats?.[0]?.splits ?? [];
-    const pitSplits: MlbStatSplit[] = pitJson.stats?.[0]?.splits ?? [];
+    const [
+      batSplits, pitSplits,
+      bat2Splits, pit2Splits,
+      bat3Splits, pit3Splits,
+      batSpringSplits, pitSpringSplits,
+    ] = await Promise.all([
+      parseSplits(batRes), parseSplits(pitRes),
+      parseSplits(bat2Res), parseSplits(pit2Res),
+      parseSplits(bat3Res), parseSplits(pit3Res),
+      parseSplits(batSpringRes), parseSplits(pitSpringRes),
+    ]);
+
+    // Build per-season stat lookup maps (playerId → stat record)
+    const buildStatMap = (splits: MlbStatSplit[]) =>
+      new Map(splits.map((s) => [s.player.id, s.stat]));
+    const bat2Map = buildStatMap(bat2Splits);
+    const bat3Map = buildStatMap(bat3Splits);
+    const pit2Map = buildStatMap(pit2Splits);
+    const pit3Map = buildStatMap(pit3Splits);
+    const batSpringMap = buildStatMap(batSpringSplits);
+    const pitSpringMap = buildStatMap(pitSpringSplits);
+
+    // Parse transactions → injury status map
+    const IL_CODES = new Set(["IL10", "IL15", "IL60", "DL10", "DL15", "DL60"]);
+    const ACT_CODES = new Set(["ACT", "OUTRTS"]);
+    let txJson: { transactions?: MlbTransaction[] } = {};
+    try { txJson = (await txRes.json()) as { transactions?: MlbTransaction[] }; } catch { /* best-effort */ }
+    const ilPlacement = new Map<number, string>(); // playerId → typeCode (most recent IL)
+    const ilPlacementDate = new Map<number, string>();
+    const actDate = new Map<number, string>();
+    for (const tx of txJson.transactions ?? []) {
+      const pid = tx.person?.id;
+      if (!pid || !tx.typeCode || !tx.effectiveDate) continue;
+      if (IL_CODES.has(tx.typeCode)) {
+        const existing = ilPlacementDate.get(pid);
+        if (!existing || tx.effectiveDate > existing) {
+          ilPlacement.set(pid, tx.typeCode);
+          ilPlacementDate.set(pid, tx.effectiveDate);
+        }
+      } else if (ACT_CODES.has(tx.typeCode)) {
+        const existing = actDate.get(pid);
+        if (!existing || tx.effectiveDate > existing) actDate.set(pid, tx.effectiveDate);
+      }
+    }
+    const injuryStatusMap = new Map<number, string>();
+    for (const [pid, code] of ilPlacement) {
+      const act = actDate.get(pid);
+      const placed = ilPlacementDate.get(pid)!;
+      if (!act || placed > act) injuryStatusMap.set(pid, code);
+    }
 
     // Fetch player bio info (age, position) for batters
     const playerIds = [
@@ -246,9 +403,11 @@ const getPlayers: RequestHandler = async (
         const bio = bioMap.get(s.player.id);
         const value = calcBatterValue(s.stat);
         const stat = s.stat;
+        const pid = s.player.id;
+        const springStat = batSpringMap.get(pid);
         return {
-          id: String(s.player.id),
-          mlbId: s.player.id,
+          id: String(pid),
+          mlbId: pid,
           name: s.player.fullName,
           team: teamAbbrev(s.team, bio?.currentTeam),
           position:
@@ -261,7 +420,7 @@ const getPlayers: RequestHandler = async (
           tier: assignTier(value),
           headshot:
             "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" +
-            s.player.id +
+            pid +
             "/headshot/67/current",
           stats: {
             batting: {
@@ -275,15 +434,22 @@ const getPlayers: RequestHandler = async (
             },
           },
           projection: {
-            batting: {
-              avg: String(stat.avg ?? ".000"),
-              hr: Number(stat.homeRuns ?? 0),
-              rbi: Number(stat.rbi ?? 0),
-              runs: Number(stat.runs ?? 0),
-              sb: Number(stat.stolenBases ?? 0),
-            },
+            batting: projectBatting(stat, bat2Map.get(pid), bat3Map.get(pid)),
           },
           outlook: "",
+          injuryStatus: injuryStatusMap.get(pid),
+          springStats: springStat && Number(springStat.atBats ?? 0) >= 5
+            ? {
+                batting: {
+                  avg: String(springStat.avg ?? ".000"),
+                  hr: Number(springStat.homeRuns ?? 0),
+                  rbi: Number(springStat.rbi ?? 0),
+                  runs: Number(springStat.runs ?? 0),
+                  sb: Number(springStat.stolenBases ?? 0),
+                  ab: Number(springStat.atBats ?? 0),
+                },
+              }
+            : undefined,
         };
       });
 
@@ -298,9 +464,11 @@ const getPlayers: RequestHandler = async (
         const bio = bioMap.get(s.player.id);
         const value = calcPitcherValue(s.stat);
         const stat = s.stat;
+        const pid = s.player.id;
+        const springStat = pitSpringMap.get(pid);
         return {
-          id: String(s.player.id),
-          mlbId: s.player.id,
+          id: String(pid),
+          mlbId: pid,
           name: s.player.fullName,
           team: teamAbbrev(s.team, bio?.currentTeam),
           position:
@@ -313,7 +481,7 @@ const getPlayers: RequestHandler = async (
           tier: assignTier(value),
           headshot:
             "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" +
-            s.player.id +
+            pid +
             "/headshot/67/current",
           stats: {
             pitching: {
@@ -328,17 +496,22 @@ const getPlayers: RequestHandler = async (
             },
           },
           projection: {
-            pitching: {
-              era: String(stat.era ?? "0.00"),
-              whip: String(stat.whip ?? "0.00"),
-              wins: Number(stat.wins ?? 0),
-              saves: Number(stat.saves ?? 0),
-              holds: Number(stat.holds ?? 0),
-              strikeouts: Number(stat.strikeOuts ?? 0),
-              completeGames: Number(stat.completeGames ?? 0),
-            },
+            pitching: projectPitching(stat, pit2Map.get(pid), pit3Map.get(pid)),
           },
           outlook: "",
+          injuryStatus: injuryStatusMap.get(pid),
+          springStats: springStat && parseFloat(String(springStat.inningsPitched ?? "0")) >= 1
+            ? {
+                pitching: {
+                  era: String(springStat.era ?? "0.00"),
+                  whip: String(springStat.whip ?? "0.00"),
+                  wins: Number(springStat.wins ?? 0),
+                  saves: Number(springStat.saves ?? 0),
+                  strikeouts: Number(springStat.strikeOuts ?? 0),
+                  innings: String(springStat.inningsPitched ?? "0"),
+                },
+              }
+            : undefined,
         };
       });
 
