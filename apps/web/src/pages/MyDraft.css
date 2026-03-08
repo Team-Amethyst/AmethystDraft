@@ -181,8 +181,7 @@
 }
 
 .pos-cell {
-  color: #a78bfa;
-  font-weight: 700;
+  padding-right: 0.25rem;
 }
 
 .spent-inline {

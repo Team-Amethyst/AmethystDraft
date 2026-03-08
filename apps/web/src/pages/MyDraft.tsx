@@ -21,7 +21,7 @@ const POSITION_PLAN: Array<{ pos: string; slots: number; target: number }> = [
   { pos: "SP", slots: 2, target: 60 },
   { pos: "RP", slots: 2, target: 20 },
   { pos: "UTIL", slots: 1, target: 15 },
-  { pos: "BENCH", slots: 4, target: 8 },
+  { pos: "BN", slots: 4, target: 8 },
 ];
 
 const PITCHER_POSITIONS = new Set(["SP", "RP"]);
@@ -303,7 +303,9 @@ export default function MyDraft() {
                   const perSlot = target / row.slots;
                   return (
                     <tr key={row.pos}>
-                      <td className="pos-cell">{row.pos}</td>
+                      <td className="pos-cell">
+                        <PosBadge pos={row.pos} />
+                      </td>
                       <td>{row.slots}</td>
                       <td>
                         <span className="target-prefix">$</span>

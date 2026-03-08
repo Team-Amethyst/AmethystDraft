@@ -67,6 +67,11 @@ const POS_COLORS: Record<string, PosColors> = {
     color: "#94a3b8",
     border: "rgba(148,163,184,0.28)",
   },
+  BN: {
+    bg: "rgba(100,116,139,0.14)",
+    color: "#64748b",
+    border: "rgba(100,116,139,0.28)",
+  },
 };
 
 const DEFAULT: PosColors = {
