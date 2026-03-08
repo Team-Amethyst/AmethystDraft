@@ -267,6 +267,71 @@ const removeRosterEntry: RequestHandler = async (
   }
 };
 
+// ─── PATCH /api/leagues/:id/roster/:entryId ──────────────────────────────────
+
+const updateRosterEntry: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { price, rosterSlot, teamId } = req.body as {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+    };
+    const update: Record<string, unknown> = {};
+    if (price !== undefined) update.price = price;
+    if (rosterSlot !== undefined) update.rosterSlot = rosterSlot;
+    if (teamId !== undefined) {
+      const teamIndex = parseInt(teamId.replace("team_", ""), 10) - 1;
+      if (isNaN(teamIndex) || teamIndex < 0) {
+        res.status(400).json({ message: "Invalid teamId" });
+        return;
+      }
+      const league = await League.findById(req.params.id);
+      if (!league) {
+        res.status(404).json({ message: "League not found" });
+        return;
+      }
+      // Check if this player is already on the target team
+      const currentEntry = await RosterEntry.findById(
+        req.params.entryId,
+      ).lean();
+      if (currentEntry) {
+        const existingOnTarget = await RosterEntry.exists({
+          leagueId: req.params.id,
+          teamId,
+          externalPlayerId: currentEntry.externalPlayerId,
+          _id: { $ne: currentEntry._id },
+        });
+        if (existingOnTarget) {
+          res
+            .status(409)
+            .json({ message: "That player is already on the target team" });
+          return;
+        }
+      }
+      update.teamId = teamId;
+      // Also update userId if that team slot has a joined member
+      const newUserId = league.memberIds[teamIndex];
+      if (newUserId) update.userId = newUserId;
+    }
+    const entry = await RosterEntry.findOneAndUpdate(
+      { _id: req.params.entryId, leagueId: req.params.id },
+      { $set: update },
+      { new: true },
+    );
+    if (!entry) {
+      res.status(404).json({ message: "Entry not found" });
+      return;
+    }
+    res.json(entry);
+  } catch (err) {
+    console.error("Update roster entry error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ─── GET /api/leagues/:leagueId/notes ─────────────────────────────────────────
 
 const getNotes: RequestHandler = async (
@@ -321,6 +386,7 @@ router.get("/:id", getLeague);
 router.patch("/:id", updateLeague);
 router.get("/:id/roster", getRoster);
 router.post("/:id/roster", addRosterEntry);
+router.patch("/:id/roster/:entryId", updateRosterEntry);
 router.delete("/:id/roster/:entryId", removeRosterEntry);
 router.get("/:id/notes", getNotes);
 router.put("/:id/notes/:playerId", upsertNote);

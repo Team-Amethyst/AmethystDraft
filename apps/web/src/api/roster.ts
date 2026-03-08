@@ -61,6 +61,25 @@ export async function addRosterEntry(
   return json as RosterEntry;
 }
 
+export async function updateRosterEntry(
+  leagueId: string,
+  entryId: string,
+  data: { price?: number; rosterSlot?: string; teamId?: string },
+  token: string,
+): Promise<RosterEntry> {
+  const res = await fetch(
+    `${API_BASE}/api/leagues/${leagueId}/roster/${entryId}`,
+    {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    },
+  );
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to update roster entry");
+  return json as RosterEntry;
+}
+
 export async function removeRosterEntry(
   leagueId: string,
   entryId: string,

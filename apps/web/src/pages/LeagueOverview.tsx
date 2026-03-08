@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
-import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
-import { getRoster, removeRosterEntry } from "../api/roster";
+import { getRoster, removeRosterEntry, updateRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
+import type { Player } from "../types/player";
+import { getPlayers } from "../api/players";
+import { DraftLogRow } from "../components/DraftLogRow";
 import { usePageTitle } from "../hooks/usePageTitle";
 import "./LeagueOverview.css";
 
@@ -211,6 +214,7 @@ export default function LeagueOverview() {
   usePageTitle(league ? `${league.name} Overview` : "League Overview");
 
   const [entries, setEntries] = useState<RosterEntry[]>([]);
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [loadingRoster, setLoadingRoster] = useState(true);
   const [sortCat, setSortCat] = useState<string>("HR");
   const [sortAsc, setSortAsc] = useState(false);
@@ -235,6 +239,12 @@ export default function LeagueOverview() {
       .catch(() => setEntries([]))
       .finally(() => setLoadingRoster(false));
   }, [league?.id, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    getPlayers()
+      .then(setAllPlayers)
+      .catch(() => {});
+  }, []);
 
   const teamNames = useMemo(
     () =>
@@ -303,6 +313,58 @@ export default function LeagueOverview() {
         .then(setEntries)
         .catch(() => {});
       showToast("Failed to remove pick", "error");
+    }
+  };
+
+  const playerMap = useMemo(
+    () => new Map(allPlayers.map((p) => [p.id, p])),
+    [allPlayers],
+  );
+
+  const slotOptions = useMemo(
+    () => (league?.rosterSlots ? Object.keys(league.rosterSlots) : []),
+    [league],
+  );
+
+  const teamOptions = useMemo(
+    () =>
+      (league?.teamNames ?? []).map((name, i) => ({
+        id: `team_${i + 1}`,
+        name,
+      })),
+    [league],
+  );
+
+  const handleUpdateEntry = async (
+    entryId: string,
+    data: { price?: number; rosterSlot?: string; teamId?: string },
+  ) => {
+    if (!league || !token) return;
+    const prev = entries.find((e) => e._id === entryId);
+    setEntries((es) =>
+      es.map((e) => (e._id === entryId ? { ...e, ...data } : e)),
+    );
+    try {
+      await updateRosterEntry(league.id, entryId, data, token);
+      const parts: string[] = [];
+      if (data.teamId) {
+        const idx = parseInt(data.teamId.replace("team_", ""), 10) - 1;
+        const name = league.teamNames[idx] ?? data.teamId;
+        parts.push(`team → ${name}`);
+      }
+      if (data.rosterSlot) parts.push(`slot → ${data.rosterSlot}`);
+      if (data.price !== undefined) parts.push(`price → $${data.price}`);
+      showToast(
+        `✎ ${prev?.playerName ?? "Pick"} updated${parts.length ? ": " + parts.join(", ") : ""}`,
+        "success",
+      );
+    } catch (err) {
+      if (prev)
+        setEntries((es) => es.map((e) => (e._id === entryId ? prev : e)));
+      showToast(
+        err instanceof Error ? err.message : "Failed to update pick",
+        "error",
+      );
     }
   };
 
@@ -407,27 +469,31 @@ export default function LeagueOverview() {
                       new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
                   )
                   .map((entry, i) => {
-                    const teamIdx = league.memberIds.indexOf(entry.userId);
+                    const teamIdx = entry.teamId
+                      ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
+                      : league.memberIds.indexOf(entry.userId);
                     const teamName =
-                      teamIdx !== -1
-                        ? (league.teamNames[teamIdx] ?? entry.userId)
-                        : entry.userId;
-                    const pickNum = i + 1;
+                      teamIdx >= 0
+                        ? (league.teamNames[teamIdx] ??
+                          entry.teamId ??
+                          entry.userId)
+                        : (entry.teamId ?? entry.userId);
+                    const player = playerMap.get(entry.externalPlayerId);
                     return (
-                      <div key={entry._id} className="lo-dl-row">
-                        <span className="lo-dl-pick">#{pickNum}</span>
-                        <span className="lo-dl-slot">{entry.rosterSlot}</span>
-                        <span className="lo-dl-name">{entry.playerName}</span>
-                        <span className="lo-dl-team">{teamName}</span>
-                        <span className="lo-dl-price">${entry.price}</span>
-                        <button
-                          className="lo-dl-remove"
-                          onClick={() => void handleRemoveEntry(entry._id)}
-                          title="Remove pick"
-                        >
-                          <X size={11} />
-                        </button>
-                      </div>
+                      <DraftLogRow
+                        key={entry._id}
+                        entry={entry}
+                        pickNum={i + 1}
+                        teamName={teamName}
+                        headshot={player?.headshot}
+                        mlbTeam={player?.team || entry.playerTeam}
+                        slotOptions={slotOptions}
+                        teamOptions={teamOptions}
+                        allRosterEntries={entries}
+                        leagueRosterSlots={league.rosterSlots}
+                        onUpdate={handleUpdateEntry}
+                        onRemove={handleRemoveEntry}
+                      />
                     );
                   })}
               </div>

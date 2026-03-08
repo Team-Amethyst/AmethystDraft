@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { X } from "lucide-react";
 import { useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
@@ -10,9 +9,15 @@ import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import type { Player } from "../types/player";
 import { getPlayers } from "../api/players";
-import { addRosterEntry, getRoster, removeRosterEntry } from "../api/roster";
+import {
+  addRosterEntry,
+  getRoster,
+  removeRosterEntry,
+  updateRosterEntry,
+} from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import "./CommandCenter.css";
+import { DraftLogRow } from "../components/DraftLogRow";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data helpers
@@ -160,12 +165,35 @@ function computePositionMarket(
 function DraftLog({
   rosterEntries,
   league,
+  allPlayers,
   onRemovePick,
+  onUpdatePick,
 }: {
   rosterEntries: RosterEntry[];
   league: League | null;
+  allPlayers: Player[];
   onRemovePick?: (id: string) => void;
+  onUpdatePick?: (
+    id: string,
+    data: { price?: number; rosterSlot?: string; teamId?: string },
+  ) => void;
 }) {
+  const playerMap = useMemo(
+    () => new Map(allPlayers.map((p) => [p.id, p])),
+    [allPlayers],
+  );
+  const slotOptions = useMemo(
+    () => (league?.rosterSlots ? Object.keys(league.rosterSlots) : []),
+    [league],
+  );
+  const teamOptions = useMemo(
+    () =>
+      (league?.teamNames ?? []).map((name, i) => ({
+        id: `team_${i + 1}`,
+        name,
+      })),
+    [league],
+  );
   const sorted = [...rosterEntries].sort(
     (a, b) =>
       new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
@@ -179,29 +207,29 @@ function DraftLog({
       <div className="draft-log-list">
         {sorted.length === 0 && <div className="dl-empty">No picks yet.</div>}
         {sorted.map((entry, i) => {
-          const teamIdx = league?.memberIds.indexOf(entry.userId) ?? -1;
+          const teamIdx = entry.teamId
+            ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
+            : (league?.memberIds.indexOf(entry.userId) ?? -1);
           const teamName =
-            teamIdx !== -1
-              ? (league?.teamNames[teamIdx] ?? entry.userId)
-              : entry.userId;
-          const pickNum = i + 1;
+            teamIdx >= 0
+              ? (league?.teamNames[teamIdx] ?? entry.teamId ?? entry.userId)
+              : (entry.teamId ?? entry.userId);
+          const player = playerMap.get(entry.externalPlayerId);
           return (
-            <div key={entry._id} className="draft-log-row">
-              <span className="dl-pick">#{pickNum}</span>
-              <span className="dl-slot">{entry.rosterSlot}</span>
-              <span className="dl-name">{entry.playerName}</span>
-              <span className="dl-team">{teamName}</span>
-              <span className="dl-price">${entry.price}</span>
-              {onRemovePick && (
-                <button
-                  className="dl-remove"
-                  title="Remove pick"
-                  onClick={() => onRemovePick(entry._id)}
-                >
-                  <X size={11} />
-                </button>
-              )}
-            </div>
+            <DraftLogRow
+              key={entry._id}
+              entry={entry}
+              pickNum={i + 1}
+              teamName={teamName}
+              headshot={player?.headshot}
+              mlbTeam={player?.team || entry.playerTeam}
+              slotOptions={slotOptions}
+              teamOptions={teamOptions}
+              allRosterEntries={rosterEntries}
+              leagueRosterSlots={league?.rosterSlots ?? {}}
+              onUpdate={onUpdatePick}
+              onRemove={onRemovePick}
+            />
           );
         })}
       </div>
@@ -220,6 +248,7 @@ function LeftPanel({
   draftedIds,
   rosterEntries,
   onRemovePick,
+  onUpdatePick,
 }: {
   activeTab: string;
   setActiveTab: (t: string) => void;
@@ -231,6 +260,10 @@ function LeftPanel({
   draftedIds: Set<string>;
   rosterEntries: RosterEntry[];
   onRemovePick: (id: string) => void;
+  onUpdatePick: (
+    id: string,
+    data: { price?: number; rosterSlot?: string; teamId?: string },
+  ) => void;
 }) {
   const posMarket = useMemo(
     () =>
@@ -469,7 +502,9 @@ function LeftPanel({
           <DraftLog
             rosterEntries={rosterEntries}
             league={league}
+            allPlayers={allPlayers}
             onRemovePick={onRemovePick}
+            onUpdatePick={onUpdatePick}
           />
         </div>
       )}
@@ -517,7 +552,9 @@ function LeftPanel({
           <DraftLog
             rosterEntries={rosterEntries}
             league={league}
+            allPlayers={allPlayers}
             onRemovePick={onRemovePick}
+            onUpdatePick={onUpdatePick}
           />
         </div>
       )}
@@ -1529,6 +1566,20 @@ export default function CommandCenter() {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
 
+  // 1/2/3 → switch tabs (Market / Teams / Standings)
+  useEffect(() => {
+    const TABS = ["Market", "Teams", "Standings"];
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= TABS.length) setActiveTab(TABS[n - 1]);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   const refreshRoster = () => {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
@@ -1587,6 +1638,35 @@ export default function CommandCenter() {
     }
   };
 
+  const handleUpdatePick = async (
+    entryId: string,
+    data: { price?: number; rosterSlot?: string; teamId?: string },
+  ) => {
+    if (!leagueId || !token) return;
+    const prev = rosterEntries.find((e) => e._id === entryId);
+    setRosterEntries((entries) =>
+      entries.map((e) => (e._id === entryId ? { ...e, ...data } : e)),
+    );
+    try {
+      await updateRosterEntry(leagueId, entryId, data, token);
+      const parts: string[] = [];
+      if (data.teamId && league) {
+        const idx = parseInt(data.teamId.replace("team_", ""), 10) - 1;
+        const name = league.teamNames[idx] ?? data.teamId;
+        parts.push(`team → ${name}`);
+      }
+      if (data.rosterSlot) parts.push(`slot → ${data.rosterSlot}`);
+      if (data.price !== undefined) parts.push(`price → $${data.price}`);
+      showToast(
+        `✎ ${prev?.playerName ?? "Pick"} updated${parts.length ? ": " + parts.join(", ") : ""}`,
+        "success",
+      );
+    } catch (err) {
+      refreshRoster();
+      showToast(err instanceof Error ? err.message : "Update failed", "error");
+    }
+  };
+
   return (
     <div className="cc-page">
       <div className="cc-layout">
@@ -1601,6 +1681,7 @@ export default function CommandCenter() {
           draftedIds={draftedIds}
           rosterEntries={rosterEntries}
           onRemovePick={handleRemovePick}
+          onUpdatePick={handleUpdatePick}
         />
         <AuctionCenter
           rosterEntries={rosterEntries}

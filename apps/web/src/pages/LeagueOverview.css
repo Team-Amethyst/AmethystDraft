@@ -359,7 +359,7 @@
 .lo-dl-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   max-height: 280px;
   overflow-y: auto;
   padding: 4px 0 8px;
@@ -368,85 +368,6 @@
 .lo-dl-list::-webkit-scrollbar { width: 4px; }
 .lo-dl-list::-webkit-scrollbar-track { background: transparent; }
 .lo-dl-list::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 2px; }
-
-.lo-dl-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: 5px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  font-size: 0.72rem;
-}
-
-.lo-dl-row:last-child { border-bottom: none; }
-
-.lo-dl-pick {
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: #4a3a60;
-  min-width: 24px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.lo-dl-slot {
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: #a78bfa;
-  background: rgba(139, 92, 246, 0.15);
-  border-radius: 4px;
-  padding: 0.1rem 0.35rem;
-  min-width: 26px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.lo-dl-name {
-  flex: 1;
-  color: #d4c8e8;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lo-dl-team {
-  color: #6b4fa0;
-  font-size: 0.68rem;
-  flex-shrink: 0;
-  max-width: 90px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lo-dl-price {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #22c55e;
-  flex-shrink: 0;
-}
-
-.lo-dl-remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  color: rgba(139, 92, 246, 0.25);
-  cursor: pointer;
-  padding: 2px 3px;
-  border-radius: 3px;
-  flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
-  line-height: 1;
-}
-
-.lo-dl-remove:hover {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.1);
-}
 
 .lo-dl-empty {
   padding: 0.6rem 16px;
