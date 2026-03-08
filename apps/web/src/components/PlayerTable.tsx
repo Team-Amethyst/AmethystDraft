@@ -645,154 +645,145 @@ export default function PlayerTable({
     <div className="pt-container">
       {/* ── Top controls bar ── */}
       <div className="pt-controls">
-        <div className="pt-controls-row1">
-          <div className="pt-search">
-            <Search size={15} className="pt-search-icon" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search players by name..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pt-search-input"
-            />
-          </div>
+        <div className="pt-search">
+          <Search size={15} className="pt-search-icon" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search players by name..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pt-search-input"
+          />
+        </div>
 
-          <div className="pt-filters">
-            <select
-              className="pt-select"
-              value={availabilityFilter}
-              onChange={(e) =>
-                setAvailabilityFilter(
-                  e.target.value as "all" | "available" | "drafted",
-                )
-              }
-            >
-              <option value="all">Availability (All)</option>
-              <option value="available">Available</option>
-              <option value="drafted">Drafted</option>
-            </select>
+        <div className="pt-filters">
+          <select
+            className="pt-select"
+            value={availabilityFilter}
+            onChange={(e) =>
+              setAvailabilityFilter(
+                e.target.value as "all" | "available" | "drafted",
+              )
+            }
+          >
+            <option value="all">Availability (All)</option>
+            <option value="available">Available</option>
+            <option value="drafted">Drafted</option>
+          </select>
 
-            <select
-              className="pt-select"
-              value={statView}
-              onChange={(e) => {
-                const v = e.target.value as "all" | "hitting" | "pitching";
-                setStatView(v);
-                if (
-                  v === "hitting" &&
-                  !HITTER_POSITIONS.includes(positionFilter)
-                ) {
-                  onPositionChange("all");
-                } else if (
-                  v === "pitching" &&
-                  !PITCHER_POSITION_LIST.includes(positionFilter)
-                ) {
-                  onPositionChange("all");
-                }
-              }}
-            >
-              <option value="all">Hitters/Pitchers</option>
-              <option value="hitting">Hitters</option>
-              <option value="pitching">Pitchers</option>
-            </select>
-
-            <select
-              className="pt-select"
-              value={positionFilter}
-              onChange={(e) => onPositionChange(e.target.value)}
-            >
-              <option value="all">Position (All)</option>
-              {(statView === "hitting"
-                ? HITTER_POSITIONS
-                : statView === "pitching"
-                  ? PITCHER_POSITION_LIST
-                  : POSITIONS.slice(1)
-              ).map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
-            <button
-              className={"pt-toggle " + (starredOnly ? "active" : "")}
-              onClick={() => setStarredOnly((v) => !v)}
-            >
-              <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
-              Starred only
-            </button>
-
-            <div className="pt-tag-wrap">
-              <button
-                className={
-                  "pt-toggle " + (selectedTags.size > 0 ? "active" : "")
-                }
-                onClick={() => setTagDropdownOpen((v) => !v)}
-              >
-                <Tag size={13} />
-                Tags{selectedTags.size > 0 ? ` (${selectedTags.size})` : ""}
-              </button>
-              {tagDropdownOpen && (
-                <div className="pt-tag-dropdown" ref={tagDropdownRef}>
-                  {ALL_TAGS.map((tag) => (
-                    <label key={tag} className="pt-tag-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedTags.has(tag)}
-                        onChange={() => toggleTag(tag)}
-                      />
-                      <span className="tag">{tag}</span>
-                    </label>
-                  ))}
-                  {selectedTags.size > 0 && (
-                    <button
-                      className="pt-tag-clear"
-                      onClick={() => setSelectedTags(new Set())}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <button
-              className="pt-icon-btn"
-              title="Reset filters"
-              onClick={() => {
-                onSearchChange("");
+          <select
+            className="pt-select"
+            value={statView}
+            onChange={(e) => {
+              const v = e.target.value as "all" | "hitting" | "pitching";
+              setStatView(v);
+              if (
+                v === "hitting" &&
+                !HITTER_POSITIONS.includes(positionFilter)
+              ) {
                 onPositionChange("all");
-                setSelectedTags(new Set());
-                setAvailabilityFilter("all");
-              }}
+              } else if (
+                v === "pitching" &&
+                !PITCHER_POSITION_LIST.includes(positionFilter)
+              ) {
+                onPositionChange("all");
+              }
+            }}
+          >
+            <option value="all">Hitters/Pitchers</option>
+            <option value="hitting">Hitters</option>
+            <option value="pitching">Pitchers</option>
+          </select>
+
+          <select
+            className="pt-select"
+            value={positionFilter}
+            onChange={(e) => onPositionChange(e.target.value)}
+          >
+            <option value="all">Position (All)</option>
+            {(statView === "hitting"
+              ? HITTER_POSITIONS
+              : statView === "pitching"
+                ? PITCHER_POSITION_LIST
+                : POSITIONS.slice(1)
+            ).map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+
+          <button
+            className={"pt-toggle " + (starredOnly ? "active" : "")}
+            onClick={() => setStarredOnly((v) => !v)}
+          >
+            <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
+            Starred only
+          </button>
+
+          <div className="pt-tag-wrap">
+            <button
+              className={"pt-toggle " + (selectedTags.size > 0 ? "active" : "")}
+              onClick={() => setTagDropdownOpen((v) => !v)}
             >
-              <RotateCcw size={14} />
+              <Tag size={13} />
+              Tags{selectedTags.size > 0 ? ` (${selectedTags.size})` : ""}
             </button>
-          </div>
-        </div>
-        {/* end pt-controls-row1 */}
-        <div className="pt-controls-row2">
-          {onStatBasisChange && (
-            <div className="pt-basis-pills">
-              {(["projections", "last-year", "3-year-avg"] as const).map(
-                (b) => (
+            {tagDropdownOpen && (
+              <div className="pt-tag-dropdown" ref={tagDropdownRef}>
+                {ALL_TAGS.map((tag) => (
+                  <label key={tag} className="pt-tag-option">
+                    <input
+                      type="checkbox"
+                      checked={selectedTags.has(tag)}
+                      onChange={() => toggleTag(tag)}
+                    />
+                    <span className="tag">{tag}</span>
+                  </label>
+                ))}
+                {selectedTags.size > 0 && (
                   <button
-                    key={b}
-                    className={"pt-pill " + (statBasis === b ? "active" : "")}
-                    onClick={() => onStatBasisChange(b)}
+                    className="pt-tag-clear"
+                    onClick={() => setSelectedTags(new Set())}
                   >
-                    {b === "projections"
-                      ? "PROJ"
-                      : b === "last-year"
-                        ? "2025"
-                        : "3YR"}
+                    Clear
                   </button>
-                ),
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            className="pt-icon-btn"
+            title="Reset filters"
+            onClick={() => {
+              onSearchChange("");
+              onPositionChange("all");
+              setSelectedTags(new Set());
+              setAvailabilityFilter("all");
+            }}
+          >
+            <RotateCcw size={14} />
+          </button>
         </div>
+        {onStatBasisChange && (
+          <div className="pt-basis-pills">
+            {(["projections", "last-year", "3-year-avg"] as const).map((b) => (
+              <button
+                key={b}
+                className={"pt-pill " + (statBasis === b ? "active" : "")}
+                onClick={() => onStatBasisChange(b)}
+              >
+                {b === "projections"
+                  ? "PROJ"
+                  : b === "last-year"
+                    ? "2025"
+                    : "3YR"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Table ── */}
