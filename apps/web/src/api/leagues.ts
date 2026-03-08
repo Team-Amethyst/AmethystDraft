@@ -13,6 +13,7 @@ export interface CreateLeaguePayload {
   playerPool: "Mixed" | "AL" | "NL";
   draftDate?: string;
   teamNames?: string[];
+  posEligibilityThreshold?: number;
 }
 
 function authHeaders(token: string): Record<string, string> {

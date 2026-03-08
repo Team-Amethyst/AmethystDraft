@@ -41,6 +41,8 @@ export default function LeagueCreate() {
     setTeams,
     budget,
     setBudget,
+    posEligibilityThreshold,
+    setPosEligibilityThreshold,
     rosterSlots,
     totalRosterSpots,
     playerPool,
@@ -68,6 +70,9 @@ export default function LeagueCreate() {
 
   const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
   const [posFilter, setPosFilter] = useState("ALL");
+  const [posEligibilityRaw, setPosEligibilityRaw] = useState(
+    String(posEligibilityThreshold),
+  );
 
   const goBack = () => {
     if (step === 1) {
@@ -107,6 +112,7 @@ export default function LeagueCreate() {
           name: leagueName,
           teams,
           budget,
+          posEligibilityThreshold: Math.max(1, posEligibilityThreshold || 1),
           rosterSlots: rosterSlotsMap,
           scoringCategories: [
             ...selectedHitting.map((s) => ({
@@ -206,6 +212,24 @@ export default function LeagueCreate() {
                     type="number"
                     value={budget}
                     onChange={(e) => setBudget(Number(e.target.value))}
+                  />
+                </div>
+
+                <div className="league-create-field">
+                  <label>POSITION ELIGIBILITY (MIN. GAMES)</label>
+                  <input
+                    type="number"
+                    value={posEligibilityRaw}
+                    min={1}
+                    onChange={(e) => setPosEligibilityRaw(e.target.value)}
+                    onBlur={() => {
+                      const clamped = Math.max(
+                        1,
+                        Number(posEligibilityRaw) || 1,
+                      );
+                      setPosEligibilityThreshold(clamped);
+                      setPosEligibilityRaw(String(clamped));
+                    }}
                   />
                 </div>
               </div>

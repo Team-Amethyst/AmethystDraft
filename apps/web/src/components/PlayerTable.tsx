@@ -725,10 +725,7 @@ export default function PlayerTable({
                 !HITTER_POSITIONS.includes(positionFilter)
               ) {
                 onPositionChange("all");
-              } else if (
-                v === "pitching" &&
-                positionFilter !== "P"
-              ) {
+              } else if (v === "pitching" && positionFilter !== "P") {
                 onPositionChange("all");
               }
             }}
@@ -987,7 +984,21 @@ export default function PlayerTable({
                     </td>
 
                     <td className="td-pos">
-                      <PosBadge pos={player.position} />
+                      {player.positions && player.positions.length > 1 ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "2px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {player.positions.map((pos) => (
+                            <PosBadge key={pos} pos={pos} />
+                          ))}
+                        </div>
+                      ) : (
+                        <PosBadge pos={player.position} />
+                      )}
                     </td>
                     <td className="td-team">{player.team}</td>
 

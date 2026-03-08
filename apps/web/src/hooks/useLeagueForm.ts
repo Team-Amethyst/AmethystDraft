@@ -18,6 +18,7 @@ interface UseLeagueFormOptions {
   initialRosterSlots?: Record<string, number>;
   initialTeamNames?: string[];
   initialKeepers?: TeamKeepersMap;
+  initialPosEligibilityThreshold?: number;
 }
 
 export function useLeagueForm({
@@ -30,10 +31,14 @@ export function useLeagueForm({
   initialRosterSlots,
   initialTeamNames,
   initialKeepers,
+  initialPosEligibilityThreshold,
 }: UseLeagueFormOptions = {}) {
   const [leagueName, setLeagueName] = useState(initialName);
   const [teams, setTeams] = useState(initialTeams);
   const [budget, setBudget] = useState(initialBudget);
+  const [posEligibilityThreshold, setPosEligibilityThreshold] = useState(
+    initialPosEligibilityThreshold ?? 20,
+  );
   const [rosterSlots, setRosterSlots] = useState<RosterSlot[]>(
     initialRosterSlots
       ? rosterDefaults.map((s) => ({
@@ -167,6 +172,8 @@ export function useLeagueForm({
     setTeams,
     budget,
     setBudget,
+    posEligibilityThreshold,
+    setPosEligibilityThreshold,
     rosterSlots,
     totalRosterSpots,
     playerPool,

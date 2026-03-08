@@ -29,6 +29,7 @@ export interface ILeague extends Document {
   draftDate?: Date;
   playerPool: PlayerPool;
   teamNames: string[];
+  posEligibilityThreshold: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -111,6 +112,10 @@ const leagueSchema = new Schema<ILeague>(
     teamNames: {
       type: [String],
       default: [],
+    },
+    posEligibilityThreshold: {
+      type: Number,
+      default: 20,
     },
   },
   { timestamps: true },

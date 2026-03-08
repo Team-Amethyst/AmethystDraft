@@ -43,7 +43,7 @@ export function DraftLogRow({
     if (s === "UTIL") return true;
     if (s === "BN" || s === "BENCH") return true;
     if (s === "MI") return ["SS", "2B"].includes(p);
-    if (s === "CI") return ["1B", "3B"].includes(p);
+    if (s === "CI") return ["1B", "3B", "DH"].includes(p);
     if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(p);
     if (s === "P") return ["SP", "RP"].includes(p);
     return false;
@@ -135,7 +135,8 @@ export function DraftLogRow({
       const filled = teamEntries.length;
       const open = Math.max(0, totalSlots - filled);
       const remaining = Math.max(0, leagueBudget - spent);
-      const maxBid = open > 0 ? Math.max(1, remaining - (open - 1)) : leagueBudget;
+      const maxBid =
+        open > 0 ? Math.max(1, remaining - (open - 1)) : leagueBudget;
       if (newPrice > maxBid) {
         const teamName =
           teamOptions.find((t) => t.id === targetTeamId)?.name ?? targetTeamId;

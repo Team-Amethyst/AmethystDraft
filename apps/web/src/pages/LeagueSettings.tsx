@@ -95,6 +95,9 @@ function LeagueSettingsForm({ league }: { league: League }) {
   );
   const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
   const [posFilter, setPosFilter] = useState("ALL");
+  const [posEligibilityRaw, setPosEligibilityRaw] = useState(
+    String(league.posEligibilityThreshold ?? 20),
+  );
 
   const {
     leagueName,
@@ -103,6 +106,8 @@ function LeagueSettingsForm({ league }: { league: League }) {
     setTeams,
     budget,
     setBudget,
+    posEligibilityThreshold,
+    setPosEligibilityThreshold,
     rosterSlots,
     totalRosterSpots,
     playerPool,
@@ -145,6 +150,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
     ),
     initialRosterSlots: league.rosterSlots,
     initialTeamNames: league.teamNames,
+    initialPosEligibilityThreshold: league.posEligibilityThreshold ?? 20,
     initialKeepers: {},
   });
 
@@ -178,6 +184,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
           name: leagueName,
           teams,
           budget,
+          posEligibilityThreshold: Math.max(1, posEligibilityThreshold || 1),
           rosterSlots: rosterSlotsMap,
           scoringCategories: [
             ...selectedHitting.map((s) => ({
@@ -301,6 +308,23 @@ function LeagueSettingsForm({ league }: { league: League }) {
                       type="number"
                       value={budget}
                       onChange={(e) => setBudget(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="ls-field">
+                    <label>POSITION ELIGIBILITY (MIN. GAMES)</label>
+                    <input
+                      type="number"
+                      value={posEligibilityRaw}
+                      min={1}
+                      onChange={(e) => setPosEligibilityRaw(e.target.value)}
+                      onBlur={() => {
+                        const clamped = Math.max(
+                          1,
+                          Number(posEligibilityRaw) || 1,
+                        );
+                        setPosEligibilityThreshold(clamped);
+                        setPosEligibilityRaw(String(clamped));
+                      }}
                     />
                   </div>
                 </div>

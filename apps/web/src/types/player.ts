@@ -4,6 +4,7 @@ export interface Player {
   name: string;
   team: string;
   position: string;
+  positions?: string[];
   age: number;
   adp: number;
   value: number;

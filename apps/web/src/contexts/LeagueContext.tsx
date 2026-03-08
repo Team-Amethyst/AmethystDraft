@@ -25,6 +25,7 @@ export interface League {
   draftDate?: string;
   playerPool: "Mixed" | "AL" | "NL";
   teamNames: string[];
+  posEligibilityThreshold: number;
   createdAt: string;
 }
 

@@ -90,12 +90,15 @@ export default function Research() {
 
   useEffect(() => {
     const loadPlayers = async () => {
-      const cached = getPlayersCached("adp");
+      const cached = getPlayersCached("adp", league?.posEligibilityThreshold);
       if (!cached) setIsLoadingPlayers(true);
       setPlayersError("");
 
       try {
-        const playersFromApi = await getPlayers("adp");
+        const playersFromApi = await getPlayers(
+          "adp",
+          league?.posEligibilityThreshold,
+        );
         setPlayers(playersFromApi);
       } catch (err) {
         setPlayersError(
@@ -109,7 +112,7 @@ export default function Research() {
     if (selectedView === "player-database") {
       void loadPlayers();
     }
-  }, [selectedView]);
+  }, [selectedView, league?.posEligibilityThreshold]);
 
   const filteredPlayers = useMemo(() => {
     return players.filter((player) => {
@@ -117,9 +120,16 @@ export default function Research() {
       const matchesSearch = playerName.includes(searchQuery.toLowerCase());
       const matchesPosition =
         positionFilter === "all" ||
-        (positionFilter === "P"
-          ? ["SP", "RP", "P"].includes(player.position)
-          : player.position === positionFilter);
+        (() => {
+          const allPos = player.positions?.length
+            ? player.positions
+            : [player.position];
+          if (positionFilter === "P")
+            return allPos.some((p) => ["SP", "RP", "P"].includes(p));
+          if (positionFilter === "OF")
+            return allPos.some((p) => ["OF", "LF", "CF", "RF"].includes(p));
+          return allPos.includes(positionFilter);
+        })();
       return matchesSearch && matchesPosition;
     });
   }, [players, searchQuery, positionFilter]);

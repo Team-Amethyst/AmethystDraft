@@ -440,7 +440,21 @@ export default function MyDraft() {
                           </div>
                         </td>
                         <td>
-                          <PosBadge pos={pos} />
+                          {player.positions && player.positions.length > 1 ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "2px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              {player.positions.map((p) => (
+                                <PosBadge key={p} pos={p} />
+                              ))}
+                            </div>
+                          ) : (
+                            <PosBadge pos={pos} />
+                          )}
                         </td>
                         <td className="money">
                           ${Math.round(player.value ?? 0)}

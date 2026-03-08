@@ -73,6 +73,37 @@ function teamAbbrev(
   );
 }
 
+/**
+ * Normalize raw MLB API position abbreviations to canonical fantasy positions.
+ *
+ * MLB API can return outfield variants (LF/CF/RF), generic pitcher (P),
+ * two-way player (TWP), generic infielder (IF), and utility (UTL) codes
+ * that don't map directly to typical fantasy roster slots.
+ *
+ * @param pos   Raw abbreviation from `s.position` or `bio.primaryPosition`
+ * @param group "hitting" | "pitching" — disambiguates TWP and generic P
+ */
+function normalizePosition(pos: string, group: "hitting" | "pitching"): string {
+  switch (pos.toUpperCase()) {
+    // Outfield variants → OF
+    case "LF":
+    case "CF":
+    case "RF":
+      return "OF";
+    // Two-way player: use pitching slot in pitching context, DH when batting
+    case "TWP":
+      return group === "pitching" ? "SP" : "DH";
+    // Generic infielder — not a real fantasy slot, treat as utility hitter
+    case "IF":
+      return "UTIL";
+    // Utility — map to DH as closest fantasy equivalent
+    case "UTL":
+      return "DH";
+    default:
+      return pos;
+  }
+}
+
 // Calculate age from birthdate string
 function calcAge(birthDate?: string): number {
   if (!birthDate) return 0;
@@ -252,6 +283,7 @@ interface PlayerData {
   name: string;
   team: string;
   position: string;
+  positions: string[];
   age: number;
   adp: number;
   value: number;
@@ -467,6 +499,36 @@ const getPlayers: RequestHandler = async (
       // bio fetch is best-effort
     }
 
+    // Build multi-position eligibility map from fielding stats.
+    // A player qualifies at a position if they appeared there in N+ games.
+    const FIELDING_QUALIFY_GAMES = Number(
+      req.query.posEligibilityThreshold ?? 20,
+    );
+    const posEligibilityMap = new Map<number, string[]>();
+    try {
+      const fieldRes = await fetch(
+        `${MLB_API}/stats?stats=season&group=fielding&season=${season}&playerPool=ALL&limit=3000&sportId=1`,
+      );
+      const fieldJson = (await fieldRes.json()) as {
+        stats: { splits: MlbStatSplit[] }[];
+      };
+      for (const s of fieldJson.stats?.[0]?.splits ?? []) {
+        if (Number(s.stat.games ?? 0) < FIELDING_QUALIFY_GAMES) continue;
+        const pid = s.player.id;
+        const pos = normalizePosition(
+          s.position?.abbreviation ?? "OF",
+          ["P", "SP", "RP"].includes(s.position?.abbreviation ?? "")
+            ? "pitching"
+            : "hitting",
+        );
+        const existing = posEligibilityMap.get(pid) ?? [];
+        if (!existing.includes(pos)) existing.push(pos);
+        posEligibilityMap.set(pid, existing);
+      }
+    } catch {
+      // fielding fetch is best-effort
+    }
+
     // Process batters
     const batters = batSplits
       .filter((s) => Number(s.stat.atBats ?? 0) >= 100)
@@ -481,10 +543,27 @@ const getPlayers: RequestHandler = async (
           mlbId: pid,
           name: s.player.fullName,
           team: teamAbbrev(s.team, bio?.currentTeam),
-          position:
+          position: normalizePosition(
             s.position?.abbreviation ??
-            bio?.primaryPosition?.abbreviation ??
-            "OF",
+              bio?.primaryPosition?.abbreviation ??
+              "OF",
+            "hitting",
+          ),
+          positions: (() => {
+            const fromFielding = posEligibilityMap.get(pid);
+            if (fromFielding && fromFielding.length > 0) {
+              // Keep only non-pitching positions on a batter record
+              return fromFielding.filter((p) => !["SP", "RP", "P"].includes(p));
+            }
+            return [
+              normalizePosition(
+                s.position?.abbreviation ??
+                  bio?.primaryPosition?.abbreviation ??
+                  "OF",
+                "hitting",
+              ),
+            ];
+          })(),
           age: calcAge(bio?.birthDate),
           adp: 0,
           value,
@@ -543,10 +622,27 @@ const getPlayers: RequestHandler = async (
           mlbId: pid,
           name: s.player.fullName,
           team: teamAbbrev(s.team, bio?.currentTeam),
-          position:
+          position: normalizePosition(
             s.position?.abbreviation ??
-            bio?.primaryPosition?.abbreviation ??
-            "SP",
+              bio?.primaryPosition?.abbreviation ??
+              "SP",
+            "pitching",
+          ),
+          positions: (() => {
+            const fromFielding = posEligibilityMap.get(pid);
+            if (fromFielding && fromFielding.length > 0) {
+              // Keep only pitching positions on a pitcher record
+              return fromFielding.filter((p) => ["SP", "RP", "P"].includes(p));
+            }
+            return [
+              normalizePosition(
+                s.position?.abbreviation ??
+                  bio?.primaryPosition?.abbreviation ??
+                  "SP",
+                "pitching",
+              ),
+            ];
+          })(),
           age: calcAge(bio?.birthDate),
           adp: 0,
           value,
@@ -589,14 +685,37 @@ const getPlayers: RequestHandler = async (
         };
       });
 
-    // Deduplicate (some players appear in both — keep higher value)
+    // Deduplicate: if a player appears in both arrays (TWP like Ohtani), merge
+    // their positions and combine stats rather than discarding one record.
     const allMap = new Map<string, PlayerData>();
     for (const p of [
       ...(batters as PlayerData[]),
       ...(pitchers as PlayerData[]),
     ]) {
       const existing = allMap.get(p.id);
-      if (!existing || p.value > existing.value) allMap.set(p.id, p);
+      if (!existing) {
+        allMap.set(p.id, p);
+      } else {
+        // Merge positions from both records, keep higher value
+        const mergedPositions = [
+          ...new Set([...existing.positions, ...p.positions]),
+        ];
+        // For TWPs, use the pitching position as primary (rarer, more fantasy-informative)
+        const pitchingPos = mergedPositions.find((pos) =>
+          ["SP", "RP", "P"].includes(pos),
+        );
+        const winnerByValue = p.value > existing.value ? p : existing;
+        const merged: PlayerData = {
+          ...winnerByValue,
+          position: pitchingPos ?? winnerByValue.position,
+          positions: mergedPositions,
+          stats: {
+            ...existing.stats,
+            ...p.stats,
+          },
+        };
+        allMap.set(p.id, merged);
+      }
     }
 
     let players = Array.from(allMap.values()).filter((p) => p.value > 0);

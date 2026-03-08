@@ -157,10 +157,7 @@ export function AuctionCenter({
     const remaining = Math.max(0, league.budget - spent);
     const maxBid = open > 0 ? Math.max(1, remaining - (open - 1)) : 0;
     if (price > maxBid) {
-      showToast(
-        `$${price} exceeds ${wonBy}'s max bid of $${maxBid}`,
-        "error",
-      );
+      showToast(`$${price} exceeds ${wonBy}'s max bid of $${maxBid}`, "error");
       return;
     }
     const playerName = selectedPlayer.name;
@@ -174,7 +171,9 @@ export function AuctionCenter({
           externalPlayerId: selectedPlayer.id,
           playerName: selectedPlayer.name,
           playerTeam: selectedPlayer.team,
-          positions: [selectedPlayer.position],
+          positions: selectedPlayer.positions?.length
+            ? selectedPlayer.positions
+            : [selectedPlayer.position],
           price,
           rosterSlot: draftedToSlot,
           isKeeper: false,
@@ -331,20 +330,22 @@ export function AuctionCenter({
     ? Object.keys(league.rosterSlots)
     : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"];
 
-  function getEligibleSlots(pos: string, slots: string[]): string[] {
-    const pos_ = pos.toUpperCase();
-    return slots.filter((slot) => {
-      const s = slot.toUpperCase();
-      if (s === pos_) return true;
-      if (s === "UTIL") return true;
-      if (s === "BN" || s === "BENCH") return true;
-      if (s === "MI") return ["SS", "2B"].includes(pos_);
-      if (s === "CI") return ["1B", "3B"].includes(pos_);
-      if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(pos_);
-      if (s === "P") return ["SP", "RP", "P"].includes(pos_);
-      if (pos_ === "P") return ["SP", "RP"].includes(s);
-      return false;
-    });
+  function getEligibleSlots(positions: string[], slots: string[]): string[] {
+    return slots.filter((slot) =>
+      positions.some((pos) => {
+        const pos_ = pos.toUpperCase();
+        const s = slot.toUpperCase();
+        if (s === pos_) return true;
+        if (s === "UTIL") return true;
+        if (s === "BN" || s === "BENCH") return true;
+        if (s === "MI") return ["SS", "2B"].includes(pos_);
+        if (s === "CI") return ["1B", "3B", "DH"].includes(pos_);
+        if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(pos_);
+        if (s === "P") return ["SP", "RP", "P"].includes(pos_);
+        if (pos_ === "P") return ["SP", "RP"].includes(s);
+        return false;
+      }),
+    );
   }
 
   function getAvailableSlots(
@@ -367,7 +368,12 @@ export function AuctionCenter({
   }
 
   const eligible = selectedPlayer
-    ? getEligibleSlots(selectedPlayer.position, allSlotOptions)
+    ? getEligibleSlots(
+        selectedPlayer.positions?.length
+          ? selectedPlayer.positions
+          : [selectedPlayer.position],
+        allSlotOptions,
+      )
     : allSlotOptions;
   const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
   const slotOptions = eligible.filter((s) => available.has(s));
@@ -509,7 +515,16 @@ export function AuctionCenter({
               <div className="pac-meta-row">
                 <div className="pac-stat">
                   <span className="pac-stat-label">Position</span>
-                  <PosBadge pos={selectedPlayer.position} />
+                  <div
+                    style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
+                  >
+                    {(selectedPlayer.positions?.length
+                      ? selectedPlayer.positions
+                      : [selectedPlayer.position]
+                    ).map((pos) => (
+                      <PosBadge key={pos} pos={pos} />
+                    ))}
+                  </div>
                 </div>
                 <div className="pac-stat">
                   <span className="pac-stat-label">Team</span>

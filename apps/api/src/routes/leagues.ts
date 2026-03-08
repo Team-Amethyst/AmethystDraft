@@ -40,6 +40,7 @@ const createLeague: RequestHandler = async (
       playerPool,
       draftDate,
       teamNames,
+      posEligibilityThreshold,
     } = req.body;
 
     if (!name?.trim()) {
@@ -60,6 +61,7 @@ const createLeague: RequestHandler = async (
       playerPool: playerPool ?? "Mixed",
       draftDate: draftDate ? new Date(draftDate) : undefined,
       teamNames: teamNames ?? [],
+      posEligibilityThreshold: posEligibilityThreshold ?? 20,
     });
 
     res.status(201).json(serializeLeague(league));
@@ -136,6 +138,7 @@ const updateLeague: RequestHandler = async (
       playerPool,
       draftDate,
       teamNames,
+      posEligibilityThreshold,
     } = req.body;
 
     if (name !== undefined) league.name = String(name).trim();
@@ -150,6 +153,8 @@ const updateLeague: RequestHandler = async (
     if (draftDate !== undefined)
       league.draftDate = draftDate ? new Date(draftDate) : undefined;
     if (teamNames !== undefined) league.teamNames = teamNames;
+    if (posEligibilityThreshold !== undefined)
+      league.posEligibilityThreshold = posEligibilityThreshold;
 
     await league.save();
     res.json(serializeLeague(league));

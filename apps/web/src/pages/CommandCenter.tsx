@@ -1047,8 +1047,10 @@ export default function CommandCenter() {
   }, [leagueId, token]);
 
   useEffect(() => {
-    void getPlayers("adp").then(setAllPlayers).catch(console.error);
-  }, []);
+    void getPlayers("adp", league?.posEligibilityThreshold)
+      .then(setAllPlayers)
+      .catch(console.error);
+  }, [league?.posEligibilityThreshold]);
 
   const draftedIds = useMemo(
     () => new Set(rosterEntries.map((e) => e.externalPlayerId)),
