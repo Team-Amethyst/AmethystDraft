@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Star, X } from "lucide-react";
+import { Minus, Plus, Star, X } from "lucide-react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
@@ -80,6 +80,9 @@ export default function MyDraft() {
     }
   });
 
+  // Raw string state lets users clear the field and retype freely; committed on blur.
+  const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
+
   function setTarget(playerId: string, value: number) {
     setTargetOverrides((prev) => {
       const next = { ...prev, [playerId]: value };
@@ -131,83 +134,59 @@ export default function MyDraft() {
   const dragStartYRef = useRef(0);
   const dragStartHeightRef = useRef(96);
 
-  const {
-    hittersSpent,
-    pitchersSpent,
-    hittersCount,
-    pitchersCount,
-    spentByPosition,
-    filteredWatchlist,
-    totalSpent,
-  } = useMemo(() => {
-    const spentMap: Record<string, number> = {};
-    let hitters = 0;
-    let pitchers = 0;
-    let hittersN = 0;
-    let pitchersN = 0;
+  const { watchlistTargetTotal, filteredWatchlist } = useMemo(() => {
+    let targetTotal = 0;
 
     for (const player of watchlist) {
-      const pos = normalizePosition(player.position || "UTIL");
-      spentMap[pos] = (spentMap[pos] ?? 0) + (player.value ?? 0);
-
-      if (PITCHER_POSITIONS.has(pos)) {
-        pitchers += player.value ?? 0;
-        pitchersN += 1;
-      } else {
-        hitters += player.value ?? 0;
-        hittersN += 1;
-      }
+      const t = targetOverrides[player.id] ?? Math.round(player.value ?? 0);
+      targetTotal += t;
     }
 
-    let filtered = watchlist;
+    let filtered = [...watchlist];
     if (viewFilter === "hitters") {
-      filtered = watchlist.filter(
-        (player) =>
-          !PITCHER_POSITIONS.has(normalizePosition(player.position || "UTIL")),
+      filtered = filtered.filter(
+        (p) => !PITCHER_POSITIONS.has(normalizePosition(p.position || "UTIL")),
+      );
+    } else if (viewFilter === "pitchers") {
+      filtered = filtered.filter((p) =>
+        PITCHER_POSITIONS.has(normalizePosition(p.position || "UTIL")),
       );
     }
-    if (viewFilter === "pitchers") {
-      filtered = watchlist.filter((player) =>
-        PITCHER_POSITIONS.has(normalizePosition(player.position || "UTIL")),
-      );
-    }
-
-    filtered = [...filtered].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    filtered.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
     return {
-      hittersSpent: hitters,
-      pitchersSpent: pitchers,
-      hittersCount: hittersN,
-      pitchersCount: pitchersN,
-      spentByPosition: spentMap,
+      watchlistTargetTotal: targetTotal,
       filteredWatchlist: filtered,
-      totalSpent: hitters + pitchers,
     };
-  }, [watchlist, viewFilter]);
+  }, [watchlist, viewFilter, targetOverrides]);
 
-  const remainingBudget = Math.max(
+  const positionBudgetTotal = Object.values(positionTargets).reduce(
+    (a, b) => a + b,
     0,
-    TOTAL_BUDGET - Object.values(positionTargets).reduce((a, b) => a + b, 0),
   );
-  const budgetUsedPct = Math.min(
-    100,
-    Math.round((totalSpent / TOTAL_BUDGET) * 100),
-  );
-  // TODO(data): Allocation summary is currently inferred from watchlist value totals.
-  const allocationRows = [
-    { label: "Allocated via Table", value: `$${totalSpent}` },
-    { label: "Remaining Buffer", value: `$${remainingBudget}` },
-    { label: "% Budget Allocated", value: `${budgetUsedPct}%` },
-  ];
+  const positionBuffer = Math.max(0, TOTAL_BUDGET - positionBudgetTotal);
 
-  const hittersWidth = Math.min(
-    100,
-    Math.round((hittersSpent / TOTAL_BUDGET) * 100),
-  );
-  const pitchersWidth = Math.min(
-    100,
-    Math.round((pitchersSpent / TOTAL_BUDGET) * 100),
-  );
+  // Per-position segment data for the allocation bar
+  const POS_COLORS_MAP: Record<string, string> = {
+    C: "#f87171",
+    "1B": "#fbbf24",
+    "2B": "#38bdf8",
+    "3B": "#fb923c",
+    SS: "#22d3ee",
+    OF: "#4ade80",
+    SP: "#818cf8",
+    RP: "#f472b6",
+    UTIL: "#94a3b8",
+    BN: "#6b7280",
+  };
+  const allocBarSegments = POSITION_PLAN.map((row) => ({
+    pos: row.pos,
+    slots: row.slots,
+    target: positionTargets[row.pos] ?? row.target,
+    color: POS_COLORS_MAP[row.pos] ?? "#7f72a8",
+    pct: ((positionTargets[row.pos] ?? row.target) / TOTAL_BUDGET) * 100,
+  }));
+  const bufferPct = (positionBuffer / TOTAL_BUDGET) * 100;
 
   const handleNotesResizeStart = (
     event: React.MouseEvent<HTMLButtonElement>,
@@ -242,35 +221,61 @@ export default function MyDraft() {
           </div>
 
           <div className="top-split">
-            <div className="split-label">Hitter / Pitcher Split</div>
-            <div className="split-values">
-              <span>H ${hittersSpent}</span>
-              <span>P ${pitchersSpent}</span>
+            <div className="split-label">Position Allocation</div>
+            <div className="alloc-bar">
+              {allocBarSegments.map((seg) => (
+                <div
+                  key={seg.pos}
+                  className="alloc-bar-seg"
+                  style={{ width: `${seg.pct}%`, background: seg.color }}
+                  title={`${seg.pos}  $${seg.target}`}
+                >
+                  {seg.slots > 1 &&
+                    Array.from({ length: seg.slots - 1 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className="alloc-bar-tick"
+                        style={{ left: `${((i + 1) / seg.slots) * 100}%` }}
+                      />
+                    ))}
+                  <span className="alloc-bar-label">{seg.pos}</span>
+                </div>
+              ))}
+              {bufferPct > 0 && (
+                <div
+                  className="alloc-bar-seg alloc-bar-buffer"
+                  style={{ width: `${bufferPct}%` }}
+                  title={`Buffer  $${positionBuffer}`}
+                />
+              )}
             </div>
-            <div className="split-bar">
-              <div
-                className="split-fill hitters"
-                style={{ width: `${hittersWidth}%` }}
-              />
-              <div
-                className="split-fill pitchers"
-                style={{ width: `${pitchersWidth}%` }}
-              />
-            </div>
-            <div className="split-counts">
-              <span>{hittersCount} hitters</span>
-              <span>{pitchersCount} pitchers</span>
+            <div className="alloc-bar-legend">
+              {allocBarSegments.map((seg) => (
+                <span key={seg.pos} className="abl-item">
+                  <span className="abl-dot" style={{ background: seg.color }} />
+                  <span className="abl-pos">{seg.pos}</span>
+                  <span className="abl-val">${seg.target}</span>
+                </span>
+              ))}
             </div>
           </div>
 
           <div className="top-summary">
-            <div className="card-label">Allocation Summary</div>
-            {allocationRows.map((row) => (
-              <div className="summary-row" key={row.label}>
-                <span>{row.label}</span>
-                <strong>{row.value}</strong>
-              </div>
-            ))}
+            <div className="card-label">Planning Summary</div>
+            <div className="summary-row">
+              <span>Position plan</span>
+              <strong>${positionBudgetTotal}</strong>
+            </div>
+            <div className="summary-row">
+              <span>Plan buffer</span>
+              <strong className={positionBuffer < 1 ? "summary-warn" : ""}>
+                ${positionBuffer}
+              </strong>
+            </div>
+            <div className="summary-row">
+              <span>Watchlist targets</span>
+              <strong>${watchlistTargetTotal}</strong>
+            </div>
           </div>
         </section>
 
@@ -298,7 +303,6 @@ export default function MyDraft() {
               </thead>
               <tbody>
                 {POSITION_PLAN.map((row) => {
-                  const spent = spentByPosition[row.pos] ?? 0;
                   const target = positionTargets[row.pos] ?? row.target;
                   const perSlot = target / row.slots;
                   return (
@@ -311,18 +315,33 @@ export default function MyDraft() {
                         <span className="target-prefix">$</span>
                         <input
                           className="target-input"
-                          type="number"
-                          min={0}
-                          value={target}
+                          type="text"
+                          inputMode="numeric"
+                          value={
+                            row.pos in targetRaw
+                              ? targetRaw[row.pos]
+                              : String(target)
+                          }
                           onChange={(e) => {
-                            const v = parseInt(e.target.value);
-                            if (!isNaN(v) && v >= 0)
-                              setPositionTarget(row.pos, v);
+                            const raw = e.target.value.replace(/[^0-9]/g, "");
+                            setTargetRaw((r) => ({ ...r, [row.pos]: raw }));
+                            const v = parseInt(raw);
+                            if (!isNaN(v)) setPositionTarget(row.pos, v);
+                          }}
+                          onBlur={() => {
+                            const raw = targetRaw[row.pos];
+                            const v = parseInt(raw ?? "");
+                            if (isNaN(v) || v < 0)
+                              setPositionTarget(row.pos, 0);
+                            setTargetRaw((r) =>
+                              Object.fromEntries(
+                                Object.entries(r).filter(
+                                  ([k]) => k !== row.pos,
+                                ),
+                              ),
+                            );
                           }}
                         />
-                        {spent > 0 ? (
-                          <span className="spent-inline"> (${spent} used)</span>
-                        ) : null}
                       </td>
                       <td>${perSlot.toFixed(1)}</td>
                     </tr>
@@ -338,13 +357,13 @@ export default function MyDraft() {
                   <td>
                     ${Object.values(positionTargets).reduce((a, b) => a + b, 0)}
                   </td>
-                  <td className="budget-buffer">+{remainingBudget} buf</td>
+                  <td className="budget-buffer">+{positionBuffer} buf</td>
                 </tr>
               </tfoot>
             </table>
 
-            <button className="mock-btn" type="button">
-              Launch AI Mock Draft
+            <button className="mock-btn" type="button" disabled>
+              AI Mock Draft — Coming Soon
             </button>
           </div>
 
@@ -352,7 +371,9 @@ export default function MyDraft() {
             <div className="watchlist-head">
               <div>
                 <div className="card-label">Strategic Watchlist</div>
-                <div className="watchlist-sub">{watchlist.length} players</div>
+                <div className="watchlist-sub">
+                  {watchlist.length} player{watchlist.length !== 1 ? "s" : ""}
+                </div>
               </div>
 
               <div className="watchlist-controls">
@@ -374,7 +395,7 @@ export default function MyDraft() {
                   <th>Player</th>
                   <th>Pos</th>
                   <th>Proj</th>
-                  <th>Target</th>
+                  <th>Target $</th>
                   <th>Priority</th>
                   <th>Notes</th>
                   <th></th>
@@ -395,6 +416,11 @@ export default function MyDraft() {
                       targetOverrides[player.id] ?? defaultTarget;
                     const priority =
                       priorityOverrides[player.id] ?? getPriority(player);
+                    const rawKey = player.id;
+                    const displayVal =
+                      rawKey in targetRaw
+                        ? targetRaw[rawKey]
+                        : String(targetVal);
 
                     return (
                       <tr key={player.id}>
@@ -420,17 +446,74 @@ export default function MyDraft() {
                           ${Math.round(player.value ?? 0)}
                         </td>
                         <td>
-                          <span className="target-prefix">$</span>
-                          <input
-                            className="target-input"
-                            type="number"
-                            min={0}
-                            value={targetVal}
-                            onChange={(e) => {
-                              const v = parseInt(e.target.value);
-                              if (!isNaN(v) && v >= 0) setTarget(player.id, v);
-                            }}
-                          />
+                          <div className="target-input-group">
+                            <button
+                              className="target-stepper"
+                              type="button"
+                              onClick={() => {
+                                const next = Math.max(1, targetVal - 1);
+                                setTarget(player.id, next);
+                                setTargetRaw((r) =>
+                                  Object.fromEntries(
+                                    Object.entries(r).filter(
+                                      ([k]) => k !== player.id,
+                                    ),
+                                  ),
+                                );
+                              }}
+                            >
+                              <Minus size={9} />
+                            </button>
+                            <span className="target-prefix">$</span>
+                            <input
+                              className="target-input"
+                              type="text"
+                              inputMode="numeric"
+                              value={displayVal}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(
+                                  /[^0-9]/g,
+                                  "",
+                                );
+                                setTargetRaw((r) => ({
+                                  ...r,
+                                  [player.id]: raw,
+                                }));
+                                const v = parseInt(raw);
+                                if (!isNaN(v)) setTarget(player.id, v);
+                              }}
+                              onBlur={() => {
+                                const v = parseInt(displayVal);
+                                const committed =
+                                  isNaN(v) || v <= 0 ? defaultTarget : v;
+                                setTarget(player.id, committed);
+                                setTargetRaw((r) =>
+                                  Object.fromEntries(
+                                    Object.entries(r).filter(
+                                      ([k]) => k !== player.id,
+                                    ),
+                                  ),
+                                );
+                              }}
+                            />
+                            <button
+                              className="target-stepper"
+                              type="button"
+                              onClick={() => {
+                                const next = targetVal + 1;
+                                setTarget(player.id, next);
+                                setTargetRaw((r) =>
+                                  Object.fromEntries(
+                                    Object.entries(r).filter(
+                                      ([k]) => k !== player.id,
+                                    ),
+                                  ),
+                                );
+                              }}
+                            >
+                              <Plus size={9} />
+                            </button>
+                          </div>
                         </td>
                         <td>
                           <select
