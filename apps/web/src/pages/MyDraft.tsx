@@ -67,6 +67,55 @@ export default function MyDraft() {
       return next;
     });
   }
+
+  const [targetOverrides, setTargetOverrides] = useState<
+    Record<string, number>
+  >(() => {
+    try {
+      const saved = localStorage.getItem("amethyst-target-overrides");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  function setTarget(playerId: string, value: number) {
+    setTargetOverrides((prev) => {
+      const next = { ...prev, [playerId]: value };
+      localStorage.setItem("amethyst-target-overrides", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  const defaultPositionTargets = Object.fromEntries(
+    POSITION_PLAN.map((r) => [r.pos, r.target]),
+  );
+
+  const [positionTargets, setPositionTargets] = useState<
+    Record<string, number>
+  >(() => {
+    try {
+      const saved = localStorage.getItem("amethyst-position-targets");
+      return saved
+        ? { ...defaultPositionTargets, ...JSON.parse(saved) }
+        : defaultPositionTargets;
+    } catch {
+      return defaultPositionTargets;
+    }
+  });
+
+  function setPositionTarget(pos: string, value: number) {
+    setPositionTargets((prev) => {
+      const next = { ...prev, [pos]: value };
+      localStorage.setItem("amethyst-position-targets", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function resetPositionTargets() {
+    setPositionTargets(defaultPositionTargets);
+    localStorage.removeItem("amethyst-position-targets");
+  }
   // TODO(storage): Persist notes per league/user in backend; this is local-only state.
   const [draftNotes, setDraftNotes] = useState("");
   const [notesHeight, setNotesHeight] = useState(96);
@@ -127,7 +176,10 @@ export default function MyDraft() {
     };
   }, [watchlist, viewFilter]);
 
-  const remainingBudget = Math.max(0, TOTAL_BUDGET - totalSpent);
+  const remainingBudget = Math.max(
+    0,
+    TOTAL_BUDGET - Object.values(positionTargets).reduce((a, b) => a + b, 0),
+  );
   const budgetUsedPct = Math.min(
     100,
     Math.round((totalSpent / TOTAL_BUDGET) * 100),
@@ -217,7 +269,11 @@ export default function MyDraft() {
           <div className="mydraft-left panel-card">
             <div className="table-head-row">
               <div className="card-label">Position Allocation</div>
-              <button className="ghost-btn" type="button">
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={resetPositionTargets}
+              >
                 Reset Defaults
               </button>
             </div>
@@ -234,13 +290,25 @@ export default function MyDraft() {
               <tbody>
                 {POSITION_PLAN.map((row) => {
                   const spent = spentByPosition[row.pos] ?? 0;
-                  const perSlot = row.target / row.slots;
+                  const target = positionTargets[row.pos] ?? row.target;
+                  const perSlot = target / row.slots;
                   return (
                     <tr key={row.pos}>
                       <td className="pos-cell">{row.pos}</td>
                       <td>{row.slots}</td>
                       <td>
-                        ${row.target}
+                        <span className="target-prefix">$</span>
+                        <input
+                          className="target-input"
+                          type="number"
+                          min={0}
+                          value={target}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value);
+                            if (!isNaN(v) && v >= 0)
+                              setPositionTarget(row.pos, v);
+                          }}
+                        />
                         {spent > 0 ? (
                           <span className="spent-inline"> (${spent} used)</span>
                         ) : null}
@@ -256,7 +324,9 @@ export default function MyDraft() {
                   <td>
                     {POSITION_PLAN.reduce((sum, row) => sum + row.slots, 0)}
                   </td>
-                  <td>${TOTAL_BUDGET}</td>
+                  <td>
+                    ${Object.values(positionTargets).reduce((a, b) => a + b, 0)}
+                  </td>
                   <td className="budget-buffer">+{remainingBudget} buf</td>
                 </tr>
               </tfoot>
@@ -309,8 +379,9 @@ export default function MyDraft() {
                 ) : (
                   filteredWatchlist.map((player) => {
                     const pos = normalizePosition(player.position || "UTIL");
-                    // TODO(data): Replace with backend target-by-player (or target-by-tier) instead of value proxy.
-                    const targetAtPos = Math.round(player.value ?? 0);
+                    const defaultTarget = Math.round(player.value ?? 0);
+                    const targetVal =
+                      targetOverrides[player.id] ?? defaultTarget;
                     const priority =
                       priorityOverrides[player.id] ?? getPriority(player);
 
@@ -337,7 +408,19 @@ export default function MyDraft() {
                         <td className="money">
                           ${Math.round(player.value ?? 0)}
                         </td>
-                        <td>{targetAtPos > 0 ? `$${targetAtPos}` : "--"}</td>
+                        <td>
+                          <span className="target-prefix">$</span>
+                          <input
+                            className="target-input"
+                            type="number"
+                            min={0}
+                            value={targetVal}
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value);
+                              if (!isNaN(v) && v >= 0) setTarget(player.id, v);
+                            }}
+                          />
+                        </td>
                         <td>
                           <select
                             className={`priority-select ${priority.toLowerCase()}`}

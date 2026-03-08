@@ -345,6 +345,30 @@
 
 .td-note { min-width: 120px; max-width: 200px; }
 
+.target-prefix {
+  color: #8e7caf;
+  font-size: 0.7rem;
+  margin-right: 1px;
+}
+
+.target-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  color: #22c55e;
+  font-size: 0.74rem;
+  font-family: inherit;
+  font-weight: 600;
+  outline: none;
+  width: 3.5rem;
+  padding: 0.05rem 0;
+  -moz-appearance: textfield;
+  transition: border-color 120ms ease;
+}
+.target-input:focus { border-bottom-color: rgba(139, 92, 246, 0.55); }
+.target-input::-webkit-inner-spin-button,
+.target-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
 .watchlist-note-input {
   background: transparent;
   border: none;
