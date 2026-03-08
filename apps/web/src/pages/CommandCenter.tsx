@@ -96,6 +96,7 @@ function DraftLog({
               teamOptions={teamOptions}
               allRosterEntries={rosterEntries}
               leagueRosterSlots={league?.rosterSlots ?? {}}
+              leagueBudget={league?.budget}
               onUpdate={onUpdatePick}
               onRemove={onRemovePick}
             />

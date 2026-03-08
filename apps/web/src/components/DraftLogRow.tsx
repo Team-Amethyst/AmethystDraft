@@ -13,6 +13,7 @@ interface DraftLogRowProps {
   teamOptions: { id: string; name: string }[];
   allRosterEntries?: RosterEntry[];
   leagueRosterSlots?: Record<string, number>;
+  leagueBudget?: number;
   onUpdate?: (
     id: string,
     data: { price?: number; rosterSlot?: string; teamId?: string },
@@ -30,6 +31,7 @@ export function DraftLogRow({
   teamOptions,
   allRosterEntries,
   leagueRosterSlots,
+  leagueBudget,
   onUpdate,
   onRemove,
 }: DraftLogRowProps) {
@@ -116,9 +118,35 @@ export function DraftLogRow({
   function handleSave() {
     if (!onUpdate) return;
     const n = parseInt(editPrice, 10);
+    const newPrice = isNaN(n) ? entry.price : n;
+
+    // Max bid validation — only when price or team is changing
+    if (leagueBudget !== undefined && allRosterEntries && leagueRosterSlots) {
+      const targetTeamId = editTeamId;
+      const totalSlots = Object.values(leagueRosterSlots).reduce(
+        (a, b) => a + b,
+        0,
+      );
+      // Entries for the target team, excluding this entry (we're replacing it)
+      const teamEntries = allRosterEntries.filter(
+        (e) => e.teamId === targetTeamId && e._id !== entry._id,
+      );
+      const spent = teamEntries.reduce((s, e) => s + e.price, 0);
+      const filled = teamEntries.length;
+      const open = Math.max(0, totalSlots - filled);
+      const remaining = Math.max(0, leagueBudget - spent);
+      const maxBid = open > 0 ? Math.max(1, remaining - (open - 1)) : leagueBudget;
+      if (newPrice > maxBid) {
+        const teamName =
+          teamOptions.find((t) => t.id === targetTeamId)?.name ?? targetTeamId;
+        alert(`$${newPrice} exceeds ${teamName}'s max bid of $${maxBid}`);
+        return;
+      }
+    }
+
     const data: { price?: number; rosterSlot?: string; teamId?: string } = {};
     if (editSlot !== entry.rosterSlot) data.rosterSlot = editSlot;
-    if (!isNaN(n) && n !== entry.price) data.price = n;
+    if (newPrice !== entry.price) data.price = newPrice;
     if (editTeamId !== entry.teamId) data.teamId = editTeamId;
     if (Object.keys(data).length > 0) onUpdate(entry._id, data);
     setEditing(false);

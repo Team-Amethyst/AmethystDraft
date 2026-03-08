@@ -147,6 +147,22 @@ export function AuctionCenter({
     const userId = league.memberIds[teamIdx]; // undefined for unjoined teams
     const teamId = `team_${teamIdx + 1}`;
     const price = parseInt(finalPrice, 10) || 1;
+    const totalSlots = Object.values(league.rosterSlots).reduce(
+      (a, b) => a + b,
+      0,
+    );
+    const teamEntries = rosterEntries.filter((e) => e.teamId === teamId);
+    const spent = teamEntries.reduce((s, e) => s + e.price, 0);
+    const open = Math.max(0, totalSlots - teamEntries.length);
+    const remaining = Math.max(0, league.budget - spent);
+    const maxBid = open > 0 ? Math.max(1, remaining - (open - 1)) : 0;
+    if (price > maxBid) {
+      showToast(
+        `$${price} exceeds ${wonBy}'s max bid of $${maxBid}`,
+        "error",
+      );
+      return;
+    }
     const playerName = selectedPlayer.name;
     setSubmitting(true);
     setSelectedPlayer(null);
@@ -325,7 +341,8 @@ export function AuctionCenter({
       if (s === "MI") return ["SS", "2B"].includes(pos_);
       if (s === "CI") return ["1B", "3B"].includes(pos_);
       if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(pos_);
-      if (s === "P") return ["SP", "RP"].includes(pos_);
+      if (s === "P") return ["SP", "RP", "P"].includes(pos_);
+      if (pos_ === "P") return ["SP", "RP"].includes(s);
       return false;
     });
   }

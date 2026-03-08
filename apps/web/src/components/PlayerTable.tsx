@@ -41,9 +41,9 @@ type DisplayPitching = {
   completeGames: number;
 };
 
-const POSITIONS = ["all", "OF", "SS", "1B", "2B", "3B", "C", "DH", "SP", "RP"];
+const POSITIONS = ["all", "OF", "SS", "1B", "2B", "3B", "C", "DH", "P"];
 const HITTER_POSITIONS = ["OF", "SS", "1B", "2B", "3B", "C", "DH"];
-const PITCHER_POSITION_LIST = ["SP", "RP"];
+const PITCHER_POSITION_LIST = ["P"];
 
 const TIER_COLORS: Record<number, string> = {
   1: "#a855f7",
@@ -727,7 +727,7 @@ export default function PlayerTable({
                 onPositionChange("all");
               } else if (
                 v === "pitching" &&
-                !PITCHER_POSITION_LIST.includes(positionFilter)
+                positionFilter !== "P"
               ) {
                 onPositionChange("all");
               }

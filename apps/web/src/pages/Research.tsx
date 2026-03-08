@@ -116,7 +116,10 @@ export default function Research() {
       const playerName = player.name?.toLowerCase() ?? "";
       const matchesSearch = playerName.includes(searchQuery.toLowerCase());
       const matchesPosition =
-        positionFilter === "all" || player.position === positionFilter;
+        positionFilter === "all" ||
+        (positionFilter === "P"
+          ? ["SP", "RP", "P"].includes(player.position)
+          : player.position === positionFilter);
       return matchesSearch && matchesPosition;
     });
   }, [players, searchQuery, positionFilter]);
