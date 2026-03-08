@@ -346,39 +346,80 @@ export default function PlayerTable({
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
-    try { return localStorage.getItem("amethyst-pt-starred") === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem("amethyst-pt-starred") === "true";
+    } catch {
+      return false;
+    }
   });
   const [availabilityFilter, setAvailabilityFilter] = useState<
     "all" | "available" | "drafted"
   >(() => {
-    try { return (localStorage.getItem("amethyst-pt-availability") as "all" | "available" | "drafted") ?? "all"; } catch { return "all"; }
+    try {
+      return (
+        (localStorage.getItem("amethyst-pt-availability") as
+          | "all"
+          | "available"
+          | "drafted") ?? "all"
+      );
+    } catch {
+      return "all";
+    }
   });
   const [selectedTags, setSelectedTags] = useState<Set<string>>(() => {
     try {
       const s = localStorage.getItem("amethyst-pt-tags");
       return s ? new Set(JSON.parse(s) as string[]) : new Set();
-    } catch { return new Set(); }
+    } catch {
+      return new Set();
+    }
   });
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
-  const [clientSort, setClientSort] = useState<{ col: string; dir: "asc" | "desc" }>(() => {
+  const [clientSort, setClientSort] = useState<{
+    col: string;
+    dir: "asc" | "desc";
+  }>(() => {
     try {
       const s = localStorage.getItem("amethyst-pt-sort");
-      return s ? (JSON.parse(s) as { col: string; dir: "asc" | "desc" }) : { col: "adp", dir: "asc" };
-    } catch { return { col: "adp", dir: "asc" }; }
+      return s
+        ? (JSON.parse(s) as { col: string; dir: "asc" | "desc" })
+        : { col: "adp", dir: "asc" };
+    } catch {
+      return { col: "adp", dir: "asc" };
+    }
   });
 
   useEffect(() => {
-    try { localStorage.setItem("amethyst-pt-starred", String(starredOnly)); } catch { /* noop */ }
+    try {
+      localStorage.setItem("amethyst-pt-starred", String(starredOnly));
+    } catch {
+      /* noop */
+    }
   }, [starredOnly]);
   useEffect(() => {
-    try { localStorage.setItem("amethyst-pt-availability", availabilityFilter); } catch { /* noop */ }
+    try {
+      localStorage.setItem("amethyst-pt-availability", availabilityFilter);
+    } catch {
+      /* noop */
+    }
   }, [availabilityFilter]);
   useEffect(() => {
-    try { localStorage.setItem("amethyst-pt-tags", JSON.stringify([...selectedTags])); } catch { /* noop */ }
+    try {
+      localStorage.setItem(
+        "amethyst-pt-tags",
+        JSON.stringify([...selectedTags]),
+      );
+    } catch {
+      /* noop */
+    }
   }, [selectedTags]);
   useEffect(() => {
-    try { localStorage.setItem("amethyst-pt-sort", JSON.stringify(clientSort)); } catch { /* noop */ }
+    try {
+      localStorage.setItem("amethyst-pt-sort", JSON.stringify(clientSort));
+    } catch {
+      /* noop */
+    }
   }, [clientSort]);
 
   const ALL_TAGS = ["HR+", "SB+", "AVG+", "R+", "RBI+", "K+", "W+", "SV+"];
@@ -651,7 +692,11 @@ export default function PlayerTable({
                 className={"pt-pill " + (statBasis === b ? "active" : "")}
                 onClick={() => onStatBasisChange(b)}
               >
-                {b === "projections" ? "PROJ" : b === "last-year" ? "2025" : "3YR"}
+                {b === "projections"
+                  ? "PROJ"
+                  : b === "last-year"
+                    ? "2025"
+                    : "3YR"}
               </button>
             ))}
           </div>
@@ -668,16 +713,28 @@ export default function PlayerTable({
               <th className="th-player">Player</th>
               <th className="th-pos">Pos</th>
               <th className="th-team">Team</th>
-              <th className="th-tier th-sortable" onClick={() => handleColSort("tier")}>
+              <th
+                className="th-tier th-sortable"
+                onClick={() => handleColSort("tier")}
+              >
                 Tier <SortArrow col="tier" sort={clientSort} />
               </th>
-              <th className="th-adp th-sortable" onClick={() => handleColSort("adp")}>
+              <th
+                className="th-adp th-sortable"
+                onClick={() => handleColSort("adp")}
+              >
                 ADP <SortArrow col="adp" sort={clientSort} />
               </th>
-              <th className="th-value th-sortable" onClick={() => handleColSort("value")}>
+              <th
+                className="th-value th-sortable"
+                onClick={() => handleColSort("value")}
+              >
                 Proj $ <SortArrow col="value" sort={clientSort} />
               </th>
-              <th className="th-valdiff th-sortable" onClick={() => handleColSort("valdiff")}>
+              <th
+                className="th-valdiff th-sortable"
+                onClick={() => handleColSort("valdiff")}
+              >
                 Val Diff <SortArrow col="valdiff" sort={clientSort} />
               </th>
               {Array.from({ length: numStatCols }, (_, i) => {

@@ -23,14 +23,25 @@ export default function Research() {
   const [selectedView, setSelectedView] = useState("player-database");
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState(() => {
-    try { return localStorage.getItem("amethyst-research-position") ?? "all"; } catch { return "all"; }
+    try {
+      return localStorage.getItem("amethyst-research-position") ?? "all";
+    } catch {
+      return "all";
+    }
   });
   const [statBasis, setStatBasis] = useState<
     "projections" | "last-year" | "3-year-avg"
   >(() => {
     try {
-      return (localStorage.getItem("amethyst-research-statbasis") as "projections" | "last-year" | "3-year-avg") ?? "projections";
-    } catch { return "projections"; }
+      return (
+        (localStorage.getItem("amethyst-research-statbasis") as
+          | "projections"
+          | "last-year"
+          | "3-year-avg") ?? "projections"
+      );
+    } catch {
+      return "projections";
+    }
   });
   const [players, setPlayers] = useState<Player[]>(
     () => getPlayersCached("adp") ?? [],
@@ -49,10 +60,18 @@ export default function Research() {
   }, [leagueId, token]);
 
   useEffect(() => {
-    try { localStorage.setItem("amethyst-research-position", positionFilter); } catch { /* noop */ }
+    try {
+      localStorage.setItem("amethyst-research-position", positionFilter);
+    } catch {
+      /* noop */
+    }
   }, [positionFilter]);
   useEffect(() => {
-    try { localStorage.setItem("amethyst-research-statbasis", statBasis); } catch { /* noop */ }
+    try {
+      localStorage.setItem("amethyst-research-statbasis", statBasis);
+    } catch {
+      /* noop */
+    }
   }, [statBasis]);
 
   useEffect(() => {
