@@ -148,4 +148,3 @@ export async function getNewsSignals(
   if (!res.ok) throw new Error("News signals request failed");
   return res.json() as Promise<NewsSignalsResponse>;
 }
-

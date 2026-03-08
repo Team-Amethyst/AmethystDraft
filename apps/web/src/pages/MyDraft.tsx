@@ -120,7 +120,9 @@ export default function MyDraft() {
   const [draftNotes, setDraftNotes] = useState(
     () => localStorage.getItem("amethyst-draft-notes") ?? "",
   );
-  const handleDraftNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleDraftNotesChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     setDraftNotes(e.target.value);
     localStorage.setItem("amethyst-draft-notes", e.target.value);
   };

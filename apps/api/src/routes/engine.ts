@@ -65,7 +65,8 @@ const analyzeScarcity: RequestHandler = async (
       return;
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
-    const position = typeof req.query.position === "string" ? req.query.position : undefined;
+    const position =
+      typeof req.query.position === "string" ? req.query.position : undefined;
     const context = buildScarcityContext(league, entries, position);
     const { data } = await amethyst.post("/analysis/scarcity", context);
     res.json(data);

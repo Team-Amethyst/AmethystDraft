@@ -37,14 +37,16 @@ export function AuctionCenter({
   const { isInWatchlist } = useWatchlist();
   const { getNote, setNote } = usePlayerNotes();
 
-  const [valuationMap, setValuationMap] = useState<Map<string, ValuationResult>>(new Map());
+  const [valuationMap, setValuationMap] = useState<
+    Map<string, ValuationResult>
+  >(new Map());
 
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
     if (!leagueId || !token) return;
     getValuation(leagueId, token)
       .then((res) =>
-        setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])))
+        setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v]))),
       )
       .catch(() => {});
   }, [leagueId, token, rosterEntries.length]);
@@ -68,7 +70,6 @@ export function AuctionCenter({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
-
 
   const [wonBy, setWonBy] = useState("");
   const [finalPrice, setFinalPrice] = useState("");
@@ -246,9 +247,11 @@ export function AuctionCenter({
         deltaStr: string;
         improved: boolean;
         neutral: boolean;
-      }>
+      }>;
     const relevantCats = league.scoringCategories.filter((cat) =>
-      statView === "pitching" ? cat.type === "pitching" : cat.type === "batting",
+      statView === "pitching"
+        ? cat.type === "pitching"
+        : cat.type === "batting",
     );
     return relevantCats.map((cat) => {
       const isRate = ["ERA", "WHIP"].includes(cat.name.toUpperCase());
@@ -712,7 +715,10 @@ export function AuctionCenter({
           )}
 
           {/* Draft notes */}
-          <div className="pac-notes-wrap pac-notes-wrap--fill" style={{ marginTop: "1rem" }}>
+          <div
+            className="pac-notes-wrap pac-notes-wrap--fill"
+            style={{ marginTop: "1rem" }}
+          >
             <div className="pac-notes-label">DRAFT NOTES</div>
             <textarea
               className="pac-notes pac-notes--fill"
