@@ -35,23 +35,21 @@ export default function LeagueCreate() {
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(
-    () => {
-      const cached = getPlayersCached("adp");
-      return cached
-        ? cached.map((p: ApiPlayer) => ({
-            id: Number(p.id),
-            name: p.name,
-            team: p.team,
-            pos: p.positions?.join("/") || p.position,
-            adp: p.adp,
-            value: p.value,
-            headshot: p.headshot,
-            positions: p.positions,
-          }))
-        : [];
-    },
-  );
+  const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
+    const cached = getPlayersCached("adp");
+    return cached
+      ? cached.map((p: ApiPlayer) => ({
+          id: Number(p.id),
+          name: p.name,
+          team: p.team,
+          pos: p.positions?.join("/") || p.position,
+          adp: p.adp,
+          value: p.value,
+          headshot: p.headshot,
+          positions: p.positions,
+        }))
+      : [];
+  });
 
   useEffect(() => {
     void getPlayers("adp").then((apiPlayers: ApiPlayer[]) =>
@@ -104,7 +102,10 @@ export default function LeagueCreate() {
     getEligibleSlotsForPlayer,
     keeperOwnerMap,
     updateKeeperCost,
-  } = useLeagueForm({ initialName: "Friendly League", externalPlayers: keeperPlayers });
+  } = useLeagueForm({
+    initialName: "Friendly League",
+    externalPlayers: keeperPlayers,
+  });
 
   const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
   const [pendingCost, setPendingCost] = useState("1");

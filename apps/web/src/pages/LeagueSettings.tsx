@@ -101,23 +101,21 @@ function LeagueSettingsForm({ league }: { league: League }) {
   const [posEligibilityRaw, setPosEligibilityRaw] = useState(
     String(league.posEligibilityThreshold ?? 20),
   );
-  const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(
-    () => {
-      const cached = getPlayersCached("adp", league.posEligibilityThreshold);
-      return cached
-        ? cached.map((p: ApiPlayer) => ({
-            id: Number(p.id),
-            name: p.name,
-            team: p.team,
-            pos: p.positions?.join("/") || p.position,
-            adp: p.adp,
-            value: p.value,
-            headshot: p.headshot,
-            positions: p.positions,
-          }))
-        : [];
-    },
-  );
+  const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
+    const cached = getPlayersCached("adp", league.posEligibilityThreshold);
+    return cached
+      ? cached.map((p: ApiPlayer) => ({
+          id: Number(p.id),
+          name: p.name,
+          team: p.team,
+          pos: p.positions?.join("/") || p.position,
+          adp: p.adp,
+          value: p.value,
+          headshot: p.headshot,
+          positions: p.positions,
+        }))
+      : [];
+  });
 
   const {
     leagueName,
@@ -717,8 +715,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                                   {(() => {
                                     const p = keeperPlayers.find(
                                       (kp) =>
-                                        String(kp.id) ===
-                                        entry.keeper.playerId,
+                                        String(kp.id) === entry.keeper.playerId,
                                     );
                                     return p?.headshot ? (
                                       <img

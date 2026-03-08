@@ -152,7 +152,8 @@ export function useLeagueForm({
 
   const addKeeper = (player: Player, slot: string, cost?: number) => {
     const current = teamKeepers[activeKeeperTeam] ?? [];
-    const resolvedCost = cost ?? player.value ?? Math.floor(player.adp * 2 + 10);
+    const resolvedCost =
+      cost ?? player.value ?? Math.floor(player.adp * 2 + 10);
     setTeamKeepers({
       ...teamKeepers,
       [activeKeeperTeam]: [
