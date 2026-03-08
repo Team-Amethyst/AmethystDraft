@@ -283,11 +283,23 @@ export function AuctionCenter({
           cat.name,
           cat.type,
         );
+        // If either side has no data, can't compute a meaningful delta
+        if (teamPace === 0 || playerStat === 0) {
+          return {
+            name: cat.name,
+            teamPaceStr: teamPace > 0 ? teamPace.toFixed(2) : "—",
+            withPlayerStr: playerStat > 0 ? playerStat.toFixed(2) : "—",
+            deltaStr: "—",
+            improved: false,
+            neutral: true,
+          };
+        }
+        // For ERA/WHIP, lower is better — positive delta means player improves the team
         const delta = +(teamPace - playerStat).toFixed(2);
         return {
           name: cat.name,
-          teamPaceStr: teamPace > 0 ? teamPace.toFixed(2) : "—",
-          withPlayerStr: playerStat > 0 ? playerStat.toFixed(2) : "—",
+          teamPaceStr: teamPace.toFixed(2),
+          withPlayerStr: playerStat.toFixed(2),
           deltaStr: delta > 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2),
           improved: delta > 0,
           neutral: delta === 0,
