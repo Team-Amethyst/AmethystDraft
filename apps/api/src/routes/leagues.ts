@@ -2,6 +2,7 @@ import { Router, RequestHandler, Response } from "express";
 import League from "../models/League";
 import RosterEntry from "../models/RosterEntry";
 import PlayerNote from "../models/PlayerNote";
+import WatchlistEntry from "../models/WatchlistEntry";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
 
 const router: Router = Router();
@@ -390,6 +391,94 @@ const upsertNote: RequestHandler = async (
   }
 };
 
+// ─── GET /api/leagues/:id/watchlist ───────────────────────────────────────────
+
+const getWatchlist: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const entries = await WatchlistEntry.find({
+      leagueId: req.params.id,
+      userId: req.user!._id,
+    }).sort({ createdAt: 1 });
+    res.json(
+      entries.map((e) => ({
+        id: e.externalPlayerId,
+        name: e.playerName,
+        team: e.playerTeam,
+        position: e.playerPosition,
+        positions: e.playerPositions,
+        adp: e.adp,
+        value: e.value,
+        tier: e.tier,
+      })),
+    );
+  } catch (err) {
+    console.error("Get watchlist error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── PUT /api/leagues/:id/watchlist/:playerId ─────────────────────────────────
+
+const upsertWatchlistEntry: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { name, team, position, positions, adp, value, tier } = req.body as {
+      name: string;
+      team?: string;
+      position?: string;
+      positions?: string[];
+      adp?: number;
+      value?: number;
+      tier?: number;
+    };
+    await WatchlistEntry.findOneAndUpdate(
+      {
+        leagueId: req.params.id,
+        userId: req.user!._id,
+        externalPlayerId: req.params.playerId,
+      },
+      {
+        playerName: name,
+        playerTeam: team ?? "",
+        playerPosition: position ?? "",
+        playerPositions: positions ?? [],
+        adp: adp ?? 0,
+        value: value ?? 0,
+        tier: tier ?? 5,
+      },
+      { upsert: true, new: true },
+    );
+    res.status(204).send();
+  } catch (err) {
+    console.error("Upsert watchlist entry error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── DELETE /api/leagues/:id/watchlist/:playerId ──────────────────────────────
+
+const deleteWatchlistEntry: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    await WatchlistEntry.findOneAndDelete({
+      leagueId: req.params.id,
+      userId: req.user!._id,
+      externalPlayerId: req.params.playerId,
+    });
+    res.status(204).send();
+  } catch (err) {
+    console.error("Delete watchlist entry error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ─── Route registration ────────────────────────────────────────────────────────
 
 router.post("/", createLeague);
@@ -402,5 +491,8 @@ router.patch("/:id/roster/:entryId", updateRosterEntry);
 router.delete("/:id/roster/:entryId", removeRosterEntry);
 router.get("/:id/notes", getNotes);
 router.put("/:id/notes/:playerId", upsertNote);
+router.get("/:id/watchlist", getWatchlist);
+router.put("/:id/watchlist/:playerId", upsertWatchlistEntry);
+router.delete("/:id/watchlist/:playerId", deleteWatchlistEntry);
 
 export default router;

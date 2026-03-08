@@ -78,10 +78,6 @@ export function AuctionCenter({
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
-  const [draftNotes, setDraftNotes] = useState(
-    () => localStorage.getItem("amethyst-draft-notes") ?? "",
-  );
-
   // Seed "Won By" default when league loads
   useEffect(() => {
     if (league && !wonBy) setWonBy(league.teamNames[0] ?? "");
@@ -486,6 +482,15 @@ export function AuctionCenter({
           <div className="cc-empty-sub">
             Search for a player above to begin the auction
           </div>
+          <div className="pac-notes-wrap pac-notes-wrap--fill cc-empty-notes">
+            <div className="pac-notes-label">DRAFT NOTES</div>
+            <textarea
+              className="pac-notes pac-notes--fill"
+              value={getNote("__draft__")}
+              onChange={(e) => setNote("__draft__", e.target.value)}
+              placeholder="Pre-draft strategic notes..."
+            />
+          </div>
         </div>
       ) : (
         <div className="player-auction-card">
@@ -763,11 +768,8 @@ export function AuctionCenter({
             <div className="pac-notes-label">DRAFT NOTES</div>
             <textarea
               className="pac-notes pac-notes--fill"
-              value={draftNotes}
-              onChange={(e) => {
-                setDraftNotes(e.target.value);
-                localStorage.setItem("amethyst-draft-notes", e.target.value);
-              }}
+              value={getNote("__draft__")}
+              onChange={(e) => setNote("__draft__", e.target.value)}
               placeholder="Pre-draft strategic notes..."
             />
           </div>

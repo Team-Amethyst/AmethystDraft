@@ -3,7 +3,7 @@ import { Minus, Plus, Star, X } from "lucide-react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
-import type { Player } from "../types/player";
+import type { WatchlistPlayer } from "../api/watchlist";
 import PosBadge from "../components/PosBadge";
 import "./MyDraft.css";
 
@@ -38,7 +38,7 @@ function normalizePosition(position: string): string {
   return first || "UTIL";
 }
 
-function getPriority(player: Player): "High" | "Medium" | "Low" {
+function getPriority(player: WatchlistPlayer): "High" | "Medium" | "Low" {
   // TODO(logic): Replace this local heuristic with backend scoring/recommendation priority.
   if (player.value >= 45 || player.tier <= 2) return "High";
   if (player.value >= 28 || player.tier === 3) return "Medium";
@@ -120,15 +120,12 @@ export default function MyDraft() {
     setPositionTargets(defaultPositionTargets);
     localStorage.removeItem("amethyst-position-targets");
   }
-  // TODO(storage): Persist notes per league/user in backend; this is local-only state.
-  const [draftNotes, setDraftNotes] = useState(
-    () => localStorage.getItem("amethyst-draft-notes") ?? "",
-  );
+
+  const draftNotes = getNote("__draft__");
   const handleDraftNotesChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
-    setDraftNotes(e.target.value);
-    localStorage.setItem("amethyst-draft-notes", e.target.value);
+    setNote("__draft__", e.target.value);
   };
   const [notesHeight, setNotesHeight] = useState(96);
   const dragStartYRef = useRef(0);

@@ -5,6 +5,12 @@ export interface IWatchlistEntry extends Document {
   userId: mongoose.Types.ObjectId;
   externalPlayerId: string;
   playerName: string;
+  playerTeam: string;
+  playerPosition: string;
+  playerPositions: string[];
+  adp: number;
+  value: number;
+  tier: number;
   personalRank: number | null;
   notes: string;
   createdAt: Date;
@@ -30,6 +36,30 @@ const watchlistEntrySchema = new Schema<IWatchlistEntry>(
     playerName: {
       type: String,
       required: true,
+    },
+    playerTeam: {
+      type: String,
+      default: "",
+    },
+    playerPosition: {
+      type: String,
+      default: "",
+    },
+    playerPositions: {
+      type: [String],
+      default: [],
+    },
+    adp: {
+      type: Number,
+      default: 0,
+    },
+    value: {
+      type: Number,
+      default: 0,
+    },
+    tier: {
+      type: Number,
+      default: 5,
     },
     personalRank: {
       type: Number,
