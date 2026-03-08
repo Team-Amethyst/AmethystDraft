@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Star, RotateCcw } from "lucide-react";
+import { Search, Star, RotateCcw, Tag } from "lucide-react";
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import "./PlayerTable.css";
@@ -20,6 +20,7 @@ interface PlayerTableProps {
   scoringCategories?: { name: string; type: "batting" | "pitching" }[];
   getNote?: (playerId: string) => string;
   onNoteChange?: (playerId: string, note: string) => void;
+  draftedIds?: Set<string>;
 }
 
 type DisplayBatting = {
@@ -329,9 +330,35 @@ export default function PlayerTable({
   scoringCategories,
   getNote,
   onNoteChange,
+  draftedIds,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState(false);
+  const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available" | "drafted">("all");
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
+
+  const ALL_TAGS = ["HR+", "SB+", "AVG+", "R+", "RBI+", "K+", "W+", "SV+"];
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+        setTagDropdownOpen(false);
+      }
+    }
+    if (tagDropdownOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [tagDropdownOpen]);
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  }
 
   const batCols = useMemo(() => {
     const cats = (scoringCategories ?? []).filter((c) => c.type === "batting");
@@ -378,29 +405,46 @@ export default function PlayerTable({
     statBasis === "projections"
       ? "PROJ"
       : statBasis === "last-year"
-        ? "2024"
+        ? "2025"
         : "3YR";
 
-  const displayed = starredOnly
-    ? players.filter((p) => isInWatchlist(p.id))
-    : players;
+  const displayed = useMemo(() => {
+    let base = starredOnly ? players.filter((p) => isInWatchlist(p.id)) : players;
+    if (availabilityFilter === "available") base = base.filter((p) => !draftedIds?.has(p.id));
+    else if (availabilityFilter === "drafted") base = base.filter((p) => draftedIds?.has(p.id));
+    return base;
+  }, [players, starredOnly, availabilityFilter, draftedIds, isInWatchlist]);
+
+  // Pre-compute tags for all players so we can filter before slicing
+  const allRowData = useMemo(
+    () =>
+      displayed.map((player) => {
+        const { bat, pit } = resolveDisplayStats(player, statBasis);
+        return {
+          player,
+          bat,
+          pit,
+          isBatter: !!bat || !pit,
+          tags: getCategoryTags(bat, pit),
+          valDiff: getValDiff(player),
+        };
+      }),
+    [displayed, statBasis],
+  );
+
+  const filteredRowData = useMemo(
+    () =>
+      selectedTags.size === 0
+        ? allRowData
+        : allRowData.filter((r) =>
+            [...selectedTags].every((t) => r.tags.includes(t)),
+          ),
+    [allRowData, selectedTags],
+  );
 
   const rowData = useMemo(
-    () =>
-      (fullyRendered ? displayed : displayed.slice(0, INITIAL_ROWS)).map(
-        (player) => {
-          const { bat, pit } = resolveDisplayStats(player, statBasis);
-          return {
-            player,
-            bat,
-            pit,
-            isBatter: !!bat || !pit,
-            tags: getCategoryTags(bat, pit),
-            valDiff: getValDiff(player),
-          };
-        },
-      ),
-    [displayed, statBasis, fullyRendered],
+    () => (fullyRendered ? filteredRowData : filteredRowData.slice(0, INITIAL_ROWS)),
+    [filteredRowData, fullyRendered],
   );
 
   return (
@@ -420,6 +464,16 @@ export default function PlayerTable({
         </div>
 
         <div className="pt-filters">
+          <select
+            className="pt-select"
+            value={availabilityFilter}
+            onChange={(e) => setAvailabilityFilter(e.target.value as "all" | "available" | "drafted")}
+          >
+            <option value="all">Availability (All)</option>
+            <option value="available">Available</option>
+            <option value="drafted">Drafted</option>
+          </select>
+
           <select
             className="pt-select"
             value={positionFilter}
@@ -463,7 +517,7 @@ export default function PlayerTable({
                     {b === "projections"
                       ? "PROJ"
                       : b === "last-year"
-                        ? "2024"
+                        ? "2025"
                         : "3YR"}
                   </button>
                 ),
@@ -471,12 +525,48 @@ export default function PlayerTable({
             </div>
           )}
 
+          <div className="pt-tag-wrap">
+            <button
+              className={
+                "pt-toggle " + (selectedTags.size > 0 ? "active" : "")
+              }
+              onClick={() => setTagDropdownOpen((v) => !v)}
+            >
+              <Tag size={13} />
+              Tags{selectedTags.size > 0 ? ` (${selectedTags.size})` : ""}
+            </button>
+            {tagDropdownOpen && (
+              <div className="pt-tag-dropdown" ref={tagDropdownRef}>
+                {ALL_TAGS.map((tag) => (
+                  <label key={tag} className="pt-tag-option">
+                    <input
+                      type="checkbox"
+                      checked={selectedTags.has(tag)}
+                      onChange={() => toggleTag(tag)}
+                    />
+                    <span className="tag">{tag}</span>
+                  </label>
+                ))}
+                {selectedTags.size > 0 && (
+                  <button
+                    className="pt-tag-clear"
+                    onClick={() => setSelectedTags(new Set())}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           <button
             className="pt-icon-btn"
             title="Reset filters"
             onClick={() => {
               onSearchChange("");
               onPositionChange("all");
+              setSelectedTags(new Set());
+              setAvailabilityFilter("all");
             }}
           >
             <RotateCcw size={14} />
@@ -512,7 +602,7 @@ export default function PlayerTable({
             </tr>
           </thead>
           <tbody>
-            {displayed.length === 0 && (
+            {filteredRowData.length === 0 && (
               <tr>
                 <td colSpan={10 + numStatCols} className="pt-empty">
                   No players found.
@@ -529,6 +619,7 @@ export default function PlayerTable({
                     className={
                       "pt-row" +
                       (isStarred ? " pt-row--starred" : "") +
+                      (draftedIds?.has(player.id) ? " pt-row--drafted" : "") +
                       (onPlayerClick ? " pt-row--clickable" : "")
                     }
                     onClick={
@@ -540,7 +631,7 @@ export default function PlayerTable({
                     <td className="td-star">
                       <button
                         className={"btn-star " + (isStarred ? "starred" : "")}
-                        onClick={() => toggleWatchlist(player)}
+                        onClick={(e) => { e.stopPropagation(); toggleWatchlist(player); }}
                         title={
                           isStarred
                             ? "Remove from watchlist"

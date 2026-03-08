@@ -5,8 +5,10 @@ import { Database, BarChart3, Layers } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import { getPlayers, getPlayersCached } from "../api/players";
+import { getRoster } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { useAuth } from "../contexts/AuthContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import "./Research.css";
 
@@ -16,6 +18,7 @@ export default function Research() {
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
   const { league } = useLeague();
+  const { token } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
   const [selectedView, setSelectedView] = useState("player-database");
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,6 +34,14 @@ export default function Research() {
     () => getPlayersCached(sortBy as "adp" | "value" | "name") === null,
   );
   const [playersError, setPlayersError] = useState("");
+  const [draftedIds, setDraftedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!leagueId || !token) return;
+    void getRoster(leagueId, token).then((entries) => {
+      setDraftedIds(new Set(entries.map((e) => e.externalPlayerId)));
+    });
+  }, [leagueId, token]);
 
   useEffect(() => {
     const loadPlayers = async () => {
@@ -122,6 +133,7 @@ export default function Research() {
                   scoringCategories={league?.scoringCategories}
                   getNote={getNote}
                   onNoteChange={setNote}
+                  draftedIds={draftedIds}
                 />
               )}
             </>

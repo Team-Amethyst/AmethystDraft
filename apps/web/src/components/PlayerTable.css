@@ -404,6 +404,22 @@
 
 .pt-row:hover { background: rgba(139, 92, 246, 0.06); }
 .pt-row--starred { background: rgba(251, 191, 36, 0.03); }
+.pt-row--drafted { opacity: 0.45; position: relative; }
+.pt-row--drafted .player-name { text-decoration: line-through; }
+.pt-row--drafted td { position: relative; }
+.pt-row--drafted td::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+}
 .pt-row--clickable { cursor: pointer; }
 .pt-row--clickable:hover { background: rgba(139, 92, 246, 0.1); }
 
@@ -426,7 +442,12 @@
   align-items: center;
   gap: 0.4rem;
   min-width: 0;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.player-name-col::-webkit-scrollbar {
+  display: none;
 }
 
 .player-headshot {
@@ -458,6 +479,8 @@
   font-weight: 600;
   color: #f0e6ff;
   font-size: 0.82rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ── Tier badge ── */
@@ -490,8 +513,64 @@
 .td-team { color: #9080b0; }
 .td-adp { color: #9080b0; }
 
+.pt-tag-wrap {
+  position: relative;
+}
+
+/* ── Tag filter dropdown ── */
+.pt-tag-dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 200;
+  background: #1a1330;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 110px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.pt-tag-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+  border-radius: 5px;
+  user-select: none;
+}
+
+.pt-tag-option:hover { background: rgba(139, 92, 246, 0.08); }
+
+.pt-tag-option input[type="checkbox"] {
+  accent-color: #a78bfa;
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.pt-tag-clear {
+  margin-top: 0.2rem;
+  background: none;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 5px;
+  color: #7c6a99;
+  font-size: 0.68rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-family: DM Sans, sans-serif;
+  transition: color 0.15s;
+}
+
+.pt-tag-clear:hover { color: #a78bfa; border-color: rgba(139, 92, 246, 0.4); }
+
 /* ── Tags ── */
-.tag-list { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.tag-list { display: flex; gap: 0.3rem; flex-shrink: 0; }
 
 .tag {
   font-size: 0.65rem;
@@ -502,6 +581,8 @@
   background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
   border: 1px solid rgba(139, 92, 246, 0.25);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ── Star button ── */
