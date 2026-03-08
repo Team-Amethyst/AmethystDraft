@@ -355,6 +355,17 @@
   font-weight: 800;
 }
 
+.pac-notes-wrap {
+  /* scoping wrapper for label + textarea pairs */
+}
+
+.pac-notes-wrap--fill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .pac-notes-label {
   font-size: 0.62rem;
   font-weight: 800;
@@ -376,6 +387,17 @@
   resize: none;
   outline: none;
   box-sizing: border-box;
+}
+
+.pac-notes--fill {
+  flex: 1;
+  height: 100%;
+}
+
+.pac-log-result-label {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
 }
 
 .pac-snapshot-header {
@@ -437,37 +459,50 @@
 .sb-label { font-size: 0.62rem; color: #6b4fa0; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .sb-val   { font-size: 1.1rem;  color: #e2d9f3; font-weight: 700; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
 
-/* Category impact table */
+/* Category impact cards */
 
-.category-impact-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.76rem;
-  margin-top: 0.35rem;
+.cat-impact-boxes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
 }
 
-.category-impact-table th {
+.ci-box {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  border-radius: 8px;
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.ci-box-label {
   font-size: 0.62rem;
+  color: #6b4fa0;
   font-weight: 700;
-  letter-spacing: 0.07em;
-  color: #4a3a60;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 0.3rem 0.5rem;
-  text-align: left;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
 }
 
-.category-impact-table td {
-  padding: 0.35rem 0.5rem;
-  color: #b0a0cc;
-  border-bottom: 1px solid rgba(255,255,255,0.02);
+.ci-box-delta {
+  font-size: 1.1rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
+.ci-box-delta.green   { color: #22c55e; }
+.ci-box-delta.red     { color: #f87171; }
+.ci-box-delta.neutral { color: #f59e0b; }
 
-.ci-cat { font-weight: 700; color: #c4b5d4; }
-
-.delta-badge { font-weight: 700; font-size: 0.78rem; }
-.pace-badge  { font-weight: 700; font-size: 0.78rem; }
+.ci-box-sub {
+  font-size: 0.6rem;
+  color: #4a3a60;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 /* ─── Log result ────────────────────────────────────────────────────────── */
 

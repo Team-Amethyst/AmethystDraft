@@ -272,9 +272,18 @@ export function computeRanks(
   rows: ProjectedStandingsRow[],
   cat: string,
 ): Map<string, number> {
+  const isLower = LOWER_IS_BETTER_CATS.has(cat.toUpperCase());
   const sorted = [...rows].sort((a, b) => {
-    const diff = (b.stats[cat] ?? 0) - (a.stats[cat] ?? 0);
-    return LOWER_IS_BETTER_CATS.has(cat.toUpperCase()) ? -diff : diff;
+    const av = a.stats[cat] ?? 0;
+    const bv = b.stats[cat] ?? 0;
+    // For lower-is-better stats, treat 0 as "no data" and push to the bottom
+    if (isLower) {
+      if (av === 0 && bv === 0) return 0;
+      if (av === 0) return 1;
+      if (bv === 0) return -1;
+      return av - bv;
+    }
+    return bv - av;
   });
   const ranks = new Map<string, number>();
   sorted.forEach((r, i) => ranks.set(r.teamName, i + 1));

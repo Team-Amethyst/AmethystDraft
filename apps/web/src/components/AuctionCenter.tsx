@@ -76,6 +76,9 @@ export function AuctionCenter({
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
+  const [draftNotes, setDraftNotes] = useState(
+    () => localStorage.getItem("amethyst-draft-notes") ?? "",
+  );
 
   // Seed "Won By" default when league loads
   useEffect(() => {
@@ -242,13 +245,10 @@ export function AuctionCenter({
         withPlayerStr: string;
         deltaStr: string;
         improved: boolean;
-      }>;
+        neutral: boolean;
+      }>
     const relevantCats = league.scoringCategories.filter((cat) =>
-      selectedPlayer
-        ? ["SP", "RP", "P"].includes(selectedPlayer.position)
-          ? cat.type === "pitching"
-          : cat.type === "batting"
-        : false,
+      statView === "pitching" ? cat.type === "pitching" : cat.type === "batting",
     );
     return relevantCats.map((cat) => {
       const isRate = ["ERA", "WHIP"].includes(cat.name.toUpperCase());
@@ -275,6 +275,7 @@ export function AuctionCenter({
           withPlayerStr: playerStat > 0 ? playerStat.toFixed(2) : "—",
           deltaStr: delta > 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2),
           improved: delta > 0,
+          neutral: delta === 0,
         };
       } else {
         const teamPace = myTeamEntries.reduce((sum, entry) => {
@@ -299,6 +300,7 @@ export function AuctionCenter({
               ? `+${Math.round(playerStat)}`
               : Math.round(playerStat).toString(),
           improved: playerStat > 0,
+          neutral: playerStat === 0,
         };
       }
     });
@@ -538,7 +540,7 @@ export function AuctionCenter({
             </div>
           </div>
 
-          <>
+          <div className="pac-notes-wrap">
             <div className="pac-notes-label">PLAYER NOTES</div>
             <textarea
               className="pac-notes"
@@ -551,7 +553,7 @@ export function AuctionCenter({
               placeholder="Add scouting notes..."
               rows={2}
             />
-          </>
+          </div>
 
           {/* Performance snapshot */}
           <div className="pac-snapshot-header">
@@ -689,37 +691,42 @@ export function AuctionCenter({
               >
                 CATEGORY IMPACT
               </div>
-              <table className="category-impact-table">
-                <thead>
-                  <tr>
-                    <th>CAT</th>
-                    <th>TEAM PACE</th>
-                    <th>WITH PLAYER</th>
-                    <th>DELTA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catImpactRows.map((row) => (
-                    <tr key={row.name}>
-                      <td className="ci-cat">{row.name}</td>
-                      <td>{row.teamPaceStr}</td>
-                      <td>{row.withPlayerStr}</td>
-                      <td>
-                        <span
-                          className={`delta-badge ${row.improved ? "green" : "red"}`}
-                        >
-                          {row.deltaStr}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="cat-impact-boxes">
+                {catImpactRows.map((row) => (
+                  <div key={row.name} className="ci-box">
+                    <div className="ci-box-label">{row.name}</div>
+                    <div
+                      className={`ci-box-delta ${
+                        row.neutral ? "neutral" : row.improved ? "green" : "red"
+                      }`}
+                    >
+                      {row.deltaStr}
+                    </div>
+                    <div className="ci-box-sub">
+                      {row.teamPaceStr}&nbsp;→&nbsp;{row.withPlayerStr}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </>
           )}
 
+          {/* Draft notes */}
+          <div className="pac-notes-wrap pac-notes-wrap--fill" style={{ marginTop: "1rem" }}>
+            <div className="pac-notes-label">DRAFT NOTES</div>
+            <textarea
+              className="pac-notes pac-notes--fill"
+              value={draftNotes}
+              onChange={(e) => {
+                setDraftNotes(e.target.value);
+                localStorage.setItem("amethyst-draft-notes", e.target.value);
+              }}
+              placeholder="Pre-draft strategic notes..."
+            />
+          </div>
+
           {/* Log result */}
-          <div className="pac-section-label" style={{ marginTop: "auto", paddingTop: "1rem" }}>
+          <div className="pac-section-label pac-log-result-label">
             LOG RESULT
           </div>
           <div className="log-result-grid">

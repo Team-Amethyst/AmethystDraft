@@ -117,7 +117,13 @@ export default function MyDraft() {
     localStorage.removeItem("amethyst-position-targets");
   }
   // TODO(storage): Persist notes per league/user in backend; this is local-only state.
-  const [draftNotes, setDraftNotes] = useState("");
+  const [draftNotes, setDraftNotes] = useState(
+    () => localStorage.getItem("amethyst-draft-notes") ?? "",
+  );
+  const handleDraftNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setDraftNotes(e.target.value);
+    localStorage.setItem("amethyst-draft-notes", e.target.value);
+  };
   const [notesHeight, setNotesHeight] = useState(96);
   const dragStartYRef = useRef(0);
   const dragStartHeightRef = useRef(96);
@@ -478,7 +484,7 @@ export default function MyDraft() {
           />
           <textarea
             value={draftNotes}
-            onChange={(e) => setDraftNotes(e.target.value)}
+            onChange={handleDraftNotesChange}
             placeholder="Add your draft notes here..."
             style={{ height: `${notesHeight}px` }}
           />
