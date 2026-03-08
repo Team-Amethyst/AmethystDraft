@@ -334,7 +334,9 @@ export default function PlayerTable({
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState(false);
-  const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available" | "drafted">("all");
+  const [availabilityFilter, setAvailabilityFilter] = useState<
+    "all" | "available" | "drafted"
+  >("all");
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
@@ -343,7 +345,10 @@ export default function PlayerTable({
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+      if (
+        tagDropdownRef.current &&
+        !tagDropdownRef.current.contains(e.target as Node)
+      ) {
         setTagDropdownOpen(false);
       }
     }
@@ -409,9 +414,13 @@ export default function PlayerTable({
         : "3YR";
 
   const displayed = useMemo(() => {
-    let base = starredOnly ? players.filter((p) => isInWatchlist(p.id)) : players;
-    if (availabilityFilter === "available") base = base.filter((p) => !draftedIds?.has(p.id));
-    else if (availabilityFilter === "drafted") base = base.filter((p) => draftedIds?.has(p.id));
+    let base = starredOnly
+      ? players.filter((p) => isInWatchlist(p.id))
+      : players;
+    if (availabilityFilter === "available")
+      base = base.filter((p) => !draftedIds?.has(p.id));
+    else if (availabilityFilter === "drafted")
+      base = base.filter((p) => draftedIds?.has(p.id));
     return base;
   }, [players, starredOnly, availabilityFilter, draftedIds, isInWatchlist]);
 
@@ -443,7 +452,8 @@ export default function PlayerTable({
   );
 
   const rowData = useMemo(
-    () => (fullyRendered ? filteredRowData : filteredRowData.slice(0, INITIAL_ROWS)),
+    () =>
+      fullyRendered ? filteredRowData : filteredRowData.slice(0, INITIAL_ROWS),
     [filteredRowData, fullyRendered],
   );
 
@@ -467,7 +477,11 @@ export default function PlayerTable({
           <select
             className="pt-select"
             value={availabilityFilter}
-            onChange={(e) => setAvailabilityFilter(e.target.value as "all" | "available" | "drafted")}
+            onChange={(e) =>
+              setAvailabilityFilter(
+                e.target.value as "all" | "available" | "drafted",
+              )
+            }
           >
             <option value="all">Availability (All)</option>
             <option value="available">Available</option>
@@ -527,9 +541,7 @@ export default function PlayerTable({
 
           <div className="pt-tag-wrap">
             <button
-              className={
-                "pt-toggle " + (selectedTags.size > 0 ? "active" : "")
-              }
+              className={"pt-toggle " + (selectedTags.size > 0 ? "active" : "")}
               onClick={() => setTagDropdownOpen((v) => !v)}
             >
               <Tag size={13} />
@@ -631,7 +643,10 @@ export default function PlayerTable({
                     <td className="td-star">
                       <button
                         className={"btn-star " + (isStarred ? "starred" : "")}
-                        onClick={(e) => { e.stopPropagation(); toggleWatchlist(player); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWatchlist(player);
+                        }}
                         title={
                           isStarred
                             ? "Remove from watchlist"

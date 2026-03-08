@@ -49,7 +49,9 @@ export default function MyDraft() {
   const { watchlist, removeFromWatchlist } = useWatchlist();
   const { getNote, setNote } = usePlayerNotes();
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
-  const [priorityOverrides, setPriorityOverrides] = useState<Record<string, "High" | "Medium" | "Low">>(() => {
+  const [priorityOverrides, setPriorityOverrides] = useState<
+    Record<string, "High" | "Medium" | "Low">
+  >(() => {
     try {
       const saved = localStorage.getItem("amethyst-priority-overrides");
       return saved ? JSON.parse(saved) : {};
@@ -309,7 +311,8 @@ export default function MyDraft() {
                     const pos = normalizePosition(player.position || "UTIL");
                     // TODO(data): Replace with backend target-by-player (or target-by-tier) instead of value proxy.
                     const targetAtPos = Math.round(player.value ?? 0);
-                    const priority = priorityOverrides[player.id] ?? getPriority(player);
+                    const priority =
+                      priorityOverrides[player.id] ?? getPriority(player);
 
                     return (
                       <tr key={player.id}>
@@ -340,7 +343,10 @@ export default function MyDraft() {
                             className={`priority-select ${priority.toLowerCase()}`}
                             value={priority}
                             onChange={(e) =>
-                              setPriority(player.id, e.target.value as "High" | "Medium" | "Low")
+                              setPriority(
+                                player.id,
+                                e.target.value as "High" | "Medium" | "Low",
+                              )
                             }
                           >
                             <option value="High">High</option>
@@ -354,7 +360,9 @@ export default function MyDraft() {
                             value={getNote(player.id)}
                             onChange={(e) => setNote(player.id, e.target.value)}
                             placeholder="Note..."
-                            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                            }}
                           />
                         </td>
                         <td>

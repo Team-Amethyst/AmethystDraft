@@ -7,11 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { Player } from "../types/player";
 import { getPlayers } from "../api/players";
-import {
-  getRoster,
-  removeRosterEntry,
-  updateRosterEntry,
-} from "../api/roster";
+import { getRoster, removeRosterEntry, updateRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import "./CommandCenter.css";
 import { DraftLogRow } from "../components/DraftLogRow";

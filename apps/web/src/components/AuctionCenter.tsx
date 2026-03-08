@@ -5,10 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import type { Player } from "../types/player";
-import {
-  addRosterEntry,
-  removeRosterEntry,
-} from "../api/roster";
+import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import { getStatByCategory } from "../pages/commandCenterUtils";
 
