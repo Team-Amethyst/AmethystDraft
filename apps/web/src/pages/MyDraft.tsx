@@ -405,11 +405,11 @@ export default function MyDraft() {
                               className="row-star"
                               fill="#facc15"
                             />
-                            <div>
-                              <div className="player-name">{player.name}</div>
-                              <div className="player-team">
+                            <div className="player-name-row">
+                              <span className="player-name">{player.name}</span>
+                              <span className="player-team">
                                 {player.team || "--"}
-                              </div>
+                              </span>
                             </div>
                           </div>
                         </td>

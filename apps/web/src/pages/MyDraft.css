@@ -277,6 +277,12 @@
   color: #facc15;
 }
 
+.player-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
 .player-name {
   color: #ebe5fb;
   font-weight: 600;

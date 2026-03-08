@@ -942,9 +942,14 @@ function RightPanel({
                 const hasData = pct > 0;
                 const color =
                   pct >= 95 ? "green" : pct >= 75 ? "yellow" : "red";
+                const displayName =
+                  c.name.match(/\(([^)]+)\)$/)?.[1] ??
+                  (c.name.toUpperCase() === "WALKS + HITS PER IP"
+                    ? "WHIP"
+                    : c.name);
                 return (
                   <div key={c.name} className="cat-pace-item">
-                    <div className="cp-label">{c.name}</div>
+                    <div className="cp-label">{displayName}</div>
                     {hasData ? (
                       <div className={`cp-pct ${color}`}>{pct}%</div>
                     ) : (
@@ -970,9 +975,14 @@ function RightPanel({
                 const hasData = pct > 0;
                 const color =
                   pct >= 95 ? "green" : pct >= 75 ? "yellow" : "red";
+                const displayName =
+                  c.name.match(/\(([^)]+)\)$/)?.[1] ??
+                  (c.name.toUpperCase() === "WALKS + HITS PER IP"
+                    ? "WHIP"
+                    : c.name);
                 return (
                   <div key={c.name} className="cat-pace-item">
-                    <div className="cp-label">{c.name}</div>
+                    <div className="cp-label">{displayName}</div>
                     {hasData ? (
                       <div className={`cp-pct ${color}`}>{pct}%</div>
                     ) : (
