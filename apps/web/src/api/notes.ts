@@ -1,6 +1,5 @@
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "https://at5ms22dhj.us-east-1.awsapprunner.com";
+  import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function authHeaders(token: string) {
   return {
