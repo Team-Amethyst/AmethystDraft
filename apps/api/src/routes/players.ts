@@ -143,7 +143,13 @@ function projectBatting(
 ): { avg: string; hr: number; rbi: number; runs: number; sb: number } {
   const years = [yr1, yr2, yr3];
   const W = [5, 3, 2];
-  let wTotal = 0, wH = 0, wAB = 0, wHR = 0, wRBI = 0, wRuns = 0, wSB = 0;
+  let wTotal = 0,
+    wH = 0,
+    wAB = 0,
+    wHR = 0,
+    wRBI = 0,
+    wRuns = 0,
+    wSB = 0;
   for (let i = 0; i < years.length; i++) {
     const s = years[i];
     if (!s) continue;
@@ -155,13 +161,14 @@ function projectBatting(
     wRuns += Number(s.runs ?? 0) * w;
     wSB += Number(s.stolenBases ?? 0) * w;
   }
-  if (wTotal === 0) return {
-    avg: String(yr1.avg ?? ".000"),
-    hr: Number(yr1.homeRuns ?? 0),
-    rbi: Number(yr1.rbi ?? 0),
-    runs: Number(yr1.runs ?? 0),
-    sb: Number(yr1.stolenBases ?? 0),
-  };
+  if (wTotal === 0)
+    return {
+      avg: String(yr1.avg ?? ".000"),
+      hr: Number(yr1.homeRuns ?? 0),
+      rbi: Number(yr1.rbi ?? 0),
+      runs: Number(yr1.runs ?? 0),
+      sb: Number(yr1.stolenBases ?? 0),
+    };
   const avg = wAB > 0 ? wH / wAB : 0;
   return {
     avg: avg.toFixed(3),
@@ -176,10 +183,26 @@ function projectPitching(
   yr1: StatRecord,
   yr2?: StatRecord | null,
   yr3?: StatRecord | null,
-): { era: string; whip: string; wins: number; saves: number; holds: number; strikeouts: number; completeGames: number } {
+): {
+  era: string;
+  whip: string;
+  wins: number;
+  saves: number;
+  holds: number;
+  strikeouts: number;
+  completeGames: number;
+} {
   const years = [yr1, yr2, yr3];
   const W = [5, 3, 2];
-  let wTotal = 0, wIP = 0, wER = 0, wBR = 0, wK = 0, wWins = 0, wSV = 0, wHLD = 0, wCG = 0;
+  let wTotal = 0,
+    wIP = 0,
+    wER = 0,
+    wBR = 0,
+    wK = 0,
+    wWins = 0,
+    wSV = 0,
+    wHLD = 0,
+    wCG = 0;
   for (let i = 0; i < years.length; i++) {
     const s = years[i];
     if (!s) continue;
@@ -195,15 +218,16 @@ function projectPitching(
     wHLD += Number(s.holds ?? 0) * w;
     wCG += Number(s.completeGames ?? 0) * w;
   }
-  if (wTotal === 0) return {
-    era: String(yr1.era ?? "0.00"),
-    whip: String(yr1.whip ?? "0.00"),
-    wins: Number(yr1.wins ?? 0),
-    saves: Number(yr1.saves ?? 0),
-    holds: Number(yr1.holds ?? 0),
-    strikeouts: Number(yr1.strikeOuts ?? 0),
-    completeGames: Number(yr1.completeGames ?? 0),
-  };
+  if (wTotal === 0)
+    return {
+      era: String(yr1.era ?? "0.00"),
+      whip: String(yr1.whip ?? "0.00"),
+      wins: Number(yr1.wins ?? 0),
+      saves: Number(yr1.saves ?? 0),
+      holds: Number(yr1.holds ?? 0),
+      strikeouts: Number(yr1.strikeOuts ?? 0),
+      completeGames: Number(yr1.completeGames ?? 0),
+    };
   const era = wIP > 0 ? (wER / wIP) * 9 : 0;
   const whip = wIP > 0 ? wBR / wIP : 0;
   return {
@@ -272,8 +296,22 @@ interface PlayerData {
   outlook: string;
   injuryStatus?: string;
   springStats?: {
-    batting?: { avg: string; hr: number; rbi: number; runs: number; sb: number; ab: number };
-    pitching?: { era: string; whip: string; wins: number; saves: number; strikeouts: number; innings: string };
+    batting?: {
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+      ab: number;
+    };
+    pitching?: {
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      strikeouts: number;
+      innings: string;
+    };
   };
 }
 
@@ -298,40 +336,76 @@ const getPlayers: RequestHandler = async (
 
     // Fetch 3 seasons of stats + spring training + transactions in parallel
     const [
-      batRes, pitRes,
-      bat2Res, pit2Res,
-      bat3Res, pit3Res,
-      batSpringRes, pitSpringRes,
+      batRes,
+      pitRes,
+      bat2Res,
+      pit2Res,
+      bat3Res,
+      pit3Res,
+      batSpringRes,
+      pitSpringRes,
       txRes,
     ] = await Promise.all([
-      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&limit=400&sportId=1`),
-      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${season}&playerPool=ALL&limit=300&sportId=1`),
-      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${season2}&playerPool=ALL&limit=400&sportId=1`),
-      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${season2}&playerPool=ALL&limit=300&sportId=1`),
-      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${season3}&playerPool=ALL&limit=400&sportId=1`),
-      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${season3}&playerPool=ALL&limit=300&sportId=1`),
-      fetch(`${MLB_API}/stats?stats=season&group=hitting&season=${currentYear}&playerPool=ALL&limit=400&sportId=1&gameType=S`),
-      fetch(`${MLB_API}/stats?stats=season&group=pitching&season=${currentYear}&playerPool=ALL&limit=300&sportId=1&gameType=S`),
-      fetch(`${MLB_API}/transactions?sportId=1&startDate=${fmtDate(ninetyDaysAgo)}&endDate=${fmtDate(today)}`),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&limit=400&sportId=1`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=pitching&season=${season}&playerPool=ALL&limit=300&sportId=1`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=hitting&season=${season2}&playerPool=ALL&limit=400&sportId=1`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=pitching&season=${season2}&playerPool=ALL&limit=300&sportId=1`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=hitting&season=${season3}&playerPool=ALL&limit=400&sportId=1`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=pitching&season=${season3}&playerPool=ALL&limit=300&sportId=1`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=hitting&season=${currentYear}&playerPool=ALL&limit=400&sportId=1&gameType=S`,
+      ),
+      fetch(
+        `${MLB_API}/stats?stats=season&group=pitching&season=${currentYear}&playerPool=ALL&limit=300&sportId=1&gameType=S`,
+      ),
+      fetch(
+        `${MLB_API}/transactions?sportId=1&startDate=${fmtDate(ninetyDaysAgo)}&endDate=${fmtDate(today)}`,
+      ),
     ]);
 
-    const parseSplits = async (res: globalThis.Response): Promise<MlbStatSplit[]> => {
+    const parseSplits = async (
+      res: globalThis.Response,
+    ): Promise<MlbStatSplit[]> => {
       try {
-        const j = (await res.json()) as unknown as { stats: { splits: MlbStatSplit[] }[] };
+        const j = (await res.json()) as unknown as {
+          stats: { splits: MlbStatSplit[] }[];
+        };
         return j.stats?.[0]?.splits ?? [];
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     };
 
     const [
-      batSplits, pitSplits,
-      bat2Splits, pit2Splits,
-      bat3Splits, pit3Splits,
-      batSpringSplits, pitSpringSplits,
+      batSplits,
+      pitSplits,
+      bat2Splits,
+      pit2Splits,
+      bat3Splits,
+      pit3Splits,
+      batSpringSplits,
+      pitSpringSplits,
     ] = await Promise.all([
-      parseSplits(batRes), parseSplits(pitRes),
-      parseSplits(bat2Res), parseSplits(pit2Res),
-      parseSplits(bat3Res), parseSplits(pit3Res),
-      parseSplits(batSpringRes), parseSplits(pitSpringRes),
+      parseSplits(batRes),
+      parseSplits(pitRes),
+      parseSplits(bat2Res),
+      parseSplits(pit2Res),
+      parseSplits(bat3Res),
+      parseSplits(pit3Res),
+      parseSplits(batSpringRes),
+      parseSplits(pitSpringRes),
     ]);
 
     // Build per-season stat lookup maps (playerId → stat record)
@@ -348,7 +422,11 @@ const getPlayers: RequestHandler = async (
     const IL_CODES = new Set(["IL10", "IL15", "IL60", "DL10", "DL15", "DL60"]);
     const ACT_CODES = new Set(["ACT", "OUTRTS"]);
     let txJson: { transactions?: MlbTransaction[] } = {};
-    try { txJson = (await txRes.json()) as { transactions?: MlbTransaction[] }; } catch { /* best-effort */ }
+    try {
+      txJson = (await txRes.json()) as { transactions?: MlbTransaction[] };
+    } catch {
+      /* best-effort */
+    }
     const ilPlacement = new Map<number, string>(); // playerId → typeCode (most recent IL)
     const ilPlacementDate = new Map<number, string>();
     const actDate = new Map<number, string>();
@@ -363,7 +441,8 @@ const getPlayers: RequestHandler = async (
         }
       } else if (ACT_CODES.has(tx.typeCode)) {
         const existing = actDate.get(pid);
-        if (!existing || tx.effectiveDate > existing) actDate.set(pid, tx.effectiveDate);
+        if (!existing || tx.effectiveDate > existing)
+          actDate.set(pid, tx.effectiveDate);
       }
     }
     const injuryStatusMap = new Map<number, string>();
@@ -438,18 +517,19 @@ const getPlayers: RequestHandler = async (
           },
           outlook: "",
           injuryStatus: injuryStatusMap.get(pid),
-          springStats: springStat && Number(springStat.atBats ?? 0) >= 5
-            ? {
-                batting: {
-                  avg: String(springStat.avg ?? ".000"),
-                  hr: Number(springStat.homeRuns ?? 0),
-                  rbi: Number(springStat.rbi ?? 0),
-                  runs: Number(springStat.runs ?? 0),
-                  sb: Number(springStat.stolenBases ?? 0),
-                  ab: Number(springStat.atBats ?? 0),
-                },
-              }
-            : undefined,
+          springStats:
+            springStat && Number(springStat.atBats ?? 0) >= 5
+              ? {
+                  batting: {
+                    avg: String(springStat.avg ?? ".000"),
+                    hr: Number(springStat.homeRuns ?? 0),
+                    rbi: Number(springStat.rbi ?? 0),
+                    runs: Number(springStat.runs ?? 0),
+                    sb: Number(springStat.stolenBases ?? 0),
+                    ab: Number(springStat.atBats ?? 0),
+                  },
+                }
+              : undefined,
         };
       });
 
@@ -500,18 +580,20 @@ const getPlayers: RequestHandler = async (
           },
           outlook: "",
           injuryStatus: injuryStatusMap.get(pid),
-          springStats: springStat && parseFloat(String(springStat.inningsPitched ?? "0")) >= 1
-            ? {
-                pitching: {
-                  era: String(springStat.era ?? "0.00"),
-                  whip: String(springStat.whip ?? "0.00"),
-                  wins: Number(springStat.wins ?? 0),
-                  saves: Number(springStat.saves ?? 0),
-                  strikeouts: Number(springStat.strikeOuts ?? 0),
-                  innings: String(springStat.inningsPitched ?? "0"),
-                },
-              }
-            : undefined,
+          springStats:
+            springStat &&
+            parseFloat(String(springStat.inningsPitched ?? "0")) >= 1
+              ? {
+                  pitching: {
+                    era: String(springStat.era ?? "0.00"),
+                    whip: String(springStat.whip ?? "0.00"),
+                    wins: Number(springStat.wins ?? 0),
+                    saves: Number(springStat.saves ?? 0),
+                    strikeouts: Number(springStat.strikeOuts ?? 0),
+                    innings: String(springStat.inningsPitched ?? "0"),
+                  },
+                }
+              : undefined,
         };
       });
 

@@ -51,7 +51,21 @@ export interface Player {
   outlook: string;
   injuryStatus?: string;
   springStats?: {
-    batting?: { avg: string; hr: number; rbi: number; runs: number; sb: number; ab: number };
-    pitching?: { era: string; whip: string; wins: number; saves: number; strikeouts: number; innings: string };
+    batting?: {
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+      ab: number;
+    };
+    pitching?: {
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      strikeouts: number;
+      innings: string;
+    };
   };
 }
