@@ -63,7 +63,7 @@ export const pitchingStats = [
   "Wins (W)",
   "Strikeouts (K)",
   "Earned Run Average (ERA)",
-  "WHIP (Walks + Hits per IP)",
+  "Walks + Hits per IP (WHIP)",
   "Saves (SV)",
   "Holds (HLD)",
   "Quality Starts (QS)",
