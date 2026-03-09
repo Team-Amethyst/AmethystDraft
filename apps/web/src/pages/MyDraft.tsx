@@ -289,75 +289,81 @@ export default function MyDraft() {
               </button>
             </div>
 
-            <table className="alloc-table">
-              <thead>
-                <tr>
-                  <th>Pos</th>
-                  <th>Slots</th>
-                  <th>Target $</th>
-                  <th>Per Slot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {POSITION_PLAN.map((row) => {
-                  const target = positionTargets[row.pos] ?? row.target;
-                  const perSlot = target / row.slots;
-                  return (
-                    <tr key={row.pos}>
-                      <td className="pos-cell">
-                        <PosBadge pos={row.pos} />
-                      </td>
-                      <td>{row.slots}</td>
-                      <td>
-                        <span className="target-prefix">$</span>
-                        <input
-                          className="target-input"
-                          type="text"
-                          inputMode="numeric"
-                          value={
-                            row.pos in targetRaw
-                              ? targetRaw[row.pos]
-                              : String(target)
-                          }
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, "");
-                            setTargetRaw((r) => ({ ...r, [row.pos]: raw }));
-                            const v = parseInt(raw);
-                            if (!isNaN(v)) setPositionTarget(row.pos, v);
-                          }}
-                          onBlur={() => {
-                            const raw = targetRaw[row.pos];
-                            const v = parseInt(raw ?? "");
-                            if (isNaN(v) || v < 0)
-                              setPositionTarget(row.pos, 0);
-                            setTargetRaw((r) =>
-                              Object.fromEntries(
-                                Object.entries(r).filter(
-                                  ([k]) => k !== row.pos,
+            <div className="alloc-table-scroll">
+              <table className="alloc-table">
+                <thead>
+                  <tr>
+                    <th>Pos</th>
+                    <th>Slots</th>
+                    <th>Target $</th>
+                    <th>Per Slot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {POSITION_PLAN.map((row) => {
+                    const target = positionTargets[row.pos] ?? row.target;
+                    const perSlot = target / row.slots;
+                    return (
+                      <tr key={row.pos}>
+                        <td className="pos-cell">
+                          <PosBadge pos={row.pos} />
+                        </td>
+                        <td>{row.slots}</td>
+                        <td>
+                          <span className="target-prefix">$</span>
+                          <input
+                            className="target-input"
+                            type="text"
+                            inputMode="numeric"
+                            value={
+                              row.pos in targetRaw
+                                ? targetRaw[row.pos]
+                                : String(target)
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^0-9]/g, "");
+                              setTargetRaw((r) => ({ ...r, [row.pos]: raw }));
+                              const v = parseInt(raw);
+                              if (!isNaN(v)) setPositionTarget(row.pos, v);
+                            }}
+                            onBlur={() => {
+                              const raw = targetRaw[row.pos];
+                              const v = parseInt(raw ?? "");
+                              if (isNaN(v) || v < 0)
+                                setPositionTarget(row.pos, 0);
+                              setTargetRaw((r) =>
+                                Object.fromEntries(
+                                  Object.entries(r).filter(
+                                    ([k]) => k !== row.pos,
+                                  ),
                                 ),
-                              ),
-                            );
-                          }}
-                        />
-                      </td>
-                      <td>${perSlot.toFixed(1)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td>Total</td>
-                  <td>
-                    {POSITION_PLAN.reduce((sum, row) => sum + row.slots, 0)}
-                  </td>
-                  <td>
-                    ${Object.values(positionTargets).reduce((a, b) => a + b, 0)}
-                  </td>
-                  <td className="budget-buffer">+{positionBuffer} buf</td>
-                </tr>
-              </tfoot>
-            </table>
+                              );
+                            }}
+                          />
+                        </td>
+                        <td>${perSlot.toFixed(1)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td>
+                      {POSITION_PLAN.reduce((sum, row) => sum + row.slots, 0)}
+                    </td>
+                    <td>
+                      $
+                      {Object.values(positionTargets).reduce(
+                        (a, b) => a + b,
+                        0,
+                      )}
+                    </td>
+                    <td className="budget-buffer">+{positionBuffer} buf</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
             <button className="mock-btn" type="button" disabled>
               AI Mock Draft — Coming Soon
@@ -386,189 +392,195 @@ export default function MyDraft() {
               </div>
             </div>
 
-            <table className="watchlist-table">
-              <thead>
-                <tr>
-                  <th>Player</th>
-                  <th>Pos</th>
-                  <th>Proj</th>
-                  <th>Target $</th>
-                  <th>Priority</th>
-                  <th>Notes</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredWatchlist.length === 0 ? (
+            <div className="watchlist-scroll">
+              <table className="watchlist-table">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="watchlist-empty">
-                      Star players in Research to populate this watchlist.
-                    </td>
+                    <th>Player</th>
+                    <th>Pos</th>
+                    <th>Proj</th>
+                    <th>Target $</th>
+                    <th>Priority</th>
+                    <th>Notes</th>
+                    <th></th>
                   </tr>
-                ) : (
-                  filteredWatchlist.map((player) => {
-                    const pos = normalizePosition(player.position || "UTIL");
-                    const defaultTarget = Math.round(player.value ?? 0);
-                    const targetVal =
-                      targetOverrides[player.id] ?? defaultTarget;
-                    const priority =
-                      priorityOverrides[player.id] ?? getPriority(player);
-                    const rawKey = player.id;
-                    const displayVal =
-                      rawKey in targetRaw
-                        ? targetRaw[rawKey]
-                        : String(targetVal);
+                </thead>
+                <tbody>
+                  {filteredWatchlist.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="watchlist-empty">
+                        Star players in Research to populate this watchlist.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredWatchlist.map((player) => {
+                      const pos = normalizePosition(player.position || "UTIL");
+                      const defaultTarget = Math.round(player.value ?? 0);
+                      const targetVal =
+                        targetOverrides[player.id] ?? defaultTarget;
+                      const priority =
+                        priorityOverrides[player.id] ?? getPriority(player);
+                      const rawKey = player.id;
+                      const displayVal =
+                        rawKey in targetRaw
+                          ? targetRaw[rawKey]
+                          : String(targetVal);
 
-                    return (
-                      <tr key={player.id}>
-                        <td>
-                          <div className="player-main">
-                            <Star
-                              size={12}
-                              className="row-star"
-                              fill="#facc15"
-                            />
-                            <div className="player-name-row">
-                              <span className="player-name">{player.name}</span>
-                              <span className="player-team">
-                                {player.team || "--"}
-                              </span>
+                      return (
+                        <tr key={player.id}>
+                          <td>
+                            <div className="player-main">
+                              <Star
+                                size={12}
+                                className="row-star"
+                                fill="#facc15"
+                              />
+                              <div className="player-name-row">
+                                <span className="player-name">
+                                  {player.name}
+                                </span>
+                                <span className="player-team">
+                                  {player.team || "--"}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td>
-                          {player.positions && player.positions.length > 1 ? (
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "2px",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              {player.positions.map((p) => (
-                                <PosBadge key={p} pos={p} />
-                              ))}
-                            </div>
-                          ) : (
-                            <PosBadge pos={pos} />
-                          )}
-                        </td>
-                        <td className="money">
-                          ${Math.round(player.value ?? 0)}
-                        </td>
-                        <td>
-                          <div className="target-input-group">
-                            <button
-                              className="target-stepper"
-                              type="button"
-                              onClick={() => {
-                                const next = Math.max(1, targetVal - 1);
-                                setTarget(player.id, next);
-                                setTargetRaw((r) =>
-                                  Object.fromEntries(
-                                    Object.entries(r).filter(
-                                      ([k]) => k !== player.id,
+                          </td>
+                          <td>
+                            {player.positions && player.positions.length > 1 ? (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "2px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {player.positions.map((p) => (
+                                  <PosBadge key={p} pos={p} />
+                                ))}
+                              </div>
+                            ) : (
+                              <PosBadge pos={pos} />
+                            )}
+                          </td>
+                          <td className="money">
+                            ${Math.round(player.value ?? 0)}
+                          </td>
+                          <td>
+                            <div className="target-input-group">
+                              <button
+                                className="target-stepper"
+                                type="button"
+                                onClick={() => {
+                                  const next = Math.max(1, targetVal - 1);
+                                  setTarget(player.id, next);
+                                  setTargetRaw((r) =>
+                                    Object.fromEntries(
+                                      Object.entries(r).filter(
+                                        ([k]) => k !== player.id,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }}
+                                  );
+                                }}
+                              >
+                                <Minus size={9} />
+                              </button>
+                              <span className="target-prefix">$</span>
+                              <input
+                                className="target-input"
+                                type="text"
+                                inputMode="numeric"
+                                value={displayVal}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  );
+                                  setTargetRaw((r) => ({
+                                    ...r,
+                                    [player.id]: raw,
+                                  }));
+                                  const v = parseInt(raw);
+                                  if (!isNaN(v)) setTarget(player.id, v);
+                                }}
+                                onBlur={() => {
+                                  const v = parseInt(displayVal);
+                                  const committed =
+                                    isNaN(v) || v <= 0 ? defaultTarget : v;
+                                  setTarget(player.id, committed);
+                                  setTargetRaw((r) =>
+                                    Object.fromEntries(
+                                      Object.entries(r).filter(
+                                        ([k]) => k !== player.id,
+                                      ),
+                                    ),
+                                  );
+                                }}
+                              />
+                              <button
+                                className="target-stepper"
+                                type="button"
+                                onClick={() => {
+                                  const next = targetVal + 1;
+                                  setTarget(player.id, next);
+                                  setTargetRaw((r) =>
+                                    Object.fromEntries(
+                                      Object.entries(r).filter(
+                                        ([k]) => k !== player.id,
+                                      ),
+                                    ),
+                                  );
+                                }}
+                              >
+                                <Plus size={9} />
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <select
+                              className={`priority-select ${priority.toLowerCase()}`}
+                              value={priority}
+                              onChange={(e) =>
+                                setPriority(
+                                  player.id,
+                                  e.target.value as "High" | "Medium" | "Low",
+                                )
+                              }
                             >
-                              <Minus size={9} />
-                            </button>
-                            <span className="target-prefix">$</span>
+                              <option value="High">High</option>
+                              <option value="Medium">Medium</option>
+                              <option value="Low">Low</option>
+                            </select>
+                          </td>
+                          <td className="td-note">
                             <input
-                              className="target-input"
-                              type="text"
-                              inputMode="numeric"
-                              value={displayVal}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(
-                                  /[^0-9]/g,
-                                  "",
-                                );
-                                setTargetRaw((r) => ({
-                                  ...r,
-                                  [player.id]: raw,
-                                }));
-                                const v = parseInt(raw);
-                                if (!isNaN(v)) setTarget(player.id, v);
-                              }}
-                              onBlur={() => {
-                                const v = parseInt(displayVal);
-                                const committed =
-                                  isNaN(v) || v <= 0 ? defaultTarget : v;
-                                setTarget(player.id, committed);
-                                setTargetRaw((r) =>
-                                  Object.fromEntries(
-                                    Object.entries(r).filter(
-                                      ([k]) => k !== player.id,
-                                    ),
-                                  ),
-                                );
+                              className="watchlist-note-input"
+                              value={getNote(player.id)}
+                              onChange={(e) =>
+                                setNote(player.id, e.target.value)
+                              }
+                              placeholder="Note..."
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") e.currentTarget.blur();
                               }}
                             />
+                          </td>
+                          <td>
                             <button
-                              className="target-stepper"
+                              className="unstar-btn"
                               type="button"
-                              onClick={() => {
-                                const next = targetVal + 1;
-                                setTarget(player.id, next);
-                                setTargetRaw((r) =>
-                                  Object.fromEntries(
-                                    Object.entries(r).filter(
-                                      ([k]) => k !== player.id,
-                                    ),
-                                  ),
-                                );
-                              }}
+                              onClick={() => removeFromWatchlist(player.id)}
+                              title="Remove from watchlist"
                             >
-                              <Plus size={9} />
+                              <X size={13} strokeWidth={2.4} />
                             </button>
-                          </div>
-                        </td>
-                        <td>
-                          <select
-                            className={`priority-select ${priority.toLowerCase()}`}
-                            value={priority}
-                            onChange={(e) =>
-                              setPriority(
-                                player.id,
-                                e.target.value as "High" | "Medium" | "Low",
-                              )
-                            }
-                          >
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
-                          </select>
-                        </td>
-                        <td className="td-note">
-                          <input
-                            className="watchlist-note-input"
-                            value={getNote(player.id)}
-                            onChange={(e) => setNote(player.id, e.target.value)}
-                            placeholder="Note..."
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") e.currentTarget.blur();
-                            }}
-                          />
-                        </td>
-                        <td>
-                          <button
-                            className="unstar-btn"
-                            type="button"
-                            onClick={() => removeFromWatchlist(player.id)}
-                            title="Remove from watchlist"
-                          >
-                            <X size={13} strokeWidth={2.4} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         </section>
 
