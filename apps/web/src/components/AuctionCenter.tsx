@@ -487,375 +487,368 @@ export function AuctionCenter({
         </div>
       </div>
 
-      {!selectedPlayer ? (
-        <div className="cc-empty-state">
-          <div className="cc-empty-icon">⊕</div>
-          <div className="cc-empty-title">No player loaded</div>
-          <div className="cc-empty-sub">
-            Search for a player above to begin the auction
-          </div>
-          <div
-            className="pac-notes-wrap pac-notes-wrap--fill cc-empty-notes"
-            style={{
-              borderTop: "1px solid rgba(190, 108, 255, 0.15)",
-              paddingTop: "1rem",
-            }}
-          >
-            <div className="pac-notes-label">DRAFT NOTES</div>
-            <textarea
-              className="pac-notes pac-notes--fill"
-              value={getNote("__draft__")}
-              onChange={(e) => setNote("__draft__", e.target.value)}
-              placeholder="Pre-draft strategic notes..."
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="player-auction-card">
-          <div className="pac-header">
-            <div className="pac-name-row">
-              <img
-                src={selectedPlayer.headshot}
-                alt={selectedPlayer.name}
-                className="pac-headshot"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
-              <h1 className="pac-name">
-                {selectedPlayer.name}
-                {selectedPlayer.injuryStatus && (
-                  <span className="pt-il-badge">
-                    {selectedPlayer.injuryStatus.replace("DL", "IL")}
-                  </span>
-                )}
-                {isInWatchlist(selectedPlayer.id) && (
-                  <span className="pac-wl-badge" title="On your watchlist">
-                    ★
-                  </span>
-                )}
-              </h1>
-              <div className="pac-meta-row">
-                <div className="pac-stat">
-                  <span className="pac-stat-label">Position</span>
-                  <div
-                    style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
-                  >
-                    {(selectedPlayer.positions?.length
-                      ? selectedPlayer.positions
-                      : [selectedPlayer.position]
-                    ).map((pos) => (
-                      <PosBadge key={pos} pos={pos} />
-                    ))}
-                  </div>
-                </div>
-                <div className="pac-stat">
-                  <span className="pac-stat-label">Team</span>
-                  <span className="pac-stat-value">{selectedPlayer.team}</span>
-                </div>
-                <div className="pac-stat">
-                  <span className="pac-stat-label">Tier</span>
-                  <span
-                    className="pac-stat-value pac-tier-badge"
-                    style={{
-                      background:
-                        ["#a855f7", "#6366f1", "#22c55e", "#f59e0b", "#6b7280"][
-                          selectedPlayer.tier - 1
-                        ] ?? "#6b7280",
-                    }}
-                  >
-                    {selectedPlayer.tier}
-                  </span>
-                </div>
-                <div className="pac-stat">
-                  <span className="pac-stat-label">Proj</span>
-                  <span className="pac-stat-value green">
-                    ${selectedPlayer.value}
-                  </span>
-                </div>
-                {(() => {
-                  const v = valuationMap.get(selectedPlayer.id);
-                  if (!v) return null;
-                  const cls =
-                    v.indicator === "Steal"
-                      ? "steal"
-                      : v.indicator === "Reach"
-                        ? "reach"
-                        : "fair";
-                  return (
-                    <>
-                      <div className="pac-stat">
-                        <span className="pac-stat-label">Adj $</span>
-                        <span className="pac-stat-value green">
-                          ${v.adjusted_value}
-                        </span>
-                      </div>
-                      <div className="pac-stat">
-                        <span className="pac-stat-label">Signal</span>
-                        <span className={`pac-indicator pac-indicator--${cls}`}>
-                          {v.indicator}
-                        </span>
-                      </div>
-                    </>
-                  );
-                })()}
-                <div className="pac-stat">
-                  <span className="pac-stat-label">ADP</span>
-                  <span className="pac-stat-value">{selectedPlayer.adp}</span>
-                </div>
-              </div>
+      <div className="cc-content-scroll">
+        {!selectedPlayer ? (
+          <div className="cc-empty-state">
+            <div className="cc-empty-icon">⊕</div>
+            <div className="cc-empty-title">No player loaded</div>
+            <div className="cc-empty-sub">
+              Search for a player above to begin the auction
             </div>
           </div>
-
-          <div className="pac-notes-wrap">
-            <div className="pac-notes-label">PLAYER NOTES</div>
-            <textarea
-              className="pac-notes"
-              value={
-                (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
-              }
-              onChange={(e) => {
-                setNote(selectedPlayer.id, e.target.value);
-              }}
-              placeholder="Add scouting notes..."
-              rows={2}
-            />
-          </div>
-
-          {/* Performance snapshot */}
-          <div className="pac-snapshot-header">
-            <span className="pac-section-label">PERFORMANCE SNAPSHOT</span>
-            <div className="stat-view-toggle">
-              <button
-                className={
-                  "svt-btn " + (statView === "hitting" ? "active" : "")
-                }
-                onClick={() => setStatView("hitting")}
-              >
-                Hitting
-              </button>
-              <button
-                className={
-                  "svt-btn " + (statView === "pitching" ? "active" : "")
-                }
-                onClick={() => setStatView("pitching")}
-              >
-                Pitching
-              </button>
-            </div>
-          </div>
-
-          {statView === "pitching" ? (
-            <div className="pac-stat-boxes">
-              {pitchingCats.length > 0 ? (
-                pitchingCats.map((cat) => {
-                  const label =
-                    cat.name.match(/\(([^)]+)\)$/)?.[1] ??
-                    (cat.name === "Walks + Hits per IP" ? "WHIP" : cat.name);
-                  const raw = selectedPlayer
-                    ? getStatByCategory(selectedPlayer, cat.name, "pitching")
-                    : 0;
-                  const isRate = [
-                    "ERA",
-                    "WHIP",
-                    "WALKS + HITS PER IP",
-                  ].includes(cat.name.toUpperCase());
-                  const display =
-                    raw === 0
-                      ? "--"
-                      : isRate
-                        ? raw.toFixed(2)
-                        : String(Math.round(raw));
-                  return (
-                    <div key={cat.name} className="stat-box">
-                      <div className="sb-label">{label}</div>
-                      <div className="sb-val">{display}</div>
-                    </div>
-                  );
-                })
-              ) : (
-                <>
-                  <div className="stat-box">
-                    <div className="sb-label">ERA</div>
-                    <div className="sb-val">{sp?.era ?? "--"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">K/9</div>
-                    <div className="sb-val">{k9}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">WHIP</div>
-                    <div className="sb-val">{sp?.whip ?? "--"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">W</div>
-                    <div className="sb-val">{sp?.wins ?? "--"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">SV</div>
-                    <div className="sb-val">{sp?.saves ?? "--"}</div>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="pac-stat-boxes">
-              {hittingCats.length > 0 ? (
-                hittingCats.map((cat) => {
-                  const label = cat.name.match(/\(([^)]+)\)$/)?.[1] ?? cat.name;
-                  const raw = selectedPlayer
-                    ? getStatByCategory(selectedPlayer, cat.name, "batting")
-                    : 0;
-                  const isRate = ["AVG", "OBP", "SLG"].includes(
-                    cat.name.toUpperCase(),
-                  );
-                  const display =
-                    raw === 0
-                      ? "--"
-                      : isRate
-                        ? raw.toFixed(3)
-                        : String(Math.round(raw));
-                  return (
-                    <div key={cat.name} className="stat-box">
-                      <div className="sb-label">{label}</div>
-                      <div className="sb-val">{display}</div>
-                    </div>
-                  );
-                })
-              ) : (
-                <>
-                  <div className="stat-box">
-                    <div className="sb-label">AVG</div>
-                    <div className="sb-val">{sb?.avg ?? ".---"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">HR</div>
-                    <div className="sb-val">{sb?.hr ?? "--"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">RBI</div>
-                    <div className="sb-val">{sb?.rbi ?? "--"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">R</div>
-                    <div className="sb-val">{sb?.runs ?? "--"}</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="sb-label">SB</div>
-                    <div className="sb-val">{sb?.sb ?? "--"}</div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Category impact */}
-          {catImpactRows.length > 0 && (
-            <>
-              <div
-                className="pac-section-label"
-                style={{ marginTop: "1rem", marginBottom: "0.5rem" }}
-              >
-                CATEGORY IMPACT
-              </div>
-              <div className="cat-impact-boxes">
-                {catImpactRows.map((row) => (
-                  <div key={row.name} className="ci-box">
-                    <div className="ci-box-label">{row.name}</div>
-                    <div
-                      className={`ci-box-delta ${
-                        row.neutral ? "neutral" : row.improved ? "green" : "red"
-                      }`}
-                    >
-                      {row.deltaStr}
-                    </div>
-                    <div className="ci-box-sub">
-                      {row.teamPaceStr}&nbsp;→&nbsp;{row.withPlayerStr}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Log result */}
-          <div className="pac-section-label pac-log-result-label">
-            LOG RESULT
-          </div>
-          <div className="log-result-grid">
-            <div className="log-field">
-              <label className="log-label">WON BY</label>
-              <select
-                className="log-select"
-                value={wonBy}
-                onChange={(e) => setWonBy(e.target.value)}
-              >
-                {teamNames.map((name) => (
-                  <option key={name}>{name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="log-field">
-              <label className="log-label">FINAL PRICE</label>
-              <div className="log-price-input-wrap">
-                <span className="log-dollar">$</span>
-                <input
-                  type="text"
-                  className="log-price-input"
-                  value={finalPrice}
-                  onChange={(e) => setFinalPrice(e.target.value)}
+        ) : (
+          <div className="player-auction-card">
+            <div className="pac-header">
+              <div className="pac-name-row">
+                <img
+                  src={selectedPlayer.headshot}
+                  alt={selectedPlayer.name}
+                  className="pac-headshot"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
                 />
+                <h1 className="pac-name">
+                  {selectedPlayer.name}
+                  {selectedPlayer.injuryStatus && (
+                    <span className="pt-il-badge">
+                      {selectedPlayer.injuryStatus.replace("DL", "IL")}
+                    </span>
+                  )}
+                  {isInWatchlist(selectedPlayer.id) && (
+                    <span className="pac-wl-badge" title="On your watchlist">
+                      ★
+                    </span>
+                  )}
+                </h1>
+                <div className="pac-meta-row">
+                  <div className="pac-stat">
+                    <span className="pac-stat-label">Position</span>
+                    <div
+                      style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
+                    >
+                      {(selectedPlayer.positions?.length
+                        ? selectedPlayer.positions
+                        : [selectedPlayer.position]
+                      ).map((pos) => (
+                        <PosBadge key={pos} pos={pos} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pac-stat">
+                    <span className="pac-stat-label">Team</span>
+                    <span className="pac-stat-value">
+                      {selectedPlayer.team}
+                    </span>
+                  </div>
+                  <div className="pac-stat">
+                    <span className="pac-stat-label">Tier</span>
+                    <span
+                      className="pac-stat-value pac-tier-badge"
+                      style={{
+                        background:
+                          [
+                            "#a855f7",
+                            "#6366f1",
+                            "#22c55e",
+                            "#f59e0b",
+                            "#6b7280",
+                          ][selectedPlayer.tier - 1] ?? "#6b7280",
+                      }}
+                    >
+                      {selectedPlayer.tier}
+                    </span>
+                  </div>
+                  <div className="pac-stat">
+                    <span className="pac-stat-label">Proj</span>
+                    <span className="pac-stat-value green">
+                      ${selectedPlayer.value}
+                    </span>
+                  </div>
+                  {(() => {
+                    const v = valuationMap.get(selectedPlayer.id);
+                    if (!v) return null;
+                    const cls =
+                      v.indicator === "Steal"
+                        ? "steal"
+                        : v.indicator === "Reach"
+                          ? "reach"
+                          : "fair";
+                    return (
+                      <>
+                        <div className="pac-stat">
+                          <span className="pac-stat-label">Adj $</span>
+                          <span className="pac-stat-value green">
+                            ${v.adjusted_value}
+                          </span>
+                        </div>
+                        <div className="pac-stat">
+                          <span className="pac-stat-label">Signal</span>
+                          <span
+                            className={`pac-indicator pac-indicator--${cls}`}
+                          >
+                            {v.indicator}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                  <div className="pac-stat">
+                    <span className="pac-stat-label">ADP</span>
+                    <span className="pac-stat-value">{selectedPlayer.adp}</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="log-field">
-              <label className="log-label">DRAFTED TO SLOT</label>
-              <select
-                className={
-                  "log-select" +
-                  (slotOptions.length === 0 ? " log-select--warn" : "")
+
+            <div className="pac-notes-wrap">
+              <div className="pac-notes-label">PLAYER NOTES</div>
+              <textarea
+                className="pac-notes"
+                value={
+                  (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
                 }
-                value={draftedToSlot}
-                onChange={(e) => setDraftedToSlot(e.target.value)}
-              >
-                {slotOptions.length === 0 && (
-                  <option value="">— no eligible slots —</option>
-                )}
-                {slotOptions.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
+                onChange={(e) => {
+                  setNote(selectedPlayer.id, e.target.value);
+                }}
+                placeholder="Add scouting notes..."
+                rows={2}
+              />
             </div>
-          </div>
 
-          <button
-            className="log-result-btn"
-            onClick={() => void handleLogResult()}
-            disabled={
-              submitting || !wonBy || !finalPrice || slotOptions.length === 0
-            }
-          >
-            {submitting ? "Logging…" : "Log Result"}
-          </button>
+            {/* Performance snapshot */}
+            <div className="pac-snapshot-header">
+              <span className="pac-section-label">PERFORMANCE SNAPSHOT</span>
+              <div className="stat-view-toggle">
+                <button
+                  className={
+                    "svt-btn " + (statView === "hitting" ? "active" : "")
+                  }
+                  onClick={() => setStatView("hitting")}
+                >
+                  Hitting
+                </button>
+                <button
+                  className={
+                    "svt-btn " + (statView === "pitching" ? "active" : "")
+                  }
+                  onClick={() => setStatView("pitching")}
+                >
+                  Pitching
+                </button>
+              </div>
+            </div>
 
-          {/* Draft notes */}
-          <div
-            className="pac-notes-wrap pac-notes-wrap--fill"
-            style={{
-              marginTop: "1rem",
-              borderTop: "1px solid rgba(190, 108, 255, 0.15)",
-              paddingTop: "1rem",
-            }}
-          >
-            <div className="pac-notes-label">DRAFT NOTES</div>
-            <textarea
-              className="pac-notes pac-notes--fill"
-              value={getNote("__draft__")}
-              onChange={(e) => setNote("__draft__", e.target.value)}
-              placeholder="Pre-draft strategic notes..."
-            />
+            {statView === "pitching" ? (
+              <div className="pac-stat-boxes">
+                {pitchingCats.length > 0 ? (
+                  pitchingCats.map((cat) => {
+                    const label =
+                      cat.name.match(/\(([^)]+)\)$/)?.[1] ??
+                      (cat.name === "Walks + Hits per IP" ? "WHIP" : cat.name);
+                    const raw = selectedPlayer
+                      ? getStatByCategory(selectedPlayer, cat.name, "pitching")
+                      : 0;
+                    const isRate = [
+                      "ERA",
+                      "WHIP",
+                      "WALKS + HITS PER IP",
+                    ].includes(cat.name.toUpperCase());
+                    const display =
+                      raw === 0
+                        ? "--"
+                        : isRate
+                          ? raw.toFixed(2)
+                          : String(Math.round(raw));
+                    return (
+                      <div key={cat.name} className="stat-box">
+                        <div className="sb-label">{label}</div>
+                        <div className="sb-val">{display}</div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <>
+                    <div className="stat-box">
+                      <div className="sb-label">ERA</div>
+                      <div className="sb-val">{sp?.era ?? "--"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">K/9</div>
+                      <div className="sb-val">{k9}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">WHIP</div>
+                      <div className="sb-val">{sp?.whip ?? "--"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">W</div>
+                      <div className="sb-val">{sp?.wins ?? "--"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">SV</div>
+                      <div className="sb-val">{sp?.saves ?? "--"}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="pac-stat-boxes">
+                {hittingCats.length > 0 ? (
+                  hittingCats.map((cat) => {
+                    const label =
+                      cat.name.match(/\(([^)]+)\)$/)?.[1] ?? cat.name;
+                    const raw = selectedPlayer
+                      ? getStatByCategory(selectedPlayer, cat.name, "batting")
+                      : 0;
+                    const isRate = ["AVG", "OBP", "SLG"].includes(
+                      cat.name.toUpperCase(),
+                    );
+                    const display =
+                      raw === 0
+                        ? "--"
+                        : isRate
+                          ? raw.toFixed(3)
+                          : String(Math.round(raw));
+                    return (
+                      <div key={cat.name} className="stat-box">
+                        <div className="sb-label">{label}</div>
+                        <div className="sb-val">{display}</div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <>
+                    <div className="stat-box">
+                      <div className="sb-label">AVG</div>
+                      <div className="sb-val">{sb?.avg ?? ".---"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">HR</div>
+                      <div className="sb-val">{sb?.hr ?? "--"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">RBI</div>
+                      <div className="sb-val">{sb?.rbi ?? "--"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">R</div>
+                      <div className="sb-val">{sb?.runs ?? "--"}</div>
+                    </div>
+                    <div className="stat-box">
+                      <div className="sb-label">SB</div>
+                      <div className="sb-val">{sb?.sb ?? "--"}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Category impact */}
+            {catImpactRows.length > 0 && (
+              <>
+                <div
+                  className="pac-section-label"
+                  style={{ marginTop: "1rem", marginBottom: "0.5rem" }}
+                >
+                  CATEGORY IMPACT
+                </div>
+                <div className="cat-impact-boxes">
+                  {catImpactRows.map((row) => (
+                    <div key={row.name} className="ci-box">
+                      <div className="ci-box-label">{row.name}</div>
+                      <div
+                        className={`ci-box-delta ${
+                          row.neutral
+                            ? "neutral"
+                            : row.improved
+                              ? "green"
+                              : "red"
+                        }`}
+                      >
+                        {row.deltaStr}
+                      </div>
+                      <div className="ci-box-sub">
+                        {row.teamPaceStr}&nbsp;→&nbsp;{row.withPlayerStr}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Log result */}
+            <div className="pac-section-label pac-log-result-label">
+              LOG RESULT
+            </div>
+            <div className="log-result-grid">
+              <div className="log-field">
+                <label className="log-label">WON BY</label>
+                <select
+                  className="log-select"
+                  value={wonBy}
+                  onChange={(e) => setWonBy(e.target.value)}
+                >
+                  {teamNames.map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="log-field">
+                <label className="log-label">FINAL PRICE</label>
+                <div className="log-price-input-wrap">
+                  <span className="log-dollar">$</span>
+                  <input
+                    type="text"
+                    className="log-price-input"
+                    value={finalPrice}
+                    onChange={(e) => setFinalPrice(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="log-field">
+                <label className="log-label">DRAFTED TO SLOT</label>
+                <select
+                  className={
+                    "log-select" +
+                    (slotOptions.length === 0 ? " log-select--warn" : "")
+                  }
+                  value={draftedToSlot}
+                  onChange={(e) => setDraftedToSlot(e.target.value)}
+                >
+                  {slotOptions.length === 0 && (
+                    <option value="">— no eligible slots —</option>
+                  )}
+                  {slotOptions.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button
+              className="log-result-btn"
+              onClick={() => void handleLogResult()}
+              disabled={
+                submitting || !wonBy || !finalPrice || slotOptions.length === 0
+              }
+            >
+              {submitting ? "Logging…" : "Log Result"}
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="cc-draft-footer">
+        <div className="pac-notes-label">DRAFT NOTES</div>
+        <textarea
+          className="pac-notes"
+          style={{ height: "120px" }}
+          value={getNote("__draft__")}
+          onChange={(e) => setNote("__draft__", e.target.value)}
+          placeholder="Pre-draft strategic notes..."
+        />
+      </div>
     </div>
   );
 }
