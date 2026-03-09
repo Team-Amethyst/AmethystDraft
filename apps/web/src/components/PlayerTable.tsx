@@ -527,12 +527,16 @@ export default function PlayerTable({
 
   const batCols = useMemo(() => {
     const cats = (scoringCategories ?? []).filter((c) => c.type === "batting");
-    return cats.length > 0 ? cats.map((c) => c.name) : DEFAULT_BAT_COLS;
+    return cats.length > 0
+      ? cats.map((c) => c.name.match(/\(([^)]+)\)$/)?.[1] ?? c.name)
+      : DEFAULT_BAT_COLS;
   }, [scoringCategories]);
 
   const pitCols = useMemo(() => {
     const cats = (scoringCategories ?? []).filter((c) => c.type === "pitching");
-    return cats.length > 0 ? cats.map((c) => c.name) : DEFAULT_PIT_COLS;
+    return cats.length > 0
+      ? cats.map((c) => c.name.match(/\(([^)]+)\)$/)?.[1] ?? c.name)
+      : DEFAULT_PIT_COLS;
   }, [scoringCategories]);
 
   const numStatCols = Math.max(batCols.length, pitCols.length);

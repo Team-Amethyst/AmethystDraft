@@ -67,7 +67,7 @@ export function useLeagueForm({
       "Wins (W)",
       "Strikeouts (K)",
       "Earned Run Average (ERA)",
-      "WHIP (Walks + Hits per IP)",
+      "Walks + Hits per IP (WHIP)",
       "Saves (SV)",
     ],
   );

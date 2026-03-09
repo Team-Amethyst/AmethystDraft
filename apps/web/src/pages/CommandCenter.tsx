@@ -689,69 +689,60 @@ function LeftPanel({
       {activeTab === "Standings" && (
         <div className="cc-panel-content cc-panel-content--log">
           <div className="cc-panel-above-log">
-            {rosterEntries.length === 0 ? (
-              <div
-                className="dim"
-                style={{ textAlign: "center", padding: "1.5rem 0" }}
-              >
-                No picks logged yet
-              </div>
-            ) : (
-              <div className="cc-standings-scroll">
-                <table className="lo-standings-table">
-                  <thead>
-                    <tr>
-                      <th className="lo-th-team">TEAM</th>
-                      {scoringCats.map((c) => (
-                        <th
-                          key={c.name}
-                          className={
-                            "lo-th-stat" +
-                            (sortCat === c.name ? " lo-th-active" : "")
-                          }
-                          onClick={() => toggleSort(c.name)}
-                        >
-                          {c.name}
-                          {sortCat === c.name ? (
-                            sortAsc ? (
-                              <ChevronUp size={10} />
-                            ) : (
-                              <ChevronDown size={10} />
-                            )
-                          ) : null}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedProjStandings.map((row, idx) => (
-                      <tr
-                        key={row.teamName}
-                        className={idx % 2 === 0 ? "lo-tr-even" : ""}
+            <div className="cc-standings-scroll">
+              <table className="lo-standings-table">
+                <thead>
+                  <tr>
+                    <th className="lo-th-team">TEAM</th>
+                    {scoringCats.map((c) => (
+                      <th
+                        key={c.name}
+                        className={
+                          "lo-th-stat" +
+                          (sortCat === c.name ? " lo-th-active" : "")
+                        }
+                        onClick={() => toggleSort(c.name)}
                       >
-                        <td className="lo-td-team">{row.teamName}</td>
-                        {scoringCats.map((c) => {
-                          const rank = rankMaps[c.name]?.get(row.teamName) ?? 1;
-                          const colorClass = rankColor(
-                            rank,
-                            sortedProjStandings.length,
-                          );
-                          const val = row.stats[c.name] ?? 0;
-                          return (
-                            <td
-                              key={c.name}
-                              className={`lo-td-stat ${colorClass}`}
-                            >
-                              {formatStatCell(c.name, val)}
-                            </td>
-                          );
-                        })}
-                      </tr>
+                        {c.name}
+                        {sortCat === c.name ? (
+                          sortAsc ? (
+                            <ChevronUp size={10} />
+                          ) : (
+                            <ChevronDown size={10} />
+                          )
+                        ) : null}
+                      </th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedProjStandings.map((row, idx) => (
+                    <tr
+                      key={row.teamName}
+                      className={idx % 2 === 0 ? "lo-tr-even" : ""}
+                    >
+                      <td className="lo-td-team">{row.teamName}</td>
+                      {scoringCats.map((c) => {
+                        const rank = rankMaps[c.name]?.get(row.teamName) ?? 1;
+                        const colorClass = rankColor(
+                          rank,
+                          sortedProjStandings.length,
+                        );
+                        const val = row.stats[c.name] ?? 0;
+                        return (
+                          <td
+                            key={c.name}
+                            className={`lo-td-stat ${colorClass}`}
+                          >
+                            {formatStatCell(c.name, val)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="cc-draft-log-section">

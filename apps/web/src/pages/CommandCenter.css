@@ -193,6 +193,7 @@
 
 .liquidity-table {
   font-size: 0.68rem;
+  table-layout: auto;
 }
 
 .liquidity-table th,
@@ -221,7 +222,7 @@
 
 .liq-th-sortable:not(:first-child) {
   text-align: right;
-  width: 52px;
+  white-space: nowrap;
 }
 
 .liquidity-table td:not(:first-child) {
