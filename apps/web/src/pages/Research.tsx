@@ -90,7 +90,11 @@ export default function Research() {
 
   useEffect(() => {
     const loadPlayers = async () => {
-      const cached = getPlayersCached("adp", league?.posEligibilityThreshold);
+      const cached = getPlayersCached(
+        "adp",
+        league?.posEligibilityThreshold,
+        league?.playerPool,
+      );
       if (!cached) setIsLoadingPlayers(true);
       setPlayersError("");
 
@@ -98,6 +102,7 @@ export default function Research() {
         const playersFromApi = await getPlayers(
           "adp",
           league?.posEligibilityThreshold,
+          league?.playerPool,
         );
         setPlayers(playersFromApi);
       } catch (err) {
@@ -112,7 +117,7 @@ export default function Research() {
     if (selectedView === "player-database") {
       void loadPlayers();
     }
-  }, [selectedView, league?.posEligibilityThreshold]);
+  }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
 
   const filteredPlayers = useMemo(() => {
     return players.filter((player) => {

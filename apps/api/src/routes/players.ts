@@ -60,6 +60,42 @@ const MLB_TEAM_ABBREV: Record<number, string> = {
   158: "MIL",
 };
 
+const AL_TEAMS = new Set([
+  "BAL",
+  "BOS",
+  "NYY",
+  "TB",
+  "TOR",
+  "CWS",
+  "CLE",
+  "DET",
+  "KC",
+  "MIN",
+  "HOU",
+  "LAA",
+  "OAK",
+  "SEA",
+  "TEX",
+]);
+
+const NL_TEAMS = new Set([
+  "ATL",
+  "MIA",
+  "NYM",
+  "PHI",
+  "WSH",
+  "CHC",
+  "CIN",
+  "MIL",
+  "PIT",
+  "STL",
+  "ARI",
+  "COL",
+  "LAD",
+  "SD",
+  "SF",
+]);
+
 function teamAbbrev(
   split?: { id: number; abbreviation?: string },
   bio?: { id: number; abbreviation?: string },
@@ -358,6 +394,7 @@ const getPlayers: RequestHandler = async (
 ): Promise<void> => {
   try {
     const sortBy = (req.query.sortBy as string) || "value";
+    const playerPool = (req.query.playerPool as string) || "Mixed";
     const currentYear = new Date().getFullYear();
     const season = currentYear - 1; // last completed season
     const season2 = season - 1;
@@ -719,6 +756,13 @@ const getPlayers: RequestHandler = async (
     }
 
     let players = Array.from(allMap.values()).filter((p) => p.value > 0);
+
+    // Filter by player pool (AL-only / NL-only leagues)
+    if (playerPool === "AL") {
+      players = players.filter((p) => AL_TEAMS.has(p.team));
+    } else if (playerPool === "NL") {
+      players = players.filter((p) => NL_TEAMS.has(p.team));
+    }
 
     // Assign ADP rank by value as proxy (real ADP would need a paid source)
     players.sort((a, b) => b.value - a.value);

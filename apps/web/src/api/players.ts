@@ -14,8 +14,9 @@ const playersCacheTime = new Map<string, number>();
 export function getPlayersCached(
   sortBy: "adp" | "value" | "name" = "value",
   posEligibilityThreshold?: number,
+  playerPool?: "Mixed" | "AL" | "NL",
 ): Player[] | null {
-  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}`;
+  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
   const ts = playersCacheTime.get(cacheKey);
   if (ts && Date.now() - ts < CACHE_TTL_MS) {
     return playersCache.get(cacheKey) ?? null;
@@ -26,8 +27,9 @@ export function getPlayersCached(
 export async function getPlayers(
   sortBy: "adp" | "value" | "name" = "value",
   posEligibilityThreshold?: number,
+  playerPool?: "Mixed" | "AL" | "NL",
 ): Promise<Player[]> {
-  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}`;
+  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
   const ts = playersCacheTime.get(cacheKey);
   if (ts && Date.now() - ts < CACHE_TTL_MS && playersCache.has(cacheKey)) {
     return playersCache.get(cacheKey)!;
@@ -35,6 +37,9 @@ export async function getPlayers(
   const query = new URLSearchParams({ sortBy });
   if (posEligibilityThreshold !== undefined) {
     query.set("posEligibilityThreshold", String(posEligibilityThreshold));
+  }
+  if (playerPool && playerPool !== "Mixed") {
+    query.set("playerPool", playerPool);
   }
   const res = await fetch(API_BASE + "/api/players?" + query.toString());
   const data = (await res.json()) as PlayersResponse;

@@ -102,7 +102,11 @@ function LeagueSettingsForm({ league }: { league: League }) {
     String(league.posEligibilityThreshold ?? 20),
   );
   const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
-    const cached = getPlayersCached("adp", league.posEligibilityThreshold);
+    const cached = getPlayersCached(
+      "adp",
+      league.posEligibilityThreshold,
+      league.playerPool,
+    );
     return cached
       ? cached.map((p: ApiPlayer) => ({
           id: Number(p.id),
@@ -186,7 +190,31 @@ function LeagueSettingsForm({ league }: { league: League }) {
       .catch(() => {
         /* non-fatal */
       });
-    void getPlayers("adp", league.posEligibilityThreshold).then(
+    void getPlayers(
+      "adp",
+      league.posEligibilityThreshold,
+      league.playerPool,
+    ).then((apiPlayers: ApiPlayer[]) =>
+      setKeeperPlayers(
+        apiPlayers.map((p) => ({
+          id: Number(p.id),
+          name: p.name,
+          team: p.team,
+          pos: p.positions?.join("/") || p.position,
+          adp: p.adp,
+          value: p.value,
+          headshot: p.headshot,
+          positions: p.positions,
+        })),
+      ),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league.id, token]);
+
+  // Re-fetch keeper player list when the form's playerPool or posEligibilityThreshold changes
+  useEffect(() => {
+    const apiPool = poolToApi[playerPool] ?? "Mixed";
+    void getPlayers("adp", posEligibilityThreshold, apiPool).then(
       (apiPlayers: ApiPlayer[]) =>
         setKeeperPlayers(
           apiPlayers.map((p) => ({
@@ -201,8 +229,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
           })),
         ),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [league.id, token]);
+  }, [playerPool, posEligibilityThreshold]);
 
   const backPath = `/leagues/${league.id}/research`;
 

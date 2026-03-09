@@ -218,10 +218,10 @@ export default function LeagueOverview() {
   }, [league?.id, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    getPlayers(undefined, league?.posEligibilityThreshold)
+    getPlayers(undefined, league?.posEligibilityThreshold, league?.playerPool)
       .then(setAllPlayers)
       .catch(() => {});
-  }, [league?.posEligibilityThreshold]);
+  }, [league?.posEligibilityThreshold, league?.playerPool]);
 
   const teamNames = useMemo(
     () =>
