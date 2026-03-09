@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Minus, Plus, Star, X } from "lucide-react";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { useLeague } from "../contexts/LeagueContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
@@ -9,9 +10,6 @@ import type { WatchlistPlayer } from "../api/watchlist";
 import type { Player } from "../types/player";
 import PosBadge from "../components/PosBadge";
 import "./MyDraft.css";
-
-// TODO(data): Replace with league-specific budget from backend once league settings are wired.
-const TOTAL_BUDGET = 260;
 
 // TODO(data): Replace with backend-provided roster template + budget targets per position.
 const POSITION_PLAN: Array<{ pos: string; slots: number; target: number }> = [
@@ -37,7 +35,6 @@ function normalizePosition(position: string): string {
     .replace(/\s+/g, "")
     .split(/[/,|-]/)[0];
 
-  if (first === "DH") return "UTIL";
   return first || "UTIL";
 }
 
@@ -70,6 +67,8 @@ function watchlistToPlayer(p: WatchlistPlayer): Player {
 export default function MyDraft() {
   usePageTitle("My Draft");
   const { id: leagueId } = useParams<{ id: string }>();
+  const { league } = useLeague();
+  const totalBudget = league?.budget ?? 260;
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
   const { watchlist, removeFromWatchlist } = useWatchlist();
@@ -186,7 +185,7 @@ export default function MyDraft() {
     (a, b) => a + b,
     0,
   );
-  const positionBuffer = Math.max(0, TOTAL_BUDGET - positionBudgetTotal);
+  const positionBuffer = Math.max(0, totalBudget - positionBudgetTotal);
 
   // Per-position segment data for the allocation bar
   const POS_COLORS_MAP: Record<string, string> = {
@@ -206,9 +205,9 @@ export default function MyDraft() {
     slots: row.slots,
     target: positionTargets[row.pos] ?? row.target,
     color: POS_COLORS_MAP[row.pos] ?? "#7f72a8",
-    pct: ((positionTargets[row.pos] ?? row.target) / TOTAL_BUDGET) * 100,
+    pct: ((positionTargets[row.pos] ?? row.target) / totalBudget) * 100,
   }));
-  const bufferPct = (positionBuffer / TOTAL_BUDGET) * 100;
+  const bufferPct = (positionBuffer / totalBudget) * 100;
 
   const handleNotesResizeStart = (
     event: React.MouseEvent<HTMLButtonElement>,
@@ -239,7 +238,7 @@ export default function MyDraft() {
         <section className="mydraft-top panel-card">
           <div className="top-budget">
             <div className="card-label">Total Budget</div>
-            <div className="budget-value">${TOTAL_BUDGET}</div>
+            <div className="budget-value">${totalBudget}</div>
           </div>
 
           <div className="top-split">
