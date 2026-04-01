@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pencil, X } from "lucide-react";
 import type { RosterEntry } from "../api/roster";
+import { getEligibleSlotsForPositions } from "../utils/eligibility";
 import "./DraftLogRow.css";
 
 interface DraftLogRowProps {
@@ -35,27 +36,6 @@ export function DraftLogRow({
   onUpdate,
   onRemove,
 }: DraftLogRowProps) {
-  /** Is `pos` eligible to fill `slot`? (matches CommandCenter logic) */
-  function posFitsSlot(pos: string, slot: string): boolean {
-    const p = pos.toUpperCase();
-    const s = slot.toUpperCase();
-    if (s === p) return true;
-    if (s === "UTIL") return true;
-    if (s === "BN" || s === "BENCH") return true;
-    if (s === "MI") return ["SS", "2B"].includes(p);
-    if (s === "CI") return ["1B", "3B", "DH"].includes(p);
-    if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(p);
-    if (s === "P") return ["SP", "RP"].includes(p);
-    return false;
-  }
-
-  /** Slots that are compatible with any of the player's positions */
-  function eligibleSlots(positions: string[], slots: string[]): string[] {
-    return slots.filter((slot) =>
-      positions.some((pos) => posFitsSlot(pos, slot)),
-    );
-  }
-
   /**
    * Slots on a team (by teamId) that still have capacity.
    * Excludes the current entry so its slot is treated as free.
@@ -76,7 +56,7 @@ export function DraftLogRow({
 
   /** All eligible slots for a given teamId */
   function validSlotsFor(teamId: string): string[] {
-    const elig = eligibleSlots(entry.positions, slotOptions);
+    const elig = getEligibleSlotsForPositions(entry.positions, slotOptions);
     if (elig.length === 0) return slotOptions;
     // For the current team filter to open slots; for reassignment show all eligible
     if (teamId === entry.teamId) {

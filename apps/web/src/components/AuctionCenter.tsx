@@ -10,6 +10,10 @@ import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import { getStatByCategory } from "../pages/commandCenterUtils";
 import { getValuation, type ValuationResult } from "../api/engine";
+import {
+  getEligibleSlotsForPositions,
+  hasPitcherEligibility,
+} from "../utils/eligibility";
 
 interface AuctionCenterProps {
   rosterEntries: RosterEntry[];
@@ -103,7 +107,10 @@ export function AuctionCenter({
   // When a new player is selected, initialise stat view + price guess
   useEffect(() => {
     if (!selectedPlayer) return;
-    const isPitcher = ["SP", "RP", "P"].includes(selectedPlayer.position);
+    const isPitcher = hasPitcherEligibility(
+      selectedPlayer.positions,
+      selectedPlayer.position,
+    );
     setStatView(isPitcher ? "pitching" : "hitting");
     setFinalPrice(String(selectedPlayer.value));
   }, [selectedPlayer]);
@@ -341,24 +348,6 @@ export function AuctionCenter({
     ? Object.keys(league.rosterSlots)
     : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"];
 
-  function getEligibleSlots(positions: string[], slots: string[]): string[] {
-    return slots.filter((slot) =>
-      positions.some((pos) => {
-        const pos_ = pos.toUpperCase();
-        const s = slot.toUpperCase();
-        if (s === pos_) return true;
-        if (s === "UTIL") return true;
-        if (s === "BN" || s === "BENCH") return true;
-        if (s === "MI") return ["SS", "2B"].includes(pos_);
-        if (s === "CI") return ["1B", "3B", "DH"].includes(pos_);
-        if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(pos_);
-        if (s === "P") return ["SP", "RP", "P"].includes(pos_);
-        if (pos_ === "P") return ["SP", "RP"].includes(s);
-        return false;
-      }),
-    );
-  }
-
   function getAvailableSlots(
     teamName: string,
     slots: string[],
@@ -379,11 +368,10 @@ export function AuctionCenter({
   }
 
   const eligible = selectedPlayer
-    ? getEligibleSlots(
-        selectedPlayer.positions?.length
-          ? selectedPlayer.positions
-          : [selectedPlayer.position],
+    ? getEligibleSlotsForPositions(
+        selectedPlayer.positions,
         allSlotOptions,
+        selectedPlayer.position,
       )
     : allSlotOptions;
   const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);

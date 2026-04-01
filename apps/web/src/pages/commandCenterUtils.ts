@@ -1,6 +1,7 @@
 import type { Player } from "../types/player";
 import type { RosterEntry } from "../api/roster";
 import type { League } from "../contexts/LeagueContext";
+import { getEligibleSlotsForPosition } from "../utils/eligibility";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -150,18 +151,7 @@ export function computePositionMarket(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function getEligibleSlots(pos: string, slots: string[]): string[] {
-  const pos_ = pos.toUpperCase();
-  return slots.filter((slot) => {
-    const s = slot.toUpperCase();
-    if (s === pos_) return true;
-    if (s === "UTIL") return true;
-    if (s === "BN" || s === "BENCH") return true;
-    if (s === "MI") return ["SS", "2B"].includes(pos_);
-    if (s === "CI") return ["1B", "3B"].includes(pos_);
-    if (s === "OF") return ["OF", "LF", "CF", "RF"].includes(pos_);
-    if (s === "P") return ["SP", "RP"].includes(pos_);
-    return false;
-  });
+  return getEligibleSlotsForPosition(pos, slots);
 }
 
 export function teamCanBid(

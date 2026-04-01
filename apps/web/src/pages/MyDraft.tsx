@@ -30,6 +30,7 @@ import PositionTargets, {
 } from "../components/MyDraft/PositionTargets";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
+import { hasPitcherEligibility } from "../utils/eligibility";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -61,18 +62,8 @@ const POS_COLORS: Record<string, string> = {
   BN:   "#6b7280",
 };
 
-const PITCHER_POSITIONS = new Set(["SP", "RP", "P"]);
-
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function normalizePosition(position: string): string {
-  return (
-    position.toUpperCase().replace(/\s+/g, "").split(/[/,|-]/)[0] || "UTIL"
-  );
-}
 
 function watchlistToPlayer(p: WatchlistPlayer): Player {
   return {
@@ -254,11 +245,11 @@ export default function MyDraft() {
     let filtered = [...watchlist];
     if (viewFilter === "hitters") {
       filtered = filtered.filter(
-        (p) => !PITCHER_POSITIONS.has(normalizePosition(p.position || "UTIL")),
+        (p) => !hasPitcherEligibility(p.positions, p.position || "UTIL"),
       );
     } else if (viewFilter === "pitchers") {
       filtered = filtered.filter((p) =>
-        PITCHER_POSITIONS.has(normalizePosition(p.position || "UTIL")),
+        hasPitcherEligibility(p.positions, p.position || "UTIL"),
       );
     }
     filtered.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
