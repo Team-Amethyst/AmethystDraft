@@ -1,4 +1,9 @@
 import { Router, Request, Response, RequestHandler } from "express";
+import {
+  isPitchingPosition,
+  normalizeFantasyPosition,
+  resolveEligiblePositions,
+} from "../lib/playerEligibility";
 
 const router: Router = Router();
 
@@ -107,37 +112,6 @@ function teamAbbrev(
     MLB_TEAM_ABBREV[bio?.id ?? 0] ??
     "--"
   );
-}
-
-/**
- * Normalize raw MLB API position abbreviations to canonical fantasy positions.
- *
- * MLB API can return outfield variants (LF/CF/RF), generic pitcher (P),
- * two-way player (TWP), generic infielder (IF), and utility (UTL) codes
- * that don't map directly to typical fantasy roster slots.
- *
- * @param pos   Raw abbreviation from `s.position` or `bio.primaryPosition`
- * @param group "hitting" | "pitching" — disambiguates TWP and generic P
- */
-function normalizePosition(pos: string, group: "hitting" | "pitching"): string {
-  switch (pos.toUpperCase()) {
-    // Outfield variants → OF
-    case "LF":
-    case "CF":
-    case "RF":
-      return "OF";
-    // Two-way player: use pitching slot in pitching context, DH when batting
-    case "TWP":
-      return group === "pitching" ? "SP" : "DH";
-    // Generic infielder — not a real fantasy slot, treat as utility hitter
-    case "IF":
-      return "UTIL";
-    // Utility — map to DH as closest fantasy equivalent
-    case "UTL":
-      return "DH";
-    default:
-      return pos;
-  }
 }
 
 // Calculate age from birthdate string
@@ -552,9 +526,9 @@ const getPlayers: RequestHandler = async (
       for (const s of fieldJson.stats?.[0]?.splits ?? []) {
         if (Number(s.stat.games ?? 0) < FIELDING_QUALIFY_GAMES) continue;
         const pid = s.player.id;
-        const pos = normalizePosition(
+        const pos = normalizeFantasyPosition(
           s.position?.abbreviation ?? "OF",
-          ["P", "SP", "RP"].includes(s.position?.abbreviation ?? "")
+          isPitchingPosition(s.position?.abbreviation ?? "")
             ? "pitching"
             : "hitting",
         );
@@ -580,27 +554,19 @@ const getPlayers: RequestHandler = async (
           mlbId: pid,
           name: s.player.fullName,
           team: teamAbbrev(s.team, bio?.currentTeam),
-          position: normalizePosition(
+          position: normalizeFantasyPosition(
             s.position?.abbreviation ??
               bio?.primaryPosition?.abbreviation ??
               "OF",
             "hitting",
           ),
-          positions: (() => {
-            const fromFielding = posEligibilityMap.get(pid);
-            if (fromFielding && fromFielding.length > 0) {
-              // Keep only non-pitching positions on a batter record
-              return fromFielding.filter((p) => !["SP", "RP", "P"].includes(p));
-            }
-            return [
-              normalizePosition(
-                s.position?.abbreviation ??
-                  bio?.primaryPosition?.abbreviation ??
-                  "OF",
-                "hitting",
-              ),
-            ];
-          })(),
+          positions: resolveEligiblePositions(
+            posEligibilityMap.get(pid),
+            s.position?.abbreviation ??
+              bio?.primaryPosition?.abbreviation ??
+              "OF",
+            "hitting",
+          ),
           age: calcAge(bio?.birthDate),
           adp: 0,
           value,
@@ -659,27 +625,19 @@ const getPlayers: RequestHandler = async (
           mlbId: pid,
           name: s.player.fullName,
           team: teamAbbrev(s.team, bio?.currentTeam),
-          position: normalizePosition(
+          position: normalizeFantasyPosition(
             s.position?.abbreviation ??
               bio?.primaryPosition?.abbreviation ??
               "SP",
             "pitching",
           ),
-          positions: (() => {
-            const fromFielding = posEligibilityMap.get(pid);
-            if (fromFielding && fromFielding.length > 0) {
-              // Keep only pitching positions on a pitcher record
-              return fromFielding.filter((p) => ["SP", "RP", "P"].includes(p));
-            }
-            return [
-              normalizePosition(
-                s.position?.abbreviation ??
-                  bio?.primaryPosition?.abbreviation ??
-                  "SP",
-                "pitching",
-              ),
-            ];
-          })(),
+          positions: resolveEligiblePositions(
+            posEligibilityMap.get(pid),
+            s.position?.abbreviation ??
+              bio?.primaryPosition?.abbreviation ??
+              "SP",
+            "pitching",
+          ),
           age: calcAge(bio?.birthDate),
           adp: 0,
           value,
