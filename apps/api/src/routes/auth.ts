@@ -1,6 +1,12 @@
 import { Router, Request, Response, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
+import { validate } from "../validation/validate";
+import {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+} from "../validation/schemas";
 
 // Explicit type annotation fixes the portable type error on Router()
 const router: Router = Router();
@@ -12,18 +18,6 @@ const register: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { displayName, email, password } = req.body;
-
-    if (!displayName || !email || !password) {
-      res.status(400).json({ message: "All fields are required" });
-      return;
-    }
-
-    if (password.length < 6) {
-      res
-        .status(400)
-        .json({ message: "Password must be at least 6 characters" });
-      return;
-    }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -65,11 +59,6 @@ const login: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ message: "Email and password are required" });
-      return;
-    }
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -130,8 +119,8 @@ const forgotPassword: RequestHandler = async (
   }
 };
 
-router.post("/register", register);
-router.post("/login", login);
-router.post("/forgot-password", forgotPassword);
+router.post("/register", validate(registerSchema), register);
+router.post("/login", validate(loginSchema), login);
+router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
 
 export default router;

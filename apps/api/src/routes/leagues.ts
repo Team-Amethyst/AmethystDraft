@@ -4,6 +4,12 @@ import RosterEntry from "../models/RosterEntry";
 import PlayerNote from "../models/PlayerNote";
 import WatchlistEntry from "../models/WatchlistEntry";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
+import { validate } from "../validation/validate";
+import {
+  createLeagueSchema,
+  updateLeagueSchema,
+  addRosterEntrySchema,
+} from "../validation/schemas";
 
 const router: Router = Router();
 
@@ -43,11 +49,6 @@ const createLeague: RequestHandler = async (
       teamNames,
       posEligibilityThreshold,
     } = req.body;
-
-    if (!name?.trim()) {
-      res.status(400).json({ message: "League name is required" });
-      return;
-    }
 
     const league = await League.create({
       name: name.trim(),
@@ -481,12 +482,12 @@ const deleteWatchlistEntry: RequestHandler = async (
 
 // ─── Route registration ────────────────────────────────────────────────────────
 
-router.post("/", createLeague);
+router.post("/", validate(createLeagueSchema), createLeague);
 router.get("/", getMyLeagues);
 router.get("/:id", getLeague);
-router.patch("/:id", updateLeague);
+router.patch("/:id", validate(updateLeagueSchema), updateLeague);
 router.get("/:id/roster", getRoster);
-router.post("/:id/roster", addRosterEntry);
+router.post("/:id/roster", validate(addRosterEntrySchema), addRosterEntry);
 router.patch("/:id/roster/:entryId", updateRosterEntry);
 router.delete("/:id/roster/:entryId", removeRosterEntry);
 router.get("/:id/notes", getNotes);
