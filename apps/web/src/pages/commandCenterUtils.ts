@@ -1,7 +1,7 @@
 import type { Player } from "../types/player";
 import type { RosterEntry } from "../api/roster";
 import type { League } from "../contexts/LeagueContext";
-import { getEligibleSlotsForPosition } from "../utils/eligibility";
+import { getEligibleSlotsForPositions, getEligibleSlotsForPosition } from "../utils/eligibility";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -91,7 +91,10 @@ export function computePositionMarket(
   rosterEntries: RosterEntry[],
 ): PositionMarket | null {
   if (!position || allPlayers.length === 0) return null;
-  const posPlayers = allPlayers.filter((p) => p.position === position);
+  // Include any player with this position in their multi-position eligibility array
+  const posPlayers = allPlayers.filter(
+    (p) => p.position === position || p.positions?.includes(position),
+  );
   const draftedAtPos = posPlayers.filter((p) => draftedIds.has(p.id));
   const remaining = posPlayers.filter((p) => !draftedIds.has(p.id));
   const draftedEntries = rosterEntries.filter((e) =>
@@ -115,7 +118,9 @@ export function computePositionMarket(
     .map((pos) => ({
       pos,
       count: allPlayers.filter(
-        (p) => p.position === pos && !draftedIds.has(p.id),
+        (p) =>
+          (p.position === pos || p.positions?.includes(pos)) &&
+          !draftedIds.has(p.id),
       ).length,
     }))
     .sort((a, b) => a.count - b.count);
@@ -156,13 +161,13 @@ export function getEligibleSlots(pos: string, slots: string[]): string[] {
 
 export function teamCanBid(
   teamName: string,
-  position: string | null,
+  positions: string[],
   league: League,
   rosterEntries: RosterEntry[],
 ): boolean {
-  if (!position) return true;
+  if (positions.length === 0) return true;
   const allSlots = Object.keys(league.rosterSlots);
-  const eligible = getEligibleSlots(position, allSlots);
+  const eligible = getEligibleSlotsForPositions(positions, allSlots);
   if (eligible.length === 0) return false;
   const teamIdx = league.teamNames.indexOf(teamName);
   if (teamIdx === -1) return false;
@@ -263,15 +268,36 @@ export function buildProjectedStandings(
         );
         stats[cat.name] = totalWeight > 0 ? weighted / totalWeight : 0;
       } else if (cat.type === "pitching" && RATE_PITCHING.has(n)) {
-        // Mean across pitchers with a non-zero rate
+        // IP-weighted average: ERA = Σ(ERA_i * IP_i) / Σ(IP_i)
+        // WHIP = Σ(WHIP_i * IP_i) / Σ(IP_i)
+        // This correctly weights high-IP starters over low-IP arms.
         const pitchers = teamPlayers.filter(
           (p) => !!(p.projection?.pitching ?? p.stats?.pitching),
         );
-        const vals = pitchers
-          .map((p) => getProjStat(p, cat.name, "pitching"))
-          .filter((v) => v > 0);
-        stats[cat.name] =
-          vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+        let weightedSum = 0;
+        let totalIP = 0;
+        for (const p of pitchers) {
+          const rate = getProjStat(p, cat.name, "pitching");
+          const ip =
+            p.projection?.pitching?.innings ??
+            parseFloat(String(p.stats?.pitching?.innings ?? "0"));
+          if (rate > 0 && ip > 0) {
+            weightedSum += rate * ip;
+            totalIP += ip;
+          }
+        }
+        // Fall back to simple mean if no IP data is available
+        if (totalIP > 0) {
+          stats[cat.name] = weightedSum / totalIP;
+        } else {
+          const vals = pitchers
+            .map((p) => getProjStat(p, cat.name, "pitching"))
+            .filter((v) => v > 0);
+          stats[cat.name] =
+            vals.length > 0
+              ? vals.reduce((a, b) => a + b, 0) / vals.length
+              : 0;
+        }
       } else {
         stats[cat.name] = teamPlayers.reduce(
           (sum, p) => sum + getProjStat(p, cat.name, cat.type),

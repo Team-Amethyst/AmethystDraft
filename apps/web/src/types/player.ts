@@ -47,6 +47,7 @@ export interface Player {
       holds: number;
       strikeouts: number;
       completeGames: number;
+      innings?: number;
     };
   };
   outlook: string;

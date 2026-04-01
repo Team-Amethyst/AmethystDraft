@@ -116,7 +116,7 @@ function LeftPanel({
   league,
   teamData,
   myTeamName,
-  selectedPlayerPosition,
+  selectedPlayerPositions,
   allPlayers,
   draftedIds,
   rosterEntries,
@@ -128,7 +128,7 @@ function LeftPanel({
   league: League | null;
   teamData: TeamSummary[];
   myTeamName: string;
-  selectedPlayerPosition: string | null;
+  selectedPlayerPositions: string[];
   allPlayers: Player[];
   draftedIds: Set<string>;
   rosterEntries: RosterEntry[];
@@ -141,12 +141,12 @@ function LeftPanel({
   const posMarket = useMemo(
     () =>
       computePositionMarket(
-        selectedPlayerPosition,
+        selectedPlayerPositions[0] ?? null,
         allPlayers,
         draftedIds,
         rosterEntries,
       ),
-    [selectedPlayerPosition, allPlayers, draftedIds, rosterEntries],
+    [selectedPlayerPositions, allPlayers, draftedIds, rosterEntries],
   );
 
   const playerMap = useMemo(
@@ -431,11 +431,11 @@ function LeftPanel({
               {sortedTeamData.length > 0 ? (
                 sortedTeamData.map((t) => {
                   const ineligible =
-                    !!selectedPlayerPosition &&
+                    selectedPlayerPositions.length > 0 &&
                     !!league &&
                     !teamCanBid(
                       t.name,
-                      selectedPlayerPosition,
+                      selectedPlayerPositions,
                       league,
                       rosterEntries,
                     );
@@ -1144,7 +1144,13 @@ export default function CommandCenter() {
           league={league}
           teamData={teamData}
           myTeamName={myTeamName}
-          selectedPlayerPosition={selectedPlayer?.position ?? null}
+          selectedPlayerPositions={
+            selectedPlayer
+              ? selectedPlayer.positions?.length
+                ? selectedPlayer.positions
+                : [selectedPlayer.position]
+              : []
+          }
           allPlayers={allPlayers}
           draftedIds={draftedIds}
           rosterEntries={rosterEntries}

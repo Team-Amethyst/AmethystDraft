@@ -233,6 +233,7 @@ function projectPitching(
   holds: number;
   strikeouts: number;
   completeGames: number;
+  innings: number;
 } {
   const years = [yr1, yr2, yr3];
   const W = [5, 3, 2];
@@ -271,6 +272,7 @@ function projectPitching(
       holds: Number(yr1.holds ?? 0),
       strikeouts: Number(yr1.strikeOuts ?? 0),
       completeGames: Number(yr1.completeGames ?? 0),
+      innings: Math.round(parseFloat(String(yr1.inningsPitched ?? "0"))),
     };
   const era = wIP > 0 ? (wER / wIP) * 9 : 0;
   const whip = wIP > 0 ? wBR / wIP : 0;
@@ -282,6 +284,7 @@ function projectPitching(
     holds: Math.round(wHLD / wTotal),
     strikeouts: Math.round(wK / wTotal),
     completeGames: Math.round(wCG / wTotal),
+    innings: Math.round(wIP / wTotal),
   };
 }
 
@@ -336,6 +339,7 @@ interface PlayerData {
       holds: number;
       strikeouts: number;
       completeGames: number;
+      innings: number;
     };
   };
   outlook: string;
