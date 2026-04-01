@@ -9,6 +9,9 @@ import {
   buildScarcityContext,
   buildSimulationContext,
 } from "../lib/engineContext";
+import { sendError } from "../lib/apiResponse";
+import { validateBody, validateQuery } from "../validation/validate";
+import { mockPickSchema, newsSignalsQuerySchema } from "../validation/schemas";
 
 const router: Router = Router();
 
@@ -21,11 +24,18 @@ function handleEngineError(err: unknown, res: Response): void {
   if (err instanceof AxiosError) {
     const status = err.response?.status ?? 502;
     const body = err.response?.data ?? { error: "Engine unreachable" };
-    res.status(status).json(body);
+    sendError(res, status, {
+      code: "ENGINE_UPSTREAM_ERROR",
+      message: "Engine request failed",
+      details: body,
+    });
     return;
   }
   console.error("Unexpected Engine error:", err);
-  res.status(502).json({ error: "Engine unreachable" });
+  sendError(res, 502, {
+    code: "ENGINE_UNREACHABLE",
+    message: "Engine unreachable",
+  });
 }
 
 // ─── POST /api/engine/leagues/:leagueId/valuation ─────────────────────────────
@@ -38,7 +48,10 @@ const calculateValuation: RequestHandler = async (
   try {
     const league = await League.findById(req.params.leagueId);
     if (!league) {
-      res.status(404).json({ error: "League not found" });
+      sendError(res, 404, {
+        code: "LEAGUE_NOT_FOUND",
+        message: "League not found",
+      });
       return;
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
@@ -61,7 +74,10 @@ const analyzeScarcity: RequestHandler = async (
   try {
     const league = await League.findById(req.params.leagueId);
     if (!league) {
-      res.status(404).json({ error: "League not found" });
+      sendError(res, 404, {
+        code: "LEAGUE_NOT_FOUND",
+        message: "League not found",
+      });
       return;
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
@@ -86,12 +102,15 @@ const simulateMockPick: RequestHandler = async (
   try {
     const league = await League.findById(req.params.leagueId);
     if (!league) {
-      res.status(404).json({ error: "League not found" });
+      sendError(res, 404, {
+        code: "LEAGUE_NOT_FOUND",
+        message: "League not found",
+      });
       return;
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
-    const { budgetByTeamId = {}, availablePlayerIds } = req.body as {
-      budgetByTeamId?: Record<string, number>;
+    const { budgetByTeamId, availablePlayerIds } = req.body as {
+      budgetByTeamId: Record<string, number>;
       availablePlayerIds?: string[];
     };
     const context = buildSimulationContext(
@@ -116,12 +135,12 @@ const getNewsSignals: RequestHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { days, signal_type } = req.query as Record<
-      string,
-      string | undefined
-    >;
+    const { days, signal_type } = req.query as {
+      days?: number;
+      signal_type?: string;
+    };
     const params: Record<string, string> = {};
-    if (days) params.days = days;
+    if (days) params.days = String(days);
     if (signal_type) params.signal_type = signal_type;
 
     const { data } = await amethyst.get("/signals/news", { params });
@@ -135,7 +154,7 @@ const getNewsSignals: RequestHandler = async (
 
 router.post("/leagues/:leagueId/valuation", calculateValuation);
 router.post("/leagues/:leagueId/scarcity", analyzeScarcity);
-router.post("/leagues/:leagueId/mock-pick", simulateMockPick);
-router.get("/signals/news", getNewsSignals);
+router.post("/leagues/:leagueId/mock-pick", validateBody(mockPickSchema), simulateMockPick);
+router.get("/signals/news", validateQuery(newsSignalsQuerySchema), getNewsSignals);
 
 export default router;

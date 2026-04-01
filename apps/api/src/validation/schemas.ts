@@ -53,3 +53,15 @@ export const addRosterEntrySchema = z.object({
   userId: z.string().optional(),
   teamId: z.string().optional(),
 });
+
+// ─── Engine ───────────────────────────────────────────────────────────────────
+
+export const mockPickSchema = z.object({
+  budgetByTeamId: z.record(z.string(), z.number().min(0)).default({}),
+  availablePlayerIds: z.array(z.string()).optional(),
+});
+
+export const newsSignalsQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(30).optional(),
+  signal_type: z.string().min(1).optional(),
+});
