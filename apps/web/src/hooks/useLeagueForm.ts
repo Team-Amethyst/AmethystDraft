@@ -164,6 +164,7 @@ export function useLeagueForm({
           team: player.team,
           cost: Math.max(1, Math.round(resolvedCost)),
           playerId: String(player.id),
+              positions: player.positions,
         },
       ],
     });

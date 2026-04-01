@@ -25,6 +25,8 @@ export type TeamKeeper = {
   team: string;
   cost: number;
   playerId: string;
+  /** Player's actual eligible positions (from API). Persisted on the roster entry. */
+  positions?: string[];
   entryId?: string;
 };
 export type TeamKeepersMap = Record<string, TeamKeeper[]>;

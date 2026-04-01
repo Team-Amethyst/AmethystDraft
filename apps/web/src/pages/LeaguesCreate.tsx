@@ -186,7 +186,7 @@ export default function LeagueCreate() {
                 externalPlayerId: keeper.playerId,
                 playerName: keeper.playerName,
                 playerTeam: keeper.team,
-                positions: [keeper.slot],
+                positions: keeper.positions ?? [keeper.slot],
                 price: keeper.cost,
                 rosterSlot: keeper.slot,
                 isKeeper: true,
