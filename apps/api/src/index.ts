@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth";
 import playersRoutes from "./routes/players";
 import engineRoutes from "./routes/engine";
 import leaguesRoutes from "./routes/leagues";
+import { sendError } from "./lib/apiResponse";
 
 dotenv.config();
 
@@ -38,7 +39,10 @@ app.get("/api/health", (req, res) => {
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);
-  res.status(500).json({ message: "Something went wrong!" });
+  sendError(res, 500, {
+    code: "INTERNAL_SERVER_ERROR",
+    message: "Something went wrong!",
+  });
 });
 
 const PORT = process.env.PORT || 3000;
