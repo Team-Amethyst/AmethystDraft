@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { authHeaders, requestJson, requestVoid } from "./client";
 
 interface AuthResponse {
   token: string;
@@ -14,36 +14,40 @@ export async function registerUser(
   email: string,
   password: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(API_BASE + "/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ displayName, email, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Registration failed");
-  return data;
+  return requestJson<AuthResponse>(
+    "/api/auth/register",
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ displayName, email, password }),
+    },
+    "Registration failed",
+  );
 }
 
 export async function loginUser(
   email: string,
   password: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(API_BASE + "/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Login failed");
-  return data;
+  return requestJson<AuthResponse>(
+    "/api/auth/login",
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ email, password }),
+    },
+    "Login failed",
+  );
 }
 
 export async function forgotPassword(email: string): Promise<void> {
-  const res = await fetch(API_BASE + "/api/auth/forgot-password", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Request failed");
+  return requestVoid(
+    "/api/auth/forgot-password",
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ email }),
+    },
+    "Request failed",
+  );
 }

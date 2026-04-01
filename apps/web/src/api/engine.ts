@@ -1,11 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-function authHeaders(token: string) {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
+import { authHeaders, requestJson } from "./client";
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
@@ -32,12 +25,11 @@ export async function getValuation(
   leagueId: string,
   token: string,
 ): Promise<ValuationResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/engine/leagues/${leagueId}/valuation`,
+  return requestJson<ValuationResponse>(
+    `/api/engine/leagues/${leagueId}/valuation`,
     { method: "POST", headers: authHeaders(token) },
+    "Valuation request failed",
   );
-  if (!res.ok) throw new Error("Valuation request failed");
-  return res.json() as Promise<ValuationResponse>;
 }
 
 // ─── /api/engine/leagues/:leagueId/scarcity ───────────────────────────────────
@@ -70,12 +62,11 @@ export async function getScarcity(
   position?: string,
 ): Promise<ScarcityResponse> {
   const qs = position ? `?position=${encodeURIComponent(position)}` : "";
-  const res = await fetch(
-    `${API_BASE}/api/engine/leagues/${leagueId}/scarcity${qs}`,
+  return requestJson<ScarcityResponse>(
+    `/api/engine/leagues/${leagueId}/scarcity${qs}`,
     { method: "POST", headers: authHeaders(token) },
+    "Scarcity request failed",
   );
-  if (!res.ok) throw new Error("Scarcity request failed");
-  return res.json() as Promise<ScarcityResponse>;
 }
 
 // ─── /api/engine/leagues/:leagueId/mock-pick ──────────────────────────────────
@@ -105,16 +96,15 @@ export async function getMockPick(
   budgetByTeamId?: Record<string, number>,
   availablePlayerIds?: string[],
 ): Promise<MockPickResponse> {
-  const res = await fetch(
-    `${API_BASE}/api/engine/leagues/${leagueId}/mock-pick`,
+  return requestJson<MockPickResponse>(
+    `/api/engine/leagues/${leagueId}/mock-pick`,
     {
       method: "POST",
       headers: authHeaders(token),
       body: JSON.stringify({ budgetByTeamId, availablePlayerIds }),
     },
+    "Mock-pick request failed",
   );
-  if (!res.ok) throw new Error("Mock-pick request failed");
-  return res.json() as Promise<MockPickResponse>;
 }
 
 // ─── /api/engine/signals/news ─────────────────────────────────────────────────
@@ -142,9 +132,11 @@ export async function getNewsSignals(
   if (options?.days) params.set("days", String(options.days));
   if (options?.signal_type) params.set("signal_type", options.signal_type);
   const qs = params.size > 0 ? "?" + params.toString() : "";
-  const res = await fetch(`${API_BASE}/api/engine/signals/news${qs}`, {
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error("News signals request failed");
-  return res.json() as Promise<NewsSignalsResponse>;
+  return requestJson<NewsSignalsResponse>(
+    `/api/engine/signals/news${qs}`,
+    {
+      headers: authHeaders(token),
+    },
+    "News signals request failed",
+  );
 }

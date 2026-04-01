@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { authHeaders, requestJson, requestVoid } from "./client";
 
 export interface RosterEntry {
   _id: string;
@@ -28,23 +28,17 @@ export interface RosterEntryPayload {
   teamId?: string;
 }
 
-function authHeaders(token: string): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
-
 export async function getRoster(
   leagueId: string,
   token: string,
 ): Promise<RosterEntry[]> {
-  const res = await fetch(`${API_BASE}/api/leagues/${leagueId}/roster`, {
-    headers: authHeaders(token),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Failed to fetch roster");
-  return json as RosterEntry[];
+  return requestJson<RosterEntry[]>(
+    `/api/leagues/${leagueId}/roster`,
+    {
+      headers: authHeaders(token),
+    },
+    "Failed to fetch roster",
+  );
 }
 
 export async function addRosterEntry(
@@ -52,14 +46,15 @@ export async function addRosterEntry(
   data: RosterEntryPayload,
   token: string,
 ): Promise<RosterEntry> {
-  const res = await fetch(`${API_BASE}/api/leagues/${leagueId}/roster`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Failed to add roster entry");
-  return json as RosterEntry;
+  return requestJson<RosterEntry>(
+    `/api/leagues/${leagueId}/roster`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    },
+    "Failed to add roster entry",
+  );
 }
 
 export async function updateRosterEntry(
@@ -68,17 +63,15 @@ export async function updateRosterEntry(
   data: { price?: number; rosterSlot?: string; teamId?: string },
   token: string,
 ): Promise<RosterEntry> {
-  const res = await fetch(
-    `${API_BASE}/api/leagues/${leagueId}/roster/${entryId}`,
+  return requestJson<RosterEntry>(
+    `/api/leagues/${leagueId}/roster/${entryId}`,
     {
       method: "PATCH",
       headers: authHeaders(token),
       body: JSON.stringify(data),
     },
+    "Failed to update roster entry",
   );
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Failed to update roster entry");
-  return json as RosterEntry;
 }
 
 export async function removeRosterEntry(
@@ -86,15 +79,12 @@ export async function removeRosterEntry(
   entryId: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(
-    `${API_BASE}/api/leagues/${leagueId}/roster/${entryId}`,
+  return requestVoid(
+    `/api/leagues/${leagueId}/roster/${entryId}`,
     {
       method: "DELETE",
       headers: authHeaders(token),
     },
+    "Failed to remove roster entry",
   );
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json.message || "Failed to remove roster entry");
-  }
 }

@@ -1,11 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-function authHeaders(token: string) {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
+import { authHeaders, requestJson, requestVoid } from "./client";
 
 export interface WatchlistPlayer {
   id: string;
@@ -22,11 +15,13 @@ export async function getWatchlist(
   leagueId: string,
   token: string,
 ): Promise<WatchlistPlayer[]> {
-  const res = await fetch(`${API_BASE}/api/leagues/${leagueId}/watchlist`, {
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error("Failed to fetch watchlist");
-  return res.json() as Promise<WatchlistPlayer[]>;
+  return requestJson<WatchlistPlayer[]>(
+    `/api/leagues/${leagueId}/watchlist`,
+    {
+      headers: authHeaders(token),
+    },
+    "Failed to fetch watchlist",
+  );
 }
 
 export async function addWatchlistEntry(
@@ -34,8 +29,8 @@ export async function addWatchlistEntry(
   player: WatchlistPlayer,
   token: string,
 ): Promise<void> {
-  const res = await fetch(
-    `${API_BASE}/api/leagues/${leagueId}/watchlist/${encodeURIComponent(player.id)}`,
+  return requestVoid(
+    `/api/leagues/${leagueId}/watchlist/${encodeURIComponent(player.id)}`,
     {
       method: "PUT",
       headers: authHeaders(token),
@@ -49,8 +44,8 @@ export async function addWatchlistEntry(
         tier: player.tier,
       }),
     },
+    "Failed to add watchlist entry",
   );
-  if (!res.ok) throw new Error("Failed to add watchlist entry");
 }
 
 export async function deleteWatchlistEntry(
@@ -58,12 +53,12 @@ export async function deleteWatchlistEntry(
   playerId: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(
-    `${API_BASE}/api/leagues/${leagueId}/watchlist/${encodeURIComponent(playerId)}`,
+  return requestVoid(
+    `/api/leagues/${leagueId}/watchlist/${encodeURIComponent(playerId)}`,
     {
       method: "DELETE",
       headers: authHeaders(token),
     },
+    "Failed to remove watchlist entry",
   );
-  if (!res.ok) throw new Error("Failed to remove watchlist entry");
 }

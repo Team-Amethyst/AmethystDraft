@@ -1,6 +1,5 @@
 import type { League } from "../contexts/LeagueContext";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { authHeaders, requestJson } from "./client";
 
 export interface CreateLeaguePayload {
   name: string;
@@ -16,34 +15,29 @@ export interface CreateLeaguePayload {
   posEligibilityThreshold?: number;
 }
 
-function authHeaders(token: string): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
-
 export async function createLeague(
   data: CreateLeaguePayload,
   token: string,
 ): Promise<League> {
-  const res = await fetch(`${API_BASE}/api/leagues`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Failed to create league");
-  return json as League;
+  return requestJson<League>(
+    "/api/leagues",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    },
+    "Failed to create league",
+  );
 }
 
 export async function getMyLeagues(token: string): Promise<League[]> {
-  const res = await fetch(`${API_BASE}/api/leagues`, {
-    headers: authHeaders(token),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Failed to fetch leagues");
-  return json as League[];
+  return requestJson<League[]>(
+    "/api/leagues",
+    {
+      headers: authHeaders(token),
+    },
+    "Failed to fetch leagues",
+  );
 }
 
 export async function updateLeague(
@@ -51,12 +45,13 @@ export async function updateLeague(
   data: Partial<CreateLeaguePayload>,
   token: string,
 ): Promise<League> {
-  const res = await fetch(`${API_BASE}/api/leagues/${id}`, {
-    method: "PATCH",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || "Failed to update league");
-  return json as League;
+  return requestJson<League>(
+    `/api/leagues/${id}`,
+    {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    },
+    "Failed to update league",
+  );
 }

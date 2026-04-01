@@ -1,6 +1,5 @@
 import type { Player } from "../types/player";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { requestJson } from "./client";
 
 interface PlayersResponse {
   players: Player[];
@@ -41,13 +40,11 @@ export async function getPlayers(
   if (playerPool && playerPool !== "Mixed") {
     query.set("playerPool", playerPool);
   }
-  const res = await fetch(API_BASE + "/api/players?" + query.toString());
-  const data = (await res.json()) as PlayersResponse;
-  if (!res.ok) {
-    throw new Error(
-      (data as { message?: string }).message || "Failed to fetch players",
-    );
-  }
+  const data = await requestJson<PlayersResponse>(
+    "/api/players?" + query.toString(),
+    {},
+    "Failed to fetch players",
+  );
   const players = data.players ?? [];
   playersCache.set(cacheKey, players);
   playersCacheTime.set(cacheKey, Date.now());
