@@ -289,6 +289,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                 price: keeper.cost,
                 rosterSlot: keeper.slot,
                 isKeeper: true,
+                teamId: `team_${i + 1}`,
                 userId: teamUserId,
               },
               token,

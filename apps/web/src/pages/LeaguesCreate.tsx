@@ -10,6 +10,7 @@ import {
   type TeamKeeper,
 } from "../types/league";
 import { createLeague } from "../api/leagues";
+import { addRosterEntry } from "../api/roster";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { getPlayers, getPlayersCached } from "../api/players";
@@ -90,6 +91,7 @@ export default function LeagueCreate() {
     setActiveKeeperTeam,
     playerSearch,
     setPlayerSearch,
+    teamKeepers,
     currentKeepers,
     remainingBudget,
     completionPercent,
@@ -169,6 +171,36 @@ export default function LeagueCreate() {
         },
         token!,
       );
+
+      // Save keepers for each team using explicit teamId so they land on the correct team
+      const currentTeamNames = teamNames.slice(0, teams);
+      const keeperAdds: Promise<unknown>[] = [];
+      for (let i = 0; i < currentTeamNames.length; i++) {
+        const teamName = currentTeamNames[i];
+        const keepers = teamKeepers[teamName] ?? [];
+        for (const keeper of keepers) {
+          keeperAdds.push(
+            addRosterEntry(
+              league.id,
+              {
+                externalPlayerId: keeper.playerId,
+                playerName: keeper.playerName,
+                playerTeam: keeper.team,
+                positions: [keeper.slot],
+                price: keeper.cost,
+                rosterSlot: keeper.slot,
+                isKeeper: true,
+                teamId: `team_${i + 1}`,
+              },
+              token!,
+            ),
+          );
+        }
+      }
+      if (keeperAdds.length > 0) {
+        await Promise.all(keeperAdds);
+      }
+
       refreshLeagues();
       navigate(`/leagues/${league.id}/research`);
     } catch (err) {
