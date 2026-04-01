@@ -70,9 +70,9 @@ const rosterEntrySchema = new Schema<IRosterEntry>(
   { timestamps: true },
 );
 
-// Compound index: one player per team per league
+// One player per league — a player can only be on one team at a time
 rosterEntrySchema.index(
-  { leagueId: 1, userId: 1, externalPlayerId: 1 },
+  { leagueId: 1, externalPlayerId: 1 },
   { unique: true },
 );
 

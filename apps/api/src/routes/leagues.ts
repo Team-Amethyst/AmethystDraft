@@ -270,10 +270,23 @@ const removeRosterEntry: RequestHandler = async (
       res.status(404).json({ message: "League not found" });
       return;
     }
-    await RosterEntry.findOneAndDelete({
+    const entry = await RosterEntry.findOne({
       _id: req.params.entryId,
       leagueId: req.params.id,
     });
+    if (!entry) {
+      res.status(404).json({ message: "Entry not found" });
+      return;
+    }
+    const isCommissioner =
+      String(league.commissionerId) === String(req.user!._id);
+    if (!isCommissioner && String(entry.userId) !== String(req.user!._id)) {
+      res
+        .status(403)
+        .json({ message: "Not authorized to remove this entry" });
+      return;
+    }
+    await entry.deleteOne();
     res.status(204).send();
   } catch (err) {
     console.error("Remove roster entry error:", err);
@@ -288,11 +301,51 @@ const updateRosterEntry: RequestHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
+    // Must be a league member
+    const league = await League.findOne({
+      _id: req.params.id,
+      memberIds: req.user!._id,
+    });
+    if (!league) {
+      res.status(404).json({ message: "League not found" });
+      return;
+    }
+    const isCommissioner =
+      String(league.commissionerId) === String(req.user!._id);
+
+    // Load the entry and verify ownership
+    const existingEntry = await RosterEntry.findOne({
+      _id: req.params.entryId,
+      leagueId: req.params.id,
+    }).lean();
+    if (!existingEntry) {
+      res.status(404).json({ message: "Entry not found" });
+      return;
+    }
+    if (
+      !isCommissioner &&
+      String(existingEntry.userId) !== String(req.user!._id)
+    ) {
+      res
+        .status(403)
+        .json({ message: "Not authorized to update this entry" });
+      return;
+    }
+
     const { price, rosterSlot, teamId } = req.body as {
       price?: number;
       rosterSlot?: string;
       teamId?: string;
     };
+
+    // Only the commissioner can reassign an entry to a different team
+    if (teamId !== undefined && !isCommissioner) {
+      res
+        .status(403)
+        .json({ message: "Only the commissioner can reassign entries" });
+      return;
+    }
+
     const update: Record<string, unknown> = {};
     if (price !== undefined) update.price = price;
     if (rosterSlot !== undefined) update.rosterSlot = rosterSlot;
@@ -301,29 +354,6 @@ const updateRosterEntry: RequestHandler = async (
       if (isNaN(teamIndex) || teamIndex < 0) {
         res.status(400).json({ message: "Invalid teamId" });
         return;
-      }
-      const league = await League.findById(req.params.id);
-      if (!league) {
-        res.status(404).json({ message: "League not found" });
-        return;
-      }
-      // Check if this player is already on the target team
-      const currentEntry = await RosterEntry.findById(
-        req.params.entryId,
-      ).lean();
-      if (currentEntry) {
-        const existingOnTarget = await RosterEntry.exists({
-          leagueId: req.params.id,
-          teamId,
-          externalPlayerId: currentEntry.externalPlayerId,
-          _id: { $ne: currentEntry._id },
-        });
-        if (existingOnTarget) {
-          res
-            .status(409)
-            .json({ message: "That player is already on the target team" });
-          return;
-        }
       }
       update.teamId = teamId;
       // Also update userId if that team slot has a joined member
