@@ -10,6 +10,10 @@ import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
+import {
+  hasPitcherEligibility,
+  normalizePlayerPositions,
+} from "../utils/eligibility";
 import "./Research.css";
 
 export default function Research() {
@@ -126,13 +130,16 @@ export default function Research() {
       const matchesPosition =
         positionFilter === "all" ||
         (() => {
-          const allPos = player.positions?.length
-            ? player.positions
-            : [player.position];
-          if (positionFilter === "P")
-            return allPos.some((p) => ["SP", "RP", "P"].includes(p));
-          if (positionFilter === "OF")
-            return allPos.some((p) => ["OF", "LF", "CF", "RF"].includes(p));
+          const allPos = normalizePlayerPositions(
+            player.positions,
+            player.position,
+          );
+          if (positionFilter === "P") {
+            return hasPitcherEligibility(player.positions, player.position);
+          }
+          if (positionFilter === "OF") {
+            return allPos.includes("OF");
+          }
           return allPos.includes(positionFilter);
         })();
       return matchesSearch && matchesPosition;
