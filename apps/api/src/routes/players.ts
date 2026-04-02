@@ -14,7 +14,14 @@ import {
   projectBatting,
   projectPitching,
 } from "../lib/playerScoring";
-import { AL_TEAMS, NL_TEAMS, teamAbbrev } from "../lib/mlbTeams";
+import { teamAbbrev } from "../lib/mlbTeams";
+import {
+  applyAdpByValue,
+  filterByPlayerPool,
+  mergeTwoWayPlayers,
+  sortPlayers,
+  type PlayerData,
+} from "../lib/playerCatalog";
 
 const router: Router = Router();
 
@@ -40,82 +47,6 @@ interface MlbStatSplit {
   team?: { id: number; abbreviation?: string };
   position?: { abbreviation: string };
   stat: Record<string, string | number>;
-}
-
-// ─── Shared player shape ─────────────────────────────────────────────────────
-
-interface PlayerData {
-  id: string;
-  mlbId: number;
-  name: string;
-  team: string;
-  position: string;
-  positions: string[];
-  age: number;
-  adp: number;
-  value: number;
-  tier: number;
-  headshot: string;
-  stats: {
-    batting?: {
-      avg: string;
-      hr: number;
-      rbi: number;
-      runs: number;
-      sb: number;
-      obp: string;
-      slg: string;
-    };
-    pitching?: {
-      era: string;
-      whip: string;
-      wins: number;
-      saves: number;
-      holds: number;
-      strikeouts: number;
-      innings: string;
-      completeGames: number;
-    };
-  };
-  projection: {
-    batting?: {
-      avg: string;
-      hr: number;
-      rbi: number;
-      runs: number;
-      sb: number;
-    };
-    pitching?: {
-      era: string;
-      whip: string;
-      wins: number;
-      saves: number;
-      holds: number;
-      strikeouts: number;
-      completeGames: number;
-      innings: number;
-    };
-  };
-  outlook: string;
-  injuryStatus?: string;
-  springStats?: {
-    batting?: {
-      avg: string;
-      hr: number;
-      rbi: number;
-      runs: number;
-      sb: number;
-      ab: number;
-    };
-    pitching?: {
-      era: string;
-      whip: string;
-      wins: number;
-      saves: number;
-      strikeouts: number;
-      innings: string;
-    };
-  };
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -438,56 +369,20 @@ const getPlayers: RequestHandler = async (
         };
       });
 
-    // Deduplicate: if a player appears in both arrays (TWP like Ohtani), merge
-    // their positions and combine stats rather than discarding one record.
-    const allMap = new Map<string, PlayerData>();
-    for (const p of [
+    const deduped = mergeTwoWayPlayers([
       ...(batters as PlayerData[]),
       ...(pitchers as PlayerData[]),
-    ]) {
-      const existing = allMap.get(p.id);
-      if (!existing) {
-        allMap.set(p.id, p);
-      } else {
-        // Merge positions from both records, keep higher value
-        const mergedPositions = [
-          ...new Set([...existing.positions, ...p.positions]),
-        ];
-        // For TWPs, use the pitching position as primary (rarer, more fantasy-informative)
-        const pitchingPos = mergedPositions.find((pos) =>
-          ["SP", "RP", "P"].includes(pos),
-        );
-        const winnerByValue = p.value > existing.value ? p : existing;
-        const merged: PlayerData = {
-          ...winnerByValue,
-          position: pitchingPos ?? winnerByValue.position,
-          positions: mergedPositions,
-          stats: {
-            ...existing.stats,
-            ...p.stats,
-          },
-        };
-        allMap.set(p.id, merged);
-      }
-    }
-
-    let players = Array.from(allMap.values()).filter((p) => p.value > 0);
-
-    // Filter by player pool (AL-only / NL-only leagues)
-    if (playerPool === "AL") {
-      players = players.filter((p) => AL_TEAMS.has(p.team));
-    } else if (playerPool === "NL") {
-      players = players.filter((p) => NL_TEAMS.has(p.team));
-    }
-
-    // Assign ADP rank by value as proxy (real ADP would need a paid source)
-    players.sort((a, b) => b.value - a.value);
-    players = players.map((p, i) => ({ ...p, adp: i + 1 }));
-
-    // Apply requested sort
-    if (sortBy === "name") players.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sortBy === "adp") players.sort((a, b) => a.adp - b.adp);
-    // default is value (already sorted)
+    ]);
+    const valueFiltered = deduped.filter((p) => p.value > 0);
+    const poolFiltered = filterByPlayerPool(
+      valueFiltered,
+      playerPool as "Mixed" | "AL" | "NL",
+    );
+    const withAdp = applyAdpByValue(poolFiltered);
+    const players = sortPlayers(
+      withAdp,
+      sortBy as "value" | "adp" | "name",
+    );
 
     res.json({ players, count: players.length });
   } catch (err) {
