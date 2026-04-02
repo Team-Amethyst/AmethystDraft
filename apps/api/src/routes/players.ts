@@ -4,6 +4,8 @@ import {
   normalizeFantasyPosition,
   resolveEligiblePositions,
 } from "../lib/playerEligibility";
+import { validateQuery } from "../validation/validate";
+import { playersQuerySchema } from "../validation/schemas";
 import {
   assignTier,
   calcAge,
@@ -494,6 +496,6 @@ const getPlayers: RequestHandler = async (
   }
 };
 
-router.get("/", getPlayers);
+router.get("/", validateQuery(playersQuerySchema), getPlayers);
 
 export default router;

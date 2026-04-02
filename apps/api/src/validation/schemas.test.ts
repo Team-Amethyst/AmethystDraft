@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mockPickSchema, newsSignalsQuerySchema } from "./schemas";
+import {
+  mockPickSchema,
+  newsSignalsQuerySchema,
+  playersQuerySchema,
+} from "./schemas";
 
 describe("mockPickSchema", () => {
   it("accepts valid payload and defaults budgetByTeamId", () => {
@@ -29,6 +33,26 @@ describe("newsSignalsQuerySchema", () => {
 
   it("rejects out-of-range days", () => {
     const result = newsSignalsQuerySchema.safeParse({ days: "99" });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("playersQuerySchema", () => {
+  it("accepts valid player query values", () => {
+    const parsed = playersQuerySchema.parse({
+      sortBy: "adp",
+      playerPool: "AL",
+      posEligibilityThreshold: "15",
+    });
+
+    expect(parsed.sortBy).toBe("adp");
+    expect(parsed.playerPool).toBe("AL");
+    expect(parsed.posEligibilityThreshold).toBe(15);
+  });
+
+  it("rejects unsupported sort options", () => {
+    const result = playersQuerySchema.safeParse({ sortBy: "salary" });
 
     expect(result.success).toBe(false);
   });

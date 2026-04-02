@@ -65,3 +65,9 @@ export const newsSignalsQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(30).optional(),
   signal_type: z.string().min(1).optional(),
 });
+
+export const playersQuerySchema = z.object({
+  sortBy: z.enum(["adp", "value", "name"]).optional(),
+  playerPool: z.enum(["Mixed", "AL", "NL"]).optional(),
+  posEligibilityThreshold: z.coerce.number().int().min(1).max(162).optional(),
+});
