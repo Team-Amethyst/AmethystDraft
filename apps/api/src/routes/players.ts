@@ -26,6 +26,14 @@ import { AppError, UpstreamError } from "../lib/appError";
 
 const router: Router = Router();
 
+// ─── Server-side MLB data cache ───────────────────────────────────────────────
+// The 40 MLB API calls are expensive; data changes at most once per day.
+// Cache the processed (pre-pool-filter) player list per posEligibilityThreshold
+// so subsequent requests within the TTL skip all fetching entirely.
+const SERVER_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+type CachedPlayerList = { players: PlayerData[]; fetchedAt: number };
+const serverPlayerCache = new Map<number, CachedPlayerList>();
+
 // ─── MLB Stats API helpers ────────────────────────────────────────────────────
 
 const MLB_API = "https://statsapi.mlb.com/api/v1";
@@ -60,22 +68,24 @@ const getPlayers: RequestHandler = async (
   try {
     const sortBy = (req.query.sortBy as string) || "value";
     const playerPool = (req.query.playerPool as string) || "Mixed";
+    const threshold = Number(req.query.posEligibilityThreshold ?? 20);
+
+    // Serve from cache if fresh
+    const cached = serverPlayerCache.get(threshold);
+    if (cached && Date.now() - cached.fetchedAt < SERVER_CACHE_TTL_MS) {
+      const poolFiltered = filterByPlayerPool(cached.players, playerPool as "Mixed" | "AL" | "NL");
+      const withAdp = applyAdpByValue(poolFiltered);
+      const players = sortPlayers(withAdp, sortBy as "value" | "adp" | "name");
+      res.json({ players, count: players.length });
+      return;
+    }
+
     const currentYear = new Date().getFullYear();
     const season = currentYear - 1; // last completed season
     const season2 = season - 1;
     const season3 = season - 2;
 
     // Fetch 3 seasons of stats + spring training in parallel
-    // const [
-    //   batRes,
-    //   pitRes,
-    //   bat2Res,
-    //   pit2Res,
-    //   bat3Res,
-    //   pit3Res,
-    //   batSpringRes,
-    //   pitSpringRes,
-    // ] = await Promise.all([
     const responses = await Promise.all([
       fetch(
         `${MLB_API}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&limit=400&sportId=1`,
@@ -225,9 +235,7 @@ const getPlayers: RequestHandler = async (
 
     // Build multi-position eligibility map from fielding stats.
     // A player qualifies at a position if they appeared there in N+ games.
-    const FIELDING_QUALIFY_GAMES = Number(
-      req.query.posEligibilityThreshold ?? 20,
-    );
+    const FIELDING_QUALIFY_GAMES = threshold;
     const posEligibilityMap = new Map<number, string[]>();
     try {
       const fieldRes = await fetch(
@@ -398,6 +406,8 @@ const getPlayers: RequestHandler = async (
       ...(pitchers as PlayerData[]),
     ]);
     const valueFiltered = deduped.filter((p) => p.value > 0);
+    serverPlayerCache.set(threshold, { players: valueFiltered, fetchedAt: Date.now() });
+
     const poolFiltered = filterByPlayerPool(
       valueFiltered,
       playerPool as "Mixed" | "AL" | "NL",
@@ -410,8 +420,6 @@ const getPlayers: RequestHandler = async (
 
     res.json({ players, count: players.length });
   } catch (err) {
-    // console.error("Players route error:", err);
-    // res.status(500).json({ message: "Failed to fetch player data" });
     if (err instanceof AppError) {
       next(err);
       return;

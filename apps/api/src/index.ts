@@ -6,7 +6,6 @@ import authRoutes from "./routes/auth";
 import playersRoutes from "./routes/players";
 import engineRoutes from "./routes/engine";
 import leaguesRoutes from "./routes/leagues";
-// import { sendError } from "./lib/apiResponse";
 import errorHandler from "./middleware/errorHandler";
 import { NotFoundError} from "./lib/appError";
 
