@@ -1,6 +1,6 @@
 import type { ZodTypeAny, ZodIssue } from "zod";
 import type { Request, Response, NextFunction } from "express";
-import { sendError } from "../lib/apiResponse";
+import { ValidationError } from "../lib/appError";
 
 /**
  * Express middleware factory that validates req.body against a Zod schema.
@@ -18,15 +18,24 @@ function toValidationErrors(issues: ZodIssue[], source: string) {
   }));
 }
 
+function replaceRequestObject(current: unknown, nextData: Record<string, unknown>) {
+  if (!current || typeof current !== "object") {
+    return nextData;
+  }
+
+  const target = current as Record<string, unknown>;
+  for (const key of Object.keys(target)) {
+    delete target[key];
+  }
+  Object.assign(target, nextData);
+  return target;
+}
+
 export function validateBody(schema: ZodTypeAny) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      sendError(res, 400, {
-        code: "VALIDATION_FAILED",
-        message: "Validation failed",
-        details: toValidationErrors(result.error.issues, "body"),
-      });
+      next(new ValidationError("Validation failed", 400, "VALIDATION_FAILED", toValidationErrors(result.error.issues, "body")));
       return;
     }
     req.body = result.data;
@@ -38,14 +47,13 @@ export function validateQuery(schema: ZodTypeAny) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.query);
     if (!result.success) {
-      sendError(res, 400, {
-        code: "VALIDATION_FAILED",
-        message: "Validation failed",
-        details: toValidationErrors(result.error.issues, "query"),
-      });
+      next(new ValidationError("Validation failed", 400, "VALIDATION_FAILED", toValidationErrors(result.error.issues, "query")));
       return;
     }
-    req.query = result.data as Request["query"];
+    replaceRequestObject(
+      req.query,
+      result.data as Record<string, unknown>,
+    );
     next();
   };
 }
@@ -54,14 +62,13 @@ export function validateParams(schema: ZodTypeAny) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.params);
     if (!result.success) {
-      sendError(res, 400, {
-        code: "VALIDATION_FAILED",
-        message: "Validation failed",
-        details: toValidationErrors(result.error.issues, "params"),
-      });
+      next(new ValidationError("Validation failed", 400, "VALIDATION_FAILED", toValidationErrors(result.error.issues, "params")));
       return;
     }
-    req.params = result.data as Request["params"];
+    replaceRequestObject(
+      req.params,
+      result.data as Record<string, unknown>,
+    );
     next();
   };
 }

@@ -24,6 +24,23 @@ const scoringCategorySchema = z.object({
   type: z.enum(["batting", "pitching"]),
 });
 
+const playerPoolSchema = z.enum(["Mixed", "AL", "NL"]);
+
+const playerPoolQuerySchema = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "mixed" || normalized === "mixed mlb") return "Mixed";
+  if (normalized === "al" || normalized === "al-only" || normalized === "al only") {
+    return "AL";
+  }
+  if (normalized === "nl" || normalized === "nl-only" || normalized === "nl only") {
+    return "NL";
+  }
+
+  return value;
+}, playerPoolSchema.optional());
+
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(1, "League name is required"),
   teams: z.number().int().min(2).max(30).optional(),
@@ -32,7 +49,7 @@ export const createLeagueSchema = z.object({
   rosterSlots: z.record(z.string(), z.number().int().min(0)).optional(),
   scoringFormat: z.enum(["5x5", "6x6", "points"]).optional(),
   scoringCategories: z.array(scoringCategorySchema).optional(),
-  playerPool: z.enum(["Mixed", "AL", "NL"]).optional(),
+  playerPool: playerPoolSchema.optional(),
   draftDate: z.string().optional(),
   teamNames: z.array(z.string()).optional(),
   posEligibilityThreshold: z.number().int().min(1).optional(),
@@ -68,6 +85,6 @@ export const newsSignalsQuerySchema = z.object({
 
 export const playersQuerySchema = z.object({
   sortBy: z.enum(["adp", "value", "name"]).optional(),
-  playerPool: z.enum(["Mixed", "AL", "NL"]).optional(),
-  posEligibilityThreshold: z.coerce.number().int().min(1).max(162).optional(),
+  playerPool: playerPoolQuerySchema,
+  posEligibilityThreshold: z.coerce.number().int().min(0).max(162).optional(),
 });

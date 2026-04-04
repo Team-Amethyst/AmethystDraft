@@ -51,6 +51,16 @@ describe("playersQuerySchema", () => {
     expect(parsed.posEligibilityThreshold).toBe(15);
   });
 
+  it("accepts legacy player pool labels and zero threshold", () => {
+    const parsed = playersQuerySchema.parse({
+      playerPool: "Mixed MLB",
+      posEligibilityThreshold: "0",
+    });
+
+    expect(parsed.playerPool).toBe("Mixed");
+    expect(parsed.posEligibilityThreshold).toBe(0);
+  });
+
   it("rejects unsupported sort options", () => {
     const result = playersQuerySchema.safeParse({ sortBy: "salary" });
 
