@@ -5,7 +5,7 @@ import { Database, BarChart3, Layers } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import { getPlayers, getPlayersCached } from "../api/players";
-import { getRoster, type RosterEntry } from "../api/roster";
+import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -54,7 +54,9 @@ export default function Research() {
     () => getPlayersCached("adp") === null,
   );
   const [playersError, setPlayersError] = useState("");
-  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
+  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
+    () => getRosterCached(leagueId ?? "") ?? [],
+  );
   const draftedIds = useMemo(
     () => new Set(rosterEntries.map((e) => e.externalPlayerId)),
     [rosterEntries],
