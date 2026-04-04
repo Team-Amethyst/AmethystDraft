@@ -186,7 +186,7 @@ export default function Research() {
               {isLoadingPlayers ? (
                 <div className="coming-soon">
                   <h2>Loading Players</h2>
-                  <p>Fetching player data from MongoDB...</p>
+                  <p>Fetching player data from MLB Stats API...</p>
                 </div>
               ) : (
                 <PlayerTable
