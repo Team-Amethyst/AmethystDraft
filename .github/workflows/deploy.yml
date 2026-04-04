@@ -54,6 +54,7 @@ jobs:
       - name: Deploy Frontend to S3
         run: |
           aws s3 sync apps/web/dist s3://amethyst-web-prod --delete
+          aws s3 website s3://amethyst-web-prod --index-document index.html --error-document index.html
 
       - name: Trigger App Runner Deployment
         env:
