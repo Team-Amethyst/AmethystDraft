@@ -6,7 +6,9 @@ import authRoutes from "./routes/auth";
 import playersRoutes from "./routes/players";
 import engineRoutes from "./routes/engine";
 import leaguesRoutes from "./routes/leagues";
-import { sendError } from "./lib/apiResponse";
+// import { sendError } from "./lib/apiResponse";
+import errorHandler from "./middleware/errorHandler";
+import { NotFoundError} from "./lib/appError";
 
 dotenv.config();
 
@@ -37,13 +39,13 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Draftroom API is running" });
 });
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  sendError(res, 500, {
-    code: "INTERNAL_SERVER_ERROR",
-    message: "Something went wrong!",
-  });
+// 404 for unknown routes
+app.use((_req: Request, _res: Response, next: NextFunction) => {
+  next(new NotFoundError("Route not found", 404,"ROUTE_NOT_FOUND"));
 });
+
+// Global typed error handler
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 

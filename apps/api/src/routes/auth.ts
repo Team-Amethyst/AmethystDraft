@@ -1,4 +1,4 @@
-import { Router, Request, Response, RequestHandler } from "express";
+import { Router, Request, Response, NextFunction, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 import { validate } from "../validation/validate";
@@ -7,6 +7,12 @@ import {
   loginSchema,
   forgotPasswordSchema,
 } from "../validation/schemas";
+import {
+  // ValidationError,
+  UnauthorizedError,
+  ConflictError,
+  // InternalServerError,
+} from "../lib/appError";
 
 // Explicit type annotation fixes the portable type error on Router()
 const router: Router = Router();
@@ -15,14 +21,16 @@ const router: Router = Router();
 const register: RequestHandler = async (
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { displayName, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      res.status(409).json({ message: "Email already in use" });
-      return;
+      // next(new ConflictError("Email already in use"));
+      // return;
+      throw new ConflictError("Email already in use", 409, "EMAIL_IN_USE");
     }
 
     const user = await User.create({
@@ -46,9 +54,10 @@ const register: RequestHandler = async (
         createdAt: user.createdAt,
       },
     });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) { // CHANGED: Catch block now forwards to next() instead of sending response directly
+    // console.error("Register error:", err);
+    // res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 
@@ -56,20 +65,23 @@ const register: RequestHandler = async (
 const login: RequestHandler = async (
   req: Request,
   res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
-      res.status(401).json({ message: "Invalid credentials" });
-      return;
+      // res.status(401).json({ message: "Invalid credentials" });
+      // return;
+      throw new UnauthorizedError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      res.status(401).json({ message: "Invalid credentials" });
-      return;
+      // res.status(401).json({ message: "Invalid credentials" });
+      // return;
+      throw new UnauthorizedError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
 
     user.lastLogin = new Date();
@@ -91,8 +103,9 @@ const login: RequestHandler = async (
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ message: "Server error" });
+    // console.error("Login error:", err);
+    // res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 
@@ -100,6 +113,7 @@ const login: RequestHandler = async (
 const forgotPassword: RequestHandler = async (
   req: Request,
   res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { email } = req.body;
@@ -114,8 +128,9 @@ const forgotPassword: RequestHandler = async (
     // TODO: generate reset token and send via nodemailer or similar
     res.json({ message: "If that email exists, a reset link has been sent" });
   } catch (err) {
-    console.error("Forgot password error:", err);
-    res.status(500).json({ message: "Server error" });
+    // console.error("Forgot password error:", err);
+    // res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 

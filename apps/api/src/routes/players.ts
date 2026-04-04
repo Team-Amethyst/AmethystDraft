@@ -1,4 +1,4 @@
-import { Router, Request, Response, RequestHandler } from "express";
+import { Router, Request, Response, NextFunction, RequestHandler } from "express";
 import {
   isPitchingPosition,
   normalizeFantasyPosition,
@@ -22,6 +22,7 @@ import {
   sortPlayers,
   type PlayerData,
 } from "../lib/playerCatalog";
+import { AppError, UpstreamError } from "../lib/appError";
 
 const router: Router = Router();
 
@@ -54,6 +55,7 @@ interface MlbStatSplit {
 const getPlayers: RequestHandler = async (
   req: Request,
   res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const sortBy = (req.query.sortBy as string) || "value";
@@ -64,16 +66,17 @@ const getPlayers: RequestHandler = async (
     const season3 = season - 2;
 
     // Fetch 3 seasons of stats + spring training in parallel
-    const [
-      batRes,
-      pitRes,
-      bat2Res,
-      pit2Res,
-      bat3Res,
-      pit3Res,
-      batSpringRes,
-      pitSpringRes,
-    ] = await Promise.all([
+    // const [
+    //   batRes,
+    //   pitRes,
+    //   bat2Res,
+    //   pit2Res,
+    //   bat3Res,
+    //   pit3Res,
+    //   batSpringRes,
+    //   pitSpringRes,
+    // ] = await Promise.all([
+    const responses = await Promise.all([
       fetch(
         `${MLB_API}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&limit=400&sportId=1`,
       ),
@@ -99,6 +102,27 @@ const getPlayers: RequestHandler = async (
         `${MLB_API}/stats?stats=season&group=pitching&season=${currentYear}&playerPool=ALL&limit=300&sportId=1&gameType=S`,
       ),
     ]);
+
+    const failed = responses.filter((r) => !r.ok);
+    if (failed.length > 0) {
+      throw new UpstreamError(
+        "MLB stats API request failed",
+        502,
+        "MLB_API_ERROR",
+        failed.map((r) => ({ url: r.url, status: r.status, statusText: r.statusText })),
+      );
+    }
+
+    const [
+      batRes,
+      pitRes,
+      bat2Res,
+      pit2Res,
+      bat3Res,
+      pit3Res,
+      batSpringRes,
+      pitSpringRes,
+    ] = responses;
 
     const parseSplits = async (
       res: globalThis.Response,
@@ -386,8 +410,16 @@ const getPlayers: RequestHandler = async (
 
     res.json({ players, count: players.length });
   } catch (err) {
-    console.error("Players route error:", err);
-    res.status(500).json({ message: "Failed to fetch player data" });
+    // console.error("Players route error:", err);
+    // res.status(500).json({ message: "Failed to fetch player data" });
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+
+    next(new UpstreamError("Failed to fetch player data", 502, "PLAYER_DATA_ERROR", {
+      cause: err instanceof Error ? err.message : String(err),
+    }));
   }
 };
 

@@ -9,9 +9,14 @@ import {
   buildScarcityContext,
   buildSimulationContext,
 } from "../lib/engineContext";
-import { sendError } from "../lib/apiResponse";
+// import { sendError } from "../lib/apiResponse";
 import { validateBody, validateQuery } from "../validation/validate";
 import { mockPickSchema, newsSignalsQuerySchema } from "../validation/schemas";
+import { 
+  AppError, 
+  UpstreamError, 
+  NotFoundError 
+} from "../lib/appError";
 
 const router: Router = Router();
 
@@ -20,22 +25,32 @@ router.use(authMiddleware as RequestHandler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function handleEngineError(err: unknown, res: Response): void {
+// function handleEngineError(err: unknown, res: Response): void {
+//   if (err instanceof AxiosError) {
+//     const status = err.response?.status ?? 502;
+//     const body = err.response?.data ?? { error: "Engine unreachable" };
+//     sendError(res, status, {
+//       code: "ENGINE_UPSTREAM_ERROR",
+//       message: "Engine request failed",
+//       details: body,
+//     });
+//     return;
+//   }
+//   console.error("Unexpected Engine error:", err);
+//   sendError(res, 502, {
+//     code: "ENGINE_UNREACHABLE",
+//     message: "Engine unreachable",
+//   });
+// }
+
+function throwEngineError(err:unknown): never {
   if (err instanceof AxiosError) {
     const status = err.response?.status ?? 502;
     const body = err.response?.data ?? { error: "Engine unreachable" };
-    sendError(res, status, {
-      code: "ENGINE_UPSTREAM_ERROR",
-      message: "Engine request failed",
-      details: body,
-    });
-    return;
+    throw new UpstreamError("Engine request failed", status, "ENGINE_UPSTREAM_ERROR", body);
   }
   console.error("Unexpected Engine error:", err);
-  sendError(res, 502, {
-    code: "ENGINE_UNREACHABLE",
-    message: "Engine unreachable",
-  });
+  throw new UpstreamError("Engine unreachable", 502, "ENGINE_UNREACHABLE");
 }
 
 // ─── POST /api/engine/leagues/:leagueId/valuation ─────────────────────────────
@@ -48,18 +63,21 @@ const calculateValuation: RequestHandler = async (
   try {
     const league = await League.findById(req.params.leagueId);
     if (!league) {
-      sendError(res, 404, {
-        code: "LEAGUE_NOT_FOUND",
-        message: "League not found",
-      });
-      return;
+      // sendError(res, 404, {
+      //   code: "LEAGUE_NOT_FOUND",
+      //   message: "League not found",
+      // });
+      // return;
+      throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
     const context = buildValuationContext(league, entries);
     const { data } = await amethyst.post("/valuation/calculate", context);
     res.json(data);
   } catch (err) {
-    handleEngineError(err, res);
+    // handleEngineError(err, res);
+    if (err instanceof AppError) throw err;
+    throwEngineError(err);
   }
 };
 
@@ -74,11 +92,12 @@ const analyzeScarcity: RequestHandler = async (
   try {
     const league = await League.findById(req.params.leagueId);
     if (!league) {
-      sendError(res, 404, {
-        code: "LEAGUE_NOT_FOUND",
-        message: "League not found",
-      });
-      return;
+      // sendError(res, 404, {
+      //   code: "LEAGUE_NOT_FOUND",
+      //   message: "League not found",
+      // });
+      // return;
+      throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
     const position =
@@ -87,7 +106,9 @@ const analyzeScarcity: RequestHandler = async (
     const { data } = await amethyst.post("/analysis/scarcity", context);
     res.json(data);
   } catch (err) {
-    handleEngineError(err, res);
+    // handleEngineError(err, res);
+    if (err instanceof AppError) throw err;
+    throwEngineError(err);
   }
 };
 
@@ -102,11 +123,12 @@ const simulateMockPick: RequestHandler = async (
   try {
     const league = await League.findById(req.params.leagueId);
     if (!league) {
-      sendError(res, 404, {
-        code: "LEAGUE_NOT_FOUND",
-        message: "League not found",
-      });
-      return;
+      // sendError(res, 404, {
+      //   code: "LEAGUE_NOT_FOUND",
+      //   message: "League not found",
+      // });
+      // return;
+      throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
     const { budgetByTeamId, availablePlayerIds } = req.body as {
@@ -122,7 +144,9 @@ const simulateMockPick: RequestHandler = async (
     const { data } = await amethyst.post("/simulation/mock-pick", context);
     res.json(data);
   } catch (err) {
-    handleEngineError(err, res);
+    // handleEngineError(err, res);
+    if (err instanceof AppError) throw err;
+    throwEngineError(err);
   }
 };
 
@@ -146,7 +170,9 @@ const getNewsSignals: RequestHandler = async (
     const { data } = await amethyst.get("/signals/news", { params });
     res.json(data);
   } catch (err) {
-    handleEngineError(err, res);
+    // handleEngineError(err, res);
+    if (err instanceof AppError) throw err;
+    throwEngineError(err);
   }
 };
 
