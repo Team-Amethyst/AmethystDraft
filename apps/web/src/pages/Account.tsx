@@ -3,12 +3,14 @@ import { useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { usePageTitle } from "../hooks/usePageTitle";import { updateProfile, changePassword } from "../api/auth";import "./Account.css";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { updateProfile, changePassword } from "../api/auth";
+import "./Account.css";
 
 export default function Account() {
   usePageTitle("Account");
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, token, login, logout } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
