@@ -17,6 +17,16 @@ export const forgotPasswordSchema = z.object({
   email: z.string().min(1, "Email is required"),
 });
 
+export const updateProfileSchema = z.object({
+  displayName: z.string().trim().min(1, "Display name is required").optional(),
+  email: z.string().email("Invalid email address").optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters"),
+});
+
 // ─── Leagues ──────────────────────────────────────────────────────────────────
 
 const scoringCategorySchema = z.object({

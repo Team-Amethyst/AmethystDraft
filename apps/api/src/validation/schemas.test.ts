@@ -3,6 +3,8 @@ import {
   mockPickSchema,
   newsSignalsQuerySchema,
   playersQuerySchema,
+  updateProfileSchema,
+  changePasswordSchema,
 } from "./schemas";
 
 describe("mockPickSchema", () => {
@@ -63,6 +65,56 @@ describe("playersQuerySchema", () => {
 
   it("rejects unsupported sort options", () => {
     const result = playersQuerySchema.safeParse({ sortBy: "salary" });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateProfileSchema", () => {
+  it("accepts valid update data", () => {
+    const parsed = updateProfileSchema.parse({
+      displayName: "New Name",
+      email: "new@example.com",
+    });
+
+    expect(parsed.displayName).toBe("New Name");
+    expect(parsed.email).toBe("new@example.com");
+  });
+
+  it("accepts partial updates", () => {
+    const parsed = updateProfileSchema.parse({
+      displayName: "New Name",
+    });
+
+    expect(parsed.displayName).toBe("New Name");
+    expect(parsed.email).toBeUndefined();
+  });
+
+  it("rejects invalid email", () => {
+    const result = updateProfileSchema.safeParse({
+      email: "invalid",
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("changePasswordSchema", () => {
+  it("accepts valid password change", () => {
+    const parsed = changePasswordSchema.parse({
+      currentPassword: "oldpass",
+      newPassword: "newpass123",
+    });
+
+    expect(parsed.currentPassword).toBe("oldpass");
+    expect(parsed.newPassword).toBe("newpass123");
+  });
+
+  it("rejects short new password", () => {
+    const result = changePasswordSchema.safeParse({
+      currentPassword: "oldpass",
+      newPassword: "short",
+    });
 
     expect(result.success).toBe(false);
   });

@@ -3,8 +3,7 @@ import { useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { usePageTitle } from "../hooks/usePageTitle";
-import "./Account.css";
+import { usePageTitle } from "../hooks/usePageTitle";import { updateProfile, changePassword } from "../api/auth";import "./Account.css";
 
 export default function Account() {
   usePageTitle("Account");
@@ -19,26 +18,35 @@ export default function Account() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  const handleSaveProfile = () => {
-    // TODO(db): PATCH /users/:id with updated displayName/email
-    console.log("Save profile", { displayName, email });
+  const handleSaveProfile = async () => {
+    try {
+      const updatedUser = await updateProfile({ displayName, email }, token!);
+      login(token!, updatedUser); // Update the context with new user data
+      alert("Profile updated successfully");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to update profile");
+    }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPasswordError("");
     if (newPassword !== confirmPassword) {
       setPasswordError("New passwords don't match.");
       return;
     }
-    if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters.");
+    if (newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
       return;
     }
-    // TODO(db): POST /users/:id/change-password with currentPassword + newPassword
-    console.log("Change password");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    try {
+      await changePassword(currentPassword, newPassword, token!);
+      alert("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: unknown) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password");
+    }
   };
 
   const handleDeleteAccount = () => {

@@ -6,6 +6,8 @@ import {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
+  updateProfileSchema,
+  changePasswordSchema,
 } from "../validation/schemas";
 import {
   // ValidationError,
@@ -13,6 +15,7 @@ import {
   ConflictError,
   // InternalServerError,
 } from "../lib/appError";
+import authMiddleware, { AuthRequest } from "../middleware/auth";
 
 // Explicit type annotation fixes the portable type error on Router()
 const router: Router = Router();
@@ -134,8 +137,68 @@ const forgotPassword: RequestHandler = async (
   }
 };
 
+// PATCH /api/auth/me
+const updateProfile: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user!;
+    const { displayName, email } = req.body;
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        throw new ConflictError("Email already in use", 409, "EMAIL_IN_USE");
+      }
+    }
+
+    user.displayName = displayName ?? user.displayName;
+    user.email = email ?? user.email;
+    await user.save();
+
+    res.json({
+      user: {
+        id: user._id,
+        displayName: user.displayName,
+        email: user.email,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/auth/change-password
+const changePassword: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user!;
+    const { currentPassword, newPassword } = req.body;
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      throw new UnauthorizedError("Current password is incorrect", 401, "INVALID_CURRENT_PASSWORD");
+    }
+
+    user.passwordHash = newPassword;
+    await user.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 router.post("/register", validate(registerSchema), register);
 router.post("/login", validate(loginSchema), login);
 router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
+router.patch("/me", authMiddleware, validate(updateProfileSchema), updateProfile);
+router.post("/change-password", authMiddleware, validate(changePasswordSchema), changePassword);
 
 export default router;
