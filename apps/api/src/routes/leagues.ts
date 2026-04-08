@@ -74,8 +74,6 @@ const createLeague: RequestHandler = async (
 
     res.status(201).json(serializeLeague(league));
   } catch (err) {
-    // console.error("Create league error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -91,8 +89,6 @@ const getMyLeagues: RequestHandler = async (
     const leagues = await League.find({ memberIds: req.user!._id });
     res.json(leagues.map(serializeLeague));
   } catch (err) {
-    // console.error("Get leagues error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -111,15 +107,11 @@ const getLeague: RequestHandler = async (
     });
 
     if (!league) {
-      // res.status(404).json({ message: "League not found" });
-      // return;
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
 
     res.json(serializeLeague(league));
   } catch (err) {
-    // console.error("Get league error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -138,9 +130,7 @@ const updateLeague: RequestHandler = async (
     });
 
     if (!league) {
-      // res.status(404).json({ message: "League not found or not authorized" });
-      // return;
-      throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
+      throw new NotFoundError("League not found or not authorized", 404, "LEAGUE_NOT_FOUND_OR_UNAUTHORIZED");
     }
 
     const {
@@ -175,8 +165,6 @@ const updateLeague: RequestHandler = async (
     await league.save();
     res.json(serializeLeague(league));
   } catch (err) {
-    // console.error("Update league error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -194,8 +182,6 @@ const getRoster: RequestHandler = async (
       memberIds: req.user!._id,
     });
     if (!league) {
-      // res.status(404).json({ message: "League not found" });
-      // return;
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: req.params.id }).sort({
@@ -203,8 +189,6 @@ const getRoster: RequestHandler = async (
     });
     res.json(entries);
   } catch (err) {
-    // console.error("Get roster error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -222,8 +206,6 @@ const addRosterEntry: RequestHandler = async (
       memberIds: req.user!._id,
     });
     if (!league) {
-      // res.status(404).json({ message: "League not found" });
-      // return;
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const {
@@ -241,10 +223,6 @@ const addRosterEntry: RequestHandler = async (
     const requesterId = String(req.user!._id);
     const isCommissioner = String(league.commissionerId) === requesterId;
     if (userId && userId !== requesterId && !isCommissioner) {
-      // res.status(403).json({
-      //   message: "Only the commissioner can add entries for other teams",
-      // });
-      // return;
       throw new ForbiddenError("Only the commissioner can add entries for other teams", 403, "FORBIDDEN_TEAM_WRITE");
     }
     const resolvedUserId =
@@ -271,8 +249,6 @@ const addRosterEntry: RequestHandler = async (
     });
     res.status(201).json(entry);
   } catch (err) {
-    // console.error("Add roster entry error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -290,8 +266,6 @@ const removeRosterEntry: RequestHandler = async (
       memberIds: req.user!._id,
     });
     if (!league) {
-      // res.status(404).json({ message: "League not found" });
-      // return;
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entry = await RosterEntry.findOne({
@@ -299,22 +273,16 @@ const removeRosterEntry: RequestHandler = async (
       leagueId: req.params.id,
     });
     if (!entry) {
-      // res.status(404).json({ message: "Entry not found" });
-      // return;
       throw new NotFoundError("Entry not found", 404, "ENTRY_NOT_FOUND");
     }
     const isCommissioner =
       String(league.commissionerId) === String(req.user!._id);
     if (!isCommissioner && String(entry.userId) !== String(req.user!._id)) {
-      // res.status(403).json({ message: "Not authorized to remove this entry" });
-      // return;
       throw new ForbiddenError("Not authorized to remove this entry", 403, "FORBIDDEN_TEAM_WRITE");
     }
     await entry.deleteOne();
     res.status(204).send();
   } catch (err) {
-    // console.error("Remove roster entry error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -333,8 +301,6 @@ const updateRosterEntry: RequestHandler = async (
       memberIds: req.user!._id,
     });
     if (!league) {
-      // res.status(404).json({ message: "League not found" });
-      // return;
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const isCommissioner =
@@ -346,16 +312,12 @@ const updateRosterEntry: RequestHandler = async (
       leagueId: req.params.id,
     }).lean();
     if (!existingEntry) {
-      // res.status(404).json({ message: "Entry not found" });
-      // return;
       throw new NotFoundError("Entry not found", 404, "ENTRY_NOT_FOUND");
     }
     if (
       !isCommissioner &&
       String(existingEntry.userId) !== String(req.user!._id)
     ) {
-      // res.status(403).json({ message: "Not authorized to update this entry" });
-      // return;
       throw new ForbiddenError("Not authorized to update this entry", 403, "FORBIDDEN_TEAM_WRITE");
     }
 
@@ -367,8 +329,6 @@ const updateRosterEntry: RequestHandler = async (
 
     // Only the commissioner can reassign an entry to a different team
     if (teamId !== undefined && !isCommissioner) {
-      // res.status(403).json({ message: "Only the commissioner can reassign entries" });
-      // return;
       throw new ForbiddenError("Only the commissioner can reassign entries", 403, "FORBIDDEN_TEAM_WRITE");
     }
 
@@ -378,8 +338,6 @@ const updateRosterEntry: RequestHandler = async (
     if (teamId !== undefined) {
       const teamIndex = parseInt(teamId.replace("team_", ""), 10) - 1;
       if (isNaN(teamIndex) || teamIndex < 0) {
-        // res.status(400).json({ message: "Invalid teamId" });
-        // return;
         throw new ValidationError("Invalid teamId", 400, "INVALID_TEAM_ID");
       }
       update.teamId = teamId;
@@ -393,14 +351,10 @@ const updateRosterEntry: RequestHandler = async (
       { new: true },
     );
     if (!entry) {
-      // res.status(404).json({ message: "Entry not found" });
-      // return;
       throw new NotFoundError("Entry not found", 404, "ENTRY_NOT_FOUND");
     }
     res.json(entry);
   } catch (err) {
-    // console.error("Update roster entry error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -423,8 +377,6 @@ const getNotes: RequestHandler = async (
     }
     res.json(map);
   } catch (err) {
-    // console.error("Get notes error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -449,8 +401,6 @@ const upsertNote: RequestHandler = async (
     );
     res.json({ content: note.content });
   } catch (err) {
-    // console.error("Upsert note error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -480,8 +430,6 @@ const getWatchlist: RequestHandler = async (
       })),
     );
   } catch (err) {
-    // console.error("Get watchlist error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -522,8 +470,6 @@ const upsertWatchlistEntry: RequestHandler = async (
     );
     res.status(204).send();
   } catch (err) {
-    // console.error("Upsert watchlist entry error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };
@@ -543,8 +489,6 @@ const deleteWatchlistEntry: RequestHandler = async (
     });
     res.status(204).send();
   } catch (err) {
-    // console.error("Delete watchlist entry error:", err);
-    // res.status(500).json({ message: "Server error" });
     next(err);
   }
 };

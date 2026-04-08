@@ -11,6 +11,7 @@ import {
 } from "../lib/engineContext";
 import { validateBody, validateQuery } from "../validation/validate";
 import { mockPickSchema, newsSignalsQuerySchema } from "../validation/schemas";
+import { logRequestError } from "../lib/errorLogging";
 import { 
   AppError, 
   UpstreamError, 
@@ -24,13 +25,16 @@ router.use(authMiddleware as RequestHandler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function throwEngineError(err:unknown): never {
+function throwEngineError(err: unknown, req: AuthRequest): never {
   if (err instanceof AxiosError) {
     const status = err.response?.status ?? 502;
     const body = err.response?.data ?? { error: "Engine unreachable" };
     throw new UpstreamError("Engine request failed", status, "ENGINE_UPSTREAM_ERROR", body);
   }
-  console.error("Unexpected Engine error:", err);
+
+  // Log the original unexpected error with request context, then throw
+  // the same typed upstream error response used before centralization.
+  logRequestError(err, req, "engine");
   throw new UpstreamError("Engine unreachable", 502, "ENGINE_UNREACHABLE");
 }
 
@@ -52,7 +56,7 @@ const calculateValuation: RequestHandler = async (
     res.json(data);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throwEngineError(err);
+    throwEngineError(err, req);
   }
 };
 
@@ -77,7 +81,7 @@ const analyzeScarcity: RequestHandler = async (
     res.json(data);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throwEngineError(err);
+    throwEngineError(err, req);
   }
 };
 
@@ -109,7 +113,7 @@ const simulateMockPick: RequestHandler = async (
     res.json(data);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throwEngineError(err);
+    throwEngineError(err, req);
   }
 };
 
@@ -134,7 +138,7 @@ const getNewsSignals: RequestHandler = async (
     res.json(data);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throwEngineError(err);
+    throwEngineError(err, req);
   }
 };
 

@@ -1,3 +1,5 @@
+// Base API error type used by the global error middleware.
+// Any error extending AppError keeps its status/code/message in responses.
 export class AppError extends Error {
     public readonly statusCode: number;
     public readonly code: string;
@@ -18,9 +20,10 @@ export class AppError extends Error {
     }
 }
 
+// 400-level validation/input error.
 export class ValidationError extends AppError {
     constructor(
-        message: string, // Error depends on context, so require it to be passed in
+        message: string,
         statusCode = 400,
         code = "VALIDATION_FAILED",
         details?: unknown 
@@ -30,6 +33,7 @@ export class ValidationError extends AppError {
     }
 }
 
+// 401 authentication error.
 export class UnauthorizedError extends AppError {
     constructor(
         message = "Unauthorized", 
@@ -41,6 +45,7 @@ export class UnauthorizedError extends AppError {
     }
 }
 
+// 403 authorization error.
 export class ForbiddenError extends AppError {
     constructor(
         message = "Forbidden", 
@@ -52,6 +57,7 @@ export class ForbiddenError extends AppError {
     }
 }
 
+// 404 missing resource/route error.
 export class NotFoundError extends AppError {
     constructor(
         message = "Resource not found",
@@ -63,6 +69,7 @@ export class NotFoundError extends AppError {
     }
  }
 
+ // 409 conflict error (for example duplicate unique fields).
  export class ConflictError extends AppError {
     constructor(
         message = "Conflict",
@@ -74,6 +81,7 @@ export class NotFoundError extends AppError {
     }
  }
 
+ // 502 upstream dependency failure.
  export class UpstreamError extends AppError {
     constructor(
         message = "Upstream request failed",
@@ -85,6 +93,7 @@ export class NotFoundError extends AppError {
     }
  }
 
+ // 500 fallback for unknown/unexpected server errors.
  export class InternalServerError extends AppError {
     constructor(
         message = "Internal server error",
