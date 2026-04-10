@@ -82,3 +82,31 @@ export async function changePassword(
     "Failed to change password",
   );
 }
+
+export async function deleteAccount(userId: string, token: string): Promise<void> {
+  return requestVoid(
+    "/api/auth/users/" + userId,
+    {
+      method: "DELETE",
+      headers: authHeaders(token),
+    },
+    "Failed to delete account",
+  );
+}
+
+// Password-confirmed deletion helper variant (kept for quick restore):
+// export async function deleteAccount(
+//   userId: string,
+//   token: string,
+//   currentPassword: string,
+// ): Promise<void> {
+//   return requestVoid(
+//     "/api/auth/users/" + userId,
+//     {
+//       method: "DELETE",
+//       headers: authHeaders(token),
+//       body: JSON.stringify({ currentPassword }),
+//     },
+//     "Failed to delete account",
+//   );
+// }

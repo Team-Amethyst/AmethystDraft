@@ -4,7 +4,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { updateProfile, changePassword } from "../api/auth";
+import { updateProfile, changePassword, deleteAccount } from "../api/auth";
 import "./Account.css";
 
 export default function Account() {
@@ -19,6 +19,12 @@ export default function Account() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  // Password-confirmed deletion state (kept for quick restore):
+  // const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSaveProfile = async () => {
     try {
@@ -52,8 +58,41 @@ export default function Account() {
   };
 
   const handleDeleteAccount = () => {
-    // TODO(db): DELETE /users/:id — require confirmation modal before wiring
-    console.log("Delete account");
+    setDeleteError("");
+    // Password-confirmed deletion flow (kept for quick restore):
+    // setDeletePassword("");
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteError("");
+
+    if (!user?.id || !token) {
+      setDeleteError("You must be signed in to delete your account.");
+      return;
+    }
+
+    // Password-confirmed deletion flow (kept for quick restore):
+    // if (!deletePassword.trim()) {
+    //   setDeleteError("Please confirm your current password to delete your account.");
+    //   return;
+    // }
+
+    try {
+      setIsDeleting(true);
+      // Password-confirmed deletion API call variant:
+      // await deleteAccount(user.id, token, deletePassword);
+      await deleteAccount(user.id, token);
+      logout();
+      navigate("/login", {
+        replace: true,
+        state: { successMessage: "Account deleted successfully, we're sorry to see you go."},
+      });
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message: "Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -172,6 +211,46 @@ export default function Account() {
           </button>
         </div>
       </div>
+      {isDeleteModalOpen && (
+        <div className="account-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="account-modal">
+            <h3>Delete Account</h3>
+            <p className="account-modal-warning">
+              This action is permanent and cannot be undone. Do you want to continue?
+            </p>
+
+            {/* Password-confirmed deletion field (kept for quick restore):
+            <div className="account-field">
+              <label>Current Password</label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                disabled={isDeleting}
+              />
+            </div>
+            */}
+
+            {deleteError && <div className="account-error">{deleteError}</div>}
+
+            <div className="account-modal-actions">
+              <button
+                className="account-signout-btn"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="account-delete-btn account-delete-confirm"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                  {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div> )}
     </div>
   );
 }

@@ -85,6 +85,7 @@
   border-color: rgba(168,85,247,0.6);
   background: rgba(147,51,234,0.07);
 }
+.login-success { font-size: 0.8rem; color: #4ade80; margin: 0; }
 .login-error { font-size: 0.8rem; color: #f87171; margin: 0; }
 .login-submit {
   width: 100%;

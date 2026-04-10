@@ -1,6 +1,10 @@
 import { Router, Request, Response, NextFunction, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
+import League from "../models/League";
+import PlayerNote from "../models/PlayerNote";
+import WatchlistEntry from "../models/WatchlistEntry";
+import RosterEntry from "../models/RosterEntry";
 import { validate } from "../validation/validate";
 import {
   registerSchema,
@@ -8,10 +12,13 @@ import {
   forgotPasswordSchema,
   updateProfileSchema,
   changePasswordSchema,
+  // deleteAccountSchema,
 } from "../validation/schemas";
 import {
   UnauthorizedError,
   ConflictError,
+  ForbiddenError,
+  NotFoundError
 } from "../lib/appError";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
 
@@ -181,10 +188,92 @@ const changePassword: RequestHandler = async (
   }
 };
 
+// DELETE /api/auth/users/:id
+const deleteAccount: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw new UnauthorizedError("Unauthorized", 401, "UNAUTHORIZED");
+    }
+    
+    if (String(user._id) !== String(req.params.id)) {
+      throw new ForbiddenError("You can only delete your own account", 403, "FORBIDDEN");
+    }
+
+    // Password-confirmed deletion flow (kept for quick restore if required later):
+    // const { currentPassword } = req.body as { currentPassword?: string };
+    // if (!currentPassword) {
+    //   throw new UnauthorizedError(
+    //     "Password confirmation is required",
+    //     401,
+    //     "PASSWORD_CONFIRMATION_REQUIRED",
+    //   );
+    // }
+    // const isMatch = await user.comparePassword(currentPassword);
+    // if (!isMatch) {
+    //   throw new UnauthorizedError(
+    //     "Current password is incorrect",
+    //     401,
+    //     "INVALID_CURRENT_PASSWORD",
+    //   );
+    // }
+
+    const userId = user._id;
+
+    // 1) Remove user-owned leagues entirely.
+    const ownedLeagues = await League.find({ commissionerId: userId }).select("_id").lean();
+    const ownedLeagueIds = ownedLeagues.map((l) => l._id);
+    if (ownedLeagueIds.length > 0) {
+      await Promise.all([
+        RosterEntry.deleteMany({ leagueId: { $in: ownedLeagueIds } }),
+        PlayerNote.deleteMany({ leagueId: { $in: ownedLeagueIds } }),
+        WatchlistEntry.deleteMany({ leagueId: { $in: ownedLeagueIds } }),
+        League.deleteMany({ _id: { $in: ownedLeagueIds } }),
+      ]);
+    }
+
+    // 2) Remove user from member lists in leagues they joined but do not own.
+    await League.updateMany(
+      {
+        commissionerId: { $ne: userId },
+        memberIds: userId,
+      },
+      {
+        $pull: { memberIds: userId },
+      },
+    );
+
+    // 3) Remove user-scoped league data in remaining leagues.
+    await Promise.all([
+      RosterEntry.deleteMany({ userId }),
+      PlayerNote.deleteMany({ userId }),
+      WatchlistEntry.deleteMany({ userId }),
+    ]);
+
+    // 4) Delete account.
+    const deleted = await User.findByIdAndDelete(userId);
+    if (!deleted) {
+      throw new NotFoundError("User not found", 404, "USER_NOT_FOUND");
+    }
+
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 router.post("/register", validate(registerSchema), register);
 router.post("/login", validate(loginSchema), login);
 router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
 router.patch("/me", authMiddleware, validate(updateProfileSchema), updateProfile);
 router.post("/change-password", authMiddleware, validate(changePasswordSchema), changePassword);
+router.delete("/users/:id", authMiddleware, deleteAccount);
+// Password-confirmed deletion route variant:
+// router.delete("/users/:id", authMiddleware, validate(deleteAccountSchema), deleteAccount);
 
 export default router;

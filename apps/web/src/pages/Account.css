@@ -227,3 +227,59 @@
   border-color: rgba(220, 38, 38, 0.6);
   color: #ef4444;
 }
+
+.account-modal-backdrop {
+position: fixed;
+inset: 0;
+background: rgba(0, 0, 0, 0.55);
+display: flex;
+align-items: center;
+justify-content: center;
+z-index: 300;
+padding: 1rem;
+}
+
+.account-modal {
+width: 100%;
+max-width: 420px;
+background: #120a1f;
+border: 1px solid rgba(220, 38, 38, 0.35);
+border-radius: 10px;
+padding: 1.25rem;
+}
+
+.account-modal h3 {
+margin: 0 0 0.5rem;
+font-size: 1.1rem;
+color: #fff;
+}
+
+.account-modal-warning {
+margin: 0 0 1rem;
+color: #fca5a5;
+font-size: 0.9rem;
+}
+
+.account-modal-actions {
+display: flex;
+justify-content: flex-end;
+gap: 0.5rem;
+margin-top: 1rem;
+}
+
+.account-delete-confirm {
+background: rgba(220, 38, 38, 0.16);
+color: #fca5a5;
+border-color: rgba(220, 38, 38, 0.6);
+}
+
+.account-delete-confirm:hover {
+background: rgba(220, 38, 38, 0.26);
+color: #fecaca;
+}
+
+.account-delete-confirm:disabled,
+.account-signout-btn:disabled {
+opacity: 0.6;
+cursor: not-allowed;
+}

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Zap, ArrowLeft } from "lucide-react";
 import { loginUser } from "../api/auth";
 import { useAuth } from "../contexts/AuthContext";
@@ -10,11 +10,20 @@ export default function Login() {
   usePageTitle("Log In");
   const navigate = useNavigate();
   const { login } = useAuth();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  useEffect(() => {
+    const state = location.state as {successMessage?: string} | null;
+    if (state?.successMessage) {
+      setSuccessMessage(state.successMessage);
+    } 
+  }, [location.state]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +78,7 @@ export default function Login() {
               placeholder="••••••••"
             />
           </div>
+          {successMessage && <p className="login-success">{successMessage}</p>}
           {error && <p className="login-error">{error}</p>}
           <button type="submit" disabled={loading} className="login-submit">
             {loading ? "Signing in..." : "Sign In"}
