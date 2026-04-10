@@ -24,6 +24,7 @@ interface AuctionCenterProps {
   draftedIds: Set<string>;
   myTeamEntries: RosterEntry[];
   showToast: (message: string, type?: "success" | "error" | "info") => void;
+  onAddMissingPlayer?: () => void;
 }
 
 export function AuctionCenter({
@@ -35,6 +36,7 @@ export function AuctionCenter({
   draftedIds,
   myTeamEntries,
   showToast,
+  onAddMissingPlayer,
 }: AuctionCenterProps) {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
@@ -445,6 +447,10 @@ export function AuctionCenter({
               >
                 ↪
               </button>
+              <button className="cc-add-missing-btn" onClick={onAddMissingPlayer}>
+                + Add Missing Player
+              </button>
+
             </div>
           </div>
           {showDropdown && dropdownResults.length > 0 && (

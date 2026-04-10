@@ -8,6 +8,8 @@ import engineRoutes from "./routes/engine";
 import leaguesRoutes from "./routes/leagues";
 import errorHandler from "./middleware/errorHandler";
 import { NotFoundError} from "./lib/appError";
+import customPlayerRoutes from "./routes/customPlayers";
+
 
 dotenv.config();
 
@@ -30,9 +32,11 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/players/custom", customPlayerRoutes);
 app.use("/api/players", playersRoutes);
 app.use("/api/engine", engineRoutes);
 app.use("/api/leagues", leaguesRoutes);
+
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Draftroom API is running" });

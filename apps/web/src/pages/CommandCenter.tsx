@@ -27,6 +27,9 @@ import {
   teamCanBid,
   normalizeCatName,
 } from "./commandCenterUtils";
+import AddPlayerModal from "../components/AddPlayerModal";
+import { useCustomPlayers } from "../hooks/useCustomPlayers";
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -1022,8 +1025,16 @@ export default function CommandCenter() {
   const { token, user } = useAuth();
   const [activeTab, setActiveTab] = useState("Market");
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
-  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  // const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  const [mlbPlayers, setMlbPlayers] = useState<Player[]>([]);
   const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
+  const { customPlayers, addCustomPlayer } = useCustomPlayers();
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const allPlayers = useMemo(
+    () => [...customPlayers, ...mlbPlayers],
+    [customPlayers, mlbPlayers],
+  );
 
   // 1/2/3 → switch tabs (Market / Teams / Standings)
   useEffect(() => {
@@ -1049,11 +1060,16 @@ export default function CommandCenter() {
     void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
   }, [leagueId, token]);
 
+  // useEffect(() => {
+  //   void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
+  //     .then(setAllPlayers)
+  //     .catch(console.error);
+  // }, [league?.posEligibilityThreshold, league?.playerPool]);
   useEffect(() => {
-    void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
-      .then(setAllPlayers)
-      .catch(console.error);
-  }, [league?.posEligibilityThreshold, league?.playerPool]);
+  void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
+    .then(setMlbPlayers)
+    .catch(console.error);
+}, [league?.posEligibilityThreshold, league?.playerPool]);
 
   // If selectedPlayer was set from the watchlist (stub with mlbId 0 / no real data),
   // replace it with the full player once allPlayers is loaded.
@@ -1135,6 +1151,53 @@ export default function CommandCenter() {
     }
   };
 
+  // return (
+  //   <div className="cc-page">
+  //     <div className="cc-layout">
+  //       <LeftPanel
+  //         activeTab={activeTab}
+  //         setActiveTab={setActiveTab}
+  //         league={league}
+  //         teamData={teamData}
+  //         myTeamName={myTeamName}
+  //         selectedPlayerPositions={
+  //           selectedPlayer
+  //             ? selectedPlayer.positions?.length
+  //               ? selectedPlayer.positions
+  //               : [selectedPlayer.position]
+  //             : []
+  //         }
+  //         allPlayers={allPlayers}
+  //         draftedIds={draftedIds}
+  //         rosterEntries={rosterEntries}
+  //         onRemovePick={handleRemovePick}
+  //         onUpdatePick={handleUpdatePick}
+  //       />
+  //       <AuctionCenter
+  //         rosterEntries={rosterEntries}
+  //         refreshRoster={refreshRoster}
+  //         allPlayers={allPlayers}
+  //         selectedPlayer={selectedPlayer}
+  //         setSelectedPlayer={setSelectedPlayer}
+  //         draftedIds={draftedIds}
+  //         myTeamEntries={myTeamEntries}
+  //         showToast={showToast}
+  //       />
+  //       <RightPanel
+  //         league={league}
+  //         teamData={teamData}
+  //         myTeamName={myTeamName}
+  //         myTeamEntries={myTeamEntries}
+  //         allPlayers={allPlayers}
+  //         rosterEntries={rosterEntries}
+  //       />
+  //     </div>
+  //     {toast && (
+  //       <div className={`cc-toast cc-toast-${toast.type}`}>{toast.message}</div>
+  //     )}
+  //   </div>
+  // );
+
   return (
     <div className="cc-page">
       <div className="cc-layout">
@@ -1166,6 +1229,9 @@ export default function CommandCenter() {
           draftedIds={draftedIds}
           myTeamEntries={myTeamEntries}
           showToast={showToast}
+          // Pass the modal trigger down so AuctionCenter can open it
+          // when a searched player is not found
+          onAddMissingPlayer={() => setShowAddModal(true)}
         />
         <RightPanel
           league={league}
@@ -1176,9 +1242,22 @@ export default function CommandCenter() {
           rosterEntries={rosterEntries}
         />
       </div>
+  
       {toast && (
         <div className={`cc-toast cc-toast-${toast.type}`}>{toast.message}</div>
       )}
+  
+      {/* Add Missing Player modal */}
+      <AddPlayerModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={(player) => {
+          addCustomPlayer(player);
+          setSelectedPlayer(player);
+          // onClose handles setShowAddModal(false) automatically
+        }}
+      />
     </div>
   );
+
 }

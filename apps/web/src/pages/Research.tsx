@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { Database, BarChart3, Layers } from "lucide-react";
+import { Database, BarChart3, Layers, UserPlus } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import { getPlayers, getPlayersCached } from "../api/players";
@@ -15,15 +15,22 @@ import {
   normalizePlayerPositions,
 } from "../utils/eligibility";
 import "./Research.css";
+import AddPlayerModal from "../components/AddPlayerModal";
+import { useCustomPlayers } from "../hooks/useCustomPlayers";
 
 export default function Research() {
   usePageTitle("Research");
+
+  const { customPlayers, addCustomPlayer, isCustomPlayer } = useCustomPlayers();
+  const [showAddModal, setShowAddModal] = useState(false);
+
   const { id: leagueId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
   const { league } = useLeague();
   const { token } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
+
   const [selectedView, setSelectedView] = useState("player-database");
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState(() => {
@@ -47,6 +54,7 @@ export default function Research() {
       return "last-year";
     }
   });
+
   const [players, setPlayers] = useState<Player[]>(
     () => getPlayersCached("adp") ?? [],
   );
@@ -54,13 +62,16 @@ export default function Research() {
     () => getPlayersCached("adp") === null,
   );
   const [playersError, setPlayersError] = useState("");
+
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
     () => getRosterCached(leagueId ?? "") ?? [],
   );
+
   const draftedIds = useMemo(
     () => new Set(rosterEntries.map((e) => e.externalPlayerId)),
     [rosterEntries],
   );
+
   const draftedByTeam = useMemo(() => {
     const map = new Map<string, string>();
     for (const e of rosterEntries) {
@@ -82,16 +93,13 @@ export default function Research() {
   useEffect(() => {
     try {
       localStorage.setItem("amethyst-research-position", positionFilter);
-    } catch {
-      /* noop */
-    }
+    } catch { /* noop */ }
   }, [positionFilter]);
+
   useEffect(() => {
     try {
       localStorage.setItem("amethyst-research-statbasis", statBasis);
-    } catch {
-      /* noop */
-    }
+    } catch { /* noop */ }
   }, [statBasis]);
 
   useEffect(() => {
@@ -125,8 +133,14 @@ export default function Research() {
     }
   }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
 
+  // Merge MLB API players with custom players — custom players appear at the top
+  const allPlayers = useMemo(
+    () => [...customPlayers, ...players],
+    [players, customPlayers],
+  );
+
   const filteredPlayers = useMemo(() => {
-    return players.filter((player) => {
+    return allPlayers.filter((player) => {
       const playerName = player.name?.toLowerCase() ?? "";
       const matchesSearch = playerName.includes(searchQuery.toLowerCase());
       const matchesPosition =
@@ -146,7 +160,7 @@ export default function Research() {
         })();
       return matchesSearch && matchesPosition;
     });
-  }, [players, searchQuery, positionFilter]);
+  }, [allPlayers, searchQuery, positionFilter]);
 
   const handlePlayerClick = (player: Player) => {
     setSelectedPlayer(player);
@@ -155,14 +169,15 @@ export default function Research() {
 
   const navigationItems = [
     { id: "player-database", label: "Players", icon: Database },
-    { id: "tiers", label: "Tiers", icon: BarChart3 },
-    { id: "depth-charts", label: "Depth Charts", icon: Layers },
+    { id: "tiers",           label: "Tiers",   icon: BarChart3 },
+    { id: "depth-charts",    label: "Depth Charts", icon: Layers },
   ];
 
   return (
     <div className="research-page">
       <div className="research-layout">
-        {/* Top Navigation Tabs */}
+
+        {/* Top Navigation Tabs + Add Player button */}
         <div className="research-top-nav">
           {navigationItems.map((item) => {
             const Icon = item.icon;
@@ -177,6 +192,18 @@ export default function Research() {
               </button>
             );
           })}
+
+          {/* Add Player trigger — only shown on the player database view */}
+          {selectedView === "player-database" && (
+            <button
+              className="nav-tab add-player-btn"
+              onClick={() => setShowAddModal(true)}
+              title="Add a player not found in the MLB data source"
+            >
+              <UserPlus size={16} />
+              <span>Add Player</span>
+            </button>
+          )}
         </div>
 
         <div className="research-content">
@@ -203,6 +230,7 @@ export default function Research() {
                   onNoteChange={setNote}
                   draftedIds={draftedIds}
                   draftedByTeam={draftedByTeam}
+                  isCustomPlayer={isCustomPlayer}
                 />
               )}
             </>
@@ -221,6 +249,13 @@ export default function Research() {
           )}
         </div>
       </div>
+
+      {/* Add Player Modal */}
+      <AddPlayerModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={addCustomPlayer}
+      />
     </div>
   );
 }

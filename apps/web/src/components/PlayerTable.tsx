@@ -21,6 +21,7 @@ interface PlayerTableProps {
   onNoteChange?: (playerId: string, note: string) => void;
   draftedIds?: Set<string>;
   draftedByTeam?: Map<string, string>;
+  isCustomPlayer?: (id: string) => boolean;
 }
 
 type DisplayBatting = {
@@ -371,6 +372,7 @@ export default function PlayerTable({
   onNoteChange,
   draftedIds,
   draftedByTeam,
+  isCustomPlayer,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -971,6 +973,9 @@ export default function PlayerTable({
                               </span>
                             )}
                           </span>
+                          {isCustomPlayer?.(player.id) && (
+                            <span className="custom-badge">Custom</span>
+                          )}
                           {(tags.length > 0 ||
                             draftedByTeam?.has(player.id)) && (
                             <div className="tag-list">

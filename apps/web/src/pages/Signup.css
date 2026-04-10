@@ -164,3 +164,13 @@
 .signup-link:hover {
   color: #c084fc;
 }
+
+.add-player-btn {
+  margin-left: auto;
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 7px;
+}
+.add-player-btn:hover {
+  background: rgba(139, 92, 246, 0.12);
+}
