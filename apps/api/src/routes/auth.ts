@@ -5,6 +5,7 @@ import League from "../models/League";
 import PlayerNote from "../models/PlayerNote";
 import WatchlistEntry from "../models/WatchlistEntry";
 import RosterEntry from "../models/RosterEntry";
+import CustomPlayer from "../models/CustomPlayer";
 import { validate } from "../validation/validate";
 import {
   registerSchema,
@@ -224,7 +225,12 @@ const deleteAccount: RequestHandler = async (
 
     const userId = user._id;
 
-    // 1) Remove user-owned leagues entirely.
+    // Remove custom players created by this user.
+    await CustomPlayer.deleteMany({ userId: userId.toString() });
+
+    // 1) Remove all user-created custom players
+    
+    // 2) Remove user-owned leagues entirely.
     const ownedLeagues = await League.find({ commissionerId: userId }).select("_id").lean();
     const ownedLeagueIds = ownedLeagues.map((l) => l._id);
     if (ownedLeagueIds.length > 0) {
@@ -236,7 +242,7 @@ const deleteAccount: RequestHandler = async (
       ]);
     }
 
-    // 2) Remove user from member lists in leagues they joined but do not own.
+    // 3) Remove user from member lists in leagues they joined but do not own.
     await League.updateMany(
       {
         commissionerId: { $ne: userId },
@@ -247,14 +253,14 @@ const deleteAccount: RequestHandler = async (
       },
     );
 
-    // 3) Remove user-scoped league data in remaining leagues.
+    // 4) Remove user-scoped league data in remaining leagues.
     await Promise.all([
       RosterEntry.deleteMany({ userId }),
       PlayerNote.deleteMany({ userId }),
       WatchlistEntry.deleteMany({ userId }),
     ]);
 
-    // 4) Delete account.
+    // 5) Delete account.
     const deleted = await User.findByIdAndDelete(userId);
     if (!deleted) {
       throw new NotFoundError("User not found", 404, "USER_NOT_FOUND");
