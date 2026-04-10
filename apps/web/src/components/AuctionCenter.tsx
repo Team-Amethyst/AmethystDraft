@@ -14,6 +14,7 @@ import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
+import { UserPlus } from "lucide-react";
 
 interface AuctionCenterProps {
   rosterEntries: RosterEntry[];
@@ -447,13 +448,9 @@ export function AuctionCenter({
               >
                 ↪
               </button>
-              <button className="cc-add-missing-btn" onClick={onAddMissingPlayer}>
-                + Add Missing Player
-              </button>
-
             </div>
           </div>
-          {showDropdown && dropdownResults.length > 0 && (
+          {/* {showDropdown && dropdownResults.length > 0 && (
             <div className="cc-search-dropdown">
               {dropdownResults.map((p) => (
                 <button
@@ -479,6 +476,53 @@ export function AuctionCenter({
                   <span className="cc-dd-val">${p.value}</span>
                 </button>
               ))}
+            </div>
+          )} */}
+          {showDropdown && (
+            <div className="cc-search-dropdown">
+              {dropdownResults.length > 0 ? (
+                dropdownResults.map((p) => (
+                  <button
+                    key={p.id}
+                    className="cc-dropdown-item"
+                    onMouseDown={() => handleSelectPlayer(p)}
+                  >
+                    <PosBadge pos={p.position} />
+                    <span className="cc-dd-name">
+                      {p.name}
+                      {p.injuryStatus && (
+                        <span className="pt-il-badge">
+                          {p.injuryStatus.replace("DL", "IL")}
+                        </span>
+                      )}
+                      {isInWatchlist(p.id) && (
+                        <span className="cc-dd-wl" title="On your watchlist">
+                          ★
+                        </span>
+                      )}
+                    </span>
+                    <span className="cc-dd-team">{p.team}</span>
+                    <span className="cc-dd-val">${p.value}</span>
+                  </button>
+                ))
+              ) : searchQuery.length >= 2 ? (
+                <div className="asd-no-results">
+                  <span className="asd-no-results-text">
+                    No players found for "{searchQuery}"
+                  </span>
+                  <button
+                    className="asd-add-missing-btn"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setShowDropdown(false);
+                      onAddMissingPlayer?.();
+                    }}
+                  >
+                    <UserPlus size={13} />
+                    Add "{searchQuery}" as custom player
+                  </button>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
