@@ -1,26 +1,26 @@
 /**
  * POST /api/players/custom
+ * GET  /api/players/custom
  *
- * Saves a manually created custom player to MongoDB.
- * These are players not found in the MLB Stats API that a user adds during
- * their draft. They are stored in a separate "customPlayers" collection
- * and merged with MLB API data on the frontend.
+ * Saves and retrieves manually created custom players, scoped to the
+ * authenticated user. Players created by one user are never visible to others.
  *
  * Body: Player object (see Player type on frontend)
- * Returns: { player, message }
+ * Returns: { player, message } or { players, count }
  */
 
-import { Router, Request, Response, RequestHandler } from "express";
+import { Router, Response, RequestHandler } from "express";
 import mongoose, { Schema, Document } from "mongoose";
+import authMiddleware from "../middleware/auth";
+import type { AuthRequest } from "../middleware/auth";
 
 const router: Router = Router();
 
 // ─── Mongoose model ───────────────────────────────────────────────────────────
-// Defined inline here to avoid a separate model file for a simple schema.
-// If this grows, move to models/CustomPlayer.ts.
 
 interface ICustomPlayer extends Document {
   id: string;
+  userId: string;
   mlbId: number;
   name: string;
   team: string;
@@ -49,7 +49,8 @@ interface ICustomPlayer extends Document {
 }
 
 const CustomPlayerSchema = new Schema<ICustomPlayer>({
-  id:       { type: String, required: true, unique: true },
+  id:       { type: String, required: true },
+  userId:   { type: String, required: true },
   mlbId:    { type: Number, default: 0 },
   name:     { type: String, required: true },
   team:     { type: String, required: true },
@@ -71,11 +72,15 @@ const CustomPlayerSchema = new Schema<ICustomPlayer>({
     },
   },
   projection: {
-    batting: { avg: String, hr: Number, rbi: Number, runs: Number, sb: Number },
+    batting:  { avg: String, hr: Number, rbi: Number, runs: Number, sb: Number },
     pitching: { era: String, whip: String, wins: Number, saves: Number, strikeouts: Number },
   },
   createdAt: { type: Date, default: Date.now },
 });
+
+// Compound unique index: same player id can exist for different users,
+// but a user cannot create the same player twice.
+CustomPlayerSchema.index({ id: 1, userId: 1 }, { unique: true });
 
 // Avoid re-registering the model on hot reloads
 const CustomPlayer =
@@ -84,11 +89,16 @@ const CustomPlayer =
 
 // ─── POST /api/players/custom ─────────────────────────────────────────────────
 
-const createCustomPlayer: RequestHandler = async (req: Request, res: Response): Promise<void> => {
+const createCustomPlayer: RequestHandler = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const userId = req.user?._id?.toString();
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     const body = req.body as Partial<ICustomPlayer>;
 
-    // Basic server-side validation
     if (!body.name?.trim()) {
       res.status(400).json({ message: "Player name is required" });
       return;
@@ -106,11 +116,10 @@ const createCustomPlayer: RequestHandler = async (req: Request, res: Response): 
       return;
     }
 
-    // Upsert — if the same client sends the same player twice (e.g. after a retry),
-    // just update rather than error out on the unique constraint.
+    // Upsert scoped to this user — same player sent twice just updates, not errors
     const player = await CustomPlayer.findOneAndUpdate(
-      { id: body.id },
-      { $set: body },
+      { id: body.id, userId },
+      { $set: { ...body, userId } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
 
@@ -122,12 +131,20 @@ const createCustomPlayer: RequestHandler = async (req: Request, res: Response): 
 };
 
 // ─── GET /api/players/custom ──────────────────────────────────────────────────
-// Optional: fetch all custom players for a session restore.
-// TODO(auth): Filter by leagueId or userId once auth middleware is wired.
 
-const getCustomPlayers: RequestHandler = async (_req: Request, res: Response): Promise<void> => {
+const getCustomPlayers: RequestHandler = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const players = await CustomPlayer.find({}).sort({ createdAt: -1 }).lean();
+    const userId = req.user?._id?.toString();
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Only return players created by this user
+    const players = await CustomPlayer.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
     res.json({ players, count: players.length });
   } catch (err) {
     console.error("Custom player fetch error:", err);
@@ -135,7 +152,8 @@ const getCustomPlayers: RequestHandler = async (_req: Request, res: Response): P
   }
 };
 
-router.post("/", createCustomPlayer);
-router.get("/",  getCustomPlayers);
+// Auth middleware applied to both routes
+router.post("/", authMiddleware, createCustomPlayer);
+router.get("/",  authMiddleware, getCustomPlayers);
 
 export default router;
