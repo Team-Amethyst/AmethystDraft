@@ -1,5 +1,9 @@
 /**
- * Parallel work for the Amethyst Engine repository (not in this monorepo).
+ * Parallel work for the Amethyst Engine API (not in this monorepo):
+ * https://github.com/Team-Amethyst/AmethystAPI
+ *
+ * Narrative Draft ↔ Engine brief: https://github.com/Team-Amethyst/AmethystAPI/blob/main/ENGINE_AGENT_BRIEF.md
+ *
  * Canonical JSON Schema (copy into the engine repo): ../schemas/valuation-request.v1.schema.json
  */
 export const AMETHYST_ENGINE_REPO_CHECKLIST: readonly string[] = [
