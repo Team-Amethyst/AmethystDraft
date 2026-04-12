@@ -4,7 +4,7 @@ const OUTFIELD_POSITIONS = new Set(["OF", "LF", "CF", "RF"]);
 function splitPositionTokens(positions: string | string[]): string[] {
   const values = Array.isArray(positions) ? positions : [positions];
   return values
-    .flatMap((value) => value.split(/[\/,|]/))
+    .flatMap((value) => value.split(/[/,|]/))
     .map((value) => value.trim())
     .filter(Boolean);
 }

@@ -1,0 +1,1390 @@
+{
+  "schemaVersion": "1.0.0",
+  "checkpoint": "after_pick_100",
+  "league": {
+    "roster_slots": {
+      "C": 1,
+      "1B": 1,
+      "2B": 1,
+      "3B": 1,
+      "SS": 1,
+      "OF": 3,
+      "UTIL": 1,
+      "SP": 2,
+      "RP": 2,
+      "P": 3,
+      "BN": 5
+    },
+    "scoring_categories": [
+      {
+        "name": "R",
+        "type": "batting"
+      },
+      {
+        "name": "HR",
+        "type": "batting"
+      },
+      {
+        "name": "RBI",
+        "type": "batting"
+      },
+      {
+        "name": "SB",
+        "type": "batting"
+      },
+      {
+        "name": "AVG",
+        "type": "batting"
+      },
+      {
+        "name": "W",
+        "type": "pitching"
+      },
+      {
+        "name": "SV",
+        "type": "pitching"
+      },
+      {
+        "name": "K",
+        "type": "pitching"
+      },
+      {
+        "name": "ERA",
+        "type": "pitching"
+      },
+      {
+        "name": "WHIP",
+        "type": "pitching"
+      }
+    ],
+    "total_budget": 260,
+    "num_teams": 12,
+    "league_scope": "Mixed",
+    "scoring_format": "5x5",
+    "hitter_budget_pct": 70,
+    "pos_eligibility_threshold": 20
+  },
+  "draft_state": [
+    {
+      "player_id": "660001",
+      "name": "Sample Player 1",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 6,
+      "pick_number": 1,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660002",
+      "name": "Sample Player 2",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 7,
+      "pick_number": 2,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660003",
+      "name": "Sample Player 3",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 8,
+      "pick_number": 3,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660004",
+      "name": "Sample Player 4",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 9,
+      "pick_number": 4,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660005",
+      "name": "Sample Player 5",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 10,
+      "pick_number": 5,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660006",
+      "name": "Sample Player 6",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 11,
+      "pick_number": 6,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660007",
+      "name": "Sample Player 7",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 12,
+      "pick_number": 7,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660008",
+      "name": "Sample Player 8",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 13,
+      "pick_number": 8,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660009",
+      "name": "Sample Player 9",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 14,
+      "pick_number": 9,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660010",
+      "name": "Sample Player 10",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 15,
+      "pick_number": 10,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660011",
+      "name": "Sample Player 11",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 16,
+      "pick_number": 11,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660012",
+      "name": "Sample Player 12",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 17,
+      "pick_number": 12,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660013",
+      "name": "Sample Player 13",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 18,
+      "pick_number": 13,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660014",
+      "name": "Sample Player 14",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 19,
+      "pick_number": 14,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660015",
+      "name": "Sample Player 15",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 20,
+      "pick_number": 15,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660016",
+      "name": "Sample Player 16",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 21,
+      "pick_number": 16,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660017",
+      "name": "Sample Player 17",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 22,
+      "pick_number": 17,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660018",
+      "name": "Sample Player 18",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 23,
+      "pick_number": 18,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660019",
+      "name": "Sample Player 19",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 24,
+      "pick_number": 19,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660020",
+      "name": "Sample Player 20",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 25,
+      "pick_number": 20,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660021",
+      "name": "Sample Player 21",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 26,
+      "pick_number": 21,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660022",
+      "name": "Sample Player 22",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 27,
+      "pick_number": 22,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660023",
+      "name": "Sample Player 23",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 28,
+      "pick_number": 23,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660024",
+      "name": "Sample Player 24",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 29,
+      "pick_number": 24,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660025",
+      "name": "Sample Player 25",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 30,
+      "pick_number": 25,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660026",
+      "name": "Sample Player 26",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 31,
+      "pick_number": 26,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660027",
+      "name": "Sample Player 27",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 32,
+      "pick_number": 27,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660028",
+      "name": "Sample Player 28",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 33,
+      "pick_number": 28,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660029",
+      "name": "Sample Player 29",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 34,
+      "pick_number": 29,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660030",
+      "name": "Sample Player 30",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 5,
+      "pick_number": 30,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660031",
+      "name": "Sample Player 31",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 6,
+      "pick_number": 31,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660032",
+      "name": "Sample Player 32",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 7,
+      "pick_number": 32,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660033",
+      "name": "Sample Player 33",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 8,
+      "pick_number": 33,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660034",
+      "name": "Sample Player 34",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 9,
+      "pick_number": 34,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660035",
+      "name": "Sample Player 35",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 10,
+      "pick_number": 35,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660036",
+      "name": "Sample Player 36",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 11,
+      "pick_number": 36,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660037",
+      "name": "Sample Player 37",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 12,
+      "pick_number": 37,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660038",
+      "name": "Sample Player 38",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 13,
+      "pick_number": 38,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660039",
+      "name": "Sample Player 39",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 14,
+      "pick_number": 39,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660040",
+      "name": "Sample Player 40",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 15,
+      "pick_number": 40,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660041",
+      "name": "Sample Player 41",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 16,
+      "pick_number": 41,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660042",
+      "name": "Sample Player 42",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 17,
+      "pick_number": 42,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660043",
+      "name": "Sample Player 43",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 18,
+      "pick_number": 43,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660044",
+      "name": "Sample Player 44",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 19,
+      "pick_number": 44,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660045",
+      "name": "Sample Player 45",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 20,
+      "pick_number": 45,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660046",
+      "name": "Sample Player 46",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 21,
+      "pick_number": 46,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660047",
+      "name": "Sample Player 47",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 22,
+      "pick_number": 47,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660048",
+      "name": "Sample Player 48",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 23,
+      "pick_number": 48,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660049",
+      "name": "Sample Player 49",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 24,
+      "pick_number": 49,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660050",
+      "name": "Sample Player 50",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 25,
+      "pick_number": 50,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660051",
+      "name": "Sample Player 51",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 26,
+      "pick_number": 51,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660052",
+      "name": "Sample Player 52",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 27,
+      "pick_number": 52,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660053",
+      "name": "Sample Player 53",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 28,
+      "pick_number": 53,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660054",
+      "name": "Sample Player 54",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 29,
+      "pick_number": 54,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660055",
+      "name": "Sample Player 55",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 30,
+      "pick_number": 55,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660056",
+      "name": "Sample Player 56",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 31,
+      "pick_number": 56,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660057",
+      "name": "Sample Player 57",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 32,
+      "pick_number": 57,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660058",
+      "name": "Sample Player 58",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 33,
+      "pick_number": 58,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660059",
+      "name": "Sample Player 59",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 34,
+      "pick_number": 59,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660060",
+      "name": "Sample Player 60",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 5,
+      "pick_number": 60,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660061",
+      "name": "Sample Player 61",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 6,
+      "pick_number": 61,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660062",
+      "name": "Sample Player 62",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 7,
+      "pick_number": 62,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660063",
+      "name": "Sample Player 63",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 8,
+      "pick_number": 63,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660064",
+      "name": "Sample Player 64",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 9,
+      "pick_number": 64,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660065",
+      "name": "Sample Player 65",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 10,
+      "pick_number": 65,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660066",
+      "name": "Sample Player 66",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 11,
+      "pick_number": 66,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660067",
+      "name": "Sample Player 67",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 12,
+      "pick_number": 67,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660068",
+      "name": "Sample Player 68",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 13,
+      "pick_number": 68,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660069",
+      "name": "Sample Player 69",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 14,
+      "pick_number": 69,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660070",
+      "name": "Sample Player 70",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 15,
+      "pick_number": 70,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660071",
+      "name": "Sample Player 71",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 16,
+      "pick_number": 71,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660072",
+      "name": "Sample Player 72",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 17,
+      "pick_number": 72,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660073",
+      "name": "Sample Player 73",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 18,
+      "pick_number": 73,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660074",
+      "name": "Sample Player 74",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 19,
+      "pick_number": 74,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660075",
+      "name": "Sample Player 75",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 20,
+      "pick_number": 75,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660076",
+      "name": "Sample Player 76",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 21,
+      "pick_number": 76,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660077",
+      "name": "Sample Player 77",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 22,
+      "pick_number": 77,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660078",
+      "name": "Sample Player 78",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 23,
+      "pick_number": 78,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660079",
+      "name": "Sample Player 79",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 24,
+      "pick_number": 79,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660080",
+      "name": "Sample Player 80",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 25,
+      "pick_number": 80,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660081",
+      "name": "Sample Player 81",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 26,
+      "pick_number": 81,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660082",
+      "name": "Sample Player 82",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 27,
+      "pick_number": 82,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660083",
+      "name": "Sample Player 83",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 28,
+      "pick_number": 83,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660084",
+      "name": "Sample Player 84",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 29,
+      "pick_number": 84,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660085",
+      "name": "Sample Player 85",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 30,
+      "pick_number": 85,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660086",
+      "name": "Sample Player 86",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 31,
+      "pick_number": 86,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660087",
+      "name": "Sample Player 87",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 32,
+      "pick_number": 87,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660088",
+      "name": "Sample Player 88",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 33,
+      "pick_number": 88,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660089",
+      "name": "Sample Player 89",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 34,
+      "pick_number": 89,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660090",
+      "name": "Sample Player 90",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 5,
+      "pick_number": 90,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660091",
+      "name": "Sample Player 91",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 6,
+      "pick_number": 91,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660092",
+      "name": "Sample Player 92",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 7,
+      "pick_number": 92,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660093",
+      "name": "Sample Player 93",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 8,
+      "pick_number": 93,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660094",
+      "name": "Sample Player 94",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 9,
+      "pick_number": 94,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660095",
+      "name": "Sample Player 95",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_12",
+      "paid": 10,
+      "pick_number": 95,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660096",
+      "name": "Sample Player 96",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_1",
+      "paid": 11,
+      "pick_number": 96,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660097",
+      "name": "Sample Player 97",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 12,
+      "pick_number": 97,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660098",
+      "name": "Sample Player 98",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 13,
+      "pick_number": 98,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660099",
+      "name": "Sample Player 99",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 14,
+      "pick_number": 99,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660100",
+      "name": "Sample Player 100",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 15,
+      "pick_number": 100,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    }
+  ],
+  "pre_draft_rosters": [
+    {
+      "team_id": "team_1",
+      "players": [
+        {
+          "player_id": "660271",
+          "name": "Sample Keeper",
+          "positions": [
+            "1B"
+          ],
+          "team": "TOR",
+          "team_id": "team_1",
+          "paid": 18,
+          "is_keeper": true,
+          "roster_slot": "1B"
+        }
+      ]
+    }
+  ],
+  "deterministic": true,
+  "seed": 42
+}

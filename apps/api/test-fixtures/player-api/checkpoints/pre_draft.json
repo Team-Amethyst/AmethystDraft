@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0.0",
+  "checkpoint": "pre_draft",
+  "league": {
+    "roster_slots": {
+      "C": 1,
+      "1B": 1,
+      "2B": 1,
+      "3B": 1,
+      "SS": 1,
+      "OF": 3,
+      "UTIL": 1,
+      "SP": 2,
+      "RP": 2,
+      "P": 3,
+      "BN": 5
+    },
+    "scoring_categories": [
+      {
+        "name": "R",
+        "type": "batting"
+      },
+      {
+        "name": "HR",
+        "type": "batting"
+      },
+      {
+        "name": "RBI",
+        "type": "batting"
+      },
+      {
+        "name": "SB",
+        "type": "batting"
+      },
+      {
+        "name": "AVG",
+        "type": "batting"
+      },
+      {
+        "name": "W",
+        "type": "pitching"
+      },
+      {
+        "name": "SV",
+        "type": "pitching"
+      },
+      {
+        "name": "K",
+        "type": "pitching"
+      },
+      {
+        "name": "ERA",
+        "type": "pitching"
+      },
+      {
+        "name": "WHIP",
+        "type": "pitching"
+      }
+    ],
+    "total_budget": 260,
+    "num_teams": 12,
+    "league_scope": "Mixed",
+    "scoring_format": "5x5",
+    "hitter_budget_pct": 70,
+    "pos_eligibility_threshold": 20
+  },
+  "draft_state": [],
+  "pre_draft_rosters": [
+    {
+      "team_id": "team_1",
+      "players": [
+        {
+          "player_id": "660271",
+          "name": "Sample Keeper",
+          "positions": [
+            "1B"
+          ],
+          "team": "TOR",
+          "team_id": "team_1",
+          "paid": 18,
+          "is_keeper": true,
+          "roster_slot": "1B"
+        }
+      ]
+    }
+  ],
+  "deterministic": true,
+  "seed": 42
+}

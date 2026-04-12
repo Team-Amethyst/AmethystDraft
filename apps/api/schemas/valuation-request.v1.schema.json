@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amethystdraft.local/schemas/valuation-request.v1.schema.json",
+  "title": "AmethystDraft valuation request (v1)",
+  "description": "Fixture payload for POST /api/players/valuations and for the Amethyst Engine /valuation/calculate contract. player_id is the MLB Stats API person id (string). team_id uses team_1..team_K convention.",
+  "type": "object",
+  "required": ["schemaVersion", "checkpoint", "league", "draft_state"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "checkpoint": {
+      "type": "string",
+      "enum": [
+        "pre_draft",
+        "after_pick_10",
+        "after_pick_50",
+        "after_pick_100",
+        "after_pick_130"
+      ]
+    },
+    "league": {
+      "type": "object",
+      "required": [
+        "roster_slots",
+        "scoring_categories",
+        "total_budget",
+        "num_teams",
+        "league_scope"
+      ],
+      "properties": {
+        "roster_slots": {
+          "description": "Either array of {position,count} or record position -> count",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["position", "count"],
+                "properties": {
+                  "position": { "type": "string" },
+                  "count": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "integer", "minimum": 0 }
+            }
+          ]
+        },
+        "scoring_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "type": { "type": "string", "enum": ["batting", "pitching"] }
+            }
+          }
+        },
+        "total_budget": { "type": "number", "exclusiveMinimum": 0 },
+        "num_teams": { "type": "integer", "minimum": 2 },
+        "league_scope": { "type": "string", "enum": ["Mixed", "AL", "NL"] },
+        "scoring_format": { "type": "string", "enum": ["5x5", "6x6", "points"] },
+        "hitter_budget_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "pos_eligibility_threshold": { "type": "integer", "minimum": 1, "maximum": 162 },
+        "budget_by_team_id": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "draft_state": {
+      "type": "array",
+      "description": "Auction picks in order through this checkpoint (empty at pre_draft).",
+      "items": { "$ref": "#/$defs/draftPick" }
+    },
+    "pre_draft_rosters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["team_id", "players"],
+        "properties": {
+          "team_id": { "type": "string" },
+          "players": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rosteredPlayer" }
+          }
+        }
+      }
+    },
+    "minors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["team_id", "players"],
+        "properties": {
+          "team_id": { "type": "string" },
+          "players": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rosteredPlayer" }
+          }
+        }
+      }
+    },
+    "taxi": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["team_id", "players"],
+        "properties": {
+          "team_id": { "type": "string" },
+          "players": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rosteredPlayer" }
+          }
+        }
+      }
+    },
+    "deterministic": { "type": "boolean" },
+    "seed": { "type": "integer" }
+  },
+  "$defs": {
+    "draftPick": {
+      "type": "object",
+      "required": ["player_id", "name", "team_id"],
+      "properties": {
+        "player_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "positions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "team": { "type": "string", "description": "MLB team abbreviation or name" },
+        "team_id": { "type": "string", "description": "Fantasy team id, e.g. team_1" },
+        "paid": { "type": "number", "minimum": 0 },
+        "pick_number": { "type": "integer", "minimum": 1 },
+        "is_keeper": { "type": "boolean" },
+        "roster_slot": { "type": "string" }
+      }
+    },
+    "rosteredPlayer": {
+      "type": "object",
+      "required": ["player_id", "name", "team_id"],
+      "properties": {
+        "player_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "positions": { "type": "array", "items": { "type": "string" } },
+        "team": { "type": "string" },
+        "team_id": { "type": "string" },
+        "paid": { "type": "number", "minimum": 0 },
+        "is_keeper": { "type": "boolean" },
+        "roster_slot": { "type": "string" }
+      }
+    }
+  }
+}

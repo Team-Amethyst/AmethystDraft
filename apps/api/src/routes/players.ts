@@ -1,11 +1,17 @@
 import { Router, Request, Response, NextFunction, RequestHandler } from "express";
+import { AxiosError } from "axios";
 import {
   isPitchingPosition,
   normalizeFantasyPosition,
   resolveEligiblePositions,
 } from "../lib/playerEligibility";
-import { validateQuery } from "../validation/validate";
+import { validateBody, validateQuery } from "../validation/validate";
 import { playersQuerySchema } from "../validation/schemas";
+import { valuationRequestSchema } from "../validation/valuationRequestSchema";
+import type { ValuationRequestFixture } from "../validation/valuationRequestSchema";
+import { buildEngineValuationCalculateBodyFromFixture } from "../lib/engineContext";
+import { amethyst } from "../lib/amethyst";
+import { playerApiTestKeyAuth } from "../middleware/playerApiTestKeyAuth";
 import {
   assignTier,
   calcAge,
@@ -430,6 +436,52 @@ const getPlayers: RequestHandler = async (
     }));
   }
 };
+
+// ─── POST /api/players/valuations (fixture-driven; Activity #9) ───────────────
+// Auth: PLAYER_API_TEST_KEY via x-player-api-key or Authorization: Bearer
+
+const postFixtureValuations: RequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const fixture = req.body as ValuationRequestFixture;
+    const context = buildEngineValuationCalculateBodyFromFixture(fixture);
+    const { data } = await amethyst.post("/valuation/calculate", context);
+    res.json(data);
+  } catch (err) {
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+    if (err instanceof AxiosError) {
+      const status = err.response?.status ?? 502;
+      const body = err.response?.data ?? { error: "Engine unreachable" };
+      next(
+        new UpstreamError(
+          "Engine request failed",
+          status,
+          "ENGINE_UPSTREAM_ERROR",
+          body,
+        ),
+      );
+      return;
+    }
+    next(
+      new UpstreamError("Engine unreachable", 502, "ENGINE_UNREACHABLE", {
+        cause: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+};
+
+router.post(
+  "/valuations",
+  playerApiTestKeyAuth,
+  validateBody(valuationRequestSchema),
+  postFixtureValuations,
+);
 
 router.get("/", validateQuery(playersQuerySchema), getPlayers);
 

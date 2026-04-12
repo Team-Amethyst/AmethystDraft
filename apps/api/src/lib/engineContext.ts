@@ -1,5 +1,9 @@
 import type { ILeague } from "../models/League";
 import type { IRosterEntry } from "../models/RosterEntry";
+import {
+  normalizeRosterSlots,
+  type ValuationRequestFixture,
+} from "../validation/valuationRequestSchema";
 
 export interface EngineRosterSlot {
   position: string;
@@ -18,8 +22,14 @@ export interface EngineDraftedPlayer {
   team: string;
   team_id: string;
   paid?: number;
+  /** Full eligibility when known; engine may use for scarcity. */
+  positions?: string[];
+  is_keeper?: boolean;
+  roster_slot?: string;
+  pick_number?: number;
 }
 
+/** Payload for POST /valuation/calculate (extends legacy fields; engine may ignore unknown keys). */
 export interface EngineValuationContext {
   roster_slots: EngineRosterSlot[];
   scoring_categories: EngineScoringCategory[];
@@ -27,6 +37,33 @@ export interface EngineValuationContext {
   num_teams: number;
   league_scope: "Mixed" | "AL" | "NL";
   drafted_players: EngineDraftedPlayer[];
+  schema_version?: string;
+  checkpoint?: string;
+  budget_by_team_id?: Record<string, number>;
+  scoring_format?: "5x5" | "6x6" | "points";
+  hitter_budget_pct?: number;
+  pos_eligibility_threshold?: number;
+  minors?: EngineTeamPlayersSection[];
+  taxi?: EngineTeamPlayersSection[];
+  deterministic?: boolean;
+  seed?: number;
+}
+
+export interface EngineTeamPlayersSection {
+  team_id: string;
+  players: EngineRosterOnlyPlayer[];
+}
+
+/** Player on roster without implying an auction pick (minors / taxi / optional pre-draft mirror). */
+export interface EngineRosterOnlyPlayer {
+  player_id: string;
+  name: string;
+  positions?: string[];
+  team?: string;
+  team_id: string;
+  paid?: number;
+  is_keeper?: boolean;
+  roster_slot?: string;
 }
 
 export interface EngineScarcityContext {
@@ -56,14 +93,47 @@ export interface EngineSimulationContext {
  * team_id is derived from the player's teamId field (set at draft time).
  */
 function toDraftedPlayers(entries: IRosterEntry[]): EngineDraftedPlayer[] {
-  return entries.map((e) => ({
-    player_id: e.externalPlayerId,
-    name: e.playerName,
-    position: e.positions[0] ?? e.rosterSlot,
-    team: e.playerTeam,
-    team_id: e.teamId,
-    paid: e.price,
-  }));
+  return entries.map((e) => {
+    const position = e.positions[0] ?? e.rosterSlot;
+    return {
+      player_id: e.externalPlayerId,
+      name: e.playerName,
+      position,
+      team: e.playerTeam,
+      team_id: e.teamId,
+      paid: e.price,
+      ...(e.positions.length ? { positions: [...e.positions] } : {}),
+      ...(e.isKeeper ? { is_keeper: true } : {}),
+      roster_slot: e.rosterSlot,
+    };
+  });
+}
+
+/** Remaining budget per team: total_budget − sum(paid) for players on that team. */
+export function computeBudgetByTeamRemaining(
+  totalBudget: number,
+  draftedPlayers: EngineDraftedPlayer[],
+  numTeams: number,
+): Record<string, number> {
+  const spent: Record<string, number> = {};
+  for (const p of draftedPlayers) {
+    const tid = p.team_id;
+    spent[tid] = (spent[tid] ?? 0) + (p.paid ?? 0);
+  }
+
+  const teamIds = new Set<string>();
+  for (let i = 1; i <= numTeams; i++) {
+    teamIds.add(`team_${i}`);
+  }
+  for (const p of draftedPlayers) {
+    teamIds.add(p.team_id);
+  }
+
+  const out: Record<string, number> = {};
+  for (const tid of teamIds) {
+    out[tid] = totalBudget - (spent[tid] ?? 0);
+  }
+  return out;
 }
 
 /**
@@ -77,13 +147,29 @@ export function buildValuationContext(
     ([position, count]) => ({ position, count }),
   );
 
+  const drafted_players = toDraftedPlayers(rosterEntries);
+
   return {
     roster_slots: rosterSlots,
     scoring_categories: league.scoringCategories,
     total_budget: league.budget,
     num_teams: league.teams,
     league_scope: league.playerPool,
-    drafted_players: toDraftedPlayers(rosterEntries),
+    drafted_players,
+    budget_by_team_id: computeBudgetByTeamRemaining(
+      league.budget,
+      drafted_players,
+      league.teams,
+    ),
+    ...(league.scoringFormat
+      ? { scoring_format: league.scoringFormat }
+      : {}),
+    ...(league.hitterBudgetPct !== undefined
+      ? { hitter_budget_pct: league.hitterBudgetPct }
+      : {}),
+    ...(league.posEligibilityThreshold !== undefined
+      ? { pos_eligibility_threshold: league.posEligibilityThreshold }
+      : {}),
   };
 }
 
@@ -149,4 +235,101 @@ export function userIdToTeamId(
 ): string {
   const index = memberIds.findIndex((id) => id.toString() === userId);
   return index >= 0 ? `team_${index + 1}` : "team_unknown";
+}
+
+function fixtureRowToDraftedPlayer(
+  p: {
+    player_id: string;
+    name: string;
+    positions?: string[];
+    team?: string;
+    team_id: string;
+    paid?: number;
+    is_keeper?: boolean;
+    roster_slot?: string;
+    pick_number?: number;
+  },
+): EngineDraftedPlayer {
+  const position =
+    p.positions?.[0] ?? p.roster_slot ?? "UTIL";
+  return {
+    player_id: p.player_id,
+    name: p.name,
+    position,
+    team: p.team ?? "",
+    team_id: p.team_id,
+    ...(p.paid !== undefined ? { paid: p.paid } : {}),
+    ...(p.positions?.length ? { positions: p.positions } : {}),
+    ...(p.is_keeper !== undefined ? { is_keeper: p.is_keeper } : {}),
+    ...(p.roster_slot !== undefined ? { roster_slot: p.roster_slot } : {}),
+    ...(p.pick_number !== undefined ? { pick_number: p.pick_number } : {}),
+  };
+}
+
+function flattenPreDraftRosters(
+  sections: ValuationRequestFixture["pre_draft_rosters"],
+): EngineDraftedPlayer[] {
+  if (!sections?.length) return [];
+  return sections.flatMap((section) =>
+    section.players.map((pl) =>
+      fixtureRowToDraftedPlayer({
+        ...pl,
+        team_id: pl.team_id || section.team_id,
+      }),
+    ),
+  );
+}
+
+/**
+ * Maps an Activity #9-style fixture to the engine valuation body.
+ * Pre-draft rosters (keepers) are merged before auction picks in `drafted_players`.
+ */
+export function buildEngineValuationCalculateBodyFromFixture(
+  fixture: ValuationRequestFixture,
+): EngineValuationContext {
+  const { league } = fixture;
+  const roster_slots = normalizeRosterSlots(league.roster_slots);
+
+  const fromPreDraft = flattenPreDraftRosters(fixture.pre_draft_rosters);
+  const fromDraft = fixture.draft_state.map((p) =>
+    fixtureRowToDraftedPlayer(p),
+  );
+  const drafted_players = [...fromPreDraft, ...fromDraft];
+
+  const budget_by_team_id =
+    league.budget_by_team_id ??
+    computeBudgetByTeamRemaining(
+      league.total_budget,
+      drafted_players,
+      league.num_teams,
+    );
+
+  const body: EngineValuationContext = {
+    roster_slots,
+    scoring_categories: league.scoring_categories,
+    total_budget: league.total_budget,
+    num_teams: league.num_teams,
+    league_scope: league.league_scope,
+    drafted_players,
+    schema_version: fixture.schemaVersion,
+    checkpoint: fixture.checkpoint,
+    budget_by_team_id,
+    ...(league.scoring_format !== undefined
+      ? { scoring_format: league.scoring_format }
+      : {}),
+    ...(league.hitter_budget_pct !== undefined
+      ? { hitter_budget_pct: league.hitter_budget_pct }
+      : {}),
+    ...(league.pos_eligibility_threshold !== undefined
+      ? { pos_eligibility_threshold: league.pos_eligibility_threshold }
+      : {}),
+    ...(fixture.minors?.length ? { minors: fixture.minors } : {}),
+    ...(fixture.taxi?.length ? { taxi: fixture.taxi } : {}),
+    ...(fixture.deterministic !== undefined
+      ? { deterministic: fixture.deterministic }
+      : {}),
+    ...(fixture.seed !== undefined ? { seed: fixture.seed } : {}),
+  };
+
+  return body;
 }

@@ -19,7 +19,7 @@ const router: Router = Router();
 
 // ─── POST /api/players/custom ─────────────────────────────────────────────────
 
-const createCustomPlayer: RequestHandler = async (req: AuthRequest, res: Response, next: Function): Promise<void> => {
+const createCustomPlayer: RequestHandler = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?._id?.toString();
     if (!userId) {

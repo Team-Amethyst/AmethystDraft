@@ -103,3 +103,9 @@ export const playersQuerySchema = z.object({
   playerPool: playerPoolQuerySchema,
   posEligibilityThreshold: z.coerce.number().int().min(0).max(162).optional(),
 });
+
+export {
+  valuationRequestSchema,
+  normalizeRosterSlots,
+} from "./valuationRequestSchema";
+export type { ValuationRequestFixture } from "./valuationRequestSchema";

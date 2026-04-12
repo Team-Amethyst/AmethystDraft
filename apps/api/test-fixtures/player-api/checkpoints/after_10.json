@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "1.0.0",
+  "checkpoint": "after_pick_10",
+  "league": {
+    "roster_slots": {
+      "C": 1,
+      "1B": 1,
+      "2B": 1,
+      "3B": 1,
+      "SS": 1,
+      "OF": 3,
+      "UTIL": 1,
+      "SP": 2,
+      "RP": 2,
+      "P": 3,
+      "BN": 5
+    },
+    "scoring_categories": [
+      {
+        "name": "R",
+        "type": "batting"
+      },
+      {
+        "name": "HR",
+        "type": "batting"
+      },
+      {
+        "name": "RBI",
+        "type": "batting"
+      },
+      {
+        "name": "SB",
+        "type": "batting"
+      },
+      {
+        "name": "AVG",
+        "type": "batting"
+      },
+      {
+        "name": "W",
+        "type": "pitching"
+      },
+      {
+        "name": "SV",
+        "type": "pitching"
+      },
+      {
+        "name": "K",
+        "type": "pitching"
+      },
+      {
+        "name": "ERA",
+        "type": "pitching"
+      },
+      {
+        "name": "WHIP",
+        "type": "pitching"
+      }
+    ],
+    "total_budget": 260,
+    "num_teams": 12,
+    "league_scope": "Mixed",
+    "scoring_format": "5x5",
+    "hitter_budget_pct": 70,
+    "pos_eligibility_threshold": 20
+  },
+  "draft_state": [
+    {
+      "player_id": "660001",
+      "name": "Sample Player 1",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_2",
+      "paid": 6,
+      "pick_number": 1,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660002",
+      "name": "Sample Player 2",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_3",
+      "paid": 7,
+      "pick_number": 2,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660003",
+      "name": "Sample Player 3",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_4",
+      "paid": 8,
+      "pick_number": 3,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660004",
+      "name": "Sample Player 4",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_5",
+      "paid": 9,
+      "pick_number": 4,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660005",
+      "name": "Sample Player 5",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_6",
+      "paid": 10,
+      "pick_number": 5,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660006",
+      "name": "Sample Player 6",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_7",
+      "paid": 11,
+      "pick_number": 6,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660007",
+      "name": "Sample Player 7",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_8",
+      "paid": 12,
+      "pick_number": 7,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660008",
+      "name": "Sample Player 8",
+      "positions": [
+        "SP"
+      ],
+      "team": "NYY",
+      "team_id": "team_9",
+      "paid": 13,
+      "pick_number": 8,
+      "is_keeper": false,
+      "roster_slot": "SP1"
+    },
+    {
+      "player_id": "660009",
+      "name": "Sample Player 9",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_10",
+      "paid": 14,
+      "pick_number": 9,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    },
+    {
+      "player_id": "660010",
+      "name": "Sample Player 10",
+      "positions": [
+        "OF"
+      ],
+      "team": "NYY",
+      "team_id": "team_11",
+      "paid": 15,
+      "pick_number": 10,
+      "is_keeper": false,
+      "roster_slot": "OF1"
+    }
+  ],
+  "pre_draft_rosters": [
+    {
+      "team_id": "team_1",
+      "players": [
+        {
+          "player_id": "660271",
+          "name": "Sample Keeper",
+          "positions": [
+            "1B"
+          ],
+          "team": "TOR",
+          "team_id": "team_1",
+          "paid": 18,
+          "is_keeper": true,
+          "roster_slot": "1B"
+        }
+      ]
+    }
+  ],
+  "deterministic": true,
+  "seed": 42
+}
