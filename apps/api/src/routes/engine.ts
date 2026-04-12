@@ -8,10 +8,12 @@ import {
   buildValuationContext,
   buildScarcityContext,
   buildSimulationContext,
+  finalizeEngineValuationPostPayload,
 } from "../lib/engineContext";
 import { validateBody, validateQuery } from "../validation/validate";
 import { mockPickSchema, newsSignalsQuerySchema } from "../validation/schemas";
 import { logRequestError } from "../lib/errorLogging";
+import { forwardEngineCorrelationHeaders } from "../lib/engineResponseMeta";
 import { 
   AppError, 
   UpstreamError, 
@@ -52,8 +54,10 @@ const calculateValuation: RequestHandler = async (
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
     const context = buildValuationContext(league, entries);
-    const { data } = await amethyst.post("/valuation/calculate", context);
-    res.json(data);
+    const payload = finalizeEngineValuationPostPayload(context);
+    const axiosRes = await amethyst.post("/valuation/calculate", payload);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
   } catch (err) {
     if (err instanceof AppError) throw err;
     throwEngineError(err, req);
@@ -77,8 +81,9 @@ const analyzeScarcity: RequestHandler = async (
     const position =
       typeof req.query.position === "string" ? req.query.position : undefined;
     const context = buildScarcityContext(league, entries, position);
-    const { data } = await amethyst.post("/analysis/scarcity", context);
-    res.json(data);
+    const axiosRes = await amethyst.post("/analysis/scarcity", context);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
   } catch (err) {
     if (err instanceof AppError) throw err;
     throwEngineError(err, req);
@@ -109,8 +114,9 @@ const simulateMockPick: RequestHandler = async (
       budgetByTeamId,
       availablePlayerIds,
     );
-    const { data } = await amethyst.post("/simulation/mock-pick", context);
-    res.json(data);
+    const axiosRes = await amethyst.post("/simulation/mock-pick", context);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
   } catch (err) {
     if (err instanceof AppError) throw err;
     throwEngineError(err, req);
@@ -134,8 +140,9 @@ const getNewsSignals: RequestHandler = async (
     if (days) params.days = String(days);
     if (signal_type) params.signal_type = signal_type;
 
-    const { data } = await amethyst.get("/signals/news", { params });
-    res.json(data);
+    const axiosRes = await amethyst.get("/signals/news", { params });
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
   } catch (err) {
     if (err instanceof AppError) throw err;
     throwEngineError(err, req);

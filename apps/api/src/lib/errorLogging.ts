@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import { AppError } from "./appError";
+import { getRequestIdFromStore } from "./requestContext";
 
 type RequestWithUser = Request & {
 	user?: {
@@ -20,6 +21,8 @@ export function logRequestError(
 		? String(reqWithUser.user._id)
 		: undefined;
 
+	const requestId = getRequestIdFromStore();
+
 	const context = {
 		source,
 		method: req.method,
@@ -27,6 +30,7 @@ export function logRequestError(
 		params: req.params,
 		query: req.query,
 		userId,
+		...(requestId ? { requestId } : {}),
 	};
 
 	// AppError is a known, intentional API error (status/code/message chosen by us).

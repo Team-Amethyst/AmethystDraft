@@ -20,19 +20,6 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
   "deterministic": true,
   "drafted_players": [
     {
-      "is_keeper": true,
-      "name": "Sample Keeper",
-      "paid": 18,
-      "player_id": "660271",
-      "position": "1B",
-      "positions": [
-        "1B",
-      ],
-      "roster_slot": "1B",
-      "team": "TOR",
-      "team_id": "team_1",
-    },
-    {
       "is_keeper": false,
       "name": "Sample Player 1",
       "paid": 6,
@@ -177,6 +164,25 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
+  "pre_draft_rosters": [
+    {
+      "players": [
+        {
+          "is_keeper": true,
+          "name": "Sample Keeper",
+          "paid": 18,
+          "player_id": "660271",
+          "positions": [
+            "1B",
+          ],
+          "roster_slot": "1B",
+          "team": "TOR",
+          "team_id": "team_1",
+        },
+      ],
+      "team_id": "team_1",
+    },
+  ],
   "roster_slots": [
     {
       "count": 1,
@@ -291,19 +297,6 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
   "checkpoint": "after_pick_50",
   "deterministic": true,
   "drafted_players": [
-    {
-      "is_keeper": true,
-      "name": "Sample Keeper",
-      "paid": 18,
-      "player_id": "660271",
-      "position": "1B",
-      "positions": [
-        "1B",
-      ],
-      "roster_slot": "1B",
-      "team": "TOR",
-      "team_id": "team_1",
-    },
     {
       "is_keeper": false,
       "name": "Sample Player 1",
@@ -1009,6 +1002,25 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
+  "pre_draft_rosters": [
+    {
+      "players": [
+        {
+          "is_keeper": true,
+          "name": "Sample Keeper",
+          "paid": 18,
+          "player_id": "660271",
+          "positions": [
+            "1B",
+          ],
+          "roster_slot": "1B",
+          "team": "TOR",
+          "team_id": "team_1",
+        },
+      ],
+      "team_id": "team_1",
+    },
+  ],
   "roster_slots": [
     {
       "count": 1,
@@ -1123,19 +1135,6 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
   "checkpoint": "after_pick_100",
   "deterministic": true,
   "drafted_players": [
-    {
-      "is_keeper": true,
-      "name": "Sample Keeper",
-      "paid": 18,
-      "player_id": "660271",
-      "position": "1B",
-      "positions": [
-        "1B",
-      ],
-      "roster_slot": "1B",
-      "team": "TOR",
-      "team_id": "team_1",
-    },
     {
       "is_keeper": false,
       "name": "Sample Player 1",
@@ -2541,6 +2540,25 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
+  "pre_draft_rosters": [
+    {
+      "players": [
+        {
+          "is_keeper": true,
+          "name": "Sample Keeper",
+          "paid": 18,
+          "player_id": "660271",
+          "positions": [
+            "1B",
+          ],
+          "roster_slot": "1B",
+          "team": "TOR",
+          "team_id": "team_1",
+        },
+      ],
+      "team_id": "team_1",
+    },
+  ],
   "roster_slots": [
     {
       "count": 1,
@@ -2655,19 +2673,6 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
   "checkpoint": "after_pick_130",
   "deterministic": true,
   "drafted_players": [
-    {
-      "is_keeper": true,
-      "name": "Sample Keeper",
-      "paid": 18,
-      "player_id": "660271",
-      "position": "1B",
-      "positions": [
-        "1B",
-      ],
-      "roster_slot": "1B",
-      "team": "TOR",
-      "team_id": "team_1",
-    },
     {
       "is_keeper": false,
       "name": "Sample Player 1",
@@ -4493,6 +4498,25 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
+  "pre_draft_rosters": [
+    {
+      "players": [
+        {
+          "is_keeper": true,
+          "name": "Sample Keeper",
+          "paid": 18,
+          "player_id": "660271",
+          "positions": [
+            "1B",
+          ],
+          "roster_slot": "1B",
+          "team": "TOR",
+          "team_id": "team_1",
+        },
+      ],
+      "team_id": "team_1",
+    },
+  ],
   "roster_slots": [
     {
       "count": 1,
@@ -4606,25 +4630,30 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
   },
   "checkpoint": "pre_draft",
   "deterministic": true,
-  "drafted_players": [
-    {
-      "is_keeper": true,
-      "name": "Sample Keeper",
-      "paid": 18,
-      "player_id": "660271",
-      "position": "1B",
-      "positions": [
-        "1B",
-      ],
-      "roster_slot": "1B",
-      "team": "TOR",
-      "team_id": "team_1",
-    },
-  ],
+  "drafted_players": [],
   "hitter_budget_pct": 70,
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
+  "pre_draft_rosters": [
+    {
+      "players": [
+        {
+          "is_keeper": true,
+          "name": "Sample Keeper",
+          "paid": 18,
+          "player_id": "660271",
+          "positions": [
+            "1B",
+          ],
+          "roster_slot": "1B",
+          "team": "TOR",
+          "team_id": "team_1",
+        },
+      ],
+      "team_id": "team_1",
+    },
+  ],
   "roster_slots": [
     {
       "count": 1,

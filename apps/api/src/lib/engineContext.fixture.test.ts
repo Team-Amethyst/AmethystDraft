@@ -26,13 +26,18 @@ describe("valuation fixtures -> engine POST body", () => {
 });
 
 describe("fixture draft sizes", () => {
-  it("after_130 includes pre-draft keeper plus 130 auction picks", () => {
+  it("after_130 has 130 auction picks in drafted_players and keeper in pre_draft_rosters", () => {
     const raw = JSON.parse(
       readFileSync(path.join(checkpointsDir, "after_130.json"), "utf8"),
     ) as unknown;
     const fixture = valuationRequestSchema.parse(raw);
     const body = buildEngineValuationCalculateBodyFromFixture(fixture);
-    expect(body.drafted_players).toHaveLength(131);
+    expect(body.drafted_players).toHaveLength(130);
+    expect(body.pre_draft_rosters).toBeDefined();
+    expect(
+      (body.pre_draft_rosters as { team_id: string; players: unknown[] }[])[0]
+        ?.players,
+    ).toHaveLength(1);
     expect(body.budget_by_team_id).toBeDefined();
     expect(Object.keys(body.budget_by_team_id ?? {}).length).toBeGreaterThan(0);
   });

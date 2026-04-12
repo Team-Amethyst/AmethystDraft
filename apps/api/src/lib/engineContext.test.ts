@@ -5,8 +5,13 @@ import {
   computeBudgetByTeamRemaining,
   buildValuationContext,
   buildEngineValuationCalculateBodyFromFixture,
+  buildEngineValuationCalculateBodyFromFlat,
+  finalizeEngineValuationPostPayload,
 } from "./engineContext";
-import { valuationRequestSchema } from "../validation/valuationRequestSchema";
+import {
+  valuationRequestSchema,
+  valuationFlatRequestSchema,
+} from "../validation/valuationRequestSchema";
 
 describe("computeBudgetByTeamRemaining", () => {
   it("returns full budget for every team when no players", () => {
@@ -143,7 +148,7 @@ describe("buildEngineValuationCalculateBodyFromFixture", () => {
     expect(body.budget_by_team_id).toEqual({ team_1: 100, team_2: 200 });
   });
 
-  it("merges pre_draft_rosters before draft_state in drafted_players", () => {
+  it("puts auction picks in drafted_players and keepers in pre_draft_rosters", () => {
     const fixture = valuationRequestSchema.parse({
       schemaVersion: "1.0.0",
       checkpoint: "after_pick_10",
@@ -179,8 +184,51 @@ describe("buildEngineValuationCalculateBodyFromFixture", () => {
       ],
     });
     const body = buildEngineValuationCalculateBodyFromFixture(fixture);
-    expect(body.drafted_players.map((p) => p.player_id)).toEqual(["k1", "p1"]);
+    expect(body.drafted_players.map((p) => p.player_id)).toEqual(["p1"]);
+    expect(body.pre_draft_rosters).toEqual(fixture.pre_draft_rosters);
+    expect(body.budget_by_team_id?.team_1).toBe(250);
+    expect(body.budget_by_team_id?.team_2).toBe(255);
     expect(body.checkpoint).toBe("after_pick_10");
+    expect(body.schema_version).toBe("1.0.0");
+  });
+});
+
+describe("finalizeEngineValuationPostPayload", () => {
+  it("adds schemaVersion mirror and omits undefined keys", () => {
+    const payload = finalizeEngineValuationPostPayload({
+      roster_slots: [{ position: "OF", count: 1 }],
+      scoring_categories: [{ name: "HR", type: "batting" }],
+      total_budget: 260,
+      num_teams: 12,
+      league_scope: "Mixed",
+      drafted_players: [],
+      schema_version: "1.0.0",
+    });
+    expect(payload.schema_version).toBe("1.0.0");
+    expect(payload.schemaVersion).toBe("1.0.0");
+    expect("checkpoint" in payload).toBe(false);
+  });
+});
+
+describe("buildEngineValuationCalculateBodyFromFlat", () => {
+  it("builds engine body from flat request", () => {
+    const body = buildEngineValuationCalculateBodyFromFlat(
+      valuationFlatRequestSchema.parse({
+        roster_slots: { OF: 1 },
+        scoring_categories: [{ name: "HR", type: "batting" }],
+        total_budget: 260,
+        num_teams: 2,
+        league_scope: "Mixed",
+        drafted_players: [
+          { player_id: "a", name: "A", team_id: "team_1", position: "OF" },
+        ],
+        schemaVersion: "1.0.0",
+        checkpoint: "pre_draft",
+        player_ids: ["660271"],
+      }),
+    );
+    expect(body.drafted_players[0]?.position).toBe("OF");
+    expect(body.player_ids).toEqual(["660271"]);
     expect(body.schema_version).toBe("1.0.0");
   });
 });

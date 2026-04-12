@@ -1,12 +1,25 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+type ValidationErr = { field?: string; message?: string };
+
 type ErrorShape = {
   message?: string;
+  errors?: ValidationErr[];
   error?: {
     code?: string;
     message?: string;
   };
 };
+
+function messageFromEngineValidation(errors: ValidationErr[]): string {
+  return errors
+    .map((e) => {
+      const f = e.field?.trim() || "request";
+      const m = e.message?.trim() || "invalid";
+      return `${f}: ${m}`;
+    })
+    .join("; ");
+}
 
 export function buildApiUrl(path: string): string {
   return `${API_BASE}${path}`;
@@ -31,7 +44,11 @@ async function parseApiError(
   let message = fallbackMessage;
   try {
     const data = (await res.json()) as ErrorShape;
-    message = data.error?.message ?? data.message ?? fallbackMessage;
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      message = messageFromEngineValidation(data.errors);
+    } else {
+      message = data.error?.message ?? data.message ?? fallbackMessage;
+    }
   } catch {
     // ignore parse failures and fall back to default message
   }

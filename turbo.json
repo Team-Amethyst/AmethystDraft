@@ -17,7 +17,8 @@
         "AMETHYST_API_URL",
         "AMETHYST_API_KEY",
         "PLAYER_API_TEST_KEY",
-        "AMETHYST_CONTRACT_TEST"
+        "AMETHYST_CONTRACT_TEST",
+        "AMETHYST_ENGINE_TIMEOUT_MS"
       ]
     },
     "check-types": {

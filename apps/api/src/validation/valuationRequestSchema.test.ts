@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   valuationRequestSchema,
+  valuationFlatRequestSchema,
+  valuationIncomingSchema,
   normalizeRosterSlots,
 } from "./valuationRequestSchema";
 
@@ -24,9 +26,19 @@ describe("valuationRequestSchema", () => {
     expect(parsed.draft_state).toEqual([]);
   });
 
-  it("rejects wrong schemaVersion", () => {
-    const r = valuationRequestSchema.safeParse({
+  it("accepts schema major 0", () => {
+    const parsed = valuationRequestSchema.parse({
       schemaVersion: "0.9.0",
+      checkpoint: "pre_draft",
+      league: minimalLeague,
+      draft_state: [],
+    });
+    expect(parsed.schemaVersion).toBe("0.9.0");
+  });
+
+  it("rejects schema major 2+", () => {
+    const r = valuationRequestSchema.safeParse({
+      schemaVersion: "2.0.0",
       checkpoint: "pre_draft",
       league: minimalLeague,
       draft_state: [],
@@ -63,7 +75,7 @@ describe("valuationRequestSchema", () => {
     ]);
   });
 
-  it("accepts optional minors, taxi, deterministic, seed", () => {
+  it("accepts optional minors, taxi, deterministic, seed, player_ids", () => {
     const parsed = valuationRequestSchema.parse({
       schemaVersion: "1.0.0",
       checkpoint: "after_pick_10",
@@ -71,11 +83,78 @@ describe("valuationRequestSchema", () => {
       draft_state: [],
       minors: [{ team_id: "team_1", players: [] }],
       taxi: [{ team_id: "team_2", players: [] }],
+      player_ids: ["660271", "660434"],
       deterministic: true,
       seed: 99,
     });
     expect(parsed.minors).toHaveLength(1);
+    expect(parsed.player_ids).toEqual(["660271", "660434"]);
     expect(parsed.seed).toBe(99);
+  });
+});
+
+describe("valuationFlatRequestSchema", () => {
+  it("accepts flat body with drafted_players and default num_teams", () => {
+    const parsed = valuationFlatRequestSchema.parse({
+      roster_slots: { OF: 3 },
+      scoring_categories: [{ name: "HR", type: "batting" }],
+      total_budget: 260,
+      league_scope: "Mixed",
+      drafted_players: [
+        {
+          player_id: "1",
+          name: "X",
+          team_id: "team_1",
+          paid: 1,
+        },
+      ],
+    });
+    expect(parsed.num_teams).toBe(12);
+    expect(parsed.drafted_players).toHaveLength(1);
+  });
+
+  it("accepts pre_draft_rosters as record keyed by team_id", () => {
+    const parsed = valuationFlatRequestSchema.parse({
+      roster_slots: { C: 1 },
+      scoring_categories: [{ name: "HR", type: "batting" }],
+      total_budget: 260,
+      league_scope: "NL",
+      drafted_players: [],
+      pre_draft_rosters: {
+        team_1: [{ player_id: "k", name: "K", team_id: "team_1" }],
+      },
+    });
+    expect(parsed.pre_draft_rosters).toEqual({
+      team_1: [{ player_id: "k", name: "K", team_id: "team_1" }],
+    });
+  });
+});
+
+describe("valuationIncomingSchema", () => {
+  it("parses nested fixture as format nested", () => {
+    const parsed = valuationIncomingSchema.parse({
+      schemaVersion: "1.0.0",
+      checkpoint: "pre_draft",
+      league: minimalLeague,
+      draft_state: [],
+    });
+    expect(parsed.format).toBe("nested");
+    expect(parsed.data.checkpoint).toBe("pre_draft");
+  });
+
+  it("parses flat body as format flat", () => {
+    const parsed = valuationIncomingSchema.parse({
+      roster_slots: { OF: 1 },
+      scoring_categories: [{ name: "HR", type: "batting" }],
+      total_budget: 260,
+      league_scope: "AL",
+      drafted_players: [],
+      schema_version: "1.0.0",
+    });
+    expect(parsed.format).toBe("flat");
+    if (parsed.format === "flat") {
+      expect(parsed.data.league_scope).toBe("AL");
+    }
   });
 });
 

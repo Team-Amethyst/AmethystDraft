@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://amethystdraft.local/schemas/valuation-request.v1.schema.json",
-  "title": "AmethystDraft valuation request (v1)",
-  "description": "Fixture payload for POST /api/players/valuations and for the Amethyst Engine /valuation/calculate contract. player_id is the MLB Stats API person id (string). team_id uses team_1..team_K convention.",
+  "title": "AmethystDraft valuation request (v1) — nested Activity #9 fixture",
+  "description": "Nested shape: league + draft_state (auction picks). Engine also accepts a flat body (roster_slots, scoring_categories, drafted_players at top level) via Draft POST /api/players/valuations — see Engine repo docs. schemaVersion major must be 0 or 1. player_id = MLB person id string. team_id = team_1..team_K. Keepers go in pre_draft_rosters; draft_state is auction picks only.",
   "type": "object",
   "required": ["schemaVersion", "checkpoint", "league", "draft_state"],
   "properties": {
     "schemaVersion": {
       "type": "string",
-      "const": "1.0.0"
+      "pattern": "^([01])\\."
     },
     "checkpoint": {
       "type": "string",
@@ -120,6 +120,11 @@
         }
       }
     },
+    "player_ids": {
+      "type": "array",
+      "description": "Optional subset of undrafted MLB ids to value (Engine perf).",
+      "items": { "type": "string", "minLength": 1 }
+    },
     "deterministic": { "type": "boolean" },
     "seed": { "type": "integer" }
   },
@@ -130,6 +135,7 @@
       "properties": {
         "player_id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
+        "position": { "type": "string" },
         "positions": {
           "type": "array",
           "items": { "type": "string" }

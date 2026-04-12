@@ -106,6 +106,13 @@ export const playersQuerySchema = z.object({
 
 export {
   valuationRequestSchema,
+  valuationFlatRequestSchema,
+  valuationIncomingSchema,
   normalizeRosterSlots,
+  engineSchemaVersionString,
 } from "./valuationRequestSchema";
-export type { ValuationRequestFixture } from "./valuationRequestSchema";
+export type {
+  ValuationRequestFixture,
+  ValuationFlatRequest,
+  ValuationIncomingParsed,
+} from "./valuationRequestSchema";

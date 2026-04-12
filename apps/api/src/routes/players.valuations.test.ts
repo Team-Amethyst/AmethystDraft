@@ -15,6 +15,7 @@ vi.mock("../lib/amethyst", () => ({
 
 import playersRouter from "./players";
 import errorHandler from "../middleware/errorHandler";
+import { assignRequestId } from "../lib/requestContext";
 
 const checkpointsDir = path.join(
   process.cwd(),
@@ -30,6 +31,7 @@ const preDraftFixture = JSON.parse(
 function makeValuationsApp() {
   const app = express();
   app.use(express.json());
+  app.use(assignRequestId);
   app.use(playersRouter);
   app.use(errorHandler);
   return app;
@@ -45,6 +47,7 @@ describe("POST /valuations (fixture valuations)", () => {
     postMock.mockReset();
     postMock.mockResolvedValue({
       data: { inflation_factor: 1.05, valuations: [], calculated_at: "t" },
+      headers: { "x-request-id": "engine-rid-1" },
     });
   });
 
@@ -86,6 +89,7 @@ describe("POST /valuations (fixture valuations)", () => {
       .send(preDraftFixture);
 
     expect(res.status).toBe(200);
+    expect(res.headers["x-request-id"]).toBe("engine-rid-1");
     expect(res.body).toEqual({
       inflation_factor: 1.05,
       valuations: [],
@@ -97,11 +101,56 @@ describe("POST /valuations (fixture valuations)", () => {
     const engineBody = bodyArg as {
       checkpoint: string;
       schema_version: string;
+      schemaVersion: string;
       drafted_players: unknown[];
+      pre_draft_rosters?: unknown;
     };
     expect(engineBody.checkpoint).toBe("pre_draft");
     expect(engineBody.schema_version).toBe("1.0.0");
+    expect(engineBody.schemaVersion).toBe("1.0.0");
     expect(Array.isArray(engineBody.drafted_players)).toBe(true);
+    expect(engineBody.pre_draft_rosters).toBeDefined();
+  });
+
+  it("accepts flat valuation body (no nested league)", async () => {
+    const flat = {
+      roster_slots: { OF: 1 },
+      scoring_categories: [{ name: "HR", type: "batting" }],
+      total_budget: 260,
+      league_scope: "Mixed",
+      drafted_players: [],
+      schemaVersion: "1.0.0",
+    };
+    const res = await request(app)
+      .post("/valuations")
+      .set("x-player-api-key", "test-secret")
+      .send(flat);
+    expect(res.status).toBe(200);
+    expect(postMock).toHaveBeenCalled();
+    const [, bodyArg] = postMock.mock.calls[0] ?? [];
+    expect((bodyArg as { drafted_players: unknown[] }).drafted_players).toEqual([]);
+  });
+
+  it("forwards Engine 400 Zod errors body (no AppError wrapper)", async () => {
+    const axiosErr = new AxiosError("Bad request");
+    axiosErr.response = {
+      status: 400,
+      data: { errors: [{ field: "total_budget", message: "positive" }] },
+      statusText: "Bad Request",
+      headers: {},
+      config: {} as never,
+    };
+    postMock.mockRejectedValueOnce(axiosErr);
+
+    const res = await request(app)
+      .post("/valuations")
+      .set("x-player-api-key", "test-secret")
+      .send(preDraftFixture);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      errors: [{ field: "total_budget", message: "positive" }],
+    });
   });
 
   it("forwards engine HTTP status when amethyst rejects with AxiosError", async () => {

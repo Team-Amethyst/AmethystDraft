@@ -7,8 +7,9 @@ import playersRoutes from "./routes/players";
 import engineRoutes from "./routes/engine";
 import leaguesRoutes from "./routes/leagues";
 import errorHandler from "./middleware/errorHandler";
-import { NotFoundError} from "./lib/appError";
+import { NotFoundError } from "./lib/appError";
 import customPlayerRoutes from "./routes/customPlayers";
+import { assignRequestId } from "./lib/requestContext";
 
 
 dotenv.config();
@@ -24,8 +25,15 @@ requiredEnvVars.forEach((varName) => {
 const app = express();
 
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(
+  cors({
+    origin: corsOrigin,
+    credentials: true,
+    exposedHeaders: ["X-Request-Id"],
+  }),
+);
 app.use(express.json());
+app.use(assignRequestId);
 
 app.get("/", (req, res) => {
   res.send("Amethyst Draft Info API - Online");
@@ -44,7 +52,7 @@ app.get("/api/health", (req, res) => {
 
 // 404 for unknown routes
 app.use((_req: Request, _res: Response, next: NextFunction) => {
-  next(new NotFoundError("Route not found", 404,"ROUTE_NOT_FOUND"));
+  next(new NotFoundError("Route not found", 404, "ROUTE_NOT_FOUND"));
 });
 
 // Global typed error handler

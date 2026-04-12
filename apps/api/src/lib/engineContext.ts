@@ -3,6 +3,8 @@ import type { IRosterEntry } from "../models/RosterEntry";
 import {
   normalizeRosterSlots,
   type ValuationRequestFixture,
+  type ValuationFlatRequest,
+  type ValuationIncomingParsed,
 } from "../validation/valuationRequestSchema";
 
 export interface EngineRosterSlot {
@@ -45,6 +47,17 @@ export interface EngineValuationContext {
   pos_eligibility_threshold?: number;
   minors?: EngineTeamPlayersSection[];
   taxi?: EngineTeamPlayersSection[];
+  /** Engine: optional subset of undrafted ids to value. */
+  player_ids?: string[];
+  /**
+   * Pre-auction rosters (keepers); Engine validates, may ignore for v1 inflation.
+   * Nested fixtures use team sections; flat may use record keyed by team_id.
+   */
+  pre_draft_rosters?:
+    | EngineTeamPlayersSection[]
+    | Record<string, EngineRosterOnlyPlayer[]>;
+  /** Duplicate of schema_version for Engine merge (camelCase). */
+  schemaVersion?: string;
   deterministic?: boolean;
   seed?: number;
 }
@@ -241,6 +254,7 @@ function fixtureRowToDraftedPlayer(
   p: {
     player_id: string;
     name: string;
+    position?: string;
     positions?: string[];
     team?: string;
     team_id: string;
@@ -251,7 +265,7 @@ function fixtureRowToDraftedPlayer(
   },
 ): EngineDraftedPlayer {
   const position =
-    p.positions?.[0] ?? p.roster_slot ?? "UTIL";
+    p.position ?? p.positions?.[0] ?? p.roster_slot ?? "UTIL";
   return {
     player_id: p.player_id,
     name: p.name,
@@ -280,9 +294,49 @@ function flattenPreDraftRosters(
   );
 }
 
+function flattenFlexiblePreDraft(
+  pre: ValuationFlatRequest["pre_draft_rosters"],
+): EngineDraftedPlayer[] {
+  if (!pre) return [];
+  if (Array.isArray(pre)) {
+    return flattenPreDraftRosters(pre);
+  }
+  const out: EngineDraftedPlayer[] = [];
+  for (const [sectionTeamId, players] of Object.entries(pre)) {
+    for (const pl of players) {
+      out.push(
+        fixtureRowToDraftedPlayer({
+          ...pl,
+          team_id: pl.team_id || sectionTeamId,
+        }),
+      );
+    }
+  }
+  return out;
+}
+
 /**
- * Maps an Activity #9-style fixture to the engine valuation body.
- * Pre-draft rosters (keepers) are merged before auction picks in `drafted_players`.
+ * Strips undefined, mirrors `schema_version` → `schemaVersion` for Engine merge rules.
+ */
+export function finalizeEngineValuationPostPayload(
+  body: EngineValuationContext,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...body };
+  if (body.schema_version !== undefined && out.schemaVersion === undefined) {
+    out.schemaVersion = body.schema_version;
+  }
+  for (const key of Object.keys(out)) {
+    if (out[key] === undefined) {
+      delete out[key];
+    }
+  }
+  return out;
+}
+
+/**
+ * Maps an Activity #9 nested fixture to the Engine flat valuation body.
+ * `drafted_players` = auction picks only; `pre_draft_rosters` passed separately when present.
+ * `budget_by_team_id` (when computed here) uses keeper + auction spend so remaining $ stays correct.
  */
 export function buildEngineValuationCalculateBodyFromFixture(
   fixture: ValuationRequestFixture,
@@ -290,17 +344,18 @@ export function buildEngineValuationCalculateBodyFromFixture(
   const { league } = fixture;
   const roster_slots = normalizeRosterSlots(league.roster_slots);
 
-  const fromPreDraft = flattenPreDraftRosters(fixture.pre_draft_rosters);
-  const fromDraft = fixture.draft_state.map((p) =>
+  const preDraftFlattened = flattenPreDraftRosters(fixture.pre_draft_rosters);
+  const auctionPicks = fixture.draft_state.map((p) =>
     fixtureRowToDraftedPlayer(p),
   );
-  const drafted_players = [...fromPreDraft, ...fromDraft];
+  const drafted_players = auctionPicks;
+  const budgetRows = [...preDraftFlattened, ...auctionPicks];
 
   const budget_by_team_id =
     league.budget_by_team_id ??
     computeBudgetByTeamRemaining(
       league.total_budget,
-      drafted_players,
+      budgetRows,
       league.num_teams,
     );
 
@@ -323,8 +378,12 @@ export function buildEngineValuationCalculateBodyFromFixture(
     ...(league.pos_eligibility_threshold !== undefined
       ? { pos_eligibility_threshold: league.pos_eligibility_threshold }
       : {}),
+    ...(fixture.pre_draft_rosters?.length
+      ? { pre_draft_rosters: fixture.pre_draft_rosters }
+      : {}),
     ...(fixture.minors?.length ? { minors: fixture.minors } : {}),
     ...(fixture.taxi?.length ? { taxi: fixture.taxi } : {}),
+    ...(fixture.player_ids?.length ? { player_ids: fixture.player_ids } : {}),
     ...(fixture.deterministic !== undefined
       ? { deterministic: fixture.deterministic }
       : {}),
@@ -332,4 +391,71 @@ export function buildEngineValuationCalculateBodyFromFixture(
   };
 
   return body;
+}
+
+/** Preferred flat valuation body from Draft / graders (matches Engine contract). */
+export function buildEngineValuationCalculateBodyFromFlat(
+  flat: ValuationFlatRequest,
+): EngineValuationContext {
+  const roster_slots = normalizeRosterSlots(flat.roster_slots);
+  const num_teams = flat.num_teams;
+  const drafted_players = flat.drafted_players.map((p) =>
+    fixtureRowToDraftedPlayer(p),
+  );
+  const preBudget = flattenFlexiblePreDraft(flat.pre_draft_rosters);
+  const budgetRows = [...preBudget, ...drafted_players];
+
+  const budget_by_team_id =
+    flat.budget_by_team_id && Object.keys(flat.budget_by_team_id).length > 0
+      ? flat.budget_by_team_id
+      : computeBudgetByTeamRemaining(
+          flat.total_budget,
+          budgetRows,
+          num_teams,
+        );
+
+  const mergedSchema =
+    flat.schema_version ?? flat.schemaVersion ?? undefined;
+
+  const body: EngineValuationContext = {
+    roster_slots,
+    scoring_categories: flat.scoring_categories,
+    total_budget: flat.total_budget,
+    num_teams,
+    league_scope: flat.league_scope,
+    drafted_players,
+    ...(mergedSchema !== undefined ? { schema_version: mergedSchema } : {}),
+    ...(flat.checkpoint !== undefined ? { checkpoint: flat.checkpoint } : {}),
+    budget_by_team_id,
+    ...(flat.scoring_format !== undefined
+      ? { scoring_format: flat.scoring_format }
+      : {}),
+    ...(flat.hitter_budget_pct !== undefined
+      ? { hitter_budget_pct: flat.hitter_budget_pct }
+      : {}),
+    ...(flat.pos_eligibility_threshold !== undefined
+      ? { pos_eligibility_threshold: flat.pos_eligibility_threshold }
+      : {}),
+    ...(flat.pre_draft_rosters !== undefined
+      ? { pre_draft_rosters: flat.pre_draft_rosters }
+      : {}),
+    ...(flat.minors?.length ? { minors: flat.minors } : {}),
+    ...(flat.taxi?.length ? { taxi: flat.taxi } : {}),
+    ...(flat.player_ids?.length ? { player_ids: flat.player_ids } : {}),
+    ...(flat.deterministic !== undefined
+      ? { deterministic: flat.deterministic }
+      : {}),
+    ...(flat.seed !== undefined ? { seed: flat.seed } : {}),
+  };
+
+  return body;
+}
+
+export function valuationIncomingToEngineContext(
+  parsed: ValuationIncomingParsed,
+): EngineValuationContext {
+  if (parsed.format === "nested") {
+    return buildEngineValuationCalculateBodyFromFixture(parsed.data);
+  }
+  return buildEngineValuationCalculateBodyFromFlat(parsed.data);
 }

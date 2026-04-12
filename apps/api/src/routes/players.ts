@@ -7,10 +7,16 @@ import {
 } from "../lib/playerEligibility";
 import { validateBody, validateQuery } from "../validation/validate";
 import { playersQuerySchema } from "../validation/schemas";
-import { valuationRequestSchema } from "../validation/valuationRequestSchema";
-import type { ValuationRequestFixture } from "../validation/valuationRequestSchema";
-import { buildEngineValuationCalculateBodyFromFixture } from "../lib/engineContext";
+import {
+  valuationIncomingSchema,
+  type ValuationIncomingParsed,
+} from "../validation/valuationRequestSchema";
+import {
+  finalizeEngineValuationPostPayload,
+  valuationIncomingToEngineContext,
+} from "../lib/engineContext";
 import { amethyst } from "../lib/amethyst";
+import { forwardEngineCorrelationHeaders } from "../lib/engineResponseMeta";
 import { playerApiTestKeyAuth } from "../middleware/playerApiTestKeyAuth";
 import {
   assignTier,
@@ -446,10 +452,12 @@ const postFixtureValuations: RequestHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const fixture = req.body as ValuationRequestFixture;
-    const context = buildEngineValuationCalculateBodyFromFixture(fixture);
-    const { data } = await amethyst.post("/valuation/calculate", context);
-    res.json(data);
+    const parsed = req.body as ValuationIncomingParsed;
+    const context = valuationIncomingToEngineContext(parsed);
+    const payload = finalizeEngineValuationPostPayload(context);
+    const axiosRes = await amethyst.post("/valuation/calculate", payload);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
   } catch (err) {
     if (err instanceof AppError) {
       next(err);
@@ -479,7 +487,7 @@ const postFixtureValuations: RequestHandler = async (
 router.post(
   "/valuations",
   playerApiTestKeyAuth,
-  validateBody(valuationRequestSchema),
+  validateBody(valuationIncomingSchema),
   postFixtureValuations,
 );
 

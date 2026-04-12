@@ -19,6 +19,8 @@ export interface ValuationResponse {
   players_remaining: number;
   valuations: ValuationResult[];
   calculated_at: string;
+  /** Present when Engine includes contract version on inflation payloads. */
+  engine_contract_version?: string;
 }
 
 export async function getValuation(
