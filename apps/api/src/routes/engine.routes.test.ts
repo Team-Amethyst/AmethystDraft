@@ -109,8 +109,9 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(res.body.inflation_factor).toBe(1);
       expect(res.headers["x-request-id"]).toBe("engine-val-1");
       expect(postMock).toHaveBeenCalledTimes(1);
-      expect(postMock.mock.calls[0][0]).toBe("/valuation/calculate");
-      const payload = postMock.mock.calls[0][1] as {
+      const [path, body] = postMock.mock.calls[0] ?? [];
+      expect(path).toBe("/valuation/calculate");
+      const payload = body as {
         num_teams: number;
         league_scope: string;
         schema_version?: string;
