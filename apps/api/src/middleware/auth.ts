@@ -47,9 +47,15 @@ const authMiddleware = async (
     req.user = user;
     next();
   } catch (err) {
-    // CHANGED: More specific error handling for JWT errors, and forwarding to next() instead of sending response directly
     if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
-      throw new UnauthorizedError("Invalid or expired token", 401, "INVALID_OR_EXPIRED_TOKEN");
+      next(
+        new UnauthorizedError(
+          "Invalid or expired token",
+          401,
+          "INVALID_OR_EXPIRED_TOKEN",
+        ),
+      );
+      return;
     }
     next(err);
   }

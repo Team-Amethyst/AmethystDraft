@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
@@ -25,6 +26,14 @@ requiredEnvVars.forEach((varName) => {
 const app = express();
 
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+
+// Security headers; cross-origin so credentialed browser calls from the SPA still work.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+
 app.use(
   cors({
     origin: corsOrigin,
