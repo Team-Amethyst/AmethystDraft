@@ -11,7 +11,9 @@ amethyst.interceptors.request.use((config) => {
   const url = process.env.AMETHYST_API_URL;
   if (!url) throw new Error("AMETHYST_API_URL is not set");
   config.baseURL = url;
-  config.headers["x-api-key"] = process.env.AMETHYST_API_KEY ?? "";
+  const apiKey = process.env.AMETHYST_API_KEY;
+  if (!apiKey) throw new Error("AMETHYST_API_KEY is not set");
+  config.headers["x-api-key"] = apiKey;
 
   const customTimeout = Number(process.env.AMETHYST_ENGINE_TIMEOUT_MS);
   if (Number.isFinite(customTimeout) && customTimeout > 0) {
