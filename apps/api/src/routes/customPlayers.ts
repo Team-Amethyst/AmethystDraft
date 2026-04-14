@@ -14,6 +14,7 @@ import authMiddleware from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import CustomPlayer, { type ICustomPlayer } from "../models/CustomPlayer";
 import { ValidationError, UnauthorizedError } from "../lib/appError";
+import { logRequestError } from "../lib/errorLogging";
 
 const router: Router = Router();
 
@@ -60,8 +61,8 @@ const createCustomPlayer: RequestHandler = async (req: AuthRequest, res: Respons
 
     res.status(201).json({ player, message: "Custom player saved" });
   } catch (err) {
-    // console.error("Custom player save error:", err);
-    // res.status(500).json({ message: "Failed to save custom player" });
+    // Log the error with request context for debugging
+    logRequestError(err, req, "customPlayers");
     next(err);
   }
 };
@@ -84,8 +85,8 @@ const getCustomPlayers: RequestHandler = async (req: AuthRequest, res: Response,
 
     res.json({ players, count: players.length });
   } catch (err) {
-    // console.error("Custom player fetch error:", err);
-    // res.status(500).json({ message: "Failed to fetch custom players" });
+    // Log the error with request context for debugging
+    logRequestError(err, req, "customPlayers");
     next(err);
   }
 };
