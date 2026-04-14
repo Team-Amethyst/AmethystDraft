@@ -41,7 +41,7 @@ app.use(
     exposedHeaders: ["X-Request-Id"],
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(assignRequestId);
 
 app.get("/", (req, res) => {
