@@ -1,5 +1,47 @@
 export type StatRecord = Record<string, string | number>;
 
+// Scoring coefficients for auction value calculation
+// These represent z-score replacement values for rostered players in a 12-team league
+const SCORING_COEFFICIENTS = {
+  // Batting coefficients (per standard deviation above/below average)
+  HR_PER_Z: 2.8,
+  RBI_PER_Z: 0.9,
+  RUNS_PER_Z: 0.9,
+  SB_PER_Z: 3.2,
+  AVG_PER_Z: 3.5, // multiplied by at-bats
+
+  // League averages for rostered players (replacement level)
+  AVG_HR: 18,
+  AVG_RBI: 72,
+  AVG_RUNS: 72,
+  AVG_SB: 8,
+  AVG_AVG: 0.258,
+
+  // Pitching coefficients
+  ERA_IMPROVEMENT_PER_IP: 0.5, // points per run below average per inning
+  WHIP_IMPROVEMENT_PER_IP: 1.2,
+  K_ABOVE_AVG: 0.18,
+  W_ABOVE_AVG: 2.5,
+  SV_VALUE: 2.8,
+
+  // League averages for pitchers
+  AVG_ERA: 4.2,
+  AVG_WHIP: 1.28,
+  AVG_K: 150,
+  AVG_W: 9,
+
+  // Minimum requirements
+  MIN_AB: 100,
+  MIN_IP: 20,
+  MIN_SV_FOR_REPLACEMENT: 5,
+
+  // Final scaling
+  VALUE_SCALE: 0.28,
+  VALUE_OFFSET: 15,
+  PITCHER_VALUE_SCALE: 0.22,
+  PITCHER_VALUE_OFFSET: 12,
+} as const;
+
 // Calculate age from birthdate string
 export function calcAge(birthDate?: string): number {
   if (!birthDate) return 0;
@@ -29,15 +71,17 @@ export function calcBatterValue(stat: StatRecord): number {
   const sb = Number(stat.stolenBases ?? 0);
   const avg = parseFloat(String(stat.avg ?? "0"));
   const ab = Number(stat.atBats ?? 0);
-  if (ab < 100) return 0;
+  if (ab < SCORING_COEFFICIENTS.MIN_AB) return 0;
+
   // Rough z-score replacement values (league averages for rostered players)
   const score =
-    (hr - 18) * 2.8 +
-    (rbi - 72) * 0.9 +
-    (runs - 72) * 0.9 +
-    (sb - 8) * 3.2 +
-    (avg - 0.258) * ab * 3.5;
-  return Math.round(Math.max(1, score * 0.28 + 15));
+    (hr - SCORING_COEFFICIENTS.AVG_HR) * SCORING_COEFFICIENTS.HR_PER_Z +
+    (rbi - SCORING_COEFFICIENTS.AVG_RBI) * SCORING_COEFFICIENTS.RBI_PER_Z +
+    (runs - SCORING_COEFFICIENTS.AVG_RUNS) * SCORING_COEFFICIENTS.RUNS_PER_Z +
+    (sb - SCORING_COEFFICIENTS.AVG_SB) * SCORING_COEFFICIENTS.SB_PER_Z +
+    (avg - SCORING_COEFFICIENTS.AVG_AVG) * ab * SCORING_COEFFICIENTS.AVG_PER_Z;
+
+  return Math.round(Math.max(1, score * SCORING_COEFFICIENTS.VALUE_SCALE + SCORING_COEFFICIENTS.VALUE_OFFSET));
 }
 
 export function calcPitcherValue(stat: StatRecord): number {
@@ -47,14 +91,16 @@ export function calcPitcherValue(stat: StatRecord): number {
   const w = Number(stat.wins ?? 0);
   const sv = Number(stat.saves ?? 0);
   const ip = parseFloat(String(stat.inningsPitched ?? "0"));
-  if (ip < 20 && sv < 5) return 0;
+  if (ip < SCORING_COEFFICIENTS.MIN_IP && sv < SCORING_COEFFICIENTS.MIN_SV_FOR_REPLACEMENT) return 0;
+
   const score =
-    (4.2 - era) * ip * 0.5 +
-    (1.28 - whip) * ip * 1.2 +
-    (k - 150) * 0.18 +
-    (w - 9) * 2.5 +
-    sv * 2.8;
-  return Math.round(Math.max(1, score * 0.22 + 12));
+    (SCORING_COEFFICIENTS.AVG_ERA - era) * ip * SCORING_COEFFICIENTS.ERA_IMPROVEMENT_PER_IP +
+    (SCORING_COEFFICIENTS.AVG_WHIP - whip) * ip * SCORING_COEFFICIENTS.WHIP_IMPROVEMENT_PER_IP +
+    (k - SCORING_COEFFICIENTS.AVG_K) * SCORING_COEFFICIENTS.K_ABOVE_AVG +
+    (w - SCORING_COEFFICIENTS.AVG_W) * SCORING_COEFFICIENTS.W_ABOVE_AVG +
+    sv * SCORING_COEFFICIENTS.SV_VALUE;
+
+  return Math.round(Math.max(1, score * SCORING_COEFFICIENTS.PITCHER_VALUE_SCALE + SCORING_COEFFICIENTS.PITCHER_VALUE_OFFSET));
 }
 
 export function projectBatting(
