@@ -125,7 +125,14 @@ const forgotPassword: RequestHandler = async (
     }
 
     // TODO: generate reset token and send via nodemailer or similar
-    res.json({ message: "If that email exists, a reset link has been sent" });
+    // For now, return a clear message that this feature is not implemented
+    res.status(501).json({
+      message: "Password reset is not yet implemented. Please contact support.",
+      error: {
+        code: "FEATURE_NOT_IMPLEMENTED",
+        message: "Password reset functionality is coming soon"
+      }
+    });
   } catch (err) {
     next(err);
   }
