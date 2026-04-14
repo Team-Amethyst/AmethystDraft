@@ -109,7 +109,7 @@ function toDraftedPlayers(entries: IRosterEntry[]): EngineDraftedPlayer[] {
   return entries.map((e) => {
     const position = e.positions[0] ?? e.rosterSlot;
     return {
-      player_id: e.externalPlayerId,
+      player_id: String(e.externalPlayerId),
       name: e.playerName,
       position,
       team: e.playerTeam,
