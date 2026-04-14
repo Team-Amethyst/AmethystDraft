@@ -98,6 +98,7 @@ const getPlayers: RequestHandler = async (
     const season3 = season - 2;
 
     // Fetch 3 seasons of stats + spring training in parallel
+    // Note: MLB API is generally permissive, but these calls only happen on cache misses (every 30min)
     const responses = await Promise.all([
       fetch(
         `${MLB_API}/stats?stats=season&group=hitting&season=${season}&playerPool=ALL&limit=400&sportId=1`,
@@ -127,6 +128,10 @@ const getPlayers: RequestHandler = async (
 
     const failed = responses.filter((r) => !r.ok);
     if (failed.length > 0) {
+      // Log rate limiting issues for monitoring
+      if (failed.some(r => r.status === 429)) {
+        console.warn(`MLB API rate limited: ${failed.length} requests failed`);
+      }
       throw new UpstreamError(
         "MLB stats API request failed",
         502,
