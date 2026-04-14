@@ -241,13 +241,17 @@ export function buildScarcityContext(
 /**
  * Derives team_id from a userId string and the league's memberIds array.
  * This is the canonical conversion used everywhere.
+ * @throws Error if userId is not found in memberIds
  */
 export function userIdToTeamId(
   userId: string,
   memberIds: { toString(): string }[],
 ): string {
   const index = memberIds.findIndex((id) => id.toString() === userId);
-  return index >= 0 ? `team_${index + 1}` : "team_unknown";
+  if (index < 0) {
+    throw new Error(`User ${userId} is not a member of this league`);
+  }
+  return `team_${index + 1}`;
 }
 
 function fixtureRowToDraftedPlayer(
