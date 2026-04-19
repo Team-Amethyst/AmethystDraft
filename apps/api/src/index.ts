@@ -11,7 +11,7 @@ import errorHandler from "./middleware/errorHandler";
 import { NotFoundError } from "./lib/appError";
 import customPlayerRoutes from "./routes/customPlayers";
 import { assignRequestId } from "./lib/requestContext";
-
+import { corsOptionsFromEnv } from "./lib/corsConfig";
 
 dotenv.config();
 
@@ -25,7 +25,7 @@ requiredEnvVars.forEach((varName) => {
 
 const app = express();
 
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+const corsOptions = corsOptionsFromEnv();
 
 // Security headers; cross-origin so credentialed browser calls from the SPA still work.
 app.use(
@@ -36,8 +36,7 @@ app.use(
 
 app.use(
   cors({
-    origin: corsOrigin,
-    credentials: true,
+    ...corsOptions,
     exposedHeaders: ["X-Request-Id"],
   }),
 );

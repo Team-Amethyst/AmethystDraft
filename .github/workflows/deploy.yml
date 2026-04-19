@@ -1,3 +1,7 @@
+# API (App Runner): set CORS_ORIGIN to comma-separated browser origins for the SPA.
+# Recommended value is stored in repo Actions variable CORS_ORIGIN (Settings → Secrets and variables → Actions → Variables).
+# You only need https://www.draftroom.uk if that hostname serves the app (not only redirects to apex).
+
 name: Deploy Amethyst to AWS
 
 on:
@@ -55,6 +59,10 @@ jobs:
         run: |
           aws s3 sync apps/web/dist s3://amethyst-web-prod --delete
           aws s3 website s3://amethyst-web-prod --index-document index.html --error-document index.html
+
+      - name: Reminder — API CORS (App Runner env)
+        run: |
+          echo "::notice title=App Runner CORS::Ensure CORS_ORIGIN on the API service matches your live SPA host(s). Repository variable CORS_ORIGIN is the team reference: ${{ vars.CORS_ORIGIN }}"
 
       - name: Trigger App Runner Deployment
         env:
