@@ -10,6 +10,16 @@ import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import { getStatByCategory } from "../pages/commandCenterUtils";
 import { getValuation, type ValuationResult } from "../api/engine";
+
+/** League-level fields from last /valuation/calculate (for auction context strip). */
+type ValuationLeagueSnapshot = {
+  inflation_factor: number;
+  total_budget_remaining: number;
+  pool_value_remaining: number;
+  players_remaining: number;
+  valuation_model_version?: string;
+  engine_contract_version?: string;
+};
 import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
@@ -51,6 +61,8 @@ export function AuctionCenter({
   const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>(
     [],
   );
+  const [valuationSnapshot, setValuationSnapshot] =
+    useState<ValuationLeagueSnapshot | null>(null);
 
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
@@ -59,9 +71,19 @@ export function AuctionCenter({
       .then((res) => {
         setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
         setValuationMarketNotes(res.market_notes ?? []);
+        setValuationSnapshot({
+          inflation_factor: res.inflation_factor,
+          total_budget_remaining: res.total_budget_remaining,
+          pool_value_remaining: res.pool_value_remaining,
+          players_remaining: res.players_remaining,
+          valuation_model_version: res.valuation_model_version,
+          engine_contract_version: res.engine_contract_version,
+        });
       })
       .catch(() => {
         setValuationMarketNotes([]);
+        setValuationMap(new Map());
+        setValuationSnapshot(null);
       });
   }, [leagueId, token, rosterEntries.length]);
 
@@ -597,6 +619,29 @@ export function AuctionCenter({
                       {valuationMarketNotes.join(" · ")}
                     </div>
                   )}
+                  {valuationSnapshot ? (
+                    <div
+                      className="pac-valuation-summary"
+                      title="League-wide figures from Amethyst Engine (last valuation run)"
+                    >
+                      <span>
+                        Inflation {valuationSnapshot.inflation_factor.toFixed(2)}
+                        ×
+                      </span>
+                      <span>
+                        · ${valuationSnapshot.total_budget_remaining} budget left
+                      </span>
+                      <span>
+                        · {valuationSnapshot.players_remaining} players left
+                      </span>
+                      {valuationSnapshot.valuation_model_version ? (
+                        <span>
+                          {" "}
+                          · {valuationSnapshot.valuation_model_version}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="pac-meta-row">
                   <div className="pac-stat">

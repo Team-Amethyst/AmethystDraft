@@ -439,24 +439,6 @@ function LeftPanel({
                 {posMarket ? posMarket.remainingCount : "—"}
               </span>
             </div>
-            <div
-              className="market-stat-row"
-              title="Rank of positions by undrafted player count (client-side)"
-            >
-              <span className="msr-label">SUPPLY RANK</span>
-              <span className="msr-value">
-                {posMarket ? (
-                  <>
-                    {posMarket.scarcityRankNum}{" "}
-                    <span className="msr-sub">
-                      / {posMarket.scarcityRankOf}
-                    </span>
-                  </>
-                ) : (
-                  "—"
-                )}
-              </span>
-            </div>
             {enginePosRow && (
               <>
                 <div className="cc-divider" />
@@ -497,6 +479,15 @@ function LeftPanel({
                 ) : null}
               </>
             )}
+            {posMarket ? (
+              <div
+                className="msr-count-rank-footnote"
+                title="Client-side rank by undrafted player count at each position (complements Engine scarcity above)"
+              >
+                Count rank (catalog): {posMarket.scarcityRankNum} /{" "}
+                {posMarket.scarcityRankOf}
+              </div>
+            ) : null}
             <div className="cc-divider" />
           </>
           <div className="market-section-label">TEAM LIQUIDITY</div>

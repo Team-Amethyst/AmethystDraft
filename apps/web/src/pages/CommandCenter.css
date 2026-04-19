@@ -208,6 +208,13 @@
   color: rgba(251, 191, 36, 0.95);
 }
 
+.msr-count-rank-footnote {
+  font-size: 0.62rem;
+  line-height: 1.3;
+  color: rgba(139, 120, 180, 0.85);
+  padding: 0.35rem 0 0.15rem;
+}
+
 /* ─── Liquidity / Teams / Standings tables ─────────────────────────────────── */
 
 .liquidity-table,
@@ -477,6 +484,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pac-valuation-summary {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: rgba(180, 200, 255, 0.88);
+  max-width: 36rem;
+  margin-top: 0.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.35rem;
 }
 
 .pac-name {
