@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { Database, BarChart3, Layers, UserPlus } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
-import { getPlayers, getPlayersCached } from "../api/players";
+import {
+  getDepthChartCached,
+  getPlayers,
+  getPlayersCached,
+  getTeamDepthChart,
+  type DepthChartPosition,
+  type DepthChartResponse,
+} from "../api/players";
 import { getCatalogBatchValues } from "../api/engine";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
@@ -19,6 +26,55 @@ import "./Research.css";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 
+type ResearchView = "player-database" | "tiers" | "depth-charts";
+
+const DEPTH_POSITIONS: DepthChartPosition[] = [
+  "SP",
+  "RP",
+  "C",
+  "1B",
+  "2B",
+  "3B",
+  "SS",
+  "LF",
+  "CF",
+  "RF",
+  "DH",
+];
+
+const MLB_TEAMS = [
+  { id: 108, abbr: "LAA", name: "Los Angeles Angels" },
+  { id: 109, abbr: "AZ", name: "Arizona Diamondbacks" },
+  { id: 110, abbr: "BAL", name: "Baltimore Orioles" },
+  { id: 111, abbr: "BOS", name: "Boston Red Sox" },
+  { id: 112, abbr: "CHC", name: "Chicago Cubs" },
+  { id: 113, abbr: "CIN", name: "Cincinnati Reds" },
+  { id: 114, abbr: "CLE", name: "Cleveland Guardians" },
+  { id: 115, abbr: "COL", name: "Colorado Rockies" },
+  { id: 116, abbr: "DET", name: "Detroit Tigers" },
+  { id: 117, abbr: "HOU", name: "Houston Astros" },
+  { id: 118, abbr: "KC", name: "Kansas City Royals" },
+  { id: 119, abbr: "LAD", name: "Los Angeles Dodgers" },
+  { id: 120, abbr: "WSH", name: "Washington Nationals" },
+  { id: 121, abbr: "NYM", name: "New York Mets" },
+  { id: 133, abbr: "ATH", name: "Athletics" },
+  { id: 134, abbr: "PIT", name: "Pittsburgh Pirates" },
+  { id: 135, abbr: "SD", name: "San Diego Padres" },
+  { id: 136, abbr: "SEA", name: "Seattle Mariners" },
+  { id: 137, abbr: "SF", name: "San Francisco Giants" },
+  { id: 138, abbr: "STL", name: "St. Louis Cardinals" },
+  { id: 139, abbr: "TB", name: "Tampa Bay Rays" },
+  { id: 140, abbr: "TEX", name: "Texas Rangers" },
+  { id: 141, abbr: "TOR", name: "Toronto Blue Jays" },
+  { id: 142, abbr: "MIN", name: "Minnesota Twins" },
+  { id: 143, abbr: "PHI", name: "Philadelphia Phillies" },
+  { id: 144, abbr: "ATL", name: "Atlanta Braves" },
+  { id: 145, abbr: "CWS", name: "Chicago White Sox" },
+  { id: 146, abbr: "MIA", name: "Miami Marlins" },
+  { id: 147, abbr: "NYY", name: "New York Yankees" },
+  { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
+];
+
 export default function Research() {
   usePageTitle("Research");
 
@@ -32,7 +88,15 @@ export default function Research() {
   const { token } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
 
-  const [selectedView, setSelectedView] = useState("player-database");
+  const [selectedView, setSelectedView] = useState<ResearchView>("player-database");
+  const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(147);
+  const [depthChartData, setDepthChartData] = useState<DepthChartResponse | null>(
+    () => getDepthChartCached(147),
+  );
+  const [isLoadingDepthChart, setIsLoadingDepthChart] = useState(
+    () => getDepthChartCached(147) === null,
+  );
+  const [depthChartError, setDepthChartError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState(() => {
     try {
@@ -193,6 +257,30 @@ export default function Research() {
     customPlayerIds,
   ]);
 
+  const loadDepthChart = useCallback(async (teamId: number) => {
+    const cached = getDepthChartCached(teamId);
+    if (!cached) {
+      setIsLoadingDepthChart(true);
+    }
+    setDepthChartError("");
+
+    try {
+      const depth = await getTeamDepthChart(teamId);
+      setDepthChartData(depth);
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error ? err.message : "Failed to load depth chart",
+      );
+    } finally {
+      setIsLoadingDepthChart(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedView !== "depth-charts") return;
+    void loadDepthChart(selectedDepthTeamId);
+  }, [selectedDepthTeamId, selectedView, loadDepthChart]);
+
   // Merge MLB API players with custom players — custom players appear at the top
   const allPlayers = useMemo(
     () => [...customPlayers, ...players],
@@ -227,7 +315,11 @@ export default function Research() {
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
-  const navigationItems = [
+  const navigationItems: Array<{
+    id: ResearchView;
+    label: string;
+    icon: typeof Database;
+  }> = [
     { id: "player-database", label: "Players", icon: Database },
     { id: "tiers",           label: "Tiers",   icon: BarChart3 },
     { id: "depth-charts",    label: "Depth Charts", icon: Layers },
@@ -303,9 +395,136 @@ export default function Research() {
             </div>
           )}
           {selectedView === "depth-charts" && (
-            <div className="coming-soon">
-              <h2>Depth Charts</h2>
-              <p>Coming soon...</p>
+            <div className="depth-chart-wrapper">
+              <div className="depth-chart-header">
+                <div>
+                  <h2>Depth Charts</h2>
+                  <p>
+                    Daily active-roster depth with starter/backup/reserve ranking
+                  </p>
+                </div>
+                <div className="depth-chart-controls">
+                  <label htmlFor="depth-team-select">Team</label>
+                  <select
+                    id="depth-team-select"
+                    value={selectedDepthTeamId}
+                    onChange={(event) => {
+                      setSelectedDepthTeamId(Number(event.target.value));
+                    }}
+                  >
+                    {MLB_TEAMS.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.abbr} - {team.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="depth-chart-refresh-btn"
+                    onClick={() => void loadDepthChart(selectedDepthTeamId)}
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              {depthChartError && (
+                <p className="research-error">{depthChartError}</p>
+              )}
+
+              {isLoadingDepthChart ? (
+                <div className="coming-soon">
+                  <h2>Loading Depth Chart</h2>
+                  <p>Fetching active roster and recent usage trends...</p>
+                </div>
+              ) : !depthChartData ? (
+                <div className="coming-soon">
+                  <h2>No Depth Data</h2>
+                  <p>Depth chart data is currently unavailable.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="depth-chart-meta">
+                    <span>
+                      Updated {new Date(depthChartData.generatedAt).toLocaleString()}
+                    </span>
+                    <span>
+                      Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
+                    </span>
+                    <span
+                      className={`depth-chart-limit-chip ${depthChartData.constraints.rosterLimitRespected ? "is-ok" : "is-warning"}`}
+                    >
+                      {depthChartData.constraints.note}
+                    </span>
+                  </div>
+
+                  <div className="depth-chart-grid">
+                    {DEPTH_POSITIONS.map((position) => {
+                      const rows = depthChartData.positions[position] ?? [];
+                      return (
+                        <section key={position} className="position-group">
+                          <div className="position-group__header">
+                            <h3 className="position-group__title">{position}</h3>
+                          </div>
+                          <div className="position-group__body">
+                            {[1, 2, 3].map((rank) => {
+                              const row = rows.find((item) => item.rank === rank);
+                              const rankClass =
+                                rank === 1
+                                  ? "player-slot--starter"
+                                  : rank === 2
+                                    ? "player-slot--backup"
+                                    : "player-slot--reserve";
+                              const injured =
+                                row && /injured|\bil\b/i.test(row.status);
+
+                              return (
+                                <div
+                                  key={`${position}-${rank}`}
+                                  className={`player-slot ${rankClass} ${injured ? "player-slot--injured" : ""} ${row?.outOfPosition || row?.needsManualReview ? "player-slot--oof" : ""}`}
+                                >
+                                  <div className="player-slot__rank">#{rank}</div>
+                                  {row ? (
+                                    <div className="player-slot__content">
+                                      <div className="player-slot__name">{row.playerName}</div>
+                                      <div className="player-slot__meta">
+                                        <span>{row.primaryPosition}</span>
+                                        <span>{row.status}</span>
+                                        <span>{row.usageStarts} starts</span>
+                                        <span>{row.usageAppearances} apps</span>
+                                      </div>
+                                      {row.outOfPosition && (
+                                        <div className="player-slot__flag">OOF - Manual Review</div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="player-slot__content player-slot__content--empty">
+                                      No assignment
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+
+                  {depthChartData.manualReview.length > 0 && (
+                    <section className="depth-chart-manual-review">
+                      <h3>Manual Review Required</h3>
+                      <ul>
+                        {depthChartData.manualReview.map((item) => (
+                          <li key={`${item.playerId}-${item.requestedPosition}`}>
+                            {item.playerName} - {item.requestedPosition} ({item.reason})
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

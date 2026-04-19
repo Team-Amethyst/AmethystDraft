@@ -60,6 +60,7 @@ interface MlbPlayer {
 
 interface RosterEntry {
   person: { id: number; fullName: string };
+  position?: { abbreviation?: string };
   status?: { code: string; description: string };
 }
 
@@ -69,6 +70,451 @@ interface MlbStatSplit {
   position?: { abbreviation: string };
   stat: Record<string, string | number>;
 }
+
+type DepthChartPosition =
+  | "SP"
+  | "RP"
+  | "C"
+  | "1B"
+  | "2B"
+  | "3B"
+  | "SS"
+  | "LF"
+  | "CF"
+  | "RF"
+  | "DH";
+
+interface ActiveRosterResponse {
+  roster?: Array<{
+    person?: { id?: number; fullName?: string };
+    position?: { abbreviation?: string };
+    status?: { code?: string; description?: string };
+  }>;
+}
+
+interface ScheduleResponse {
+  dates?: Array<{
+    games?: Array<{ gamePk?: number }>;
+  }>;
+}
+
+interface BoxScorePlayer {
+  person?: { id?: number; fullName?: string };
+  position?: { abbreviation?: string };
+  stats?: {
+    batting?: {
+      battingOrder?: string;
+      gamesStarted?: number | string;
+    };
+    pitching?: {
+      gamesStarted?: number | string;
+      inningsPitched?: string;
+    };
+  };
+}
+
+interface BoxScoreResponse {
+  teams?: {
+    home?: { players?: Record<string, BoxScorePlayer> };
+    away?: { players?: Record<string, BoxScorePlayer> };
+  };
+}
+
+interface PeopleResponse {
+  people?: Array<{
+    id?: number;
+    stats?: Array<{
+      splits?: Array<{
+        position?: { abbreviation?: string };
+        stat?: { games?: number | string };
+      }>;
+    }>;
+  }>;
+}
+
+interface DepthUsage {
+  appearances: number;
+  starts: number;
+  startsByPosition: Map<string, number>;
+  appearancesByPosition: Map<string, number>;
+}
+
+interface DepthChartPlayer {
+  rank: 1 | 2 | 3;
+  playerId: number;
+  playerName: string;
+  primaryPosition: string;
+  status: string;
+  usageStarts: number;
+  usageAppearances: number;
+  outOfPosition: boolean;
+  needsManualReview: boolean;
+  reasons: string[];
+}
+
+interface DepthChartResponse {
+  teamId: number;
+  generatedAt: string;
+  season: number;
+  rosterCount: number;
+  rosterLimit: 26 | 28;
+  positions: Record<DepthChartPosition, DepthChartPlayer[]>;
+  manualReview: Array<{
+    playerId: number;
+    playerName: string;
+    requestedPosition: DepthChartPosition;
+    reason: string;
+  }>;
+}
+
+const DEPTH_POSITIONS: DepthChartPosition[] = [
+  "SP",
+  "RP",
+  "C",
+  "1B",
+  "2B",
+  "3B",
+  "SS",
+  "LF",
+  "CF",
+  "RF",
+  "DH",
+];
+
+const DEPTH_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const depthChartCache = new Map<string, { fetchedAt: number; payload: DepthChartResponse }>();
+
+function mapPositionSlot(position: string): string {
+  const normalized = position.toUpperCase();
+  if (normalized === "P") return "SP";
+  if (normalized === "OF") return "LF";
+  if (normalized === "UT" || normalized === "UTIL") return "DH";
+  return normalized;
+}
+
+function isAvailableRosterStatus(status: string): boolean {
+  const normalized = status.toLowerCase();
+  if (!normalized) return true;
+  const unavailableTokens = [
+    "injured",
+    "injury",
+    "bereavement",
+    "restricted",
+    "suspended",
+    "paternity",
+    "inactive",
+    "temporarily inactive",
+    "covid",
+    "il",
+  ];
+  return !unavailableTokens.some((token) => normalized.includes(token));
+}
+
+function incrementMapCount(map: Map<string, number>, key: string, amount = 1): void {
+  map.set(key, (map.get(key) ?? 0) + amount);
+}
+
+function parseStarts(value: number | string | undefined): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return Number(value) || 0;
+  return 0;
+}
+
+async function fetchJsonOrThrow<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new UpstreamError("MLB API request failed", 502, "MLB_DEPTH_CHART_ERROR", {
+      url,
+      status: response.status,
+      statusText: response.statusText,
+    });
+  }
+  return (await response.json()) as T;
+}
+
+function safeDateOffset(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function scoreCandidate(
+  targetPosition: DepthChartPosition,
+  primaryPosition: string,
+  usage: DepthUsage,
+  secondaryPositions: Set<string>,
+): { score: number; outOfPosition: boolean; reasons: string[] } {
+  const mappedPrimary = mapPositionSlot(primaryPosition);
+  const mappedTarget = mapPositionSlot(targetPosition);
+
+  const startsAtPosition =
+    usage.startsByPosition.get(targetPosition) ??
+    usage.startsByPosition.get(mappedTarget) ??
+    0;
+  const appearancesAtPosition =
+    usage.appearancesByPosition.get(targetPosition) ??
+    usage.appearancesByPosition.get(mappedTarget) ??
+    0;
+
+  const primaryMatch = mappedPrimary === mappedTarget;
+  const secondaryMatch = secondaryPositions.has(targetPosition) || secondaryPositions.has(mappedTarget);
+  const outOfPosition = !primaryMatch && !secondaryMatch;
+
+  let score = 0;
+  score += startsAtPosition * 3;
+  score += appearancesAtPosition;
+  score += usage.starts;
+  score += usage.appearances * 0.25;
+  if (primaryMatch) score += 8;
+  if (secondaryMatch) score += 4;
+  if (targetPosition === "SP" && mappedPrimary === "RP") score -= 4;
+  if (targetPosition === "RP" && mappedPrimary === "SP") score -= 1;
+  if (outOfPosition) score -= 6;
+
+  const reasons: string[] = [];
+  if (primaryMatch) reasons.push("Primary position match");
+  if (!primaryMatch && secondaryMatch) reasons.push("Secondary position fill");
+  if (startsAtPosition > 0) reasons.push(`Recent starts at ${targetPosition}: ${startsAtPosition}`);
+  if (appearancesAtPosition > 0) reasons.push(`Recent appearances at ${targetPosition}: ${appearancesAtPosition}`);
+  if (outOfPosition) reasons.push("OOF: no primary/secondary alignment");
+
+  return { score, outOfPosition, reasons };
+}
+
+async function buildDepthChart(teamId: number, season: number): Promise<DepthChartResponse> {
+  const cacheKey = `${teamId}:${season}`;
+  const cached = depthChartCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < DEPTH_CACHE_TTL_MS) {
+    return cached.payload;
+  }
+
+  const rosterUrl = `${MLB_API}/teams/${teamId}/roster?rosterType=active&season=${season}`;
+  const rosterData = await fetchJsonOrThrow<ActiveRosterResponse>(rosterUrl);
+
+  const rawRoster = rosterData.roster ?? [];
+  const filteredRoster = rawRoster
+    .map((entry) => {
+      const playerId = entry.person?.id;
+      const playerName = entry.person?.fullName;
+      if (!playerId || !playerName) return null;
+
+      const status = entry.status?.description ?? entry.status?.code ?? "Active";
+      const primary = entry.position?.abbreviation ?? "DH";
+      return {
+        playerId,
+        playerName,
+        primaryPosition: primary,
+        status,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .filter((entry) => isAvailableRosterStatus(entry.status));
+
+  const playerIds = filteredRoster.map((p) => p.playerId);
+  const usageByPlayer = new Map<number, DepthUsage>();
+  for (const p of filteredRoster) {
+    usageByPlayer.set(p.playerId, {
+      appearances: 0,
+      starts: 0,
+      startsByPosition: new Map<string, number>(),
+      appearancesByPosition: new Map<string, number>(),
+    });
+  }
+
+  const today = safeDateOffset(0);
+  const tenDaysAgo = safeDateOffset(10);
+  const scheduleUrl =
+    `${MLB_API}/schedule?sportId=1&teamId=${teamId}&startDate=${tenDaysAgo}` +
+    `&endDate=${today}&gameTypes=R`;
+  const scheduleData = await fetchJsonOrThrow<ScheduleResponse>(scheduleUrl);
+  const gamePks = (scheduleData.dates ?? [])
+    .flatMap((d) => d.games ?? [])
+    .map((g) => g.gamePk)
+    .filter((pk): pk is number => typeof pk === "number")
+    .slice(-7);
+
+  await Promise.all(
+    gamePks.map(async (gamePk) => {
+      const boxUrl = `${MLB_API}/game/${gamePk}/boxscore`;
+      let box: BoxScoreResponse;
+      try {
+        box = await fetchJsonOrThrow<BoxScoreResponse>(boxUrl);
+      } catch {
+        return;
+      }
+
+      const allPlayers = {
+        ...(box.teams?.home?.players ?? {}),
+        ...(box.teams?.away?.players ?? {}),
+      };
+
+      for (const boxPlayer of Object.values(allPlayers)) {
+        const pid = boxPlayer.person?.id;
+        if (!pid || !playerIds.includes(pid)) continue;
+
+        const usage = usageByPlayer.get(pid);
+        if (!usage) continue;
+
+        usage.appearances += 1;
+
+        const rawPosition = boxPlayer.position?.abbreviation ?? "DH";
+        const mappedPosition = mapPositionSlot(rawPosition);
+        incrementMapCount(usage.appearancesByPosition, rawPosition, 1);
+        incrementMapCount(usage.appearancesByPosition, mappedPosition, 1);
+
+        const battingStart = parseStarts(boxPlayer.stats?.batting?.gamesStarted);
+        const pitchingStart = parseStarts(boxPlayer.stats?.pitching?.gamesStarted);
+        const battingOrder = boxPlayer.stats?.batting?.battingOrder;
+        const inferredLineupStart = typeof battingOrder === "string" && battingOrder.length > 0 ? 1 : 0;
+
+        const started = Math.max(battingStart, pitchingStart, inferredLineupStart);
+        if (started > 0) {
+          usage.starts += 1;
+          incrementMapCount(usage.startsByPosition, rawPosition, 1);
+          incrementMapCount(usage.startsByPosition, mappedPosition, 1);
+        }
+      }
+    }),
+  );
+
+  const secondaryByPlayer = new Map<number, Set<string>>();
+  if (playerIds.length > 0) {
+    const peopleUrl = `${MLB_API}/people?personIds=${playerIds.join(",")}` +
+      `&hydrate=stats(group=[fielding,pitching],type=[season],season=${season})`;
+    try {
+      const people = await fetchJsonOrThrow<PeopleResponse>(peopleUrl);
+      for (const player of people.people ?? []) {
+        if (!player.id) continue;
+        const positions = new Set<string>();
+        for (const statGroup of player.stats ?? []) {
+          for (const split of statGroup.splits ?? []) {
+            const games = Number(split.stat?.games ?? 0);
+            if (games < 3) continue;
+            const pos = split.position?.abbreviation;
+            if (!pos) continue;
+            positions.add(pos.toUpperCase());
+            positions.add(mapPositionSlot(pos));
+          }
+        }
+        secondaryByPlayer.set(player.id, positions);
+      }
+    } catch {
+      // Secondary positions are optional enrichment; depth still derives from primary + usage.
+    }
+  }
+
+  const assignedByPosition = Object.fromEntries(
+    DEPTH_POSITIONS.map((position) => [position, [] as DepthChartPlayer[]]),
+  ) as Record<DepthChartPosition, DepthChartPlayer[]>;
+  const manualReview: DepthChartResponse["manualReview"] = [];
+  const usedPlayerIds = new Set<number>();
+
+  for (const position of DEPTH_POSITIONS) {
+    const rankedCandidates = filteredRoster
+      .filter((entry) => !usedPlayerIds.has(entry.playerId))
+      .map((entry) => {
+        const usage = usageByPlayer.get(entry.playerId) ?? {
+          appearances: 0,
+          starts: 0,
+          startsByPosition: new Map<string, number>(),
+          appearancesByPosition: new Map<string, number>(),
+        };
+        const secondary = secondaryByPlayer.get(entry.playerId) ?? new Set<string>();
+        const score = scoreCandidate(position, entry.primaryPosition, usage, secondary);
+        return {
+          ...entry,
+          usage,
+          ...score,
+        };
+      })
+      .sort((a, b) => b.score - a.score || a.playerName.localeCompare(b.playerName));
+
+    const topThree = rankedCandidates.slice(0, 3);
+    assignedByPosition[position] = topThree.map((candidate, index) => {
+      const rank = (index + 1) as 1 | 2 | 3;
+      if (candidate.outOfPosition) {
+        manualReview.push({
+          playerId: candidate.playerId,
+          playerName: candidate.playerName,
+          requestedPosition: position,
+          reason: "OOF (Out of Position) assignment",
+        });
+      }
+      usedPlayerIds.add(candidate.playerId);
+      return {
+        rank,
+        playerId: candidate.playerId,
+        playerName: candidate.playerName,
+        primaryPosition: candidate.primaryPosition,
+        status: candidate.status,
+        usageStarts: candidate.usage.starts,
+        usageAppearances: candidate.usage.appearances,
+        outOfPosition: candidate.outOfPosition,
+        needsManualReview: candidate.outOfPosition,
+        reasons: candidate.reasons,
+      };
+    });
+  }
+
+  const month = new Date().getMonth() + 1;
+  const rosterLimit: 26 | 28 = month === 9 ? 28 : 26;
+
+  const response: DepthChartResponse = {
+    teamId,
+    generatedAt: new Date().toISOString(),
+    season,
+    rosterCount: filteredRoster.length,
+    rosterLimit,
+    positions: assignedByPosition,
+    manualReview,
+  };
+
+  depthChartCache.set(cacheKey, { fetchedAt: Date.now(), payload: response });
+  return response;
+}
+
+const getTeamDepthChart: RequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const teamId = Number(req.params.teamId);
+    if (!Number.isInteger(teamId) || teamId <= 0) {
+      throw new AppError("Invalid teamId parameter", 400, "VALIDATION_ERROR", {
+        teamId: req.params.teamId,
+      });
+    }
+
+    const seasonParam = Number(req.query.season);
+    const season = Number.isInteger(seasonParam) && seasonParam > 0
+      ? seasonParam
+      : new Date().getFullYear();
+
+    const chart = await buildDepthChart(teamId, season);
+    const rosterOverLimit = chart.rosterCount > chart.rosterLimit;
+
+    res.json({
+      ...chart,
+      constraints: {
+        rosterLimitRespected: !rosterOverLimit,
+        note: rosterOverLimit
+          ? `Active roster (${chart.rosterCount}) exceeds ${chart.rosterLimit}-man limit`
+          : `Active roster (${chart.rosterCount}) is within ${chart.rosterLimit}-man limit`,
+      },
+    });
+  } catch (err) {
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+    next(
+      new UpstreamError("Failed to build team depth chart", 502, "MLB_DEPTH_CHART_ERROR", {
+        cause: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+};
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -496,6 +942,7 @@ router.post(
   postFixtureValuations,
 );
 
+router.get("/depth-chart/:teamId", getTeamDepthChart);
 router.get("/", validateQuery(playersQuerySchema), getPlayers);
 
 export default router;
