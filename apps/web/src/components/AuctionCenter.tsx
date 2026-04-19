@@ -71,8 +71,10 @@ export function AuctionCenter({
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
     if (!leagueId || !token) return;
+    let cancelled = false;
     getValuation(leagueId, token)
       .then((res) => {
+        if (cancelled) return;
         setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
         setValuationMarketNotes(res.market_notes ?? []);
         setValuationSnapshot({
@@ -85,10 +87,14 @@ export function AuctionCenter({
         });
       })
       .catch(() => {
+        if (cancelled) return;
         setValuationMarketNotes([]);
         setValuationMap(new Map());
         setValuationSnapshot(null);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [leagueId, token, rosterEntries.length]);
 
   // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
@@ -99,10 +105,12 @@ export function AuctionCenter({
     void getValuationPlayer(leagueId, token, playerId)
       .then((res) => {
         if (cancelled) return;
-        if (res.player) {
+        const row = res.player;
+        if (row && row.player_id !== playerId) return;
+        if (row) {
           setValuationMap((prev) => {
             const next = new Map(prev);
-            next.set(playerId, res.player!);
+            next.set(playerId, row);
             return next;
           });
         }

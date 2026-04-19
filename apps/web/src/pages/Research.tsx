@@ -89,6 +89,11 @@ export default function Research() {
     return map;
   }, [rosterEntries, league?.teamNames]);
 
+  const customPlayerIds = useMemo(
+    () => new Set(customPlayers.map((p) => p.id)),
+    [customPlayers],
+  );
+
   useEffect(() => {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries);
@@ -146,11 +151,12 @@ export default function Research() {
     let cancelled = false;
     const BATCH = 150;
     const ids = players
-      .filter((p) => !isCustomPlayer(p.id))
+      .filter((p) => !customPlayerIds.has(p.id))
       .map((p) => p.id);
 
     void (async () => {
       const merged = new Map<string, { value: number; tier: number }>();
+      let batchFailed = false;
       for (let i = 0; i < ids.length; i += BATCH) {
         if (cancelled) return;
         const chunk = ids.slice(i, i + BATCH);
@@ -168,10 +174,12 @@ export default function Research() {
             });
           }
         } catch {
-          /* best-effort; table still shows list Proj $ */
+          batchFailed = true;
+          break;
         }
       }
-      if (!cancelled) setEngineCatalogByPlayerId(merged);
+      // Avoid showing a misleading partial overlay if a later chunk failed.
+      if (!cancelled && !batchFailed) setEngineCatalogByPlayerId(merged);
     })();
 
     return () => {
@@ -182,7 +190,7 @@ export default function Research() {
     players,
     league?.playerPool,
     league?.posEligibilityThreshold,
-    isCustomPlayer,
+    customPlayerIds,
   ]);
 
   // Merge MLB API players with custom players — custom players appear at the top
