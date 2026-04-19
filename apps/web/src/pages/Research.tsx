@@ -5,6 +5,7 @@ import { Database, BarChart3, Layers, UserPlus } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import { getPlayers, getPlayersCached } from "../api/players";
+import { getCatalogBatchValues } from "../api/engine";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -62,6 +63,9 @@ export default function Research() {
     () => getPlayersCached("adp") === null,
   );
   const [playersError, setPlayersError] = useState("");
+  const [engineCatalogByPlayerId, setEngineCatalogByPlayerId] = useState<
+    ReadonlyMap<string, { value: number; tier: number }>
+  >(() => new Map());
 
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
     () => getRosterCached(leagueId ?? "") ?? [],
@@ -132,6 +136,54 @@ export default function Research() {
       void loadPlayers();
     }
   }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
+
+  useEffect(() => {
+    if (!token || players.length === 0) {
+      setEngineCatalogByPlayerId(new Map());
+      return;
+    }
+    const pool = league?.playerPool ?? "Mixed";
+    let cancelled = false;
+    const BATCH = 150;
+    const ids = players
+      .filter((p) => !isCustomPlayer(p.id))
+      .map((p) => p.id);
+
+    void (async () => {
+      const merged = new Map<string, { value: number; tier: number }>();
+      for (let i = 0; i < ids.length; i += BATCH) {
+        if (cancelled) return;
+        const chunk = ids.slice(i, i + BATCH);
+        if (chunk.length === 0) continue;
+        try {
+          const res = await getCatalogBatchValues(token, {
+            player_ids: chunk,
+            league_scope: pool,
+            pos_eligibility_threshold: league?.posEligibilityThreshold,
+          });
+          for (const row of res.players) {
+            merged.set(row.player_id, {
+              value: row.value,
+              tier: row.tier,
+            });
+          }
+        } catch {
+          /* best-effort; table still shows list Proj $ */
+        }
+      }
+      if (!cancelled) setEngineCatalogByPlayerId(merged);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    token,
+    players,
+    league?.playerPool,
+    league?.posEligibilityThreshold,
+    isCustomPlayer,
+  ]);
 
   // Merge MLB API players with custom players — custom players appear at the top
   const allPlayers = useMemo(
@@ -231,6 +283,7 @@ export default function Research() {
                   draftedIds={draftedIds}
                   draftedByTeam={draftedByTeam}
                   isCustomPlayer={isCustomPlayer}
+                  engineCatalogByPlayerId={engineCatalogByPlayerId}
                 />
               )}
             </>

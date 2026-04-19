@@ -439,8 +439,9 @@
 
 .pac-header {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
 
@@ -474,27 +475,54 @@
   flex-direction: column;
   gap: 0.3rem;
   min-width: 0;
+  flex: 1;
 }
 
-.pac-engine-notes {
-  font-size: 0.75rem;
-  line-height: 1.25;
-  color: rgba(203, 183, 240, 0.9);
-  max-width: 28rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.pac-engine-context {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(12, 8, 22, 0.85);
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.pac-engine-context-heading {
+  margin-bottom: 0.45rem;
+}
+
+.pac-engine-note-line {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #d4c4ec;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.pac-engine-note-line + .pac-engine-note-line {
+  margin-top: 0.45rem;
+}
+
+.pac-engine-context .pac-valuation-summary {
+  margin-top: 0;
+}
+
+.pac-engine-context .pac-engine-note-line ~ .pac-valuation-summary {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
 }
 
 .pac-valuation-summary {
-  font-size: 0.68rem;
-  line-height: 1.35;
-  color: rgba(180, 200, 255, 0.88);
-  max-width: 36rem;
-  margin-top: 0.15rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  font-weight: 600;
+  color: rgba(198, 210, 255, 0.95);
   display: flex;
   flex-wrap: wrap;
-  gap: 0.15rem 0.35rem;
+  gap: 0.2rem 0.45rem;
+  align-items: baseline;
 }
 
 .pac-name {

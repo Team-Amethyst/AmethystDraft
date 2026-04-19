@@ -22,6 +22,11 @@ interface PlayerTableProps {
   draftedIds?: Set<string>;
   draftedByTeam?: Map<string, string>;
   isCustomPlayer?: (id: string) => boolean;
+  /** League-scoped Engine catalog batch (e.g. Research); optional second line under Proj $. */
+  engineCatalogByPlayerId?: ReadonlyMap<
+    string,
+    { value: number; tier: number }
+  >;
 }
 
 type DisplayBatting = {
@@ -373,6 +378,7 @@ export default function PlayerTable({
   draftedIds,
   draftedByTeam,
   isCustomPlayer,
+  engineCatalogByPlayerId,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -918,6 +924,7 @@ export default function PlayerTable({
             {rowData.map(
               ({ player, bat, pit, isBatter, tags, valDiff }, index) => {
                 const isStarred = isInWatchlist(player.id);
+                const eng = engineCatalogByPlayerId?.get(player.id);
 
                 return (
                   <tr
@@ -1014,14 +1021,31 @@ export default function PlayerTable({
                     </td>
                     <td className="td-team">{player.team}</td>
 
-                    <td className="td-tier">
-                      <TierBadge tier={player.tier} />
+                    <td
+                      className="td-tier"
+                      title={
+                        eng && eng.tier !== player.tier
+                          ? `List tier ${player.tier}`
+                          : undefined
+                      }
+                    >
+                      <TierBadge tier={eng?.tier ?? player.tier} />
                     </td>
 
                     <td className="td-adp">{player.adp}</td>
 
                     <td className="td-value">
-                      <span className="value-chip">${player.value}</span>
+                      <div className="td-value-stack">
+                        <span className="value-chip">${player.value}</span>
+                        {eng != null && (
+                          <span
+                            className="pt-engine-catalog-hint"
+                            title="Engine catalog value for this league's player pool"
+                          >
+                            Eng · ${eng.value}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td

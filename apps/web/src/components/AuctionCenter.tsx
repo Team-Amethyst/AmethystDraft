@@ -9,7 +9,11 @@ import type { Player } from "../types/player";
 import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import { getStatByCategory } from "../pages/commandCenterUtils";
-import { getValuation, type ValuationResult } from "../api/engine";
+import {
+  getValuation,
+  getValuationPlayer,
+  type ValuationResult,
+} from "../api/engine";
 
 /** League-level fields from last /valuation/calculate (for auction context strip). */
 type ValuationLeagueSnapshot = {
@@ -86,6 +90,40 @@ export function AuctionCenter({
         setValuationSnapshot(null);
       });
   }, [leagueId, token, rosterEntries.length]);
+
+  // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
+  useEffect(() => {
+    if (!leagueId || !token || !selectedPlayer) return;
+    let cancelled = false;
+    const playerId = selectedPlayer.id;
+    void getValuationPlayer(leagueId, token, playerId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.player) {
+          setValuationMap((prev) => {
+            const next = new Map(prev);
+            next.set(playerId, res.player!);
+            return next;
+          });
+        }
+        setValuationMarketNotes(res.market_notes ?? []);
+        setValuationSnapshot({
+          inflation_factor: res.inflation_factor,
+          total_budget_remaining: res.total_budget_remaining,
+          pool_value_remaining: res.pool_value_remaining,
+          players_remaining: res.players_remaining,
+          valuation_model_version: res.valuation_model_version,
+          engine_contract_version: res.engine_contract_version,
+        });
+      })
+      .catch(() => {
+        /* keep last full-board map; player-only is best-effort */
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when selected id changes
+  }, [leagueId, token, selectedPlayer?.id]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -611,37 +649,6 @@ export function AuctionCenter({
                       </span>
                     )}
                   </h1>
-                  {valuationMarketNotes.length > 0 && (
-                    <div
-                      className="pac-engine-notes"
-                      title={valuationMarketNotes.join("\n")}
-                    >
-                      {valuationMarketNotes.join(" · ")}
-                    </div>
-                  )}
-                  {valuationSnapshot ? (
-                    <div
-                      className="pac-valuation-summary"
-                      title="League-wide figures from Amethyst Engine (last valuation run)"
-                    >
-                      <span>
-                        Inflation {valuationSnapshot.inflation_factor.toFixed(2)}
-                        ×
-                      </span>
-                      <span>
-                        · ${valuationSnapshot.total_budget_remaining} budget left
-                      </span>
-                      <span>
-                        · {valuationSnapshot.players_remaining} players left
-                      </span>
-                      {valuationSnapshot.valuation_model_version ? (
-                        <span>
-                          {" "}
-                          · {valuationSnapshot.valuation_model_version}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </div>
                 <div className="pac-meta-row">
                   <div className="pac-stat">
@@ -743,6 +750,44 @@ export function AuctionCenter({
                   </div>
                 </div>
               </div>
+              {(valuationMarketNotes.length > 0 || valuationSnapshot) && (
+                <div
+                  className="pac-engine-context"
+                  aria-label="Engine market context"
+                >
+                  <div className="pac-engine-context-heading">
+                    <span className="pac-section-label">Engine context</span>
+                  </div>
+                  {valuationMarketNotes.map((note, i) => (
+                    <p key={i} className="pac-engine-note-line">
+                      {note}
+                    </p>
+                  ))}
+                  {valuationSnapshot ? (
+                    <div
+                      className="pac-valuation-summary"
+                      title="League-wide figures from Amethyst Engine (last valuation run)"
+                    >
+                      <span>
+                        Inflation {valuationSnapshot.inflation_factor.toFixed(2)}
+                        ×
+                      </span>
+                      <span>
+                        · ${valuationSnapshot.total_budget_remaining} budget left
+                      </span>
+                      <span>
+                        · {valuationSnapshot.players_remaining} players left
+                      </span>
+                      {valuationSnapshot.valuation_model_version ? (
+                        <span>
+                          {" "}
+                          · {valuationSnapshot.valuation_model_version}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <div className="pac-notes-wrap">
