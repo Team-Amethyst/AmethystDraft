@@ -44,7 +44,12 @@ async function parseApiError(
   let message = fallbackMessage;
   try {
     const data = (await res.json()) as ErrorShape;
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
+    if (res.status === 429) {
+      message =
+        data.error?.message ??
+        data.message ??
+        "Too many requests. Please wait a moment and try again.";
+    } else if (Array.isArray(data.errors) && data.errors.length > 0) {
       message = messageFromEngineValidation(data.errors);
     } else {
       message = data.error?.message ?? data.message ?? fallbackMessage;

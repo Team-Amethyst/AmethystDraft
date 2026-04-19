@@ -10,6 +10,12 @@ export interface ValuationResult {
   baseline_value: number;
   adjusted_value: number;
   indicator: "Steal" | "Reach" | "Fair Value";
+  /** Engine explainability; safe to ignore in UI. */
+  why?: string[];
+  /** When Engine sends catalog-style ADP on the valuation row. */
+  adp?: number;
+  inflation_factor?: number;
+  team?: string;
 }
 
 export interface ValuationResponse {
@@ -21,6 +27,8 @@ export interface ValuationResponse {
   calculated_at: string;
   /** Present when Engine includes contract version on inflation payloads. */
   engine_contract_version?: string;
+  /** Response-level league context from Engine (inflation, scarcity, monopolies). */
+  market_notes?: string[];
 }
 
 export async function getValuation(
@@ -31,6 +39,63 @@ export async function getValuation(
     `/api/engine/leagues/${leagueId}/valuation`,
     { method: "POST", headers: authHeaders(token) },
     "Valuation request failed",
+  );
+}
+
+/** Same envelope as full valuation plus focused `player` row from Engine. */
+export type ValuationPlayerResponse = ValuationResponse & {
+  player?: ValuationResult;
+};
+
+export async function getValuationPlayer(
+  leagueId: string,
+  token: string,
+  playerId: string,
+): Promise<ValuationPlayerResponse> {
+  return requestJson<ValuationPlayerResponse>(
+    `/api/engine/leagues/${leagueId}/valuation/player`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ player_id: playerId }),
+    },
+    "Valuation (player) request failed",
+  );
+}
+
+export interface CatalogBatchValuesRequest {
+  player_ids: string[];
+  league_scope?: "Mixed" | "AL" | "NL";
+  pos_eligibility_threshold?: number;
+}
+
+export interface CatalogBatchPlayer {
+  player_id: string;
+  name: string;
+  position: string;
+  team: string;
+  value: number;
+  tier: number;
+  adp: number;
+}
+
+export interface CatalogBatchValuesResponse {
+  engine_contract_version: string;
+  players: CatalogBatchPlayer[];
+}
+
+export async function getCatalogBatchValues(
+  token: string,
+  body: CatalogBatchValuesRequest,
+): Promise<CatalogBatchValuesResponse> {
+  return requestJson<CatalogBatchValuesResponse>(
+    "/api/engine/catalog/batch-values",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(body),
+    },
+    "Catalog batch values request failed",
   );
 }
 

@@ -11,7 +11,12 @@ import {
   finalizeEngineValuationPostPayload,
 } from "../lib/engineContext";
 import { validateBody, validateQuery } from "../validation/validate";
-import { mockPickSchema, newsSignalsQuerySchema } from "../validation/schemas";
+import {
+  mockPickSchema,
+  newsSignalsQuerySchema,
+  valuationPlayerBodySchema,
+  catalogBatchValuesBodySchema,
+} from "../validation/schemas";
 import { logRequestError } from "../lib/errorLogging";
 import { forwardEngineCorrelationHeaders } from "../lib/engineResponseMeta";
 import { 
@@ -56,6 +61,32 @@ const calculateValuation: RequestHandler = async (
     const context = buildValuationContext(league, entries);
     const payload = finalizeEngineValuationPostPayload(context);
     const axiosRes = await amethyst.post("/valuation/calculate", payload);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throwEngineError(err, req);
+  }
+};
+
+// ─── POST /api/engine/leagues/:leagueId/valuation/player ──────────────────────
+// Same valuation context as /valuation plus player_id; Engine returns one row under `player`.
+
+const calculateValuationPlayer: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const league = await League.findById(req.params.leagueId);
+    if (!league) {
+      throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
+    }
+    const entries = await RosterEntry.find({ leagueId: league._id });
+    const context = buildValuationContext(league, entries);
+    const base = finalizeEngineValuationPostPayload(context);
+    const { player_id } = req.body as { player_id: string };
+    const payload = { ...base, player_id };
+    const axiosRes = await amethyst.post("/valuation/player", payload);
     forwardEngineCorrelationHeaders(res, axiosRes);
     res.json(axiosRes.data);
   } catch (err) {
@@ -149,11 +180,38 @@ const getNewsSignals: RequestHandler = async (
   }
 };
 
+// ─── POST /api/engine/catalog/batch-values ────────────────────────────────────
+// Baseline value / tier / adp for a set of player ids (no league roster context).
+
+const postCatalogBatchValues: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const axiosRes = await amethyst.post("/catalog/batch-values", req.body);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    res.json(axiosRes.data);
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throwEngineError(err, req);
+  }
+};
+
 // ─── Route registration ───────────────────────────────────────────────────────
 
 router.post("/leagues/:leagueId/valuation", calculateValuation);
+router.post(
+  "/leagues/:leagueId/valuation/player",
+  validateBody(valuationPlayerBodySchema),
+  calculateValuationPlayer,
+);
 router.post("/leagues/:leagueId/scarcity", analyzeScarcity);
 router.post("/leagues/:leagueId/mock-pick", validateBody(mockPickSchema), simulateMockPick);
+router.post(
+  "/catalog/batch-values",
+  validateBody(catalogBatchValuesBodySchema),
+  postCatalogBatchValues,
+);
 router.get("/signals/news", validateQuery(newsSignalsQuerySchema), getNewsSignals);
 
 export default router;

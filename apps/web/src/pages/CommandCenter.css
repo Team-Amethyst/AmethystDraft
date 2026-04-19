@@ -439,6 +439,16 @@
   min-width: 0;
 }
 
+.pac-engine-notes {
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: rgba(203, 183, 240, 0.9);
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pac-name {
   font-size: 2rem;
   font-weight: 800;

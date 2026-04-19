@@ -23,14 +23,14 @@ const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
         appError = new InternalServerError();
     }
 
-    // Amethyst Engine returns 400 as { errors: [{ field, message }] } — forward as-is
-    // so graders and clients match the Engine contract (not wrapped AppError JSON).
+    // Amethyst Engine returns 400/422 as { errors: [{ field, message }] } — forward as-is
+    // (400 = request validation; 422 = output sanity) so graders match the Engine contract.
     if (
         appError instanceof UpstreamError &&
-        appError.statusCode === 400 &&
+        (appError.statusCode === 400 || appError.statusCode === 422) &&
         isEngineZodErrorBody(appError.details)
     ) {
-        res.status(400).json(appError.details);
+        res.status(appError.statusCode).json(appError.details);
         return;
     }
 

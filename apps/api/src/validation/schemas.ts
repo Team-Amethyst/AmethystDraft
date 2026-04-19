@@ -98,6 +98,18 @@ export const newsSignalsQuerySchema = z.object({
   signal_type: z.string().min(1).optional(),
 });
 
+/** Body for POST …/valuation/player — merged with league valuation context for Engine. */
+export const valuationPlayerBodySchema = z.object({
+  player_id: z.string().min(1, "player_id is required"),
+});
+
+/** Body for POST …/catalog/batch-values — forwarded to Engine catalog route. */
+export const catalogBatchValuesBodySchema = z.object({
+  player_ids: z.array(z.string().min(1)).min(1, "At least one player_id is required"),
+  league_scope: playerPoolSchema.optional(),
+  pos_eligibility_threshold: z.number().optional(),
+});
+
 export const playersQuerySchema = z.object({
   sortBy: z.enum(["adp", "value", "name"]).optional(),
   playerPool: playerPoolQuerySchema,

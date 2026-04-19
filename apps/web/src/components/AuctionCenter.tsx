@@ -48,15 +48,21 @@ export function AuctionCenter({
   const [valuationMap, setValuationMap] = useState<
     Map<string, ValuationResult>
   >(new Map());
+  const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>(
+    [],
+  );
 
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
     if (!leagueId || !token) return;
     getValuation(leagueId, token)
-      .then((res) =>
-        setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v]))),
-      )
-      .catch(() => {});
+      .then((res) => {
+        setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
+        setValuationMarketNotes(res.market_notes ?? []);
+      })
+      .catch(() => {
+        setValuationMarketNotes([]);
+      });
   }, [leagueId, token, rosterEntries.length]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -549,19 +555,29 @@ export function AuctionCenter({
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-                <h1 className="pac-name">
-                  {selectedPlayer.name}
-                  {selectedPlayer.injuryStatus && (
-                    <span className="pt-il-badge">
-                      {selectedPlayer.injuryStatus.replace("DL", "IL")}
-                    </span>
+                <div className="pac-name-block">
+                  <h1 className="pac-name">
+                    {selectedPlayer.name}
+                    {selectedPlayer.injuryStatus && (
+                      <span className="pt-il-badge">
+                        {selectedPlayer.injuryStatus.replace("DL", "IL")}
+                      </span>
+                    )}
+                    {isInWatchlist(selectedPlayer.id) && (
+                      <span className="pac-wl-badge" title="On your watchlist">
+                        ★
+                      </span>
+                    )}
+                  </h1>
+                  {valuationMarketNotes.length > 0 && (
+                    <div
+                      className="pac-engine-notes"
+                      title={valuationMarketNotes.join("\n")}
+                    >
+                      {valuationMarketNotes.join(" · ")}
+                    </div>
                   )}
-                  {isInWatchlist(selectedPlayer.id) && (
-                    <span className="pac-wl-badge" title="On your watchlist">
-                      ★
-                    </span>
-                  )}
-                </h1>
+                </div>
                 <div className="pac-meta-row">
                   <div className="pac-stat">
                     <span className="pac-stat-label">Position</span>
@@ -615,9 +631,11 @@ export function AuctionCenter({
                         : v.indicator === "Reach"
                           ? "reach"
                           : "fair";
+                    const whyTip =
+                      v.why && v.why.length > 0 ? v.why.join(" · ") : undefined;
                     return (
                       <>
-                        <div className="pac-stat">
+                        <div className="pac-stat" title={whyTip}>
                           <span className="pac-stat-label">Adj $</span>
                           <span className="pac-stat-value green">
                             ${v.adjusted_value}
@@ -627,6 +645,7 @@ export function AuctionCenter({
                           <span className="pac-stat-label">Signal</span>
                           <span
                             className={`pac-indicator pac-indicator--${cls}`}
+                            title={whyTip}
                           >
                             {v.indicator}
                           </span>
@@ -634,7 +653,17 @@ export function AuctionCenter({
                       </>
                     );
                   })()}
-                  <div className="pac-stat">
+                  <div
+                    className="pac-stat"
+                    title={
+                      (() => {
+                        const v = valuationMap.get(selectedPlayer.id);
+                        return v?.adp != null
+                          ? `Engine ADP (valuation row): ${v.adp}`
+                          : undefined;
+                      })()
+                    }
+                  >
                     <span className="pac-stat-label">ADP</span>
                     <span className="pac-stat-value">{selectedPlayer.adp}</span>
                   </div>

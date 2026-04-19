@@ -24,6 +24,25 @@ describe("errorHandler", () => {
     expect(res.body.message).toBeUndefined();
   });
 
+  it("forwards Engine 422 Zod shape without AppError wrapper", async () => {
+    const app = express();
+    app.get("/unprocessable", (_req, _res, next) => {
+      next(
+        new UpstreamError("Engine request failed", 422, "ENGINE_UPSTREAM_ERROR", {
+          errors: [{ field: "valuations", message: "Output sanity check failed" }],
+        }),
+      );
+    });
+    app.use(errorHandler);
+
+    const res = await request(app).get("/unprocessable");
+    expect(res.status).toBe(422);
+    expect(res.body).toEqual({
+      errors: [{ field: "valuations", message: "Output sanity check failed" }],
+    });
+    expect(res.body.message).toBeUndefined();
+  });
+
   it("still wraps normal AppError responses", async () => {
     const app = express();
     app.get("/nf", (_req, _res, next) => {

@@ -124,6 +124,81 @@ describe("engine routes (BFF → Amethyst)", () => {
     });
   });
 
+  describe("POST /api/engine/leagues/:leagueId/valuation/player", () => {
+    it("proxies to POST /valuation/player with player_id merged into payload", async () => {
+      postMock.mockResolvedValue({
+        data: {
+          engine_contract_version: "1",
+          inflation_factor: 1.1,
+          player: { player_id: "660271", name: "X", adjusted_value: 40 },
+          valuations: [],
+          calculated_at: "t",
+        },
+        headers: {},
+      });
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation/player`)
+        .set("Authorization", "Bearer t")
+        .send({ player_id: "660271" });
+
+      expect(res.status).toBe(200);
+      expect(postMock).toHaveBeenCalledWith(
+        "/valuation/player",
+        expect.objectContaining({
+          player_id: "660271",
+          num_teams: 2,
+          league_scope: "Mixed",
+        }),
+      );
+    });
+
+    it("returns 400 when player_id is missing", async () => {
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation/player`)
+        .set("Authorization", "Bearer t")
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(postMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("POST /api/engine/catalog/batch-values", () => {
+    it("forwards body to POST /catalog/batch-values", async () => {
+      postMock.mockResolvedValue({
+        data: { engine_contract_version: "1", players: [] },
+        headers: {},
+      });
+
+      const res = await request(app)
+        .post("/api/engine/catalog/batch-values")
+        .set("Authorization", "Bearer t")
+        .send({
+          player_ids: ["1", "2"],
+          league_scope: "Mixed",
+          pos_eligibility_threshold: 20,
+        });
+
+      expect(res.status).toBe(200);
+      expect(postMock).toHaveBeenCalledWith("/catalog/batch-values", {
+        player_ids: ["1", "2"],
+        league_scope: "Mixed",
+        pos_eligibility_threshold: 20,
+      });
+    });
+
+    it("returns 400 when player_ids is empty", async () => {
+      const res = await request(app)
+        .post("/api/engine/catalog/batch-values")
+        .set("Authorization", "Bearer t")
+        .send({ player_ids: [] });
+
+      expect(res.status).toBe(400);
+      expect(postMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe("POST /api/engine/leagues/:leagueId/scarcity", () => {
     it("forwards optional position query to engine body", async () => {
       postMock.mockResolvedValue({

@@ -5,6 +5,8 @@ import {
   playersQuerySchema,
   updateProfileSchema,
   changePasswordSchema,
+  valuationPlayerBodySchema,
+  catalogBatchValuesBodySchema,
 } from "./schemas";
 
 describe("mockPickSchema", () => {
@@ -96,6 +98,34 @@ describe("updateProfileSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("valuationPlayerBodySchema", () => {
+  it("accepts player_id", () => {
+    expect(valuationPlayerBodySchema.parse({ player_id: "660271" })).toEqual({
+      player_id: "660271",
+    });
+  });
+
+  it("rejects empty player_id", () => {
+    expect(valuationPlayerBodySchema.safeParse({ player_id: "" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("catalogBatchValuesBodySchema", () => {
+  it("accepts player_ids only", () => {
+    expect(
+      catalogBatchValuesBodySchema.parse({ player_ids: ["a", "b"] }),
+    ).toEqual({ player_ids: ["a", "b"] });
+  });
+
+  it("rejects empty player_ids array", () => {
+    expect(
+      catalogBatchValuesBodySchema.safeParse({ player_ids: [] }).success,
+    ).toBe(false);
   });
 });
 
