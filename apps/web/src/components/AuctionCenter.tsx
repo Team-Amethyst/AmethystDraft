@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router";
 import PosBadge from "./PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
@@ -87,6 +87,8 @@ export function AuctionCenter({
 
   const [wonBy, setWonBy] = useState("");
   const [finalPrice, setFinalPrice] = useState("");
+  /** True after user edits bid $; avoids overwriting with late Engine payload. */
+  const bidPriceTouchedRef = useRef(false);
   const [draftedToSlot, setDraftedToSlot] = useState("");
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
@@ -113,16 +115,34 @@ export function AuctionCenter({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // When a new player is selected, initialise stat view + price guess
+  // When a new player is selected, initialise stat view + bid default (Engine row when present).
+  // valuationMap is read intentionally only on player change; a separate effect syncs late Engine payloads.
   useEffect(() => {
     if (!selectedPlayer) return;
+    bidPriceTouchedRef.current = false;
     const isPitcher = hasPitcherEligibility(
       selectedPlayer.positions,
       selectedPlayer.position,
     );
     setStatView(isPitcher ? "pitching" : "hitting");
-    setFinalPrice(String(selectedPlayer.value));
+    const v = valuationMap.get(selectedPlayer.id);
+    const seed = v?.adjusted_value ?? selectedPlayer.value;
+    setFinalPrice(String(seed));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset bid when the selected player changes
   }, [selectedPlayer]);
+
+  // When valuations refresh, update bid default from Engine if user has not edited the field
+  useEffect(() => {
+    if (!selectedPlayer || bidPriceTouchedRef.current) return;
+    const v = valuationMap.get(selectedPlayer.id);
+    if (v === undefined) return;
+    setFinalPrice(String(v.adjusted_value));
+  }, [valuationMap, selectedPlayer]);
+
+  const onFinalPriceChange = useCallback((value: string) => {
+    bidPriceTouchedRef.current = true;
+    setFinalPrice(value);
+  }, []);
 
   const dropdownResults = (() => {
     if (searchQuery.length < 1) return [];
@@ -616,8 +636,11 @@ export function AuctionCenter({
                       {selectedPlayer.tier}
                     </span>
                   </div>
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Proj</span>
+                  <div
+                    className="pac-stat"
+                    title="Catalog list value (pre–auction-dollar inflation from Engine)"
+                  >
+                    <span className="pac-stat-label">List $</span>
                     <span className="pac-stat-value green">
                       ${selectedPlayer.value}
                     </span>
@@ -635,8 +658,14 @@ export function AuctionCenter({
                       v.why && v.why.length > 0 ? v.why.join(" · ") : undefined;
                     return (
                       <>
-                        <div className="pac-stat" title={whyTip}>
-                          <span className="pac-stat-label">Adj $</span>
+                        <div
+                          className="pac-stat"
+                          title={
+                            whyTip ??
+                            "Engine inflation-adjusted auction target (use for bids)"
+                          }
+                        >
+                          <span className="pac-stat-label">Engine $</span>
                           <span className="pac-stat-value green">
                             ${v.adjusted_value}
                           </span>
@@ -872,7 +901,8 @@ export function AuctionCenter({
                     type="text"
                     className="log-price-input"
                     value={finalPrice}
-                    onChange={(e) => setFinalPrice(e.target.value)}
+                    onChange={(e) => onFinalPriceChange(e.target.value)}
+                    title="Bid amount; defaults to Engine adjusted $ when available"
                   />
                 </div>
               </div>

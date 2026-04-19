@@ -29,6 +29,11 @@ import {
 } from "./commandCenterUtils";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
+import {
+  getScarcity,
+  getNewsSignals,
+  type ScarcityResponse,
+} from "../api/engine";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,6 +130,9 @@ function LeftPanel({
   rosterEntries,
   onRemovePick,
   onUpdatePick,
+  leagueId,
+  token,
+  engineNewsStrip,
 }: {
   activeTab: string;
   setActiveTab: (t: string) => void;
@@ -140,6 +148,9 @@ function LeftPanel({
     id: string,
     data: { price?: number; rosterSlot?: string; teamId?: string },
   ) => void;
+  leagueId?: string;
+  token?: string | null;
+  engineNewsStrip?: string | null;
 }) {
   const posMarket = useMemo(
     () =>
@@ -151,6 +162,40 @@ function LeftPanel({
       ),
     [selectedPlayerPositions, allPlayers, draftedIds, rosterEntries],
   );
+
+  const [engineScarcity, setEngineScarcity] = useState<ScarcityResponse | null>(
+    null,
+  );
+
+  const scarcityPrimaryPos = selectedPlayerPositions[0] ?? null;
+
+  useEffect(() => {
+    if (!leagueId || !token || activeTab !== "Market" || !scarcityPrimaryPos) {
+      return;
+    }
+    let cancelled = false;
+    void getScarcity(leagueId, token, scarcityPrimaryPos)
+      .then((data) => {
+        if (!cancelled) setEngineScarcity(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEngineScarcity(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    leagueId,
+    token,
+    activeTab,
+    scarcityPrimaryPos,
+    rosterEntries.length,
+  ]);
+
+  const enginePosRow = useMemo(() => {
+    if (!posMarket || !engineScarcity) return null;
+    return engineScarcity.positions.find((p) => p.position === posMarket.position) ?? null;
+  }, [posMarket, engineScarcity]);
 
   const playerMap = useMemo(
     () => new Map(allPlayers.map((p) => [p.id, p])),
@@ -326,6 +371,14 @@ function LeftPanel({
 
   return (
     <div className="cc-left">
+      {engineNewsStrip ? (
+        <div
+          className="cc-news-strip"
+          title="Injury and role signals from Amethyst Engine"
+        >
+          {engineNewsStrip}
+        </div>
+      ) : null}
       <div className="cc-tabs">
         {["Market", "Teams", "Standings"].map((t) => (
           <button
@@ -353,16 +406,19 @@ function LeftPanel({
                   : "—"}
               </span>
             </div>
-            <div className="market-stat-row">
-              <span className="msr-label">PROJECTED VALUE</span>
+            <div className="market-stat-row" title="Mean catalog list $ for undrafted players at this position">
+              <span className="msr-label">AVG CATALOG $</span>
               <span className="msr-value green">
                 {posMarket && posMarket.avgProjValue > 0
                   ? `$${posMarket.avgProjValue}`
                   : "—"}
               </span>
             </div>
-            <div className="market-stat-row">
-              <span className="msr-label">INFLATION</span>
+            <div
+              className="market-stat-row"
+              title="Avg auction price paid at this position vs avg catalog $ (not Engine league inflation)"
+            >
+              <span className="msr-label">SPEND VS CATALOG</span>
               <span
                 className={`msr-value ${
                   posMarket && posMarket.inflation > 0
@@ -383,8 +439,11 @@ function LeftPanel({
                 {posMarket ? posMarket.remainingCount : "—"}
               </span>
             </div>
-            <div className="market-stat-row">
-              <span className="msr-label">SCARCITY RANK</span>
+            <div
+              className="market-stat-row"
+              title="Rank of positions by undrafted player count (client-side)"
+            >
+              <span className="msr-label">SUPPLY RANK</span>
               <span className="msr-value">
                 {posMarket ? (
                   <>
@@ -398,6 +457,46 @@ function LeftPanel({
                 )}
               </span>
             </div>
+            {enginePosRow && (
+              <>
+                <div className="cc-divider" />
+                <div className="market-section-label">ENGINE SCARCITY</div>
+                <div className="market-stat-row">
+                  <span className="msr-label">SCORE</span>
+                  <span className="msr-value">{enginePosRow.scarcity_score}</span>
+                </div>
+                <div className="market-stat-row">
+                  <span className="msr-label">ELITE / MID / TOTAL</span>
+                  <span className="msr-value">
+                    {enginePosRow.elite_remaining} /{" "}
+                    {enginePosRow.mid_tier_remaining} /{" "}
+                    {enginePosRow.total_remaining}
+                  </span>
+                </div>
+                {enginePosRow.alert ? (
+                  <div
+                    className="msr-engine-alert"
+                    title={enginePosRow.alert}
+                  >
+                    {enginePosRow.alert.length > 72
+                      ? `${enginePosRow.alert.slice(0, 69)}…`
+                      : enginePosRow.alert}
+                  </div>
+                ) : null}
+                {engineScarcity &&
+                engineScarcity.monopoly_warnings.length > 0 ? (
+                  <div className="msr-engine-monos">
+                    {engineScarcity.monopoly_warnings.slice(0, 2).map((w, i) => (
+                      <div key={i} className="msr-engine-mono" title={w.message}>
+                        {w.message.length > 80
+                          ? `${w.message.slice(0, 77)}…`
+                          : w.message}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
             <div className="cc-divider" />
           </>
           <div className="market-section-label">TEAM LIQUIDITY</div>
@@ -1101,6 +1200,29 @@ export default function CommandCenter() {
     type: "success" | "error" | "info";
   } | null>(null);
 
+  /** Engine /signals/news summary (debounced; Engine caches responses). */
+  const [newsStrip, setNewsStrip] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) {
+      const clear = window.setTimeout(() => setNewsStrip(null), 0);
+      return () => window.clearTimeout(clear);
+    }
+    const delayMs = 1500;
+    const handle = window.setTimeout(() => {
+      void getNewsSignals(token, { days: 7 })
+        .then((r) => {
+          setNewsStrip(
+            r.count > 0
+              ? `${r.count} news signal${r.count === 1 ? "" : "s"} (7d, Engine)`
+              : null,
+          );
+        })
+        .catch(() => setNewsStrip(null));
+    }, delayMs);
+    return () => window.clearTimeout(handle);
+  }, [token]);
+
   const showToast = (
     message: string,
     type: "success" | "error" | "info" = "success",
@@ -1219,6 +1341,9 @@ export default function CommandCenter() {
           rosterEntries={rosterEntries}
           onRemovePick={handleRemovePick}
           onUpdatePick={handleUpdatePick}
+          leagueId={leagueId}
+          token={token}
+          engineNewsStrip={newsStrip}
         />
         <AuctionCenter
           rosterEntries={rosterEntries}

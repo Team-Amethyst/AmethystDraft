@@ -9,6 +9,16 @@
   font-family: 'DM Sans', sans-serif;
 }
 
+.cc-news-strip {
+  flex-shrink: 0;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: rgba(226, 232, 240, 0.88);
+  background: rgba(99, 102, 241, 0.12);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
 .cc-layout {
   display: grid;
   grid-template-columns: 330px 1fr 280px;
@@ -177,6 +187,26 @@
 .msr-value.green { color: #22c55e; }
 .msr-value.yellow { color: #f59e0b; }
 .msr-sub { font-size: 0.7rem; color: #6b4fa0; font-weight: 400; }
+
+.msr-engine-alert {
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: rgba(226, 232, 240, 0.85);
+  padding: 0.35rem 0 0.15rem;
+}
+
+.msr-engine-monos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0 0.35rem;
+}
+
+.msr-engine-mono {
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: rgba(251, 191, 36, 0.95);
+}
 
 /* ─── Liquidity / Teams / Standings tables ─────────────────────────────────── */
 

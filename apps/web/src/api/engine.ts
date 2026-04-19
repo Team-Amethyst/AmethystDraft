@@ -16,6 +16,9 @@ export interface ValuationResult {
   adp?: number;
   inflation_factor?: number;
   team?: string;
+  baseline_components?: Record<string, unknown>;
+  scarcity_adjustment?: number;
+  inflation_adjustment?: number;
 }
 
 export interface ValuationResponse {
@@ -27,6 +30,8 @@ export interface ValuationResponse {
   calculated_at: string;
   /** Present when Engine includes contract version on inflation payloads. */
   engine_contract_version?: string;
+  /** Engine valuation model label when present (e.g. v2-expert-manual-shape). */
+  valuation_model_version?: string;
   /** Response-level league context from Engine (inflation, scarcity, monopolies). */
   market_notes?: string[];
 }
