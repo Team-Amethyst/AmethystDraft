@@ -10,6 +10,7 @@ import { getPlayers } from "../api/players";
 import { getRoster, type RosterEntry } from "../api/roster";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { Player } from "../types/player";
 import { computeTeamData } from "../utils/commandCenterUtils";
 
@@ -17,6 +18,7 @@ export default function CommandCenterScreen({ route }: any) {
   const { leagueId } = route.params;
   const { token } = useAuth();
   const { allLeagues } = useLeague();
+  const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
@@ -43,6 +45,17 @@ export default function CommandCenterScreen({ route }: any) {
 
     void loadData();
   }, [league, leagueId, token]);
+
+  useEffect(() => {
+    if (!selectedPlayer) return;
+
+    if (selectedPlayer.mlbId !== 0) return;
+
+    const fullPlayer = players.find((p) => p.id === selectedPlayer.id);
+    if (fullPlayer) {
+      setSelectedPlayer(fullPlayer);
+    }
+  }, [players, selectedPlayer, setSelectedPlayer]);
 
   const teamData = useMemo(() => {
     if (!league) return [];
@@ -79,6 +92,30 @@ export default function CommandCenterScreen({ route }: any) {
       <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 12 }}>
         Command Center
       </Text>
+
+      {selectedPlayer ? (
+        <View
+          style={{
+            padding: 14,
+            borderWidth: 1,
+            borderColor: "#c7d2fe",
+            borderRadius: 10,
+            backgroundColor: "#eef2ff",
+            marginBottom: 16,
+          }}
+        >
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>
+            Selected Player
+          </Text>
+          <Text style={{ marginTop: 6 }}>{selectedPlayer.name}</Text>
+          <Text>
+            {selectedPlayer.team} • {selectedPlayer.position}
+          </Text>
+          <Text>
+            ADP {selectedPlayer.adp} • ${selectedPlayer.value}
+          </Text>
+        </View>
+      ) : null}
 
       <Text style={{ marginBottom: 16 }}>
         Players loaded: {players.length} | Picks logged: {roster.length}
