@@ -1,4 +1,4 @@
-import { authHeaders, requestJson } from "./client";
+import { requireAuthHeaders, requestJson } from "./client";
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
@@ -95,7 +95,7 @@ export async function getValuation(
 ): Promise<ValuationResponse> {
   return requestJson<ValuationResponse>(
     `/api/engine/leagues/${leagueId}/valuation`,
-    { method: "POST", headers: authHeaders(token) },
+    { method: "POST", headers: requireAuthHeaders(token) },
     "Valuation request failed",
   );
 }
@@ -114,7 +114,7 @@ export async function getValuationPlayer(
     `/api/engine/leagues/${leagueId}/valuation/player`,
     {
       method: "POST",
-      headers: authHeaders(token),
+      headers: requireAuthHeaders(token),
       body: JSON.stringify({ player_id: playerId }),
     },
     "Valuation (player) request failed",
@@ -150,7 +150,7 @@ export async function getCatalogBatchValues(
     "/api/engine/catalog/batch-values",
     {
       method: "POST",
-      headers: authHeaders(token),
+      headers: requireAuthHeaders(token),
       body: JSON.stringify(body),
     },
     "Catalog batch values request failed",
@@ -214,7 +214,7 @@ export async function getScarcity(
   const qs = position ? `?position=${encodeURIComponent(position)}` : "";
   return requestJson<ScarcityResponse>(
     `/api/engine/leagues/${leagueId}/scarcity${qs}`,
-    { method: "POST", headers: authHeaders(token) },
+    { method: "POST", headers: requireAuthHeaders(token) },
     "Scarcity request failed",
   );
 }
@@ -250,7 +250,7 @@ export async function getMockPick(
     `/api/engine/leagues/${leagueId}/mock-pick`,
     {
       method: "POST",
-      headers: authHeaders(token),
+      headers: requireAuthHeaders(token),
       body: JSON.stringify({ budgetByTeamId, availablePlayerIds }),
     },
     "Mock-pick request failed",
@@ -285,7 +285,7 @@ export async function getNewsSignals(
   return requestJson<NewsSignalsResponse>(
     `/api/engine/signals/news${qs}`,
     {
-      headers: authHeaders(token),
+      headers: requireAuthHeaders(token),
     },
     "News signals request failed",
   );

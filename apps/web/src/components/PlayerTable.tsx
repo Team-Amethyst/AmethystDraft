@@ -1035,17 +1035,7 @@ export default function PlayerTable({
                     <td className="td-adp">{player.adp}</td>
 
                     <td className="td-value">
-                      <div className="td-value-stack">
-                        <span className="value-chip">${player.value}</span>
-                        {eng != null && (
-                          <span
-                            className="pt-engine-catalog-hint"
-                            title="Engine catalog value for this league's player pool"
-                          >
-                            Eng · ${eng.value}
-                          </span>
-                        )}
-                      </div>
+                      <span className="value-chip">${player.value}</span>
                     </td>
 
                     <td

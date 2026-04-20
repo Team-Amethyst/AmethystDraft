@@ -514,20 +514,6 @@
 }
 
 /* ── Value chip ── */
-.td-value-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  align-items: flex-start;
-}
-
-.pt-engine-catalog-hint {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: #7c6a9e;
-  letter-spacing: 0.02em;
-}
-
 .value-chip {
   font-weight: 700;
   color: #a78bfa;

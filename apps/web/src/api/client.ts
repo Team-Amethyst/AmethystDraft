@@ -26,15 +26,24 @@ export function buildApiUrl(path: string): string {
 }
 
 export function authHeaders(token?: string): Record<string, string> {
-  if (!token) {
+  const trimmed = token?.trim();
+  if (!trimmed) {
     return {
       "Content-Type": "application/json",
     };
   }
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${trimmed}`,
   };
+}
+
+export function requireAuthHeaders(token?: string): Record<string, string> {
+  const trimmed = token?.trim();
+  if (!trimmed) {
+    throw new Error("Authentication required. Please sign in again.");
+  }
+  return authHeaders(trimmed);
 }
 
 async function parseApiError(
