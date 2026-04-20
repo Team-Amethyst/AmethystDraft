@@ -161,6 +161,31 @@
   padding: 0.6rem 0 0.4rem;
 }
 
+.market-pos-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.05rem 0 0.45rem;
+}
+
+.market-pos-tab {
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: rgba(139, 92, 246, 0.08);
+  color: #a78bfa;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+  padding: 0.2rem 0.42rem;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.market-pos-tab.active {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(139, 92, 246, 0.55);
+  color: #e9ddff;
+}
+
 .pos-chip { display: none; }
 
 .market-stat-row {
@@ -187,6 +212,13 @@
 .msr-value.green { color: #22c55e; }
 .msr-value.yellow { color: #f59e0b; }
 .msr-sub { font-size: 0.7rem; color: #6b4fa0; font-weight: 400; }
+
+.msr-source-note {
+  font-size: 0.64rem;
+  line-height: 1.25;
+  color: rgba(157, 140, 196, 0.92);
+  margin: -0.08rem 0 0.3rem;
+}
 
 .msr-engine-alert {
   font-size: 0.68rem;

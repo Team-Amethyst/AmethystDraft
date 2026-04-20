@@ -152,22 +152,42 @@ function LeftPanel({
   token?: string | null;
   engineNewsStrip?: string | null;
 }) {
+  const eligibleMarketPositions = useMemo(
+    () => [...new Set(selectedPlayerPositions)],
+    [selectedPlayerPositions],
+  );
+  const [activeMarketPosition, setActiveMarketPosition] = useState<string | null>(
+    eligibleMarketPositions[0] ?? null,
+  );
+
+  useEffect(() => {
+    if (eligibleMarketPositions.length === 0) {
+      setActiveMarketPosition(null);
+      return;
+    }
+    setActiveMarketPosition((prev) =>
+      prev && eligibleMarketPositions.includes(prev)
+        ? prev
+        : eligibleMarketPositions[0],
+    );
+  }, [eligibleMarketPositions]);
+
   const posMarket = useMemo(
     () =>
       computePositionMarket(
-        selectedPlayerPositions[0] ?? null,
+        activeMarketPosition,
         allPlayers,
         draftedIds,
         rosterEntries,
       ),
-    [selectedPlayerPositions, allPlayers, draftedIds, rosterEntries],
+    [activeMarketPosition, allPlayers, draftedIds, rosterEntries],
   );
 
   const [engineScarcity, setEngineScarcity] = useState<ScarcityResponse | null>(
     null,
   );
 
-  const scarcityPrimaryPos = selectedPlayerPositions[0] ?? null;
+  const scarcityPrimaryPos = activeMarketPosition;
 
   useEffect(() => {
     if (!leagueId || !token || activeTab !== "Market" || !scarcityPrimaryPos) {
@@ -398,6 +418,23 @@ function LeftPanel({
               {posMarket ? posMarket.position : "—"} MARKET
               {posMarket && <PosBadge pos={posMarket.position} />}
             </div>
+            {eligibleMarketPositions.length > 1 ? (
+              <div className="market-pos-tabs" aria-label="Market position scope">
+                {eligibleMarketPositions.map((pos) => (
+                  <button
+                    key={pos}
+                    className={
+                      "market-pos-tab " +
+                      (pos === activeMarketPosition ? "active" : "")
+                    }
+                    onClick={() => setActiveMarketPosition(pos)}
+                    title={`Show market + scarcity for ${pos}`}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="market-stat-row">
               <span className="msr-label">AVG WINNING PRICE</span>
               <span className="msr-value">
@@ -406,8 +443,11 @@ function LeftPanel({
                   : "—"}
               </span>
             </div>
-            <div className="market-stat-row" title="Mean catalog list $ for undrafted players at this position">
-              <span className="msr-label">AVG CATALOG $</span>
+            <div
+              className="market-stat-row"
+              title="Draftroom catalog list $ mean for undrafted players at this position"
+            >
+              <span className="msr-label">DRAFTROOM AVG $</span>
               <span className="msr-value green">
                 {posMarket && posMarket.avgProjValue > 0
                   ? `$${posMarket.avgProjValue}`
@@ -416,9 +456,9 @@ function LeftPanel({
             </div>
             <div
               className="market-stat-row"
-              title="Avg auction price paid at this position vs avg catalog $ (not Engine league inflation)"
+              title="Draftroom-local: avg auction price paid at this position vs Draftroom avg $ (not Engine inflation)"
             >
-              <span className="msr-label">SPEND VS CATALOG</span>
+              <span className="msr-label">DRAFTROOM SPEND VS $</span>
               <span
                 className={`msr-value ${
                   posMarket && posMarket.inflation > 0
@@ -443,6 +483,9 @@ function LeftPanel({
               <>
                 <div className="cc-divider" />
                 <div className="market-section-label">ENGINE SCARCITY</div>
+                <div className="msr-source-note">
+                  Model-driven urgency for {enginePosRow.position}
+                </div>
                 <div className="market-stat-row">
                   <span className="msr-label">SCORE</span>
                   <span className="msr-value">{enginePosRow.scarcity_score}</span>
@@ -482,9 +525,9 @@ function LeftPanel({
             {posMarket ? (
               <div
                 className="msr-count-rank-footnote"
-                title="Client-side rank by undrafted player count at each position (complements Engine scarcity above)"
+                title="Draftroom rank by undrafted player count across positions (descriptive only)"
               >
-                Count rank (catalog): {posMarket.scarcityRankNum} /{" "}
+                Draftroom count rank: {posMarket.scarcityRankNum} /{" "}
                 {posMarket.scarcityRankOf}
               </div>
             ) : null}
@@ -568,8 +611,13 @@ function LeftPanel({
           <>
             <div className="cc-divider" />
             <div className="market-section-label">
-              {posMarket ? posMarket.position : "—"} SUPPLY
+              {posMarket ? posMarket.position : "—"} DRAFTROOM SUPPLY
             </div>
+            {posMarket ? (
+              <div className="msr-source-note">
+                Remaining undrafted inventory by tier
+              </div>
+            ) : null}
             <table className="supply-table">
               <thead>
                 <tr>
