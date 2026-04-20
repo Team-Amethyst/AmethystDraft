@@ -136,6 +136,7 @@ function LeftPanel({
   onUpdatePick,
   leagueId,
   token,
+  engineMarket,
 }: {
   activeTab: string;
   setActiveTab: (t: string) => void;
@@ -153,6 +154,7 @@ function LeftPanel({
   ) => void;
   leagueId?: string;
   token?: string | null;
+  engineMarket?: ValuationResponse | null;
 }) {
   const eligibleMarketPositions = useMemo(
     () => [...new Set(selectedPlayerPositions)],
@@ -175,14 +177,30 @@ function LeftPanel({
   }, [eligibleMarketPositions]);
 
   const posMarket = useMemo(
-    () =>
+    () => {
+      const engineTierValueMap =
+        engineMarket != null
+          ? new Map(
+              engineMarket.valuations.map((v) => [
+                v.player_id,
+                {
+                  tier: v.tier,
+                  value: v.explain_v2?.list_value ?? v.baseline_value,
+                },
+              ]),
+            )
+          : undefined;
+      return (
       computePositionMarket(
         activeMarketPosition,
         allPlayers,
         draftedIds,
         rosterEntries,
-      ),
-    [activeMarketPosition, allPlayers, draftedIds, rosterEntries],
+        engineTierValueMap,
+      )
+      );
+    },
+    [activeMarketPosition, allPlayers, draftedIds, rosterEntries, engineMarket],
   );
 
   const [engineScarcity, setEngineScarcity] = useState<ScarcityResponse | null>(
@@ -1538,6 +1556,7 @@ export default function CommandCenter() {
           onUpdatePick={handleUpdatePick}
           leagueId={leagueId}
           token={token}
+          engineMarket={engineMarket}
         />
         <AuctionCenter
           rosterEntries={rosterEntries}

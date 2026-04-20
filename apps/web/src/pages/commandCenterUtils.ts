@@ -2,6 +2,7 @@ import type { Player } from "../types/player";
 import type { RosterEntry } from "../api/roster";
 import type { League } from "../contexts/LeagueContext";
 import { getEligibleSlotsForPositions, getEligibleSlotsForPosition } from "../utils/eligibility";
+import { getEffectiveTierValue, type TierValueOverride } from "../utils/effectiveTierValue";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -89,6 +90,7 @@ export function computePositionMarket(
   allPlayers: Player[],
   draftedIds: Set<string>,
   rosterEntries: RosterEntry[],
+  tierValueOverrides?: ReadonlyMap<string, TierValueOverride>,
 ): PositionMarket | null {
   if (!position || allPlayers.length === 0) return null;
   // Include any player with this position in their multi-position eligibility array
@@ -106,7 +108,18 @@ export function computePositionMarket(
       )
     : 0;
   const avgProjValue = remaining.length
-    ? Math.round(remaining.reduce((s, p) => s + p.value, 0) / remaining.length)
+    ? Math.round(
+        remaining.reduce(
+          (s, p) =>
+            s +
+            getEffectiveTierValue(
+              p.id,
+              { tier: p.tier, value: p.value },
+              tierValueOverrides,
+            ).value,
+          0,
+        ) / remaining.length,
+      )
     : 0;
   const inflation =
     avgWinPrice > 0 && avgProjValue > 0
@@ -128,12 +141,34 @@ export function computePositionMarket(
     remainingByPos.findIndex((r) => r.pos === position) + 1;
   const scarcityRankOf = remainingByPos.length;
 
-  const allTiers = [...new Set(remaining.map((p) => p.tier))].sort(
+  const allTiers = [
+    ...new Set(
+      remaining.map(
+        (p) =>
+          getEffectiveTierValue(
+            p.id,
+            { tier: p.tier, value: p.value },
+            tierValueOverrides,
+          ).tier,
+      ),
+    ),
+  ].sort(
     (a, b) => a - b,
   );
   const avgOrNull = (arr: Player[]) =>
     arr.length
-      ? Math.round(arr.reduce((s, p) => s + p.value, 0) / arr.length)
+      ? Math.round(
+          arr.reduce(
+            (s, p) =>
+              s +
+              getEffectiveTierValue(
+                p.id,
+                { tier: p.tier, value: p.value },
+                tierValueOverrides,
+              ).value,
+            0,
+          ) / arr.length,
+        )
       : null;
 
   return {
@@ -145,7 +180,14 @@ export function computePositionMarket(
     scarcityRankNum,
     scarcityRankOf,
     supply: allTiers.map((tier) => {
-      const arr = remaining.filter((p) => p.tier === tier);
+      const arr = remaining.filter(
+        (p) =>
+          getEffectiveTierValue(
+            p.id,
+            { tier: p.tier, value: p.value },
+            tierValueOverrides,
+          ).tier === tier,
+      );
       return { tier, count: arr.length, avgVal: avgOrNull(arr) };
     }),
   };

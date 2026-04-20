@@ -631,6 +631,7 @@ export function AuctionCenter({
                       valuationRow?.explain_v2?.list_value ??
                       valuationRow?.baseline_value ??
                       selectedPlayer.value;
+                    const tierValue = valuationRow?.tier ?? selectedPlayer.tier;
                     const adpValue = valuationRow?.adp ?? selectedPlayer.adp;
                     return (
                       <>
@@ -665,10 +666,10 @@ export function AuctionCenter({
                                   "#22c55e",
                                   "#f59e0b",
                                   "#6b7280",
-                                ][selectedPlayer.tier - 1] ?? "#6b7280",
+                                ][tierValue - 1] ?? "#6b7280",
                             }}
                           >
-                            {selectedPlayer.tier}
+                            {tierValue}
                           </span>
                         </div>
                         <div

@@ -15,15 +15,17 @@
  *   management and cross-component coordination; all rendering is delegated.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { WatchlistPlayer } from "../api/watchlist";
 import type { Player } from "../types/player";
+import { getCatalogBatchValues } from "../api/engine";
 import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets, {
   type PositionPlanRow,
@@ -31,6 +33,7 @@ import PositionTargets, {
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
 import { hasPitcherEligibility } from "../utils/eligibility";
+import { getEffectiveTierValue } from "../utils/effectiveTierValue";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -104,6 +107,7 @@ export default function MyDraft() {
 
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
+  const { token } = useAuth();
   const totalBudget = league?.budget ?? 260;
   const navigate = useNavigate();
 
@@ -136,6 +140,67 @@ export default function MyDraft() {
 
   // Raw string state for controlled inputs — committed on blur
   const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
+  const [engineCatalogByPlayerId, setEngineCatalogByPlayerId] = useState<
+    ReadonlyMap<string, { value: number; tier: number }>
+  >(() => new Map());
+  useEffect(() => {
+    if (!token || watchlist.length === 0) {
+      const clear = window.setTimeout(() => setEngineCatalogByPlayerId(new Map()), 0);
+      return () => window.clearTimeout(clear);
+    }
+    if (!league) {
+      const clear = window.setTimeout(() => setEngineCatalogByPlayerId(new Map()), 0);
+      return () => window.clearTimeout(clear);
+    }
+    const ids = watchlist.map((p) => p.id);
+    const BATCH = 150;
+    const pool = league.playerPool ?? "Mixed";
+    let cancelled = false;
+    void (async () => {
+      const merged = new Map<string, { value: number; tier: number }>();
+      let batchFailed = false;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        if (cancelled) return;
+        try {
+          const res = await getCatalogBatchValues(token, {
+            player_ids: ids.slice(i, i + BATCH),
+            league_scope: pool,
+            pos_eligibility_threshold: league?.posEligibilityThreshold,
+          });
+          for (const row of res.players) {
+            merged.set(row.player_id, { value: row.value, tier: row.tier });
+          }
+        } catch {
+          batchFailed = true;
+          break;
+        }
+      }
+      if (!cancelled && !batchFailed) setEngineCatalogByPlayerId(merged);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    token,
+    watchlist,
+    league,
+    league?.playerPool,
+    league?.posEligibilityThreshold,
+  ]);
+
+  const effectiveWatchlist = useMemo(
+    () =>
+      watchlist.map((p) => {
+        const eff = getEffectiveTierValue(
+          p.id,
+          { tier: p.tier, value: p.value },
+          engineCatalogByPlayerId,
+        );
+        return { ...p, tier: eff.tier, value: eff.value };
+      }),
+    [watchlist, engineCatalogByPlayerId],
+  );
+
 
   // ── Position target handlers ────────────────────────────────────────────────
 
@@ -227,7 +292,7 @@ export default function MyDraft() {
   // ── Navigation handler ──────────────────────────────────────────────────────
 
   function handleWatchlistRowClick(playerId: string) {
-    const player = watchlist.find((p) => p.id === playerId);
+    const player = effectiveWatchlist.find((p) => p.id === playerId);
     if (player) {
       setSelectedPlayer(watchlistToPlayer(player));
       void navigate(`/leagues/${leagueId}/command-center`);
@@ -238,11 +303,11 @@ export default function MyDraft() {
 
   const { watchlistTargetTotal, filteredWatchlist } = useMemo(() => {
     let targetTotal = 0;
-    for (const player of watchlist) {
+    for (const player of effectiveWatchlist) {
       targetTotal += targetOverrides[player.id] ?? Math.round(player.value ?? 0);
     }
 
-    let filtered = [...watchlist];
+    let filtered = [...effectiveWatchlist];
     if (viewFilter === "hitters") {
       filtered = filtered.filter(
         (p) => !hasPitcherEligibility(p.positions, p.position || "UTIL"),
@@ -255,7 +320,7 @@ export default function MyDraft() {
     filtered.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
     return { watchlistTargetTotal: targetTotal, filteredWatchlist: filtered };
-  }, [watchlist, viewFilter, targetOverrides]);
+  }, [effectiveWatchlist, viewFilter, targetOverrides]);
 
   const positionBudgetTotal = Object.values(positionTargets).reduce(
     (a, b) => a + b,
@@ -325,7 +390,7 @@ export default function MyDraft() {
           />
 
           <WatchlistTable
-            watchlist={watchlist}
+            watchlist={effectiveWatchlist}
             filteredWatchlist={filteredWatchlist}
             viewFilter={viewFilter}
             targetOverrides={targetOverrides}
