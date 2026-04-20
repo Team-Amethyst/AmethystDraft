@@ -30,10 +30,15 @@ import {
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
+  getValuation,
   getScarcity,
   getNewsSignals,
   type ScarcityResponse,
+  type ValuationResponse,
 } from "../api/engine";
+
+const ENABLE_SCARCITY_USAGE_TELEMETRY_LOG =
+  import.meta.env.DEV || import.meta.env.VITE_SCARCITY_USAGE_TELEMETRY === "1";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,6 +222,92 @@ function LeftPanel({
     return engineScarcity.positions.find((p) => p.position === posMarket.position) ?? null;
   }, [posMarket, engineScarcity]);
   const enginePosExplainer = engineScarcity?.selected_position_explainer ?? null;
+  const engineTierBuckets = useMemo(() => {
+    if (!posMarket || !engineScarcity) return null;
+    const order = ["Tier 1", "Tier 2", "Tier 3", "Tier 4", "Tier 5"] as const;
+    const byPos = engineScarcity.tier_buckets?.find(
+      (row) => row.position === posMarket.position,
+    );
+    if (byPos && byPos.buckets.length > 0) {
+      return order.map((tier) => {
+        const fromApi = byPos.buckets.find((b) => b.tier === tier);
+        return {
+          tier,
+          remaining: fromApi?.remaining ?? 0,
+          urgency_score: fromApi?.urgency_score ?? 0,
+          message: fromApi?.message,
+          recommended_action: fromApi?.recommended_action,
+        };
+      });
+    }
+    if (!enginePosRow) return null;
+    const tier1 = Math.max(0, enginePosRow.elite_remaining ?? 0);
+    const mid = Math.max(0, enginePosRow.mid_tier_remaining ?? 0);
+    const depth = Math.max(
+      0,
+      (enginePosRow.depth_remaining ?? enginePosRow.total_remaining) -
+        tier1 -
+        mid,
+    );
+    // Legacy fallback mapping (documented for rollout clarity):
+    // - Tier 1 := elite_remaining
+    // - Tier 2/3 := split mid_tier_remaining (ceil/floor)
+    // - Tier 4/5 := split depth_remaining or residual total_remaining (ceil/floor)
+    const tier2 = Math.ceil(mid / 2);
+    const tier3 = Math.max(0, mid - tier2);
+    const tier4 = Math.ceil(depth / 2);
+    const tier5 = Math.max(0, depth - tier4);
+    return [
+      {
+        tier: "Tier 1" as const,
+        remaining: tier1,
+        urgency_score: enginePosRow.scarcity_score,
+        message: enginePosRow.alert,
+        recommended_action: undefined,
+      },
+      {
+        tier: "Tier 2" as const,
+        remaining: tier2,
+        urgency_score: enginePosRow.scarcity_score,
+      },
+      {
+        tier: "Tier 3" as const,
+        remaining: tier3,
+        urgency_score: enginePosRow.scarcity_score,
+      },
+      {
+        tier: "Tier 4" as const,
+        remaining: tier4,
+        urgency_score: enginePosRow.scarcity_score,
+      },
+      {
+        tier: "Tier 5" as const,
+        remaining: tier5,
+        urgency_score: enginePosRow.scarcity_score,
+      },
+    ];
+  }, [engineScarcity, enginePosRow, posMarket]);
+
+  useEffect(() => {
+    if (!engineScarcity || !posMarket) return;
+    const hasTierBuckets =
+      !!engineScarcity.tier_buckets &&
+      engineScarcity.tier_buckets.some(
+        (row) => row.position === posMarket.position && row.buckets.length > 0,
+      );
+    const detail = {
+      uses_tier_buckets: hasTierBuckets,
+      fallback_legacy_scarcity: !hasTierBuckets,
+      position: posMarket.position,
+    };
+    // Temporary rollout telemetry; remove once legacy fields are sunset.
+    window.dispatchEvent(
+      new CustomEvent("amethyst:scarcity-field-usage", { detail }),
+    );
+    if (ENABLE_SCARCITY_USAGE_TELEMETRY_LOG) {
+      console.info("[scarcity-field-usage]", detail);
+    }
+  }, [engineScarcity, posMarket]);
 
   const playerMap = useMemo(
     () => new Map(allPlayers.map((p) => [p.id, p])),
@@ -491,14 +582,32 @@ function LeftPanel({
                   <span className="msr-label">SCORE</span>
                   <span className="msr-value">{enginePosRow.scarcity_score}</span>
                 </div>
-                <div className="market-stat-row">
-                  <span className="msr-label">ELITE / MID / TOTAL</span>
-                  <span className="msr-value">
-                    {enginePosRow.elite_remaining} /{" "}
-                    {enginePosRow.mid_tier_remaining} /{" "}
-                    {enginePosRow.total_remaining}
-                  </span>
-                </div>
+                {engineTierBuckets ? (
+                  <div className="msr-tier-buckets">
+                    {engineTierBuckets.map((bucket) => (
+                      <div
+                        key={bucket.tier}
+                        className="market-stat-row msr-tier-row"
+                        title={
+                          bucket.message ??
+                          `${bucket.tier} scarcity urgency ${bucket.urgency_score}`
+                        }
+                      >
+                        <span className="msr-label">
+                          {bucket.tier} (0-100)
+                        </span>
+                        <span className="msr-value">
+                          {bucket.remaining} · {bucket.urgency_score}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="market-stat-row">
+                    <span className="msr-label">Tier 1 / Tier 2-3 / Tier 4+</span>
+                    <span className="msr-value">—</span>
+                  </div>
+                )}
                 {enginePosExplainer ? (
                   <>
                     <div
@@ -517,6 +626,17 @@ function LeftPanel({
                     <div className="msr-engine-action">
                       {enginePosExplainer.recommended_action}
                     </div>
+                  </>
+                ) : engineTierBuckets?.[0]?.message ? (
+                  <>
+                    <div className="msr-engine-alert" title={engineTierBuckets[0].message}>
+                      {engineTierBuckets[0].message}
+                    </div>
+                    {engineTierBuckets[0].recommended_action ? (
+                      <div className="msr-engine-action">
+                        {engineTierBuckets[0].recommended_action}
+                      </div>
+                    ) : null}
                   </>
                 ) : enginePosRow.alert ? (
                   <div
@@ -928,6 +1048,7 @@ function RightPanel({
   myTeamEntries,
   allPlayers,
   rosterEntries,
+  engineMarket,
 }: {
   league: League | null;
   teamData: TeamSummary[];
@@ -935,6 +1056,7 @@ function RightPanel({
   myTeamEntries: RosterEntry[];
   allPlayers: Player[];
   rosterEntries: RosterEntry[];
+  engineMarket: ValuationResponse | null;
 }) {
   const my = teamData.find((t) => t.name === myTeamName);
   const totalSlots = league
@@ -945,6 +1067,32 @@ function RightPanel({
   const openSpots = my?.open ?? totalSlots;
   const maxBid = my?.maxBid ?? Math.max(1, budgetRemaining - (openSpots - 1));
   const ppSpot = my?.ppSpot ?? 0;
+  const inflationFactor =
+    engineMarket?.context_v2?.market_summary.inflation_factor ??
+    engineMarket?.inflation_factor;
+  const inflationPct =
+    engineMarket?.context_v2?.market_summary.inflation_percent_vs_neutral ??
+    (inflationFactor != null ? Math.round((inflationFactor - 1) * 100) : null);
+  const marketClass =
+    inflationFactor == null
+      ? ""
+      : inflationFactor >= 1.35
+        ? "hot"
+        : inflationFactor >= 1.15
+          ? "warm"
+          : inflationFactor <= 0.9
+            ? "cool"
+            : "neutral";
+  const marketGuidance =
+    inflationFactor == null
+      ? null
+      : inflationFactor >= 1.35
+        ? "Market is very hot. Raise bid caps for priority targets."
+        : inflationFactor >= 1.15
+          ? "Market is warm. Expect premiums above list values."
+          : inflationFactor <= 0.9
+            ? "Market is cool. Stay disciplined and value-driven."
+            : "Market is near neutral. Baseline values are mostly stable.";
 
   const hittingCats = (league?.scoringCategories ?? []).filter(
     (c) => c.type === "batting",
@@ -1040,6 +1188,49 @@ function RightPanel({
         </span>
         <span className="bp-text">${my?.spent ?? 0} spent</span>
       </div>
+
+      <div className="cc-divider" />
+      <div className="rp-section-label">ENGINE MARKET</div>
+      {engineMarket ? (
+        <div className={`engine-market-card ${marketClass}`}>
+          <div className="engine-market-main">
+            <div className="engine-market-kpi">
+              <div className="em-label">Inflation</div>
+              <div className="em-value em-value--inflation">
+                {inflationFactor != null ? `${inflationFactor.toFixed(2)}x` : "—"}
+              </div>
+              <div className="em-sub">
+                {inflationPct != null
+                  ? `${inflationPct >= 0 ? "+" : ""}${inflationPct}% vs neutral`
+                  : "—"}
+              </div>
+            </div>
+            <div className="engine-market-kpi">
+              <div className="em-label">League $ Left</div>
+              <div className="em-value">${engineMarket.total_budget_remaining}</div>
+              <div className="em-sub">league-wide</div>
+            </div>
+            <div className="engine-market-kpi">
+              <div className="em-label">Players Left</div>
+              <div className="em-value">{engineMarket.players_remaining}</div>
+              <div className="em-sub">league-wide</div>
+            </div>
+          </div>
+          {marketGuidance ? (
+            <div className="engine-market-guidance">{marketGuidance}</div>
+          ) : null}
+          <div className="engine-market-meta">
+            {engineMarket.valuation_model_version
+              ? `${engineMarket.valuation_model_version}`
+              : "Engine model"}
+            {engineMarket.engine_contract_version
+              ? ` · contract ${engineMarket.engine_contract_version}`
+              : ""}
+          </div>
+        </div>
+      ) : (
+        <div className="engine-market-empty">Engine market snapshot unavailable.</div>
+      )}
 
       <div className="cc-divider" />
 
@@ -1188,6 +1379,9 @@ export default function CommandCenter() {
   const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
   const { customPlayers, addCustomPlayer } = useCustomPlayers();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [engineMarket, setEngineMarket] = useState<ValuationResponse | null>(
+    null,
+  );
 
   const allPlayers = useMemo(
     () => [...customPlayers, ...mlbPlayers],
@@ -1217,6 +1411,21 @@ export default function CommandCenter() {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
   }, [leagueId, token]);
+
+  useEffect(() => {
+    if (!leagueId || !token) return;
+    let cancelled = false;
+    void getValuation(leagueId, token)
+      .then((res) => {
+        if (!cancelled) setEngineMarket(res);
+      })
+      .catch(() => {
+        if (!cancelled) setEngineMarket(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [leagueId, token, rosterEntries.length]);
 
   // useEffect(() => {
   //   void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
@@ -1424,6 +1633,7 @@ export default function CommandCenter() {
           myTeamEntries={myTeamEntries}
           allPlayers={allPlayers}
           rosterEntries={rosterEntries}
+          engineMarket={engineMarket}
         />
       </div>
   

@@ -675,6 +675,15 @@ export function AuctionCenter({
                   </h1>
                 </div>
                 <div className="pac-meta-row">
+                  {(() => {
+                    const valuationRow = valuationMap.get(selectedPlayer.id);
+                    const listValue =
+                      valuationRow?.explain_v2?.list_value ??
+                      valuationRow?.baseline_value ??
+                      selectedPlayer.value;
+                    const adpValue = valuationRow?.adp ?? selectedPlayer.adp;
+                    return (
+                      <>
                   <div className="pac-stat">
                     <span className="pac-stat-label">Position</span>
                     <div
@@ -714,15 +723,19 @@ export function AuctionCenter({
                   </div>
                   <div
                     className="pac-stat"
-                    title="Catalog list value (pre–auction-dollar inflation from Engine)"
+                    title={
+                      valuationRow
+                        ? "Engine baseline/list value before league-context adjustments"
+                        : "Catalog list value (pre-auction, no league context)"
+                    }
                   >
                     <span className="pac-stat-label">List $</span>
                     <span className="pac-stat-value green">
-                      ${selectedPlayer.value}
+                      ${listValue}
                     </span>
                   </div>
                   {(() => {
-                    const v = valuationMap.get(selectedPlayer.id);
+                    const v = valuationRow;
                     if (!v) return null;
                     const cls =
                       v.indicator === "Steal"
@@ -761,17 +774,17 @@ export function AuctionCenter({
                   <div
                     className="pac-stat"
                     title={
-                      (() => {
-                        const v = valuationMap.get(selectedPlayer.id);
-                        return v?.adp != null
-                          ? `Engine ADP (valuation row): ${v.adp}`
-                          : undefined;
-                      })()
+                      valuationRow?.adp != null
+                        ? `Engine ADP (valuation row): ${valuationRow.adp}`
+                        : "Catalog ADP"
                     }
                   >
                     <span className="pac-stat-label">ADP</span>
-                    <span className="pac-stat-value">{selectedPlayer.adp}</span>
+                    <span className="pac-stat-value">{adpValue}</span>
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               {(engineContextLines.length > 0 ||

@@ -164,9 +164,23 @@ export interface ScarcityPosition {
   position: string;
   elite_remaining: number;
   mid_tier_remaining: number;
+  depth_remaining?: number;
   total_remaining: number;
   scarcity_score: number; // 0–100, higher = more scarce
   alert: string;
+}
+
+export interface ScarcityTierBucket {
+  tier: "Tier 1" | "Tier 2" | "Tier 3" | "Tier 4" | "Tier 5";
+  remaining: number;
+  urgency_score: number;
+  message?: string;
+  recommended_action?: string;
+}
+
+export interface ScarcityTierBucketsByPosition {
+  position: string;
+  buckets: ScarcityTierBucket[];
 }
 
 export interface MonopolyWarning {
@@ -187,6 +201,7 @@ export interface ScarcityResponse {
     message: string;
     recommended_action: string;
   } | null;
+  tier_buckets?: ScarcityTierBucketsByPosition[];
   positions: ScarcityPosition[];
   monopoly_warnings: MonopolyWarning[];
 }
