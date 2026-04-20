@@ -1,4 +1,4 @@
-const API_BASE = "http://YOUR_LOCAL_IP:3001";
+const API_BASE = "http://192.168.1.5:3001";
 
 type ValidationErr = { field?: string; message?: string };
 
