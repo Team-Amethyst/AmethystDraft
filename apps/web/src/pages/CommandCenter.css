@@ -561,60 +561,6 @@
   flex: 1;
 }
 
-.pac-engine-context {
-  padding: 0.65rem 0.85rem;
-  border-radius: 10px;
-  background: rgba(12, 8, 22, 0.85);
-  border: 1px solid rgba(139, 92, 246, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.pac-engine-context-heading {
-  margin-bottom: 0.45rem;
-}
-
-.pac-engine-note-line {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  font-weight: 500;
-  color: #d4c4ec;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.pac-engine-note-line + .pac-engine-note-line {
-  margin-top: 0.45rem;
-}
-
-.pac-engine-note-subtle {
-  margin: 0.5rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: rgba(173, 164, 197, 0.95);
-}
-
-.pac-engine-context .pac-valuation-summary {
-  margin-top: 0;
-}
-
-.pac-engine-context .pac-engine-note-line ~ .pac-valuation-summary {
-  margin-top: 0.6rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid rgba(139, 92, 246, 0.2);
-}
-
-.pac-valuation-summary {
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  font-weight: 600;
-  color: rgba(198, 210, 255, 0.95);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem 0.45rem;
-  align-items: baseline;
-}
-
 .pac-name {
   font-size: 2rem;
   font-weight: 800;

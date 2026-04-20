@@ -12,19 +12,9 @@ import { getStatByCategory } from "../pages/commandCenterUtils";
 import {
   getValuation,
   getValuationPlayer,
-  type ValuationContextV2,
   type ValuationResult,
 } from "../api/engine";
 
-/** League-level fields from last /valuation/calculate (for auction context strip). */
-type ValuationLeagueSnapshot = {
-  inflation_factor: number;
-  total_budget_remaining: number;
-  pool_value_remaining: number;
-  players_remaining: number;
-  valuation_model_version?: string;
-  engine_contract_version?: string;
-};
 import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
@@ -63,13 +53,6 @@ export function AuctionCenter({
   const [valuationMap, setValuationMap] = useState<
     Map<string, ValuationResult>
   >(new Map());
-  const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>(
-    [],
-  );
-  const [valuationContextV2, setValuationContextV2] =
-    useState<ValuationContextV2 | null>(null);
-  const [valuationSnapshot, setValuationSnapshot] =
-    useState<ValuationLeagueSnapshot | null>(null);
 
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
@@ -79,23 +62,10 @@ export function AuctionCenter({
       .then((res) => {
         if (cancelled) return;
         setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
-        setValuationMarketNotes(res.market_notes ?? []);
-        setValuationContextV2(res.context_v2 ?? null);
-        setValuationSnapshot({
-          inflation_factor: res.inflation_factor,
-          total_budget_remaining: res.total_budget_remaining,
-          pool_value_remaining: res.pool_value_remaining,
-          players_remaining: res.players_remaining,
-          valuation_model_version: res.valuation_model_version,
-          engine_contract_version: res.engine_contract_version,
-        });
       })
       .catch(() => {
         if (cancelled) return;
-        setValuationMarketNotes([]);
-        setValuationContextV2(null);
         setValuationMap(new Map());
-        setValuationSnapshot(null);
       });
     return () => {
       cancelled = true;
@@ -119,16 +89,6 @@ export function AuctionCenter({
             return next;
           });
         }
-        setValuationMarketNotes(res.market_notes ?? []);
-        setValuationContextV2(res.context_v2 ?? null);
-        setValuationSnapshot({
-          inflation_factor: res.inflation_factor,
-          total_budget_remaining: res.total_budget_remaining,
-          pool_value_remaining: res.pool_value_remaining,
-          players_remaining: res.players_remaining,
-          valuation_model_version: res.valuation_model_version,
-          engine_contract_version: res.engine_contract_version,
-        });
       })
       .catch(() => {
         /* keep last full-board map; player-only is best-effort */
@@ -217,16 +177,6 @@ export function AuctionCenter({
     bidPriceTouchedRef.current = true;
     setFinalPrice(value);
   }, []);
-
-  const engineContextLines =
-    valuationContextV2 != null
-      ? [
-          valuationContextV2.market_summary.headline,
-          ...valuationContextV2.position_alerts
-            .slice(0, 3)
-            .map((a) => `${a.position}: ${a.message}`),
-        ]
-      : valuationMarketNotes;
 
   const dropdownResults = (() => {
     if (searchQuery.length < 1) return [];
@@ -787,57 +737,6 @@ export function AuctionCenter({
                   })()}
                 </div>
               </div>
-              {(engineContextLines.length > 0 ||
-                valuationSnapshot ||
-                valuationContextV2?.confidence.notes) && (
-                <div
-                  className="pac-engine-context"
-                  aria-label="Engine market context"
-                >
-                  <div className="pac-engine-context-heading">
-                    <span className="pac-section-label">Engine context</span>
-                  </div>
-                  {engineContextLines.map((note, i) => (
-                    <p key={i} className="pac-engine-note-line">
-                      {note}
-                    </p>
-                  ))}
-                  {valuationContextV2?.confidence.notes ? (
-                    <p className="pac-engine-note-subtle">
-                      Note: {valuationContextV2.confidence.notes}
-                    </p>
-                  ) : null}
-                  {valuationSnapshot ? (
-                    <div
-                      className="pac-valuation-summary"
-                      title="League-wide figures from Amethyst Engine (last valuation run)"
-                    >
-                      <span>
-                        Inflation {valuationSnapshot.inflation_factor.toFixed(2)}
-                        ×
-                      </span>
-                      <span>
-                        · ${valuationSnapshot.total_budget_remaining} budget left
-                      </span>
-                      <span>
-                        · {valuationSnapshot.players_remaining} players left
-                      </span>
-                      {valuationSnapshot.valuation_model_version ? (
-                        <span>
-                          {" "}
-                          · {valuationSnapshot.valuation_model_version}
-                        </span>
-                      ) : null}
-                      {valuationSnapshot.engine_contract_version ? (
-                        <span>
-                          {" "}
-                          · contract {valuationSnapshot.engine_contract_version}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              )}
             </div>
 
             <div className="pac-notes-wrap">
