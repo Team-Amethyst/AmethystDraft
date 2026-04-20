@@ -634,104 +634,103 @@ export function AuctionCenter({
                     const adpValue = valuationRow?.adp ?? selectedPlayer.adp;
                     return (
                       <>
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Position</span>
-                    <div
-                      style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
-                    >
-                      {(selectedPlayer.positions?.length
-                        ? selectedPlayer.positions
-                        : [selectedPlayer.position]
-                      ).map((pos) => (
-                        <PosBadge key={pos} pos={pos} />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Team</span>
-                    <span className="pac-stat-value">
-                      {selectedPlayer.team}
-                    </span>
-                  </div>
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Tier</span>
-                    <span
-                      className="pac-stat-value pac-tier-badge"
-                      style={{
-                        background:
-                          [
-                            "#a855f7",
-                            "#6366f1",
-                            "#22c55e",
-                            "#f59e0b",
-                            "#6b7280",
-                          ][selectedPlayer.tier - 1] ?? "#6b7280",
-                      }}
-                    >
-                      {selectedPlayer.tier}
-                    </span>
-                  </div>
-                  <div
-                    className="pac-stat"
-                    title={
-                      valuationRow
-                        ? "Engine baseline/list value before league-context adjustments"
-                        : "Catalog list value (pre-auction, no league context)"
-                    }
-                  >
-                    <span className="pac-stat-label">List $</span>
-                    <span className="pac-stat-value green">
-                      ${listValue}
-                    </span>
-                  </div>
-                  {(() => {
-                    const v = valuationRow;
-                    if (!v) return null;
-                    const cls =
-                      v.indicator === "Steal"
-                        ? "steal"
-                        : v.indicator === "Reach"
-                          ? "reach"
-                          : "fair";
-                    const whyTip =
-                      v.why && v.why.length > 0 ? v.why.join(" · ") : undefined;
-                    return (
-                      <>
+                        <div className="pac-stat">
+                          <span className="pac-stat-label">Position</span>
+                          <div
+                            style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
+                          >
+                            {(selectedPlayer.positions?.length
+                              ? selectedPlayer.positions
+                              : [selectedPlayer.position]
+                            ).map((pos) => (
+                              <PosBadge key={pos} pos={pos} />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="pac-stat">
+                          <span className="pac-stat-label">Team</span>
+                          <span className="pac-stat-value">
+                            {selectedPlayer.team}
+                          </span>
+                        </div>
+                        <div className="pac-stat">
+                          <span className="pac-stat-label">Tier</span>
+                          <span
+                            className="pac-stat-value pac-tier-badge"
+                            style={{
+                              background:
+                                [
+                                  "#a855f7",
+                                  "#6366f1",
+                                  "#22c55e",
+                                  "#f59e0b",
+                                  "#6b7280",
+                                ][selectedPlayer.tier - 1] ?? "#6b7280",
+                            }}
+                          >
+                            {selectedPlayer.tier}
+                          </span>
+                        </div>
                         <div
                           className="pac-stat"
                           title={
-                            whyTip ??
-                            "Engine inflation-adjusted auction target (use for bids)"
+                            valuationRow
+                              ? "Engine baseline/list value before league-context adjustments"
+                              : "Catalog list value (pre-auction, no league context)"
+                          }
+                        >
+                          <span className="pac-stat-label">List $</span>
+                          <span className="pac-stat-value pac-stat-value--money green">
+                            ${listValue}
+                          </span>
+                        </div>
+                        <div
+                          className="pac-stat"
+                          title={
+                            (valuationRow?.why?.length ?? 0) > 0
+                              ? valuationRow?.why?.join(" · ")
+                              : "Engine inflation-adjusted auction target (use for bids)"
                           }
                         >
                           <span className="pac-stat-label">Engine $</span>
-                          <span className="pac-stat-value green">
-                            ${v.adjusted_value}
+                          <span
+                            className={
+                              "pac-stat-value pac-stat-value--money green " +
+                              (valuationRow ? "" : "pac-stat-value--placeholder")
+                            }
+                          >
+                            {valuationRow ? `$${valuationRow.adjusted_value}` : "—"}
                           </span>
                         </div>
                         <div className="pac-stat">
                           <span className="pac-stat-label">Signal</span>
                           <span
-                            className={`pac-indicator pac-indicator--${cls}`}
-                            title={whyTip}
+                            className={
+                              "pac-indicator " +
+                              (valuationRow
+                                ? valuationRow.indicator === "Steal"
+                                  ? "pac-indicator--steal"
+                                  : valuationRow.indicator === "Reach"
+                                    ? "pac-indicator--reach"
+                                    : "pac-indicator--fair"
+                                : "pac-indicator--placeholder")
+                            }
+                            title={valuationRow?.why?.join(" · ")}
                           >
-                            {v.indicator}
+                            {valuationRow?.indicator ?? "—"}
                           </span>
                         </div>
-                      </>
-                    );
-                  })()}
-                  <div
-                    className="pac-stat"
-                    title={
-                      valuationRow?.adp != null
-                        ? `Engine ADP (valuation row): ${valuationRow.adp}`
-                        : "Catalog ADP"
-                    }
-                  >
-                    <span className="pac-stat-label">ADP</span>
-                    <span className="pac-stat-value">{adpValue}</span>
-                  </div>
+                        <div
+                          className="pac-stat"
+                          title={
+                            valuationRow?.adp != null
+                              ? `Engine ADP (valuation row): ${valuationRow.adp}`
+                              : "Catalog ADP"
+                          }
+                        >
+                          <span className="pac-stat-label">ADP</span>
+                          <span className="pac-stat-value">{adpValue}</span>
+                        </div>
                       </>
                     );
                   })()}

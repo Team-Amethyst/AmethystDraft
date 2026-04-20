@@ -32,7 +32,6 @@ import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
   getValuation,
   getScarcity,
-  getNewsSignals,
   type ScarcityResponse,
   type ValuationResponse,
 } from "../api/engine";
@@ -137,7 +136,6 @@ function LeftPanel({
   onUpdatePick,
   leagueId,
   token,
-  engineNewsStrip,
 }: {
   activeTab: string;
   setActiveTab: (t: string) => void;
@@ -155,7 +153,6 @@ function LeftPanel({
   ) => void;
   leagueId?: string;
   token?: string | null;
-  engineNewsStrip?: string | null;
 }) {
   const eligibleMarketPositions = useMemo(
     () => [...new Set(selectedPlayerPositions)],
@@ -287,6 +284,18 @@ function LeftPanel({
       },
     ];
   }, [engineScarcity, enginePosRow, posMarket]);
+  const draftroomTierRows = useMemo(() => {
+    const order = [1, 2, 3, 4, 5] as const;
+    const byTier = new Map((posMarket?.supply ?? []).map((s) => [s.tier, s]));
+    return order.map((tier) => {
+      const row = byTier.get(tier);
+      return {
+        tier,
+        remaining: row?.count ?? 0,
+        avgVal: row?.avgVal ?? null,
+      };
+    });
+  }, [posMarket]);
 
   useEffect(() => {
     if (!engineScarcity || !posMarket) return;
@@ -483,14 +492,6 @@ function LeftPanel({
 
   return (
     <div className="cc-left">
-      {engineNewsStrip ? (
-        <div
-          className="cc-news-strip"
-          title="Injury and role signals from Amethyst Engine"
-        >
-          {engineNewsStrip}
-        </div>
-      ) : null}
       <div className="cc-tabs">
         {["Market", "Teams", "Standings"].map((t) => (
           <button
@@ -582,32 +583,6 @@ function LeftPanel({
                   <span className="msr-label">SCORE</span>
                   <span className="msr-value">{enginePosRow.scarcity_score}</span>
                 </div>
-                {engineTierBuckets ? (
-                  <div className="msr-tier-buckets">
-                    {engineTierBuckets.map((bucket) => (
-                      <div
-                        key={bucket.tier}
-                        className="market-stat-row msr-tier-row"
-                        title={
-                          bucket.message ??
-                          `${bucket.tier} scarcity urgency ${bucket.urgency_score}`
-                        }
-                      >
-                        <span className="msr-label">
-                          {bucket.tier} (0-100)
-                        </span>
-                        <span className="msr-value">
-                          {bucket.remaining} · {bucket.urgency_score}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="market-stat-row">
-                    <span className="msr-label">Tier 1 / Tier 2-3 / Tier 4+</span>
-                    <span className="msr-value">—</span>
-                  </div>
-                )}
                 {enginePosExplainer ? (
                   <>
                     <div
@@ -662,6 +637,50 @@ function LeftPanel({
                 ) : null}
               </>
             )}
+            {posMarket && engineTierBuckets ? (
+              <div className="msr-compare-wrap">
+                <div className="market-section-label">TIER COMPARISON</div>
+                <div className="msr-compare-grid">
+                  <div className="msr-compare-card">
+                    <div className="msr-compare-card-title">Engine Scarcity</div>
+                    <div className="msr-source-note">Urgency (0-100)</div>
+                    {engineTierBuckets.map((bucket) => (
+                      <div key={bucket.tier} className="market-stat-row msr-tier-row">
+                        <span className="msr-label msr-tier-label-wrap">
+                          <span
+                            className={
+                              "msr-tier-chip msr-tier-chip--" +
+                              (bucket.tier.split(" ")[1] ?? "1")
+                            }
+                          >
+                            {bucket.tier.split(" ")[1]}
+                          </span>
+                          {bucket.tier}
+                        </span>
+                        <span className="msr-value">{bucket.urgency_score}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="msr-compare-card">
+                    <div className="msr-compare-card-title">Draftroom Supply</div>
+                    <div className="msr-source-note">Remaining · Avg $</div>
+                    {draftroomTierRows.map((row) => (
+                      <div key={row.tier} className="market-stat-row msr-tier-row">
+                        <span className="msr-label msr-tier-label-wrap">
+                          <span className={"msr-tier-chip msr-tier-chip--" + row.tier}>
+                            {row.tier}
+                          </span>
+                          Tier {row.tier}
+                        </span>
+                        <span className="msr-value">
+                          {row.remaining} · {row.avgVal != null ? `$${row.avgVal}` : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
             {posMarket ? (
               <div
                 className="msr-count-rank-footnote"
@@ -748,75 +767,6 @@ function LeftPanel({
               )}
             </tbody>
           </table>
-          <>
-            <div className="cc-divider" />
-            <div className="market-section-label">
-              {posMarket ? posMarket.position : "—"} DRAFTROOM SUPPLY
-            </div>
-            {posMarket ? (
-              <div className="msr-source-note">
-                Remaining undrafted inventory by tier
-              </div>
-            ) : null}
-            <table className="supply-table">
-              <thead>
-                <tr>
-                  <th>TIER</th>
-                  <th>REMAINING</th>
-                  <th>AVG $</th>
-                </tr>
-              </thead>
-              <tbody>
-                {posMarket ? (
-                  posMarket.supply.length > 0 ? (
-                    posMarket.supply.map(({ tier, count, avgVal }) => (
-                      <tr key={tier}>
-                        <td className="tier-cell">
-                          <span
-                            className="pac-tier-badge"
-                            style={{
-                              background:
-                                [
-                                  "#a855f7",
-                                  "#6366f1",
-                                  "#22c55e",
-                                  "#f59e0b",
-                                  "#6b7280",
-                                ][tier - 1] ?? "#6b7280",
-                            }}
-                          >
-                            {tier}
-                          </span>
-                        </td>
-                        <td>{count}</td>
-                        <td>{avgVal != null ? `$${avgVal}` : "—"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="dim"
-                        style={{ textAlign: "center", padding: "0.5rem 0" }}
-                      >
-                        None remaining
-                      </td>
-                    </tr>
-                  )
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="dim"
-                      style={{ textAlign: "center", padding: "0.5rem 0" }}
-                    >
-                      Select a player to see supply
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </>
         </div>
       )}
 
@@ -1468,29 +1418,6 @@ export default function CommandCenter() {
     type: "success" | "error" | "info";
   } | null>(null);
 
-  /** Engine /signals/news summary (debounced; Engine caches responses). */
-  const [newsStrip, setNewsStrip] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) {
-      const clear = window.setTimeout(() => setNewsStrip(null), 0);
-      return () => window.clearTimeout(clear);
-    }
-    const delayMs = 1500;
-    const handle = window.setTimeout(() => {
-      void getNewsSignals(token, { days: 7 })
-        .then((r) => {
-          setNewsStrip(
-            r.count > 0
-              ? `${r.count} news signal${r.count === 1 ? "" : "s"} (7d, Engine)`
-              : null,
-          );
-        })
-        .catch(() => setNewsStrip(null));
-    }, delayMs);
-    return () => window.clearTimeout(handle);
-  }, [token]);
-
   const showToast = (
     message: string,
     type: "success" | "error" | "info" = "success",
@@ -1611,7 +1538,6 @@ export default function CommandCenter() {
           onUpdatePick={handleUpdatePick}
           leagueId={leagueId}
           token={token}
-          engineNewsStrip={newsStrip}
         />
         <AuctionCenter
           rosterEntries={rosterEntries}

@@ -9,16 +9,6 @@
   font-family: 'DM Sans', sans-serif;
 }
 
-.cc-news-strip {
-  flex-shrink: 0;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.68rem;
-  line-height: 1.25;
-  color: rgba(226, 232, 240, 0.88);
-  background: rgba(99, 102, 241, 0.12);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-}
-
 .cc-layout {
   display: grid;
   grid-template-columns: 330px 1fr 280px;
@@ -268,14 +258,64 @@
   padding: 0.1rem 0 0.25rem;
 }
 
-.msr-tier-buckets {
-  display: flex;
-  flex-direction: column;
-}
-
 .msr-tier-row {
   padding-top: 0.28rem;
   padding-bottom: 0.28rem;
+}
+
+.msr-compare-wrap {
+  margin-top: 0.5rem;
+}
+
+.msr-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.msr-compare-card {
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.35rem 0.45rem 0.25rem;
+}
+
+.msr-compare-card-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c4b5fd;
+  text-transform: uppercase;
+  margin-bottom: 0.12rem;
+}
+
+.msr-tier-label-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.msr-tier-chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.56rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.msr-tier-chip--1 { background: #a855f7; }
+.msr-tier-chip--2 { background: #6366f1; }
+.msr-tier-chip--3 { background: #22c55e; }
+.msr-tier-chip--4 { background: #f59e0b; }
+.msr-tier-chip--5 { background: #6b7280; }
+
+.msr-tier-row .msr-value {
+  font-variant-numeric: tabular-nums;
 }
 
 .msr-engine-monos {
@@ -537,10 +577,11 @@
 }
 
 .pac-meta-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(84px, 1fr));
+  gap: 0.7rem;
   flex: 1;
-  justify-content: space-evenly;
-  align-items: center;
+  align-items: start;
 }
 
 .pac-headshot {
@@ -612,6 +653,8 @@
   flex-direction: column;
   align-items: center;
   gap: 0.15rem;
+  min-width: 0;
+  padding: 0 0.1rem;
 }
 
 .pac-stat-label {
@@ -623,17 +666,26 @@
 }
 
 .pac-stat-value {
-  font-size: 1.8rem;
+  font-size: 1.45rem;
   font-weight: 800;
   line-height: 1;
   color: #e2d9f3;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .pac-stat-value.green { color: #22c55e; }
+.pac-stat-value--placeholder { color: #6d5e87; }
+.pac-stat-value--money {
+  min-width: 6.9ch;
+  text-align: center;
+}
 
 .pac-indicator {
   display: inline-block;
+  min-width: 78px;
+  text-align: center;
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
   font-size: 0.62rem;
@@ -645,6 +697,7 @@
 .pac-indicator--steal { background: rgba(34,197,94,0.18); color: #22c55e; }
 .pac-indicator--reach { background: rgba(248,113,113,0.18); color: #f87171; }
 .pac-indicator--fair  { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.pac-indicator--placeholder { background: rgba(109, 94, 135, 0.2); color: #8f7ab6; }
 
 .pac-tier-badge {
   display: inline-flex;
