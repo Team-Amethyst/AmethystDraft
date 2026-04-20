@@ -227,6 +227,47 @@
   padding: 0.35rem 0 0.15rem;
 }
 
+.msr-engine-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 0.2rem 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.msr-engine-severity--critical {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.msr-engine-severity--high {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.2);
+}
+
+.msr-engine-severity--medium {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.msr-engine-severity--low {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.msr-engine-action {
+  font-size: 0.64rem;
+  line-height: 1.3;
+  color: rgba(167, 139, 250, 0.95);
+  padding: 0.1rem 0 0.25rem;
+}
+
 .msr-engine-monos {
   display: flex;
   flex-direction: column;
@@ -534,6 +575,13 @@
 
 .pac-engine-note-line + .pac-engine-note-line {
   margin-top: 0.45rem;
+}
+
+.pac-engine-note-subtle {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(173, 164, 197, 0.95);
 }
 
 .pac-engine-context .pac-valuation-summary {

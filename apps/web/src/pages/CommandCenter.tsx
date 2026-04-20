@@ -216,6 +216,7 @@ function LeftPanel({
     if (!posMarket || !engineScarcity) return null;
     return engineScarcity.positions.find((p) => p.position === posMarket.position) ?? null;
   }, [posMarket, engineScarcity]);
+  const enginePosExplainer = engineScarcity?.selected_position_explainer ?? null;
 
   const playerMap = useMemo(
     () => new Map(allPlayers.map((p) => [p.id, p])),
@@ -498,7 +499,26 @@ function LeftPanel({
                     {enginePosRow.total_remaining}
                   </span>
                 </div>
-                {enginePosRow.alert ? (
+                {enginePosExplainer ? (
+                  <>
+                    <div
+                      className={`msr-engine-severity msr-engine-severity--${enginePosExplainer.severity}`}
+                      title={`Engine urgency ${enginePosExplainer.urgency_score}`}
+                    >
+                      {enginePosExplainer.severity.toUpperCase()} ·{" "}
+                      {enginePosExplainer.urgency_score}
+                    </div>
+                    <div
+                      className="msr-engine-alert"
+                      title={enginePosExplainer.message}
+                    >
+                      {enginePosExplainer.message}
+                    </div>
+                    <div className="msr-engine-action">
+                      {enginePosExplainer.recommended_action}
+                    </div>
+                  </>
+                ) : enginePosRow.alert ? (
                   <div
                     className="msr-engine-alert"
                     title={enginePosRow.alert}

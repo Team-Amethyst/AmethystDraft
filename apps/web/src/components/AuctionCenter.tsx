@@ -12,6 +12,7 @@ import { getStatByCategory } from "../pages/commandCenterUtils";
 import {
   getValuation,
   getValuationPlayer,
+  type ValuationContextV2,
   type ValuationResult,
 } from "../api/engine";
 
@@ -65,6 +66,8 @@ export function AuctionCenter({
   const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>(
     [],
   );
+  const [valuationContextV2, setValuationContextV2] =
+    useState<ValuationContextV2 | null>(null);
   const [valuationSnapshot, setValuationSnapshot] =
     useState<ValuationLeagueSnapshot | null>(null);
 
@@ -77,6 +80,7 @@ export function AuctionCenter({
         if (cancelled) return;
         setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
         setValuationMarketNotes(res.market_notes ?? []);
+        setValuationContextV2(res.context_v2 ?? null);
         setValuationSnapshot({
           inflation_factor: res.inflation_factor,
           total_budget_remaining: res.total_budget_remaining,
@@ -89,6 +93,7 @@ export function AuctionCenter({
       .catch(() => {
         if (cancelled) return;
         setValuationMarketNotes([]);
+        setValuationContextV2(null);
         setValuationMap(new Map());
         setValuationSnapshot(null);
       });
@@ -115,6 +120,7 @@ export function AuctionCenter({
           });
         }
         setValuationMarketNotes(res.market_notes ?? []);
+        setValuationContextV2(res.context_v2 ?? null);
         setValuationSnapshot({
           inflation_factor: res.inflation_factor,
           total_budget_remaining: res.total_budget_remaining,
@@ -211,6 +217,16 @@ export function AuctionCenter({
     bidPriceTouchedRef.current = true;
     setFinalPrice(value);
   }, []);
+
+  const engineContextLines =
+    valuationContextV2 != null
+      ? [
+          valuationContextV2.market_summary.headline,
+          ...valuationContextV2.position_alerts
+            .slice(0, 3)
+            .map((a) => `${a.position}: ${a.message}`),
+        ]
+      : valuationMarketNotes;
 
   const dropdownResults = (() => {
     if (searchQuery.length < 1) return [];
@@ -758,7 +774,9 @@ export function AuctionCenter({
                   </div>
                 </div>
               </div>
-              {(valuationMarketNotes.length > 0 || valuationSnapshot) && (
+              {(engineContextLines.length > 0 ||
+                valuationSnapshot ||
+                valuationContextV2?.confidence.notes) && (
                 <div
                   className="pac-engine-context"
                   aria-label="Engine market context"
@@ -766,11 +784,16 @@ export function AuctionCenter({
                   <div className="pac-engine-context-heading">
                     <span className="pac-section-label">Engine context</span>
                   </div>
-                  {valuationMarketNotes.map((note, i) => (
+                  {engineContextLines.map((note, i) => (
                     <p key={i} className="pac-engine-note-line">
                       {note}
                     </p>
                   ))}
+                  {valuationContextV2?.confidence.notes ? (
+                    <p className="pac-engine-note-subtle">
+                      Note: {valuationContextV2.confidence.notes}
+                    </p>
+                  ) : null}
                   {valuationSnapshot ? (
                     <div
                       className="pac-valuation-summary"
@@ -790,6 +813,12 @@ export function AuctionCenter({
                         <span>
                           {" "}
                           · {valuationSnapshot.valuation_model_version}
+                        </span>
+                      ) : null}
+                      {valuationSnapshot.engine_contract_version ? (
+                        <span>
+                          {" "}
+                          · contract {valuationSnapshot.engine_contract_version}
                         </span>
                       ) : null}
                     </div>

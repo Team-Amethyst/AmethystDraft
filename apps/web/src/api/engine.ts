@@ -19,6 +19,57 @@ export interface ValuationResult {
   baseline_components?: Record<string, unknown>;
   scarcity_adjustment?: number;
   inflation_adjustment?: number;
+  explain_v2?: {
+    indicator: "Steal" | "Reach" | "Fair Value";
+    auction_target: number;
+    list_value: number;
+    adjustments: {
+      scarcity: number;
+      inflation: number;
+      other: number;
+    };
+    drivers: Array<{
+      label: string;
+      impact: number;
+      reason: string;
+    }>;
+    confidence: number;
+  };
+}
+
+export interface ValuationContextV2 {
+  schema_version: "2";
+  calculated_at: string;
+  scope: {
+    league_id: string;
+    player_id?: string;
+    position?: string;
+  };
+  market_summary: {
+    headline: string;
+    inflation_factor: number;
+    inflation_percent_vs_neutral: number;
+    budget_left: number;
+    players_left: number;
+    model_version: string;
+  };
+  position_alerts: Array<{
+    position: string;
+    severity: "low" | "medium" | "high" | "critical";
+    urgency_score: number;
+    message: string;
+    evidence: {
+      elite_remaining: number;
+      mid_tier_remaining: number;
+      total_remaining: number;
+    };
+    recommended_action: string;
+  }>;
+  assumptions: string[];
+  confidence: {
+    overall: number;
+    notes?: string;
+  };
 }
 
 export interface ValuationResponse {
@@ -34,6 +85,8 @@ export interface ValuationResponse {
   valuation_model_version?: string;
   /** Response-level league context from Engine (inflation, scarcity, monopolies). */
   market_notes?: string[];
+  /** Structured explainability payload (v2, additive). */
+  context_v2?: ValuationContextV2;
 }
 
 export async function getValuation(
@@ -124,6 +177,16 @@ export interface MonopolyWarning {
 }
 
 export interface ScarcityResponse {
+  engine_contract_version?: string;
+  schema_version?: "2";
+  calculated_at?: string;
+  selected_position?: string;
+  selected_position_explainer?: {
+    severity: "low" | "medium" | "high" | "critical";
+    urgency_score: number;
+    message: string;
+    recommended_action: string;
+  } | null;
   positions: ScarcityPosition[];
   monopoly_warnings: MonopolyWarning[];
 }
