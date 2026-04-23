@@ -248,7 +248,7 @@ export function useMockDraft(
   }, []);
 
   const confirmSell = useCallback(() => {
-    const s = stateRef.current;
+    //const s = stateRef.current;               // THIS WAS COMMENTED OUT BY MEE
     setState((prev) => ({ ...prev, phase: "sold" }));
     setTimeout(() => sellPlayer(stateRef.current), SOLD_DELAY_MS);
   }, [sellPlayer]);

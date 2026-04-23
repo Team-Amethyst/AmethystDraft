@@ -61,19 +61,6 @@ export function openSlots(
   return total - roster.picks.length;
 }
 
-// Find the best slot for a player on this roster
-function findBestSlot(
-  player: Player,
-  roster: AIRoster,
-  rosterSlots: Record<string, number>,
-): string {
-  const pos = getPositionFromPlayer(player);
-  if (positionNeed(roster, pos, rosterSlots) > 0) return pos;
-  if (!isPitcher(player) && positionNeed(roster, "UTIL", rosterSlots) > 0) return "UTIL";
-  if (positionNeed(roster, "BN", rosterSlots) > 0) return "BN";
-  return "BN";
-}
-
 // ─── AI bid decision ──────────────────────────────────────────────────────────
 
 /**
@@ -85,7 +72,7 @@ export function aiMaxBid(
   roster: AIRoster,
   currentBid: number,
   rosterSlots: Record<string, number>,
-  allRosters: AIRoster[],
+  _allRosters: AIRoster[],
   undraftedPlayers: Player[],
 ): number {
   const remaining = roster.budget - roster.spent;
@@ -150,7 +137,7 @@ export function aiNominate(
   roster: AIRoster,
   undraftedPlayers: Player[],
   rosterSlots: Record<string, number>,
-  allRosters: AIRoster[],
+  _allRosters: AIRoster[],
 ): Player | null {
   if (undraftedPlayers.length === 0) return null;
 
@@ -188,7 +175,7 @@ export function suggestNomination(
   watchlist: Player[],
   undraftedPlayers: Player[],
   rosterSlots: Record<string, number>,
-  allRosters: AIRoster[],
+  _allRosters: AIRoster[],
 ): { player: Player; reason: string } | null {
   const undraftedIds = new Set(undraftedPlayers.map((p) => p.id));
 
