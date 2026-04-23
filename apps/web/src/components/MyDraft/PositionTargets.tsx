@@ -9,6 +9,7 @@
  */
 
 import PosBadge from "../PosBadge";
+import { useNavigate, useParams } from "react-router";
 
 export interface PositionPlanRow {
   pos: string;
@@ -37,6 +38,9 @@ export default function PositionTargets({
   onTargetBlur,
   onReset,
 }: PositionTargetsProps) {
+  const navigate = useNavigate();
+  const { id: leagueId } = useParams();
+
   return (
     <div className="mydraft-left panel-card">
       <div className="table-head-row">
@@ -100,8 +104,13 @@ export default function PositionTargets({
         </table>
       </div>
 
-      <button className="mock-btn" type="button" disabled>
-        AI Mock Draft — Coming Soon
+
+      <button
+        className="mock-btn"
+        type="button"
+        onClick={() => navigate(`/leagues/${leagueId}/mock-draft`)}
+      >
+        AI Mock Draft
       </button>
     </div>
   );
