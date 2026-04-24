@@ -288,6 +288,23 @@ function parseStarts(value: number | string | undefined): number {
   return 0;
 }
 
+function injuryStatusPenalty(status: string): number {
+  const normalized = status.toLowerCase();
+  if (!normalized) return 0;
+  if (normalized.includes("il60") || normalized.includes("60-day")) return -8;
+  if (
+    normalized.includes("il") ||
+    normalized.includes("injured") ||
+    normalized.includes("injury") ||
+    normalized.includes("d10") ||
+    normalized.includes("d15") ||
+    normalized.includes("d7")
+  ) {
+    return -4;
+  }
+  return 0;
+}
+
 async function fetchJsonOrThrow<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -407,8 +424,7 @@ async function buildDepthChart(
         status,
       };
     })
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-    .filter((entry) => isAvailableRosterStatus(entry.status));
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
   const playerIds = filteredRoster.map((p) => p.playerId);
   const usageByPlayer = new Map<number, DepthUsage>();
@@ -685,6 +701,8 @@ async function buildDepthChart(
           else if (position === "RP") adjustedScore += base * 1.8;
           else adjustedScore += base * 1.6;
         }
+
+        adjustedScore += injuryStatusPenalty(entry.status);
 
         const explicitEligibility = new Set<string>([
           mapPositionSlot(entry.primaryPosition),

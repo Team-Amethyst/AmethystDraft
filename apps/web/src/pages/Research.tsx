@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { Database, BarChart3, Layers, UserPlus } from "lucide-react";
+import { Database, BarChart3, Layers, UserPlus, Star } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import {
@@ -19,6 +19,7 @@ import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
+import { useWatchlist } from "../contexts/WatchlistContext";
 import {
   hasPitcherEligibility,
   normalizePlayerPositions,
@@ -88,6 +89,7 @@ export default function Research() {
   const { league } = useLeague();
   const { token } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
   const [selectedView, setSelectedView] = useState<ResearchView>("player-database");
   const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(147);
@@ -153,6 +155,15 @@ export default function Research() {
     }
     return map;
   }, [rosterEntries, league?.teamNames]);
+
+  const depthTotalSlots = DEPTH_POSITIONS.length * 3;
+  const depthAssignedCount = useMemo(() => {
+    if (!depthChartData) return 0;
+    return DEPTH_POSITIONS.reduce(
+      (total, position) => total + (depthChartData.positions[position]?.length ?? 0),
+      0,
+    );
+  }, [depthChartData]);
 
   const customPlayerIds = useMemo(
     () => new Set(customPlayers.map((p) => p.id)),
@@ -316,28 +327,31 @@ export default function Research() {
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
-  const handleDepthPlayerClick = useCallback(async (slot: DepthChartPlayerRow) => {
-    setDepthChartError("");
-
+  const resolveDepthPlayer = useCallback(async (slot: DepthChartPlayerRow): Promise<Player | null> => {
     const fromLoaded = allPlayers.find(
       (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
     );
-    if (fromLoaded) {
-      handlePlayerClick(fromLoaded);
-      return;
-    }
+    if (fromLoaded) return fromLoaded;
+
+    const playersFromApi = await getPlayers(
+      "adp",
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+    );
+    setPlayers(playersFromApi);
+
+    return (
+      playersFromApi.find(
+        (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
+      ) ?? null
+    );
+  }, [allPlayers, league?.playerPool, league?.posEligibilityThreshold]);
+
+  const handleDepthPlayerClick = useCallback(async (slot: DepthChartPlayerRow) => {
+    setDepthChartError("");
 
     try {
-      const playersFromApi = await getPlayers(
-        "adp",
-        league?.posEligibilityThreshold,
-        league?.playerPool,
-      );
-      setPlayers(playersFromApi);
-
-      const matched = playersFromApi.find(
-        (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
-      );
+      const matched = await resolveDepthPlayer(slot);
       if (matched) {
         handlePlayerClick(matched);
         return;
@@ -351,7 +365,30 @@ export default function Research() {
           : "Failed to load player details for command center navigation",
       );
     }
-  }, [allPlayers, handlePlayerClick, league?.playerPool, league?.posEligibilityThreshold]);
+  }, [handlePlayerClick, resolveDepthPlayer]);
+
+  const handleDepthStarToggle = useCallback(async (slot: DepthChartPlayerRow) => {
+    setDepthChartError("");
+    try {
+      const matched = await resolveDepthPlayer(slot);
+      if (!matched) {
+        setDepthChartError(`Could not star ${slot.playerName}. Player record was not found in catalog data.`);
+        return;
+      }
+
+      if (isInWatchlist(matched.id)) {
+        removeFromWatchlist(matched.id);
+      } else {
+        addToWatchlist(matched);
+      }
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update watchlist from depth chart",
+      );
+    }
+  }, [addToWatchlist, isInWatchlist, removeFromWatchlist, resolveDepthPlayer]);
 
   const navigationItems: Array<{
     id: ResearchView;
@@ -489,6 +526,12 @@ export default function Research() {
                     <span>
                       Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
                     </span>
+                    <span>
+                      Assignments {depthAssignedCount}/{depthTotalSlots}
+                    </span>
+                    <span>
+                      Manual review {depthChartData.manualReview.length}
+                    </span>
                     <span
                       className={`depth-chart-limit-chip ${depthChartData.constraints.rosterLimitRespected ? "is-ok" : "is-warning"}`}
                     >
@@ -503,8 +546,17 @@ export default function Research() {
                         <section key={position} className="position-group">
                           <div className="position-group__header">
                             <h3 className="position-group__title">{position}</h3>
+                            <span className="position-group__fill">
+                              {(depthChartData.positions[position] ?? []).length}/3
+                            </span>
                           </div>
                           <div className="position-group__body">
+                            <div className="position-group__table-head">
+                              <span>Rank</span>
+                              <span>Player</span>
+                              <span>Status</span>
+                              <span>Usage</span>
+                            </div>
                             {[1, 2, 3].map((rank) => {
                               const row = rows.find((item) => item.rank === rank);
                               const rankClass =
@@ -537,22 +589,56 @@ export default function Research() {
                                 >
                                   <div className="player-slot__rank">#{rank}</div>
                                   {row ? (
-                                    <div className="player-slot__content">
-                                      <div className="player-slot__name">{row.playerName}</div>
-                                      <div className="player-slot__meta">
-                                        <span>{row.primaryPosition}</span>
-                                        <span>{row.status}</span>
-                                        <span>{row.usageStarts} starts</span>
-                                        <span>{row.usageAppearances} apps</span>
+                                    <>
+                                      <div className="player-slot__content">
+                                        <div className="player-slot__name-line">
+                                          <div className="player-slot__name">{row.playerName}</div>
+                                          <div className="player-slot__chips">
+                                            <span className="player-slot__chip">{row.primaryPosition}</span>
+                                            {injured && <span className="player-slot__chip player-slot__chip--injured">INJ</span>}
+                                            {(row.outOfPosition || row.needsManualReview) && (
+                                              <span className="player-slot__chip player-slot__chip--oof">OOF</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {(row.outOfPosition || row.needsManualReview) && (
+                                          <div className="player-slot__flag">Manual review suggested</div>
+                                        )}
                                       </div>
-                                      {row.outOfPosition && (
-                                        <div className="player-slot__flag">OOF - Manual Review</div>
-                                      )}
-                                    </div>
+                                      <div className="player-slot__meta player-slot__meta--status">
+                                        <span>{row.status}</span>
+                                      </div>
+                                      <div className="player-slot__meta player-slot__meta--usage">
+                                        <div className="player-slot__usage-text">
+                                          <span>{row.usageStarts} starts</span>
+                                          <span>{row.usageAppearances} apps</span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className={`btn-star depth-slot-star ${isInWatchlist(String(row.playerId)) ? "starred" : ""}`}
+                                          aria-label={
+                                            isInWatchlist(String(row.playerId))
+                                              ? `Remove ${row.playerName} from watchlist`
+                                              : `Add ${row.playerName} to watchlist`
+                                          }
+                                          onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            void handleDepthStarToggle(row);
+                                          }}
+                                        >
+                                          <Star size={14} fill={isInWatchlist(String(row.playerId)) ? "#fbbf24" : "none"} />
+                                        </button>
+                                      </div>
+                                    </>
                                   ) : (
-                                    <div className="player-slot__content player-slot__content--empty">
-                                      No assignment
-                                    </div>
+                                    <>
+                                      <div className="player-slot__content player-slot__content--empty">
+                                        No assignment
+                                      </div>
+                                      <div className="player-slot__meta player-slot__meta--status">-</div>
+                                      <div className="player-slot__meta player-slot__meta--usage">-</div>
+                                    </>
                                   )}
                                 </div>
                               );
