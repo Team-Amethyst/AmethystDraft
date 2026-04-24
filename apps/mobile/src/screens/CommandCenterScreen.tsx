@@ -48,7 +48,6 @@ export default function CommandCenterScreen({ route }: any) {
 
   useEffect(() => {
     if (!selectedPlayer) return;
-
     if (selectedPlayer.mlbId !== 0) return;
 
     const fullPlayer = players.find((p) => p.id === selectedPlayer.id);
