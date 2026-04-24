@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Button,
   FlatList,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getPlayers } from "../api/players";
-import { getRoster, type RosterEntry } from "../api/roster";
+import {
+  addRosterEntry,
+  getRoster,
+  type RosterEntry,
+} from "../api/roster";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
@@ -19,7 +25,7 @@ import { computeTeamData } from "../utils/commandCenterUtils";
 
 export default function CommandCenterScreen({ route }: any) {
   const { leagueId } = route.params;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { allLeagues } = useLeague();
   const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
   const { getNote, loadNotes, setNote } = usePlayerNotes();
@@ -27,6 +33,11 @@ export default function CommandCenterScreen({ route }: any) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addingPick, setAddingPick] = useState(false);
+
+  const [teamNumber, setTeamNumber] = useState("1");
+  const [price, setPrice] = useState("");
+  const [rosterSlot, setRosterSlot] = useState("");
 
   const league = allLeagues.find((item) => item.id === leagueId);
 
@@ -61,6 +72,17 @@ export default function CommandCenterScreen({ route }: any) {
     }
   }, [players, selectedPlayer, setSelectedPlayer]);
 
+  useEffect(() => {
+    if (!selectedPlayer) return;
+    if (!rosterSlot) {
+      const defaultSlot =
+        selectedPlayer.positions?.[0] ??
+        selectedPlayer.position.split("/")[0] ??
+        "";
+      setRosterSlot(defaultSlot);
+    }
+  }, [selectedPlayer, rosterSlot]);
+
   const teamData = useMemo(() => {
     if (!league) return [];
     return computeTeamData(
@@ -72,6 +94,77 @@ export default function CommandCenterScreen({ route }: any) {
       roster,
     );
   }, [league, roster]);
+
+  const recentPicks = useMemo(() => {
+    return [...roster]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 10);
+  }, [roster]);
+
+  async function refreshRoster() {
+    if (!token) return;
+    const rosterData = await getRoster(leagueId, token);
+    setRoster(rosterData);
+  }
+
+  async function handleAddPick() {
+    if (!token || !selectedPlayer || !league) return;
+
+    const teamValue = Number(teamNumber);
+    const priceValue = Number(price);
+
+    if (!Number.isInteger(teamValue) || teamValue < 1 || teamValue > league.teams) {
+      Alert.alert(
+        "Invalid team number",
+        `Enter a team number from 1 to ${league.teams}.`,
+      );
+      return;
+    }
+
+    if (!Number.isFinite(priceValue) || priceValue < 0) {
+      Alert.alert("Invalid price", "Enter a non-negative price.");
+      return;
+    }
+
+    if (!rosterSlot.trim()) {
+      Alert.alert("Missing roster slot", "Enter a roster slot such as OF or SP.");
+      return;
+    }
+
+    setAddingPick(true);
+
+    try {
+      await addRosterEntry(
+        leagueId,
+        {
+          externalPlayerId: selectedPlayer.id,
+          playerName: selectedPlayer.name,
+          playerTeam: selectedPlayer.team,
+          positions: selectedPlayer.positions ?? [selectedPlayer.position],
+          price: priceValue,
+          rosterSlot: rosterSlot.trim().toUpperCase(),
+          isKeeper: false,
+          userId: user?.id,
+          teamId: `team_${teamValue}`,
+        },
+        token,
+      );
+
+      await refreshRoster();
+      setPrice("");
+      Alert.alert("Pick logged", `${selectedPlayer.name} was added to Team ${teamValue}.`);
+    } catch (err) {
+      Alert.alert(
+        "Failed to log pick",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    } finally {
+      setAddingPick(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -122,7 +215,68 @@ export default function CommandCenterScreen({ route }: any) {
             <Text>
               ADP {selectedPlayer.adp} • ${selectedPlayer.value}
             </Text>
-            <Text style={{ marginTop: 8, marginBottom: 6, fontWeight: "600" }}>
+            {!!selectedPlayer.positions?.length && (
+              <Text style={{ marginTop: 4 }}>
+                Eligible: {selectedPlayer.positions.join(", ")}
+              </Text>
+            )}
+
+            <Text style={{ marginTop: 10, marginBottom: 6, fontWeight: "600" }}>
+              Log Pick
+            </Text>
+
+            <TextInput
+              value={teamNumber}
+              onChangeText={setTeamNumber}
+              placeholder={`Team number 1-${league.teams}`}
+              keyboardType="numeric"
+              style={{
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                marginBottom: 8,
+              }}
+            />
+
+            <TextInput
+              value={price}
+              onChangeText={setPrice}
+              placeholder="Auction price"
+              keyboardType="numeric"
+              style={{
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                marginBottom: 8,
+              }}
+            />
+
+            <TextInput
+              value={rosterSlot}
+              onChangeText={setRosterSlot}
+              placeholder="Roster slot e.g. OF, SP, RP"
+              autoCapitalize="characters"
+              style={{
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                marginBottom: 10,
+              }}
+            />
+
+            <Button
+              title={addingPick ? "Logging..." : "Log Pick"}
+              onPress={() => void handleAddPick()}
+              disabled={addingPick}
+            />
+
+            <Text style={{ marginTop: 12, marginBottom: 6, fontWeight: "600" }}>
               Notes
             </Text>
             <TextInput
@@ -185,6 +339,30 @@ export default function CommandCenterScreen({ route }: any) {
           )}
           ListEmptyComponent={<Text>No team data yet.</Text>}
         />
+
+        <Text style={{ fontSize: 18, fontWeight: "700", marginTop: 18, marginBottom: 10 }}>
+          Recent Picks
+        </Text>
+
+        {recentPicks.length === 0 ? (
+          <Text>No picks yet.</Text>
+        ) : (
+          recentPicks.map((pick) => (
+            <View
+              key={pick._id}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: "#eee",
+              }}
+            >
+              <Text style={{ fontWeight: "600" }}>{pick.playerName}</Text>
+              <Text>
+                {pick.teamId.replace("_", " ")} • {pick.rosterSlot} • ${pick.price}
+              </Text>
+            </View>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
