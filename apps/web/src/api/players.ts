@@ -114,16 +114,20 @@ export function getDepthChartCached(
 export async function getTeamDepthChart(
   teamId: number,
   season?: number,
+  forceRefresh = false,
 ): Promise<DepthChartResponse> {
   const cacheKey = `${teamId}-${season ?? "current"}`;
   const ts = depthChartCacheTime.get(cacheKey);
-  if (ts && Date.now() - ts < DEPTH_CACHE_TTL_MS && depthChartCache.has(cacheKey)) {
+  if (!forceRefresh && ts && Date.now() - ts < DEPTH_CACHE_TTL_MS && depthChartCache.has(cacheKey)) {
     return depthChartCache.get(cacheKey)!;
   }
 
   const query = new URLSearchParams();
   if (season !== undefined) {
     query.set("season", String(season));
+  }
+  if (forceRefresh) {
+    query.set("refresh", "1");
   }
   const queryString = query.size > 0 ? `?${query.toString()}` : "";
 

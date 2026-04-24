@@ -258,15 +258,15 @@ export default function Research() {
     customPlayerIds,
   ]);
 
-  const loadDepthChart = useCallback(async (teamId: number) => {
+  const loadDepthChart = useCallback(async (teamId: number, forceRefresh = false) => {
     const cached = getDepthChartCached(teamId);
-    if (!cached) {
+    if (!cached || forceRefresh) {
       setIsLoadingDepthChart(true);
     }
     setDepthChartError("");
 
     try {
-      const depth = await getTeamDepthChart(teamId);
+      const depth = await getTeamDepthChart(teamId, undefined, forceRefresh);
       setDepthChartData(depth);
     } catch (err) {
       setDepthChartError(
@@ -459,7 +459,7 @@ export default function Research() {
                   <button
                     type="button"
                     className="depth-chart-refresh-btn"
-                    onClick={() => void loadDepthChart(selectedDepthTeamId)}
+                    onClick={() => void loadDepthChart(selectedDepthTeamId, true)}
                   >
                     Refresh
                   </button>
