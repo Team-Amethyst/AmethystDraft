@@ -9,6 +9,7 @@ import {
   getPlayers,
   getPlayersCached,
   getTeamDepthChart,
+  type DepthChartPlayerRow,
   type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
@@ -315,6 +316,43 @@ export default function Research() {
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
+  const handleDepthPlayerClick = useCallback(async (slot: DepthChartPlayerRow) => {
+    setDepthChartError("");
+
+    const fromLoaded = allPlayers.find(
+      (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
+    );
+    if (fromLoaded) {
+      handlePlayerClick(fromLoaded);
+      return;
+    }
+
+    try {
+      const playersFromApi = await getPlayers(
+        "adp",
+        league?.posEligibilityThreshold,
+        league?.playerPool,
+      );
+      setPlayers(playersFromApi);
+
+      const matched = playersFromApi.find(
+        (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
+      );
+      if (matched) {
+        handlePlayerClick(matched);
+        return;
+      }
+
+      setDepthChartError(`Could not open ${slot.playerName}. Player record was not found in catalog data.`);
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load player details for command center navigation",
+      );
+    }
+  }, [allPlayers, handlePlayerClick, league?.playerPool, league?.posEligibilityThreshold]);
+
   const navigationItems: Array<{
     id: ResearchView;
     label: string;
@@ -481,7 +519,21 @@ export default function Research() {
                               return (
                                 <div
                                   key={`${position}-${rank}`}
-                                  className={`player-slot ${rankClass} ${injured ? "player-slot--injured" : ""} ${row?.outOfPosition || row?.needsManualReview ? "player-slot--oof" : ""}`}
+                                  className={`player-slot ${rankClass} ${injured ? "player-slot--injured" : ""} ${row?.outOfPosition || row?.needsManualReview ? "player-slot--oof" : ""} ${row ? "player-slot--clickable" : ""}`}
+                                  role={row ? "button" : undefined}
+                                  tabIndex={row ? 0 : undefined}
+                                  onClick={() => {
+                                    if (row) {
+                                      void handleDepthPlayerClick(row);
+                                    }
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (!row) return;
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      void handleDepthPlayerClick(row);
+                                    }
+                                  }}
                                 >
                                   <div className="player-slot__rank">#{rank}</div>
                                   {row ? (

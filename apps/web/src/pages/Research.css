@@ -302,6 +302,19 @@
   border-left: 3px solid rgba(251, 191, 36, 0.9);
 }
 
+.player-slot--clickable {
+  cursor: pointer;
+}
+
+.player-slot--clickable:hover {
+  background: rgba(168, 85, 247, 0.18);
+}
+
+.player-slot--clickable:focus-visible {
+  outline: 2px solid rgba(168, 85, 247, 0.9);
+  outline-offset: -2px;
+}
+
 .depth-chart-manual-review {
   border: 1px solid rgba(251, 191, 36, 0.35);
   background: rgba(101, 67, 15, 0.22);
