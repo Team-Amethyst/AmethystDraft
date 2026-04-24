@@ -1,28 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Button,
   FlatList,
-  SafeAreaView,
+  ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getPlayers } from "../api/players";
-import { getRoster, type RosterEntry } from "../api/roster";
+import {
+  addRosterEntry,
+  getRoster,
+  type RosterEntry,
+} from "../api/roster";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { Player } from "../types/player";
 import { computeTeamData } from "../utils/commandCenterUtils";
 
 export default function CommandCenterScreen({ route }: any) {
   const { leagueId } = route.params;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { allLeagues } = useLeague();
   const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
+  const { getNote, loadNotes, setNote } = usePlayerNotes();
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addingPick, setAddingPick] = useState(false);
+
+  const [teamNumber, setTeamNumber] = useState("1");
+  const [price, setPrice] = useState("");
+  const [rosterSlot, setRosterSlot] = useState("");
 
   const league = allLeagues.find((item) => item.id === leagueId);
 
@@ -34,6 +49,7 @@ export default function CommandCenterScreen({ route }: any) {
         const [playerData, rosterData] = await Promise.all([
           getPlayers("adp", league.posEligibilityThreshold, league.playerPool),
           getRoster(leagueId, token),
+          loadNotes(leagueId),
         ]);
 
         setPlayers(playerData);
@@ -44,11 +60,10 @@ export default function CommandCenterScreen({ route }: any) {
     }
 
     void loadData();
-  }, [league, leagueId, token]);
+  }, [league, leagueId, loadNotes, token]);
 
   useEffect(() => {
     if (!selectedPlayer) return;
-
     if (selectedPlayer.mlbId !== 0) return;
 
     const fullPlayer = players.find((p) => p.id === selectedPlayer.id);
@@ -56,6 +71,17 @@ export default function CommandCenterScreen({ route }: any) {
       setSelectedPlayer(fullPlayer);
     }
   }, [players, selectedPlayer, setSelectedPlayer]);
+
+  useEffect(() => {
+    if (!selectedPlayer) return;
+    if (!rosterSlot) {
+      const defaultSlot =
+        selectedPlayer.positions?.[0] ??
+        selectedPlayer.position.split("/")[0] ??
+        "";
+      setRosterSlot(defaultSlot);
+    }
+  }, [selectedPlayer, rosterSlot]);
 
   const teamData = useMemo(() => {
     if (!league) return [];
@@ -68,6 +94,77 @@ export default function CommandCenterScreen({ route }: any) {
       roster,
     );
   }, [league, roster]);
+
+  const recentPicks = useMemo(() => {
+    return [...roster]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 10);
+  }, [roster]);
+
+  async function refreshRoster() {
+    if (!token) return;
+    const rosterData = await getRoster(leagueId, token);
+    setRoster(rosterData);
+  }
+
+  async function handleAddPick() {
+    if (!token || !selectedPlayer || !league) return;
+
+    const teamValue = Number(teamNumber);
+    const priceValue = Number(price);
+
+    if (!Number.isInteger(teamValue) || teamValue < 1 || teamValue > league.teams) {
+      Alert.alert(
+        "Invalid team number",
+        `Enter a team number from 1 to ${league.teams}.`,
+      );
+      return;
+    }
+
+    if (!Number.isFinite(priceValue) || priceValue < 0) {
+      Alert.alert("Invalid price", "Enter a non-negative price.");
+      return;
+    }
+
+    if (!rosterSlot.trim()) {
+      Alert.alert("Missing roster slot", "Enter a roster slot such as OF or SP.");
+      return;
+    }
+
+    setAddingPick(true);
+
+    try {
+      await addRosterEntry(
+        leagueId,
+        {
+          externalPlayerId: selectedPlayer.id,
+          playerName: selectedPlayer.name,
+          playerTeam: selectedPlayer.team,
+          positions: selectedPlayer.positions ?? [selectedPlayer.position],
+          price: priceValue,
+          rosterSlot: rosterSlot.trim().toUpperCase(),
+          isKeeper: false,
+          userId: user?.id,
+          teamId: `team_${teamValue}`,
+        },
+        token,
+      );
+
+      await refreshRoster();
+      setPrice("");
+      Alert.alert("Pick logged", `${selectedPlayer.name} was added to Team ${teamValue}.`);
+    } catch (err) {
+      Alert.alert(
+        "Failed to log pick",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    } finally {
+      setAddingPick(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -87,62 +184,186 @@ export default function CommandCenterScreen({ route }: any) {
     );
   }
 
+  const playerNote =
+    selectedPlayer ? getNote(leagueId, selectedPlayer.id) : "";
+
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 12 }}>
-        Command Center
-      </Text>
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 12 }}>
+          Command Center
+        </Text>
 
-      {selectedPlayer ? (
-        <View
-          style={{
-            padding: 14,
-            borderWidth: 1,
-            borderColor: "#c7d2fe",
-            borderRadius: 10,
-            backgroundColor: "#eef2ff",
-            marginBottom: 16,
-          }}
-        >
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>
-            Selected Player
-          </Text>
-          <Text style={{ marginTop: 6 }}>{selectedPlayer.name}</Text>
-          <Text>
-            {selectedPlayer.team} • {selectedPlayer.position}
-          </Text>
-          <Text>
-            ADP {selectedPlayer.adp} • ${selectedPlayer.value}
-          </Text>
-        </View>
-      ) : null}
+        {selectedPlayer ? (
+          <View
+            style={{
+              padding: 14,
+              borderWidth: 1,
+              borderColor: "#c7d2fe",
+              borderRadius: 10,
+              backgroundColor: "#eef2ff",
+              marginBottom: 16,
+            }}
+          >
+            <Text style={{ fontWeight: "700", fontSize: 16 }}>
+              Selected Player
+            </Text>
+            <Text style={{ marginTop: 6 }}>{selectedPlayer.name}</Text>
+            <Text>
+              {selectedPlayer.team} • {selectedPlayer.position}
+            </Text>
+            <Text>
+              ADP {selectedPlayer.adp} • ${selectedPlayer.value}
+            </Text>
+            {!!selectedPlayer.positions?.length && (
+              <Text style={{ marginTop: 4 }}>
+                Eligible: {selectedPlayer.positions.join(", ")}
+              </Text>
+            )}
 
-      <Text style={{ marginBottom: 16 }}>
-        Players loaded: {players.length} | Picks logged: {roster.length}
-      </Text>
+            <Text style={{ marginTop: 10, marginBottom: 6, fontWeight: "600" }}>
+              Log Pick
+            </Text>
 
-      <FlatList
-        data={teamData}
-        keyExtractor={(item) => item.name}
-        renderItem={({ item }) => (
+            <TextInput
+              value={teamNumber}
+              onChangeText={setTeamNumber}
+              placeholder={`Team number 1-${league.teams}`}
+              keyboardType="numeric"
+              style={{
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                marginBottom: 8,
+              }}
+            />
+
+            <TextInput
+              value={price}
+              onChangeText={setPrice}
+              placeholder="Auction price"
+              keyboardType="numeric"
+              style={{
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                marginBottom: 8,
+              }}
+            />
+
+            <TextInput
+              value={rosterSlot}
+              onChangeText={setRosterSlot}
+              placeholder="Roster slot e.g. OF, SP, RP"
+              autoCapitalize="characters"
+              style={{
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                marginBottom: 10,
+              }}
+            />
+
+            <Button
+              title={addingPick ? "Logging..." : "Log Pick"}
+              onPress={() => void handleAddPick()}
+              disabled={addingPick}
+            />
+
+            <Text style={{ marginTop: 12, marginBottom: 6, fontWeight: "600" }}>
+              Notes
+            </Text>
+            <TextInput
+              value={playerNote}
+              onChangeText={(text) =>
+                setNote(leagueId, selectedPlayer.id, text)
+              }
+              placeholder="Write a draft note for this player"
+              multiline
+              style={{
+                minHeight: 90,
+                borderWidth: 1,
+                borderColor: "#cbd5e1",
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: "white",
+                textAlignVertical: "top",
+              }}
+            />
+          </View>
+        ) : (
           <View
             style={{
               padding: 14,
               borderWidth: 1,
               borderColor: "#ddd",
               borderRadius: 10,
-              marginBottom: 10,
+              marginBottom: 16,
             }}
           >
-            <Text style={{ fontWeight: "700" }}>{item.name}</Text>
-            <Text>Spent: ${item.spent}</Text>
-            <Text>Remaining: ${item.remaining}</Text>
-            <Text>Open spots: {item.open}</Text>
-            <Text>Max bid: ${item.maxBid}</Text>
+            <Text>Select a player from Research or My Draft.</Text>
           </View>
         )}
-        ListEmptyComponent={<Text>No team data yet.</Text>}
-      />
+
+        <Text style={{ marginBottom: 16 }}>
+          Players loaded: {players.length} | Picks logged: {roster.length}
+        </Text>
+
+        <FlatList
+          data={teamData}
+          keyExtractor={(item) => item.name}
+          scrollEnabled={false}
+          renderItem={({ item }) => (
+            <View
+              style={{
+                padding: 14,
+                borderWidth: 1,
+                borderColor: "#ddd",
+                borderRadius: 10,
+                marginBottom: 10,
+              }}
+            >
+              <Text style={{ fontWeight: "700" }}>{item.name}</Text>
+              <Text>Spent: ${item.spent}</Text>
+              <Text>Remaining: ${item.remaining}</Text>
+              <Text>Open spots: {item.open}</Text>
+              <Text>Max bid: ${item.maxBid}</Text>
+              <Text>$ / spot: {item.ppSpot}</Text>
+            </View>
+          )}
+          ListEmptyComponent={<Text>No team data yet.</Text>}
+        />
+
+        <Text style={{ fontSize: 18, fontWeight: "700", marginTop: 18, marginBottom: 10 }}>
+          Recent Picks
+        </Text>
+
+        {recentPicks.length === 0 ? (
+          <Text>No picks yet.</Text>
+        ) : (
+          recentPicks.map((pick) => (
+            <View
+              key={pick._id}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: "#eee",
+              }}
+            >
+              <Text style={{ fontWeight: "600" }}>{pick.playerName}</Text>
+              <Text>
+                {pick.teamId.replace("_", " ")} • {pick.rosterSlot} • ${pick.price}
+              </Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

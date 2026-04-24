@@ -3,17 +3,75 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  SafeAreaView,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getPlayers } from "../api/players";
 import { useLeague } from "../contexts/LeagueContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import type { Player } from "../types/player";
+
+const POSITION_FILTERS = [
+  "ALL",
+  "C",
+  "1B",
+  "2B",
+  "SS",
+  "3B",
+  "OF",
+  "SP",
+  "RP",
+  "UTIL",
+] as const;
+
+type PositionFilter = (typeof POSITION_FILTERS)[number];
+
+function positionMatches(player: Player, filter: PositionFilter): boolean {
+  if (filter === "ALL") return true;
+
+  const direct = player.position
+    .split("/")
+    .map((p) => p.trim().toUpperCase())
+    .includes(filter);
+
+  const multi = (player.positions ?? []).map((p) => p.toUpperCase()).includes(filter);
+
+  return direct || multi;
+}
+
+function FilterChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: PositionFilter;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: selected ? "#111827" : "#d1d5db",
+        backgroundColor: selected ? "#111827" : "white",
+        marginRight: 8,
+      }}
+    >
+      <Text style={{ color: selected ? "white" : "#111827", fontWeight: "600" }}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function ResearchScreen({ route, navigation }: any) {
   const { leagueId } = route.params;
@@ -29,6 +87,7 @@ export default function ResearchScreen({ route, navigation }: any) {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [search, setSearch] = useState("");
+  const [positionFilter, setPositionFilter] = useState<PositionFilter>("ALL");
   const [loading, setLoading] = useState(true);
 
   const league = allLeagues.find((item) => item.id === leagueId);
@@ -56,9 +115,14 @@ export default function ResearchScreen({ route, navigation }: any) {
   }, [league?.playerPool, league?.posEligibilityThreshold, leagueId]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return players.filter((p) => p.name.toLowerCase().includes(q));
-  }, [players, search]);
+    const q = search.trim().toLowerCase();
+
+    return players.filter((player) => {
+      const nameMatch = player.name.toLowerCase().includes(q);
+      const posMatch = positionMatches(player, positionFilter);
+      return nameMatch && posMatch;
+    });
+  }, [players, search, positionFilter]);
 
   async function handleToggleWatchlist(player: Player) {
     try {
@@ -88,15 +152,30 @@ export default function ResearchScreen({ route, navigation }: any) {
         placeholder="Search players"
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: "#d1d5db",
           marginBottom: 12,
           padding: 12,
-          borderRadius: 8,
+          borderRadius: 10,
         }}
       />
 
-      <Text style={{ marginBottom: 12 }}>
-        Watchlist: {watchlist.length} players
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: 12 }}
+      >
+        {POSITION_FILTERS.map((filter) => (
+          <FilterChip
+            key={filter}
+            label={filter}
+            selected={positionFilter === filter}
+            onPress={() => setPositionFilter(filter)}
+          />
+        ))}
+      </ScrollView>
+
+      <Text style={{ marginBottom: 12, color: "#4b5563" }}>
+        Showing {filtered.length} players • Watchlist {watchlist.length}
       </Text>
 
       {loading ? (
@@ -124,11 +203,21 @@ export default function ResearchScreen({ route, navigation }: any) {
                   onPress={() => handleOpenPlayer(item)}
                   style={{ flex: 1 }}
                 >
-                  <Text style={{ fontWeight: "600" }}>{item.name}</Text>
+                  <Text style={{ fontWeight: "600", marginBottom: 2 }}>
+                    {item.name}
+                  </Text>
                   <Text>
                     {item.team} • {item.position} • ADP {item.adp}
                   </Text>
                   <Text>Value ${item.value}</Text>
+                  {!!item.outlook && (
+                    <Text
+                      numberOfLines={2}
+                      style={{ color: "#6b7280", marginTop: 4 }}
+                    >
+                      {item.outlook}
+                    </Text>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
