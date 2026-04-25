@@ -774,9 +774,9 @@ function enginePlayersKpiCopy(
     playersRemaining === valuationsLen
   ) {
     return {
-      label: "Players available",
+      label: "Player pool",
       title:
-        "Matches the number of valuation rows returned (catalog-style subset), not full league roster capacity.",
+        "Count matches the valuation rows returned for this request (engine player subset), not full league roster slots.",
     };
   }
   if (
@@ -784,13 +784,13 @@ function enginePlayersKpiCopy(
     Math.abs(playersRemaining - leagueWideSlots) <= 2
   ) {
     return {
-      label: "League spots left",
+      label: "Slots remaining",
       title:
-        "Auction roster spots remaining across all teams, consistent with your league roster template.",
+        "Auction roster spots still empty across all teams (from your league template and draft board).",
     };
   }
   return {
-    label: "Players left (engine)",
+    label: "Players left",
     title:
       "From the valuation engine; may differ from roster template when the engine uses a player subset or another market-depth definition.",
   };
@@ -904,15 +904,20 @@ function RightPanel({
       {engineMarket ? (
         <div className={`engine-market-card ${marketClass}`}>
           <div className="engine-market-main">
-            <div className="engine-market-kpi">
-              <div className="em-label">Inflation</div>
+            <div
+              className="engine-market-kpi"
+              title={
+                inflationPct != null
+                  ? `Vs neutral: ${inflationPct >= 0 ? "+" : ""}${inflationPct}%`
+                  : undefined
+              }
+            >
+              <div className="em-label em-label--inflation">
+                Inflation
+                {engineMarket.inflation_bounded_by ? " (clamped)" : ""}
+              </div>
               <div className="em-value em-value--inflation">
                 {inflationFactor != null ? `${inflationFactor.toFixed(2)}x` : "—"}
-              </div>
-              <div className="em-sub">
-                {inflationPct != null
-                  ? `${inflationPct >= 0 ? "+" : ""}${inflationPct}%`
-                  : "—"}
               </div>
             </div>
             <div className="engine-market-kpi">
@@ -921,15 +926,10 @@ function RightPanel({
             </div>
             <div className="engine-market-kpi">
               <div className="em-label" title={enginePlayersKpi?.title}>
-                {enginePlayersKpi?.label ?? "Players left (engine)"}
+                {enginePlayersKpi?.label ?? "Players left"}
               </div>
               <div className="em-value">{engineMarket.players_remaining}</div>
             </div>
-          </div>
-          <div className="engine-market-meta">
-            {engineMarket.valuation_model_version
-              ? `${engineMarket.valuation_model_version}`
-              : "Engine model"}
           </div>
         </div>
       ) : (

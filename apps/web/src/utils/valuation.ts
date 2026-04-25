@@ -1,4 +1,5 @@
 import type { Player } from "../types/player";
+import type { ValuationResult } from "../api/engine";
 
 export type ValuationSortField =
   | "team_adjusted_value"
@@ -28,6 +29,44 @@ export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
 
 function coerceNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Align catalog `Player.id` with Engine `player_id` (string vs number JSON, whitespace). */
+export function normalizeValuationPlayerId(id: string | number): string {
+  return String(id).trim();
+}
+
+/** First finite dollar in order; used for Command Center money lines. */
+function firstFiniteDollar(
+  candidates: Array<number | undefined | null>,
+): number | undefined {
+  for (const x of candidates) {
+    if (typeof x === "number" && Number.isFinite(x)) return x;
+  }
+  return undefined;
+}
+
+/**
+ * Command Center header: three lines with explicit fallback chains (Engine row + catalog).
+ * Your Value: team_adjusted → recommended_bid → adjusted_value → baseline_value → player.value
+ * Likely Bid: recommended_bid → adjusted_value → baseline_value → team_adjusted → player.value
+ * Market Value: adjusted_value → recommended_bid → baseline_value → team_adjusted → player.value
+ */
+export function commandCenterValuationMoney(
+  row: ValuationResult | undefined | null,
+  playerValue: number | undefined,
+): { your: number | undefined; likely: number | undefined; market: number | undefined } {
+  const t = row?.team_adjusted_value;
+  const r = row?.recommended_bid;
+  const a = row?.adjusted_value;
+  const b = row?.baseline_value;
+  const v = playerValue;
+
+  return {
+    your: firstFiniteDollar([t, r, a, b, v]),
+    likely: firstFiniteDollar([r, a, b, t, v]),
+    market: firstFiniteDollar([a, r, b, t, v]),
+  };
 }
 
 export function resolveValuationNumber(

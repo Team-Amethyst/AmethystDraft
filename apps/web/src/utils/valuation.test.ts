@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
+import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
+  commandCenterValuationMoney,
   defaultValuationSortForPage,
   mergePlayerWithValuation,
+  normalizeValuationPlayerId,
   resolveValuationNumber,
   valuationSortLabel,
   valuationTooltip,
@@ -70,6 +73,45 @@ describe("valuation helpers", () => {
       "team_adjusted_value",
     );
     expect(defaultValuationSortForPage("CommandCenter")).toBe("adjusted_value");
+  });
+
+  it("normalizes valuation player ids for map keys", () => {
+    expect(normalizeValuationPlayerId("  123  ")).toBe("123");
+    expect(normalizeValuationPlayerId(456)).toBe("456");
+  });
+
+  it("commandCenterValuationMoney uses per-column fallback chains", () => {
+    const row = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 1,
+      baseline_value: 10,
+      adjusted_value: 20,
+      recommended_bid: 30,
+      team_adjusted_value: 40,
+      indicator: "Fair Value" as const,
+    };
+    const m = commandCenterValuationMoney(row, 5);
+    expect(m.your).toBe(40);
+    expect(m.likely).toBe(30);
+    expect(m.market).toBe(20);
+
+    const partial = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 1,
+      baseline_value: 10,
+      adjusted_value: 20,
+      indicator: "Fair Value" as const,
+    } as ValuationResult;
+    const m2 = commandCenterValuationMoney(partial, 99);
+    expect(m2.your).toBe(20);
+    expect(m2.likely).toBe(20);
+    expect(m2.market).toBe(20);
+
+    expect(commandCenterValuationMoney(undefined, 12).your).toBe(12);
   });
 
   it("exposes compact labels and tooltip copy", () => {

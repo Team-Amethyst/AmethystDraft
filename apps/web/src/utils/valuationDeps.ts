@@ -46,7 +46,7 @@ export function valuationResultNumbersEqual(
 
 export function valuationResultStableKey(v: ValuationResult): string {
   return [
-    v.player_id,
+    String(v.player_id).trim(),
     v.baseline_value,
     v.adjusted_value,
     v.recommended_bid ?? "",

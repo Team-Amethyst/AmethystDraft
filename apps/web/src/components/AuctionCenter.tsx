@@ -1,7 +1,6 @@
 import {
   useState,
   useEffect,
-  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -22,7 +21,11 @@ import {
   type ValuationResult,
 } from "../api/engine";
 import { resolveUserTeamId } from "../utils/team";
-import { resolveValuationNumber } from "../utils/valuation";
+import {
+  resolveValuationNumber,
+  normalizeValuationPlayerId,
+  commandCenterValuationMoney,
+} from "../utils/valuation";
 import {
   leagueValuationConfigKey,
   rosterValuationFingerprint,
@@ -39,6 +42,17 @@ import { UserPlus } from "lucide-react";
 function formatEngineMoney(n: number | undefined): string {
   if (n === undefined || !Number.isFinite(n)) return "—";
   return `$${Math.round(n)}`;
+}
+
+function ValuationMoneySkeleton({ tall }: { tall?: boolean }) {
+  return (
+    <span
+      className={
+        "pac-val-skeleton" + (tall ? " pac-val-skeleton--tall" : "")
+      }
+      aria-hidden
+    />
+  );
 }
 
 /** UI-only read of auction pressure from Engine fields (does not recompute valuations). */
@@ -91,11 +105,16 @@ export function AuctionCenter({
   const [valuationMap, setValuationMap] = useState<
     Map<string, ValuationResult>
   >(new Map());
+  /** True while per-player Engine fetch is in flight and the map has no row for that player yet. */
+  const [playerEngineFetchPending, setPlayerEngineFetchPending] =
+    useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const valuationMapRef = useRef(valuationMap);
+  valuationMapRef.current = valuationMap;
 
   const [wonBy, setWonBy] = useState("");
   const [finalPrice, setFinalPrice] = useState("");
@@ -105,7 +124,7 @@ export function AuctionCenter({
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
-  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(true);
   const playerNotesTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const rosterValuationKey = useMemo(
@@ -133,17 +152,37 @@ export function AuctionCenter({
     [league?.id, league?.memberIds?.join(","), user?.id],
   );
 
+  const selectedPlayerNormId = useMemo(
+    () => (selectedPlayer?.id ? normalizeValuationPlayerId(selectedPlayer.id) : ""),
+    [selectedPlayer?.id],
+  );
+
   const selectedPlayerValuationKey = useMemo(() => {
-    if (!selectedPlayer?.id) return "";
-    const v = valuationMap.get(selectedPlayer.id);
-    if (!v) return `missing:${selectedPlayer.id}`;
+    if (!selectedPlayerNormId) return "";
+    const v = valuationMap.get(selectedPlayerNormId);
+    if (!v) return `missing:${selectedPlayerNormId}`;
     return valuationResultStableKey(v);
-  }, [selectedPlayer?.id, valuationMap]);
+  }, [selectedPlayerNormId, valuationMap]);
 
   const activeValuationRow = useMemo(() => {
-    if (!selectedPlayer?.id) return undefined;
-    return valuationMap.get(selectedPlayer.id);
-  }, [selectedPlayer?.id, selectedPlayerValuationKey, valuationMap]);
+    if (!selectedPlayerNormId) return undefined;
+    return valuationMap.get(selectedPlayerNormId);
+  }, [selectedPlayerNormId, selectedPlayerValuationKey, valuationMap]);
+
+  const commandCenterMoney = useMemo(
+    () =>
+      commandCenterValuationMoney(
+        activeValuationRow,
+        selectedPlayer?.value,
+      ),
+    [activeValuationRow, selectedPlayer?.value],
+  );
+
+  const showValuationMoneySkeleton = Boolean(
+    selectedPlayerNormId &&
+      playerEngineFetchPending &&
+      !valuationMap.has(selectedPlayerNormId),
+  );
 
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
@@ -152,7 +191,14 @@ export function AuctionCenter({
     getValuation(leagueId, token, userTeamId)
       .then((res) => {
         if (cancelled) return;
-        setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
+        setValuationMap(
+          new Map(
+            res.valuations.map((v) => [
+              normalizeValuationPlayerId(v.player_id),
+              { ...v, player_id: normalizeValuationPlayerId(v.player_id) },
+            ]),
+          ),
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -165,26 +211,71 @@ export function AuctionCenter({
 
   // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
   useEffect(() => {
-    if (!leagueId || !token || !selectedPlayer) return;
+    if (!leagueId || !token || !selectedPlayer) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
+    const playerIdRaw = selectedPlayer.id;
+    const playerId = normalizeValuationPlayerId(playerIdRaw);
+    if (valuationMapRef.current.has(playerId)) {
+      setPlayerEngineFetchPending(false);
+    } else {
+      setPlayerEngineFetchPending(true);
+    }
     let cancelled = false;
-    const playerId = selectedPlayer.id;
-    void getValuationPlayer(leagueId, token, playerId, userTeamId)
+    void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId)
       .then((res) => {
         if (cancelled) return;
-        const row = res.player;
-        if (row && row.player_id !== playerId) return;
+        if (import.meta.env.DEV) {
+          const p = res.player;
+          console.info("[cc-valuation-player-response]", {
+            requested_id: playerId,
+            player: p,
+            numeric_fields: p && {
+              team_adjusted_value: p.team_adjusted_value,
+              recommended_bid: p.recommended_bid,
+              adjusted_value: p.adjusted_value,
+              baseline_value: p.baseline_value,
+            },
+            valuations_len: Array.isArray(res.valuations)
+              ? res.valuations.length
+              : 0,
+          });
+        }
+        let row: ValuationResult | undefined = res.player;
+        if (
+          row &&
+          normalizeValuationPlayerId(row.player_id) !== playerId
+        ) {
+          row = undefined;
+        }
+        if (!row && Array.isArray(res.valuations)) {
+          row =
+            res.valuations.find(
+              (x) => normalizeValuationPlayerId(x.player_id) === playerId,
+            ) ??
+            (res.valuations.length === 1 ? res.valuations[0] : undefined);
+        }
         if (row) {
+          const normalizedRow: ValuationResult = {
+            ...row,
+            player_id: normalizeValuationPlayerId(row.player_id ?? playerId),
+          };
           setValuationMap((prev) => {
             const cur = prev.get(playerId);
-            if (cur && valuationResultNumbersEqual(cur, row)) return prev;
+            if (cur && valuationResultNumbersEqual(cur, normalizedRow))
+              return prev;
             const next = new Map(prev);
-            next.set(playerId, row);
+            next.set(playerId, normalizedRow);
             return next;
           });
         }
       })
       .catch(() => {
         /* keep last full-board map; player-only is best-effort */
+      })
+      .finally(() => {
+        if (!cancelled) setPlayerEngineFetchPending(false);
       });
     return () => {
       cancelled = true;
@@ -213,14 +304,8 @@ export function AuctionCenter({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useLayoutEffect(() => {
-    if (notesExpanded) {
-      playerNotesTextareaRef.current?.focus({ preventScroll: true });
-    }
-  }, [notesExpanded]);
-
   useEffect(() => {
-    setNotesExpanded(false);
+    setNotesExpanded(true);
   }, [selectedPlayer?.id]);
   // Seed "Won By" default when league loads
   useEffect(() => {
@@ -255,7 +340,8 @@ export function AuctionCenter({
       selectedPlayer.position,
     );
     setStatView(isPitcher ? "pitching" : "hitting");
-    const v = valuationMap.get(selectedPlayer.id);
+    const nid = normalizeValuationPlayerId(selectedPlayer.id);
+    const v = valuationMap.get(nid);
     const seed = v
       ? resolveValuationNumber(
           {
@@ -275,7 +361,7 @@ export function AuctionCenter({
   // When valuations refresh, update bid default from Engine if user has not edited the field
   useEffect(() => {
     if (!selectedPlayer || bidPriceTouchedRef.current) return;
-    const v = valuationMap.get(selectedPlayer.id);
+    const v = valuationMap.get(normalizeValuationPlayerId(selectedPlayer.id));
     if (v === undefined) return;
     setFinalPrice(
       String(
@@ -291,7 +377,7 @@ export function AuctionCenter({
         ),
       ),
     );
-  }, [selectedPlayer?.id, selectedPlayerValuationKey, selectedPlayer?.value]);
+  }, [selectedPlayer?.id, selectedPlayerValuationKey]);
 
   const onFinalPriceChange = useCallback((value: string) => {
     bidPriceTouchedRef.current = true;
@@ -306,7 +392,9 @@ export function AuctionCenter({
     ) {
       return;
     }
-    const v = valuationMap.get(selectedPlayer.id);
+    const v = valuationMap.get(
+      normalizeValuationPlayerId(selectedPlayer.id),
+    );
     if (!v) return;
     console.info("[cc-valuation-change]", {
       t: new Date().toISOString(),
@@ -762,8 +850,8 @@ export function AuctionCenter({
                 const tierValue = v?.tier ?? selectedPlayer.tier;
                 const adpValue = v?.adp ?? selectedPlayer.adp;
                 const marketSignal = computeDerivedMarketSignal(
-                  v?.recommended_bid,
-                  v?.adjusted_value,
+                  commandCenterMoney.likely,
+                  commandCenterMoney.market,
                 );
                 return (
                   <>
@@ -817,19 +905,31 @@ export function AuctionCenter({
                           >
                             <div className="pac-val-sublabel">Your Value</div>
                             <div className="pac-val-primary green">
-                              {formatEngineMoney(v?.team_adjusted_value)}
+                              {showValuationMoneySkeleton ? (
+                                <ValuationMoneySkeleton tall />
+                              ) : (
+                                formatEngineMoney(commandCenterMoney.your)
+                              )}
                             </div>
                           </div>
                           <div title="Expected auction price">
                             <div className="pac-val-sublabel">Likely Bid</div>
-                            <div className="pac-val-secondary">
-                              {formatEngineMoney(v?.recommended_bid)}
+                            <div className="pac-val-secondary pac-val-secondary--bid">
+                              {showValuationMoneySkeleton ? (
+                                <ValuationMoneySkeleton />
+                              ) : (
+                                formatEngineMoney(commandCenterMoney.likely)
+                              )}
                             </div>
                           </div>
                           <div title="Model value based on league dynamics">
                             <div className="pac-val-sublabel">Market Value</div>
-                            <div className="pac-val-tertiary">
-                              {formatEngineMoney(v?.adjusted_value)}
+                            <div className="pac-val-tertiary pac-val-tertiary--market">
+                              {showValuationMoneySkeleton ? (
+                                <ValuationMoneySkeleton />
+                              ) : (
+                                formatEngineMoney(commandCenterMoney.market)
+                              )}
                             </div>
                           </div>
                         </div>
