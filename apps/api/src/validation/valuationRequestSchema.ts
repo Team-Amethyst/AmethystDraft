@@ -82,6 +82,8 @@ const leagueFixtureSchema = z.object({
   hitter_budget_pct: z.number().min(0).max(100).optional(),
   pos_eligibility_threshold: z.number().int().min(1).max(162).optional(),
   budget_by_team_id: z.record(z.string(), z.number().min(0)).optional(),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
 });
 
 /**
@@ -99,6 +101,8 @@ export const valuationRequestSchema = z.object({
   player_ids: z.array(z.string().min(1)).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
 });
 
 export type ValuationRequestFixture = z.infer<typeof valuationRequestSchema>;
@@ -126,6 +130,8 @@ export const valuationFlatRequestSchema = z.object({
   player_ids: z.array(z.string().min(1)).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
 });
 
 export type ValuationFlatRequest = z.infer<typeof valuationFlatRequestSchema>;

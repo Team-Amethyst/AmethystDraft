@@ -13,6 +13,12 @@
 import { Minus, Plus, Star, X } from "lucide-react";
 import type { WatchlistPlayer } from "../../api/watchlist";
 import PosBadge from "../PosBadge";
+import {
+  resolveValuationNumber,
+  valuationSortLabel,
+  valuationTooltip,
+  type ValuationSortField,
+} from "../../utils/valuation";
 
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";
@@ -21,11 +27,13 @@ interface WatchlistTableProps {
   watchlist: WatchlistPlayer[];
   filteredWatchlist: WatchlistPlayer[];
   viewFilter: ViewFilter;
+  valuationSortField: ValuationSortField;
   targetOverrides: Record<string, number>;
   targetRaw: Record<string, string>;
   priorityOverrides: Record<string, Priority>;
   getNote: (id: string) => string;
   onViewFilterChange: (filter: ViewFilter) => void;
+  onValuationSortFieldChange: (field: ValuationSortField) => void;
   onTargetChange: (playerId: string, raw: string, value: number | null) => void;
   onTargetBlur: (playerId: string, displayVal: string, defaultTarget: number) => void;
   onTargetStep: (playerId: string, delta: 1 | -1, current: number) => void;
@@ -45,11 +53,13 @@ export default function WatchlistTable({
   watchlist,
   filteredWatchlist,
   viewFilter,
+  valuationSortField,
   targetOverrides,
   targetRaw,
   priorityOverrides,
   getNote,
   onViewFilterChange,
+  onValuationSortFieldChange,
   onTargetChange,
   onTargetBlur,
   onTargetStep,
@@ -78,6 +88,19 @@ export default function WatchlistTable({
             <option value="hitters">Hitters</option>
             <option value="pitchers">Pitchers</option>
           </select>
+          <span>Sort by</span>
+          <select
+            value={valuationSortField}
+            onChange={(e) =>
+              onValuationSortFieldChange(e.target.value as ValuationSortField)
+            }
+            title="Sort watchlist by valuation signal"
+          >
+            <option value="team_adjusted_value">Your Value</option>
+            <option value="recommended_bid">Likely Bid</option>
+            <option value="adjusted_value">Market Value</option>
+            <option value="baseline_value">Player Strength</option>
+          </select>
         </div>
       </div>
 
@@ -87,7 +110,15 @@ export default function WatchlistTable({
             <tr>
               <th>Player</th>
               <th>Pos</th>
-              <th>Proj</th>
+              <th title={valuationTooltip(valuationSortField)}>
+                {valuationSortField === "team_adjusted_value"
+                  ? "Your Value"
+                  : valuationSortField === "recommended_bid"
+                    ? "Likely Bid"
+                    : valuationSortField === "adjusted_value"
+                      ? "Market Value"
+                      : "Player Strength"}
+              </th>
               <th>Target $</th>
               <th>Priority</th>
               <th>Notes</th>
@@ -104,7 +135,14 @@ export default function WatchlistTable({
             ) : (
               filteredWatchlist.map((player) => {
                 const pos = normalizePosition(player.position || "UTIL");
-                const defaultTarget = Math.round(player.value ?? 0);
+                const primary = resolveValuationNumber(player, valuationSortField);
+                const supporting =
+                  valuationSortField === "team_adjusted_value"
+                    ? resolveValuationNumber(player, "recommended_bid")
+                    : resolveValuationNumber(player, "team_adjusted_value");
+                const defaultTarget = Math.round(
+                  resolveValuationNumber(player, "team_adjusted_value"),
+                );
                 const targetVal = targetOverrides[player.id] ?? defaultTarget;
                 const priority: Priority =
                   priorityOverrides[player.id] ?? derivePriority(player);
@@ -143,7 +181,29 @@ export default function WatchlistTable({
                       )}
                     </td>
 
-                    <td className="money">${Math.round(player.value ?? 0)}</td>
+                    <td
+                      className="money"
+                      title={
+                        valuationTooltip(valuationSortField)
+                      }
+                    >
+                      ${Math.round(primary)}
+                      <div
+                        style={{
+                          fontSize: "0.62rem",
+                          opacity: 0.78,
+                          lineHeight: 1.1,
+                          marginTop: "1px",
+                        }}
+                      >
+                        {valuationSortLabel(
+                          valuationSortField === "team_adjusted_value"
+                            ? "recommended_bid"
+                            : "team_adjusted_value",
+                        )}
+                        : ${Math.round(supporting)}
+                      </div>
+                    </td>
 
                     {/* Target $ — stop propagation so clicks don't navigate */}
                     <td onClick={(e) => e.stopPropagation()}>
@@ -233,7 +293,8 @@ export default function WatchlistTable({
 // Moved out of MyDraft — priority derivation belongs with the watchlist display logic
 function derivePriority(player: WatchlistPlayer): Priority {
   // TODO(logic): Replace with backend scoring/recommendation priority.
-  if (player.value >= 45 || player.tier <= 2) return "High";
-  if (player.value >= 28 || player.tier === 3) return "Medium";
+  const decisionValue = resolveValuationNumber(player, "team_adjusted_value");
+  if (decisionValue >= 45 || player.tier <= 2) return "High";
+  if (decisionValue >= 28 || player.tier === 3) return "Medium";
   return "Low";
 }

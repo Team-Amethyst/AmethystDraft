@@ -116,11 +116,96 @@ describe("engine routes (BFF → Amethyst)", () => {
         league_scope: string;
         schema_version?: string;
         schemaVersion?: string;
+        user_team_id?: string;
+        inflation_model?: string;
+        pre_draft_rosters?: unknown[];
+        minors?: unknown[];
+        taxi?: unknown[];
+        drafted_players?: unknown[];
+        budget_by_team_id?: Record<string, number>;
       };
       expect(payload.num_teams).toBe(2);
       expect(payload.league_scope).toBe("Mixed");
       expect(payload.schema_version).toBeUndefined();
       expect(payload.schemaVersion).toBeUndefined();
+      expect(payload.user_team_id).toBe("team_1");
+      expect(payload.inflation_model).toBe("replacement_slots_v2");
+      expect(payload.pre_draft_rosters).toEqual([]);
+      expect(payload.minors).toEqual([]);
+      expect(payload.taxi).toEqual([]);
+      expect(payload.drafted_players).toEqual([]);
+      expect(payload.budget_by_team_id).toEqual({ team_1: 260, team_2: 260 });
+    });
+
+    it("sends keepers/minors/taxi/drafted context sections", async () => {
+      vi.mocked(RosterEntry.find).mockResolvedValueOnce(
+        [
+          {
+            externalPlayerId: "k1",
+            playerName: "Keeper",
+            positions: ["1B"],
+            rosterSlot: "1B",
+            teamId: "team_1",
+            price: 10,
+            isKeeper: true,
+            playerTeam: "TOR",
+          },
+          {
+            externalPlayerId: "m1",
+            playerName: "Minor",
+            positions: ["SP"],
+            rosterSlot: "MIN1",
+            teamId: "team_1",
+            price: 1,
+            isKeeper: false,
+            playerTeam: "SEA",
+          },
+          {
+            externalPlayerId: "t1",
+            playerName: "Taxi",
+            positions: ["RP"],
+            rosterSlot: "TAXI",
+            teamId: "team_2",
+            price: 1,
+            isKeeper: false,
+            playerTeam: "LAD",
+          },
+          {
+            externalPlayerId: "d1",
+            playerName: "Drafted",
+            positions: ["OF"],
+            rosterSlot: "OF",
+            teamId: "team_2",
+            price: 17,
+            isKeeper: false,
+            playerTeam: "NYY",
+          },
+        ] as never,
+      );
+      postMock.mockResolvedValueOnce({
+        data: { inflation_factor: 1, valuations: [], calculated_at: "x" },
+        headers: {},
+      });
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation`)
+        .set("Authorization", "Bearer t")
+        .send({ user_team_id: "team_2" });
+
+      expect(res.status).toBe(200);
+      const [, payload] = postMock.mock.calls[0] ?? [];
+      const body = payload as {
+        user_team_id?: string;
+        drafted_players: Array<{ player_id: string }>;
+        pre_draft_rosters: Array<{ players: Array<{ player_id: string }> }>;
+        minors: Array<{ players: Array<{ player_id: string }> }>;
+        taxi: Array<{ players: Array<{ player_id: string }> }>;
+      };
+      expect(body.user_team_id).toBe("team_2");
+      expect(body.drafted_players.map((p) => p.player_id)).toEqual(["d1"]);
+      expect(body.pre_draft_rosters[0]?.players[0]?.player_id).toBe("k1");
+      expect(body.minors[0]?.players[0]?.player_id).toBe("m1");
+      expect(body.taxi[0]?.players[0]?.player_id).toBe("t1");
     });
   });
 
@@ -149,6 +234,11 @@ describe("engine routes (BFF → Amethyst)", () => {
           player_id: "660271",
           num_teams: 2,
           league_scope: "Mixed",
+          user_team_id: "team_1",
+          inflation_model: "replacement_slots_v2",
+          pre_draft_rosters: [],
+          minors: [],
+          taxi: [],
         }),
       );
     });

@@ -83,7 +83,7 @@ describe("computeBudgetByTeamRemaining", () => {
 });
 
 describe("buildValuationContext", () => {
-  it("maps league and roster entries including keeper flag and budget_by_team_id", () => {
+  it("maps league and roster entries including context parity fields", () => {
     const league = {
       rosterSlots: { OF: 2 },
       scoringCategories: [{ name: "HR", type: "batting" as const }],
@@ -106,24 +106,78 @@ describe("buildValuationContext", () => {
         isKeeper: true,
         playerTeam: "TOR",
       },
+      {
+        externalPlayerId: "660272",
+        playerName: "Auction Pick",
+        positions: ["OF"],
+        rosterSlot: "OF",
+        teamId: "team_2",
+        price: 18,
+        isKeeper: false,
+        playerTeam: "BOS",
+      },
+      {
+        externalPlayerId: "660273",
+        playerName: "Minor Stash",
+        positions: ["SP"],
+        rosterSlot: "MIN1",
+        teamId: "team_2",
+        price: 1,
+        isKeeper: false,
+        playerTeam: "SEA",
+      },
+      {
+        externalPlayerId: "660274",
+        playerName: "Taxi Arm",
+        positions: ["RP"],
+        rosterSlot: "TAXI",
+        teamId: "team_1",
+        price: 2,
+        isKeeper: false,
+        playerTeam: "HOU",
+      },
     ] as unknown as IRosterEntry[];
 
-    const ctx = buildValuationContext(league, entries);
+    const ctx = buildValuationContext(league, entries, { userTeamId: "team_2" });
 
     expect(ctx.roster_slots).toEqual([{ position: "OF", count: 2 }]);
     expect(ctx.drafted_players).toEqual([
       expect.objectContaining({
-        player_id: "660271",
-        is_keeper: true,
-        positions: ["1B"],
-        roster_slot: "1B",
-        paid: 25,
+        player_id: "660272",
+        positions: ["OF"],
+        roster_slot: "OF",
+        paid: 18,
       }),
     ]);
-    expect(ctx.budget_by_team_id).toEqual({ team_1: 235, team_2: 260 });
+    expect(ctx.pre_draft_rosters).toEqual([
+      expect.objectContaining({
+        team_id: "team_1",
+        players: [
+          expect.objectContaining({
+            player_id: "660271",
+            is_keeper: true,
+          }),
+        ],
+      }),
+    ]);
+    expect(ctx.minors).toEqual([
+      expect.objectContaining({
+        team_id: "team_2",
+        players: [expect.objectContaining({ player_id: "660273" })],
+      }),
+    ]);
+    expect(ctx.taxi).toEqual([
+      expect.objectContaining({
+        team_id: "team_1",
+        players: [expect.objectContaining({ player_id: "660274" })],
+      }),
+    ]);
+    expect(ctx.budget_by_team_id).toEqual({ team_1: 260, team_2: 242 });
     expect(ctx.scoring_format).toBe("5x5");
     expect(ctx.hitter_budget_pct).toBe(72);
     expect(ctx.pos_eligibility_threshold).toBe(15);
+    expect(ctx.user_team_id).toBe("team_2");
+    expect(ctx.inflation_model).toBe("replacement_slots_v2");
   });
 });
 
@@ -225,10 +279,13 @@ describe("buildEngineValuationCalculateBodyFromFlat", () => {
         schemaVersion: "1.0.0",
         checkpoint: "pre_draft",
         player_ids: ["660271"],
+        user_team_id: "team_3",
       }),
     );
     expect(body.drafted_players[0]?.position).toBe("OF");
     expect(body.player_ids).toEqual(["660271"]);
     expect(body.schema_version).toBe("1.0.0");
+    expect(body.user_team_id).toBe("team_3");
+    expect(body.inflation_model).toBe("replacement_slots_v2");
   });
 });

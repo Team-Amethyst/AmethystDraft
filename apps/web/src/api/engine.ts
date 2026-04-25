@@ -9,6 +9,9 @@ export interface ValuationResult {
   tier: number;
   baseline_value: number;
   adjusted_value: number;
+  recommended_bid?: number;
+  team_adjusted_value?: number;
+  inflation_model?: "replacement_slots_v2";
   indicator: "Steal" | "Reach" | "Fair Value";
   /** Engine explainability; safe to ignore in UI. */
   why?: string[];
@@ -92,10 +95,18 @@ export interface ValuationResponse {
 export async function getValuation(
   leagueId: string,
   token: string,
+  userTeamId = "team_1",
 ): Promise<ValuationResponse> {
   return requestJson<ValuationResponse>(
     `/api/engine/leagues/${leagueId}/valuation`,
-    { method: "POST", headers: requireAuthHeaders(token) },
+    {
+      method: "POST",
+      headers: requireAuthHeaders(token),
+      body: JSON.stringify({
+        user_team_id: userTeamId,
+        inflation_model: "replacement_slots_v2",
+      }),
+    },
     "Valuation request failed",
   );
 }
@@ -109,13 +120,18 @@ export async function getValuationPlayer(
   leagueId: string,
   token: string,
   playerId: string,
+  userTeamId = "team_1",
 ): Promise<ValuationPlayerResponse> {
   return requestJson<ValuationPlayerResponse>(
     `/api/engine/leagues/${leagueId}/valuation/player`,
     {
       method: "POST",
       headers: requireAuthHeaders(token),
-      body: JSON.stringify({ player_id: playerId }),
+      body: JSON.stringify({
+        player_id: playerId,
+        user_team_id: userTeamId,
+        inflation_model: "replacement_slots_v2",
+      }),
     },
     "Valuation (player) request failed",
   );

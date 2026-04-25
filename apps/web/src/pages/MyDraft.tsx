@@ -25,7 +25,7 @@ import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { WatchlistPlayer } from "../api/watchlist";
 import type { Player } from "../types/player";
-import { getCatalogBatchValues } from "../api/engine";
+import { getValuation } from "../api/engine";
 import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets, {
   type PositionPlanRow,
@@ -33,7 +33,13 @@ import PositionTargets, {
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
 import { hasPitcherEligibility } from "../utils/eligibility";
-import { getEffectiveTierValue } from "../utils/effectiveTierValue";
+import {
+  mergePlayerWithValuation,
+  resolveValuationNumber,
+  type ValuationShape,
+  type ValuationSortField,
+} from "../utils/valuation";
+import { resolveUserTeamId } from "../utils/team";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -80,6 +86,10 @@ function watchlistToPlayer(p: WatchlistPlayer): Player {
     adp: p.adp,
     value: p.value,
     tier: p.tier,
+    baseline_value: p.baseline_value,
+    adjusted_value: p.adjusted_value,
+    recommended_bid: p.recommended_bid,
+    team_adjusted_value: p.team_adjusted_value,
     headshot: "",
     outlook: "",
     stats: {},
@@ -107,7 +117,7 @@ export default function MyDraft() {
 
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const totalBudget = league?.budget ?? 260;
   const navigate = useNavigate();
 
@@ -140,42 +150,27 @@ export default function MyDraft() {
 
   // Raw string state for controlled inputs — committed on blur
   const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
-  const [engineCatalogByPlayerId, setEngineCatalogByPlayerId] = useState<
-    ReadonlyMap<string, { value: number; tier: number }>
+  const [valuationSortField, setValuationSortField] =
+    useState<ValuationSortField>("team_adjusted_value");
+  const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
+    ReadonlyMap<string, ValuationShape>
   >(() => new Map());
   useEffect(() => {
-    if (!token || watchlist.length === 0) {
-      const clear = window.setTimeout(() => setEngineCatalogByPlayerId(new Map()), 0);
+    if (!token || !leagueId || watchlist.length === 0) {
+      const clear = window.setTimeout(() => setValuationsByPlayerId(new Map()), 0);
       return () => window.clearTimeout(clear);
     }
-    if (!league) {
-      const clear = window.setTimeout(() => setEngineCatalogByPlayerId(new Map()), 0);
-      return () => window.clearTimeout(clear);
-    }
-    const ids = watchlist.map((p) => p.id);
-    const BATCH = 150;
-    const pool = league.playerPool ?? "Mixed";
     let cancelled = false;
     void (async () => {
-      const merged = new Map<string, { value: number; tier: number }>();
-      let batchFailed = false;
-      for (let i = 0; i < ids.length; i += BATCH) {
-        if (cancelled) return;
-        try {
-          const res = await getCatalogBatchValues(token, {
-            player_ids: ids.slice(i, i + BATCH),
-            league_scope: pool,
-            pos_eligibility_threshold: league?.posEligibilityThreshold,
-          });
-          for (const row of res.players) {
-            merged.set(row.player_id, { value: row.value, tier: row.tier });
-          }
-        } catch {
-          batchFailed = true;
-          break;
-        }
+      try {
+        const userTeamId = resolveUserTeamId(league, user?.id);
+        const res = await getValuation(leagueId, token, userTeamId);
+        const merged = new Map<string, ValuationShape>();
+        for (const row of res.valuations) merged.set(row.player_id, row);
+        if (!cancelled) setValuationsByPlayerId(merged);
+      } catch {
+        if (!cancelled) setValuationsByPlayerId(new Map());
       }
-      if (!cancelled && !batchFailed) setEngineCatalogByPlayerId(merged);
     })();
     return () => {
       cancelled = true;
@@ -183,22 +178,28 @@ export default function MyDraft() {
   }, [
     token,
     watchlist,
+    leagueId,
     league,
-    league?.playerPool,
-    league?.posEligibilityThreshold,
+    user?.id,
   ]);
 
   const effectiveWatchlist = useMemo(
-    () =>
-      watchlist.map((p) => {
-        const eff = getEffectiveTierValue(
-          p.id,
-          { tier: p.tier, value: p.value },
-          engineCatalogByPlayerId,
+    () => {
+      return watchlist.map((p) => {
+        const merged = mergePlayerWithValuation(
+          watchlistToPlayer(p),
+          valuationsByPlayerId.get(p.id),
         );
-        return { ...p, tier: eff.tier, value: eff.value };
-      }),
-    [watchlist, engineCatalogByPlayerId],
+        return {
+          ...p,
+          baseline_value: merged.baseline_value,
+          adjusted_value: merged.adjusted_value,
+          recommended_bid: merged.recommended_bid,
+          team_adjusted_value: merged.team_adjusted_value,
+        };
+      });
+    },
+    [watchlist, valuationsByPlayerId],
   );
 
 
@@ -304,7 +305,9 @@ export default function MyDraft() {
   const { watchlistTargetTotal, filteredWatchlist } = useMemo(() => {
     let targetTotal = 0;
     for (const player of effectiveWatchlist) {
-      targetTotal += targetOverrides[player.id] ?? Math.round(player.value ?? 0);
+      targetTotal +=
+        targetOverrides[player.id] ??
+        Math.round(resolveValuationNumber(player, "team_adjusted_value"));
     }
 
     let filtered = [...effectiveWatchlist];
@@ -317,10 +320,14 @@ export default function MyDraft() {
         hasPitcherEligibility(p.positions, p.position || "UTIL"),
       );
     }
-    filtered.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    filtered.sort(
+      (a, b) =>
+        resolveValuationNumber(b, valuationSortField) -
+        resolveValuationNumber(a, valuationSortField),
+    );
 
     return { watchlistTargetTotal: targetTotal, filteredWatchlist: filtered };
-  }, [effectiveWatchlist, viewFilter, targetOverrides]);
+  }, [effectiveWatchlist, viewFilter, targetOverrides, valuationSortField]);
 
   const positionBudgetTotal = Object.values(positionTargets).reduce(
     (a, b) => a + b,
@@ -393,11 +400,13 @@ export default function MyDraft() {
             watchlist={effectiveWatchlist}
             filteredWatchlist={filteredWatchlist}
             viewFilter={viewFilter}
+            valuationSortField={valuationSortField}
             targetOverrides={targetOverrides}
             targetRaw={targetRaw}
             priorityOverrides={priorityOverrides}
             getNote={getNote}
             onViewFilterChange={setViewFilter}
+            onValuationSortFieldChange={setValuationSortField}
             onTargetChange={handleWatchlistTargetChange}
             onTargetBlur={handleWatchlistTargetBlur}
             onTargetStep={handleWatchlistTargetStep}

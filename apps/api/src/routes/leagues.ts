@@ -427,6 +427,10 @@ const getWatchlist: RequestHandler = async (
         adp: e.adp,
         value: e.value,
         tier: e.tier,
+        baseline_value: e.baselineValue,
+        adjusted_value: e.adjustedValue,
+        recommended_bid: e.recommendedBid,
+        team_adjusted_value: e.teamAdjustedValue,
       })),
     );
   } catch (err) {
@@ -442,7 +446,19 @@ const upsertWatchlistEntry: RequestHandler = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { name, team, position, positions, adp, value, tier } = req.body as {
+    const {
+      name,
+      team,
+      position,
+      positions,
+      adp,
+      value,
+      tier,
+      baseline_value,
+      adjusted_value,
+      recommended_bid,
+      team_adjusted_value,
+    } = req.body as {
       name: string;
       team?: string;
       position?: string;
@@ -450,6 +466,10 @@ const upsertWatchlistEntry: RequestHandler = async (
       adp?: number;
       value?: number;
       tier?: number;
+      baseline_value?: number;
+      adjusted_value?: number;
+      recommended_bid?: number;
+      team_adjusted_value?: number;
     };
     await WatchlistEntry.findOneAndUpdate(
       {
@@ -465,6 +485,10 @@ const upsertWatchlistEntry: RequestHandler = async (
         adp: adp ?? 0,
         value: value ?? 0,
         tier: tier ?? 5,
+        baselineValue: baseline_value,
+        adjustedValue: adjusted_value,
+        recommendedBid: recommended_bid,
+        teamAdjustedValue: team_adjusted_value,
       },
       { upsert: true, new: true },
     );

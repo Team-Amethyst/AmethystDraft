@@ -4,6 +4,11 @@ import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
 import "./PlayerTable.css";
+import {
+  resolveValuationNumber,
+  valuationSortLabel,
+  type ValuationSortField,
+} from "../utils/valuation";
 
 type StatBasis = "projections" | "last-year" | "3-year-avg";
 
@@ -27,6 +32,7 @@ interface PlayerTableProps {
     string,
     { value: number; tier: number }
   >;
+  defaultValuationSortField?: ValuationSortField;
 }
 
 type DisplayBatting = {
@@ -272,7 +278,7 @@ function NoteCell({
 
 function getValDiff(player: Player): number {
   const adpValue = Math.max(1, Math.round(50 - player.adp * 0.3));
-  return player.value - adpValue;
+  return resolveValuationNumber(player, "recommended_bid") - adpValue;
 }
 
 const DEFAULT_BAT_COLS = ["AVG", "HR", "RBI", "R", "SB"];
@@ -379,6 +385,7 @@ export default function PlayerTable({
   draftedByTeam,
   isCustomPlayer,
   engineCatalogByPlayerId,
+  defaultValuationSortField = "recommended_bid",
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -453,6 +460,8 @@ export default function PlayerTable({
       return { col: "adp", dir: "asc" };
     }
   });
+  const [valuationSortField, setValuationSortField] =
+    useState<ValuationSortField>(defaultValuationSortField);
 
   useEffect(() => {
     try {
@@ -654,7 +663,11 @@ export default function PlayerTable({
     const mult = dir === "asc" ? 1 : -1;
     return [...filteredRowData].sort((a, b) => {
       if (col === "adp") return mult * (a.player.adp - b.player.adp);
-      if (col === "value") return mult * (a.player.value - b.player.value);
+      if (col === "value") {
+        const av = resolveValuationNumber(a.player, valuationSortField);
+        const bv = resolveValuationNumber(b.player, valuationSortField);
+        return mult * (av - bv);
+      }
       if (col === "tier") return mult * (a.player.tier - b.player.tier);
       if (col === "valdiff") return mult * (a.valDiff - b.valDiff);
       if (col.startsWith("stat-")) {
@@ -687,7 +700,7 @@ export default function PlayerTable({
       }
       return 0;
     });
-  }, [filteredRowData, clientSort, batCols, pitCols]);
+  }, [filteredRowData, clientSort, batCols, pitCols, valuationSortField]);
 
   const rowData = useMemo(
     () =>
@@ -784,6 +797,19 @@ export default function PlayerTable({
             <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
             Starred only
           </button>
+          <select
+            className="pt-select"
+            value={valuationSortField}
+            onChange={(e) =>
+              setValuationSortField(e.target.value as ValuationSortField)
+            }
+            title="Sort by valuation field"
+          >
+            <option value="team_adjusted_value">Sort by: Your Value</option>
+            <option value="recommended_bid">Sort by: Likely Bid</option>
+            <option value="adjusted_value">Sort by: Market Value</option>
+            <option value="baseline_value">Sort by: Player Strength</option>
+          </select>
 
           <div className="pt-tag-wrap">
             <button
@@ -876,8 +902,9 @@ export default function PlayerTable({
               <th
                 className="th-value th-sortable"
                 onClick={() => handleColSort("value")}
+                title="General auction guidance based on player strength and market conditions."
               >
-                Proj $ <SortArrow col="value" sort={clientSort} />
+                Likely Bid <SortArrow col="value" sort={clientSort} />
               </th>
               <th
                 className="th-valdiff th-sortable"
@@ -925,6 +952,14 @@ export default function PlayerTable({
               ({ player, bat, pit, isBatter, tags, valDiff }, index) => {
                 const isStarred = isInWatchlist(player.id);
                 const eng = engineCatalogByPlayerId?.get(player.id);
+                const primaryValue = resolveValuationNumber(
+                  player,
+                  "recommended_bid",
+                );
+                const secondaryValue = resolveValuationNumber(
+                  player,
+                  "team_adjusted_value",
+                );
 
                 return (
                   <tr
@@ -1035,7 +1070,24 @@ export default function PlayerTable({
                     <td className="td-adp">{player.adp}</td>
 
                     <td className="td-value">
-                      <span className="value-chip">${player.value}</span>
+                      <span
+                        className="value-chip"
+                        title="General auction guidance based on player strength and market conditions."
+                      >
+                        ${Math.round(primaryValue)}
+                      </span>
+                      <div
+                        style={{
+                          fontSize: "0.62rem",
+                          opacity: 0.78,
+                          lineHeight: 1.1,
+                          marginTop: "1px",
+                        }}
+                        title="Personalized value based on your roster needs and budget."
+                      >
+                        {valuationSortLabel("team_adjusted_value")}: $
+                        {Math.round(secondaryValue)}
+                      </div>
                     </td>
 
                     <td

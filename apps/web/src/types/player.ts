@@ -9,6 +9,30 @@ export interface Player {
   adp: number;
   value: number;
   tier: number;
+  baseline_value?: number;
+  adjusted_value?: number;
+  recommended_bid?: number;
+  team_adjusted_value?: number;
+  inflation_model?: "replacement_slots_v2";
+  indicator?: "Steal" | "Reach" | "Fair Value";
+  explain_v2?: {
+    indicator: "Steal" | "Reach" | "Fair Value";
+    auction_target: number;
+    list_value: number;
+    adjustments: {
+      scarcity: number;
+      inflation: number;
+      other: number;
+    };
+    drivers: Array<{
+      label: string;
+      impact: number;
+      reason: string;
+    }>;
+    confidence: number;
+  };
+  why?: string[];
+  market_notes?: string[];
   headshot: string;
   stats: {
     batting?: {

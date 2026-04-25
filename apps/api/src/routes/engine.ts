@@ -3,12 +3,14 @@ import { AxiosError } from "axios";
 import { amethyst } from "../lib/amethyst";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
 import League from "../models/League";
+import type { ILeague } from "../models/League";
 import RosterEntry from "../models/RosterEntry";
 import {
   buildValuationContext,
   buildScarcityContext,
   buildSimulationContext,
   finalizeEngineValuationPostPayload,
+  userIdToTeamId,
 } from "../lib/engineContext";
 import { validateBody, validateQuery } from "../validation/validate";
 import {
@@ -45,6 +47,18 @@ function throwEngineError(err: unknown, req: AuthRequest): never {
   throw new UpstreamError("Engine unreachable", 502, "ENGINE_UNREACHABLE");
 }
 
+function resolveUserTeamId(req: AuthRequest, league: ILeague): string {
+  const requested = (req.body as { user_team_id?: string } | undefined)?.user_team_id;
+  if (requested && typeof requested === "string") {
+    return requested;
+  }
+  try {
+    return userIdToTeamId(String(req.user?._id), league.memberIds);
+  } catch {
+    return "team_1";
+  }
+}
+
 // ─── POST /api/engine/leagues/:leagueId/valuation ─────────────────────────────
 // Returns engine-computed player valuations given the current draft state.
 
@@ -58,7 +72,9 @@ const calculateValuation: RequestHandler = async (
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
-    const context = buildValuationContext(league, entries);
+    const context = buildValuationContext(league, entries, {
+      userTeamId: resolveUserTeamId(req, league),
+    });
     const payload = finalizeEngineValuationPostPayload(context);
     const axiosRes = await amethyst.post("/valuation/calculate", payload);
     forwardEngineCorrelationHeaders(res, axiosRes);
@@ -82,7 +98,9 @@ const calculateValuationPlayer: RequestHandler = async (
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
-    const context = buildValuationContext(league, entries);
+    const context = buildValuationContext(league, entries, {
+      userTeamId: resolveUserTeamId(req, league),
+    });
     const base = finalizeEngineValuationPostPayload(context);
     const { player_id } = req.body as { player_id: string };
     const payload = { ...base, player_id };

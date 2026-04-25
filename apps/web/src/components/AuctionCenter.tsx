@@ -14,6 +14,8 @@ import {
   getValuationPlayer,
   type ValuationResult,
 } from "../api/engine";
+import { resolveUserTeamId } from "../utils/team";
+import { resolveValuationNumber } from "../utils/valuation";
 
 import {
   getEligibleSlotsForPositions,
@@ -46,7 +48,7 @@ export function AuctionCenter({
 }: AuctionCenterProps) {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { isInWatchlist } = useWatchlist();
   const { getNote, setNote } = usePlayerNotes();
 
@@ -58,7 +60,8 @@ export function AuctionCenter({
   useEffect(() => {
     if (!leagueId || !token) return;
     let cancelled = false;
-    getValuation(leagueId, token)
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    getValuation(leagueId, token, userTeamId)
       .then((res) => {
         if (cancelled) return;
         setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
@@ -70,14 +73,15 @@ export function AuctionCenter({
     return () => {
       cancelled = true;
     };
-  }, [leagueId, token, rosterEntries.length]);
+  }, [leagueId, token, rosterEntries.length, league, user?.id]);
 
   // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
   useEffect(() => {
     if (!leagueId || !token || !selectedPlayer) return;
     let cancelled = false;
     const playerId = selectedPlayer.id;
-    void getValuationPlayer(leagueId, token, playerId)
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    void getValuationPlayer(leagueId, token, playerId, userTeamId)
       .then((res) => {
         if (cancelled) return;
         const row = res.player;
@@ -97,7 +101,7 @@ export function AuctionCenter({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when selected id changes
-  }, [leagueId, token, selectedPlayer?.id]);
+  }, [leagueId, token, selectedPlayer?.id, league, user?.id]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -160,7 +164,18 @@ export function AuctionCenter({
     );
     setStatView(isPitcher ? "pitching" : "hitting");
     const v = valuationMap.get(selectedPlayer.id);
-    const seed = v?.adjusted_value ?? selectedPlayer.value;
+    const seed = v
+      ? resolveValuationNumber(
+          {
+            value: selectedPlayer.value,
+            baseline_value: v.baseline_value,
+            adjusted_value: v.adjusted_value,
+            recommended_bid: v.recommended_bid,
+            team_adjusted_value: v.team_adjusted_value,
+          },
+          "team_adjusted_value",
+        )
+      : selectedPlayer.value;
     setFinalPrice(String(seed));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset bid when the selected player changes
   }, [selectedPlayer]);
@@ -170,7 +185,20 @@ export function AuctionCenter({
     if (!selectedPlayer || bidPriceTouchedRef.current) return;
     const v = valuationMap.get(selectedPlayer.id);
     if (v === undefined) return;
-    setFinalPrice(String(v.adjusted_value));
+    setFinalPrice(
+      String(
+        resolveValuationNumber(
+          {
+            value: selectedPlayer.value,
+            baseline_value: v.baseline_value,
+            adjusted_value: v.adjusted_value,
+            recommended_bid: v.recommended_bid,
+            team_adjusted_value: v.team_adjusted_value,
+          },
+          "team_adjusted_value",
+        ),
+      ),
+    );
   }, [valuationMap, selectedPlayer]);
 
   const onFinalPriceChange = useCallback((value: string) => {
@@ -628,9 +656,31 @@ export function AuctionCenter({
                   {(() => {
                     const valuationRow = valuationMap.get(selectedPlayer.id);
                     const listValue =
-                      valuationRow?.explain_v2?.list_value ??
-                      valuationRow?.baseline_value ??
-                      selectedPlayer.value;
+                      valuationRow?.baseline_value ?? selectedPlayer.value;
+                    const yourValue = valuationRow
+                      ? resolveValuationNumber(
+                          {
+                            value: selectedPlayer.value,
+                            baseline_value: valuationRow.baseline_value,
+                            adjusted_value: valuationRow.adjusted_value,
+                            recommended_bid: valuationRow.recommended_bid,
+                            team_adjusted_value: valuationRow.team_adjusted_value,
+                          },
+                          "team_adjusted_value",
+                        )
+                      : selectedPlayer.value;
+                    const likelyBid = valuationRow
+                      ? resolveValuationNumber(
+                          {
+                            value: selectedPlayer.value,
+                            baseline_value: valuationRow.baseline_value,
+                            adjusted_value: valuationRow.adjusted_value,
+                            recommended_bid: valuationRow.recommended_bid,
+                            team_adjusted_value: valuationRow.team_adjusted_value,
+                          },
+                          "recommended_bid",
+                        )
+                      : selectedPlayer.value;
                     const tierValue = valuationRow?.tier ?? selectedPlayer.tier;
                     const adpValue = valuationRow?.adp ?? selectedPlayer.adp;
                     return (
@@ -674,33 +724,38 @@ export function AuctionCenter({
                         </div>
                         <div
                           className="pac-stat"
-                          title={
-                            valuationRow
-                              ? "Engine baseline/list value before league-context adjustments"
-                              : "Catalog list value (pre-auction, no league context)"
-                          }
+                          title="Personalized value based on your roster needs and budget."
                         >
-                          <span className="pac-stat-label">List $</span>
+                          <span className="pac-stat-label">Your Value</span>
                           <span className="pac-stat-value pac-stat-value--money green">
-                            ${listValue}
+                            ${yourValue}
                           </span>
                         </div>
                         <div
                           className="pac-stat"
-                          title={
-                            (valuationRow?.why?.length ?? 0) > 0
-                              ? valuationRow?.why?.join(" · ")
-                              : "Engine inflation-adjusted auction target (use for bids)"
-                          }
+                          title="General auction guidance based on player strength and market conditions."
                         >
-                          <span className="pac-stat-label">Engine $</span>
+                          <span className="pac-stat-label">Likely Bid</span>
                           <span
                             className={
                               "pac-stat-value pac-stat-value--money green " +
                               (valuationRow ? "" : "pac-stat-value--placeholder")
                             }
                           >
-                            {valuationRow ? `$${valuationRow.adjusted_value}` : "—"}
+                            {valuationRow ? `$${likelyBid}` : "—"}
+                          </span>
+                        </div>
+                        <div
+                          className="pac-stat"
+                          title={`Market Value: ${
+                            valuationRow ? `$${valuationRow.adjusted_value}` : "—"
+                          } · Player Strength: $${Math.round(listValue)}`}
+                        >
+                          <span className="pac-stat-label">Market / Strength</span>
+                          <span className="pac-stat-value pac-stat-value--money">
+                            {valuationRow
+                              ? `$${valuationRow.adjusted_value} / $${Math.round(listValue)}`
+                              : `— / $${Math.round(listValue)}`}
                           </span>
                         </div>
                         <div className="pac-stat">

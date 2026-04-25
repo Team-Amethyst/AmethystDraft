@@ -13,7 +13,7 @@ import {
   type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
-import { getCatalogBatchValues } from "../api/engine";
+import { getValuation } from "../api/engine";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -27,6 +27,11 @@ import {
 import "./Research.css";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
+import {
+  mergeCatalogPlayersWithValuations,
+  type ValuationShape,
+} from "../utils/valuation";
+import { resolveUserTeamId } from "../utils/team";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
@@ -87,7 +92,7 @@ export default function Research() {
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
@@ -130,8 +135,8 @@ export default function Research() {
     () => getPlayersCached("adp") === null,
   );
   const [playersError, setPlayersError] = useState("");
-  const [engineCatalogByPlayerId, setEngineCatalogByPlayerId] = useState<
-    ReadonlyMap<string, { value: number; tier: number }>
+  const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
+    ReadonlyMap<string, ValuationShape>
   >(() => new Map());
 
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
@@ -219,55 +224,29 @@ export default function Research() {
   }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
 
   useEffect(() => {
-    if (!token || players.length === 0) {
-      setEngineCatalogByPlayerId(new Map());
+    if (!token || !leagueId || players.length === 0) {
+      setValuationsByPlayerId(new Map());
       return;
     }
-    const pool = league?.playerPool ?? "Mixed";
     let cancelled = false;
-    const BATCH = 150;
-    const ids = players
-      .filter((p) => !customPlayerIds.has(p.id))
-      .map((p) => p.id);
-
     void (async () => {
-      const merged = new Map<string, { value: number; tier: number }>();
-      let batchFailed = false;
-      for (let i = 0; i < ids.length; i += BATCH) {
-        if (cancelled) return;
-        const chunk = ids.slice(i, i + BATCH);
-        if (chunk.length === 0) continue;
-        try {
-          const res = await getCatalogBatchValues(token, {
-            player_ids: chunk,
-            league_scope: pool,
-            pos_eligibility_threshold: league?.posEligibilityThreshold,
-          });
-          for (const row of res.players) {
-            merged.set(row.player_id, {
-              value: row.value,
-              tier: row.tier,
-            });
-          }
-        } catch {
-          batchFailed = true;
-          break;
+      try {
+        const userTeamId = resolveUserTeamId(league, user?.id);
+        const res = await getValuation(leagueId, token, userTeamId);
+        const merged = new Map<string, ValuationShape>();
+        for (const row of res.valuations) {
+          if (customPlayerIds.has(row.player_id)) continue;
+          merged.set(row.player_id, row);
         }
+        if (!cancelled) setValuationsByPlayerId(merged);
+      } catch {
+        if (!cancelled) setValuationsByPlayerId(new Map());
       }
-      // Avoid showing a misleading partial overlay if a later chunk failed.
-      if (!cancelled && !batchFailed) setEngineCatalogByPlayerId(merged);
     })();
-
     return () => {
       cancelled = true;
     };
-  }, [
-    token,
-    players,
-    league?.playerPool,
-    league?.posEligibilityThreshold,
-    customPlayerIds,
-  ]);
+  }, [token, leagueId, players.length, customPlayerIds, league, user?.id]);
 
   const loadDepthChart = useCallback(async (teamId: number, forceRefresh = false) => {
     const cached = getDepthChartCached(teamId);
@@ -321,6 +300,11 @@ export default function Research() {
       return matchesSearch && matchesPosition;
     });
   }, [allPlayers, searchQuery, positionFilter]);
+
+  const mergedPlayers = useMemo(
+    () => mergeCatalogPlayersWithValuations(filteredPlayers, valuationsByPlayerId),
+    [filteredPlayers, valuationsByPlayerId],
+  );
 
   const handlePlayerClick = (player: Player) => {
     setSelectedPlayer(player);
@@ -444,7 +428,7 @@ export default function Research() {
                 </div>
               ) : (
                 <PlayerTable
-                  players={filteredPlayers}
+                  players={mergedPlayers}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   positionFilter={positionFilter}
@@ -458,7 +442,6 @@ export default function Research() {
                   draftedIds={draftedIds}
                   draftedByTeam={draftedByTeam}
                   isCustomPlayer={isCustomPlayer}
-                  engineCatalogByPlayerId={engineCatalogByPlayerId}
                 />
               )}
             </>

@@ -35,6 +35,7 @@ import {
   type ScarcityResponse,
   type ValuationResponse,
 } from "../api/engine";
+import { resolveUserTeamId } from "../utils/team";
 
 const ENABLE_SCARCITY_USAGE_TELEMETRY_LOG =
   import.meta.env.DEV || import.meta.env.VITE_SCARCITY_USAGE_TELEMETRY === "1";
@@ -185,7 +186,7 @@ function LeftPanel({
                 v.player_id,
                 {
                   tier: v.tier,
-                  value: v.explain_v2?.list_value ?? v.baseline_value,
+                  value: v.adjusted_value,
                 },
               ]),
             )
@@ -1383,7 +1384,8 @@ export default function CommandCenter() {
   useEffect(() => {
     if (!leagueId || !token) return;
     let cancelled = false;
-    void getValuation(leagueId, token)
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    void getValuation(leagueId, token, userTeamId)
       .then((res) => {
         if (!cancelled) setEngineMarket(res);
       })
@@ -1393,7 +1395,7 @@ export default function CommandCenter() {
     return () => {
       cancelled = true;
     };
-  }, [leagueId, token, rosterEntries.length]);
+  }, [leagueId, token, rosterEntries.length, league, user?.id]);
 
   // useEffect(() => {
   //   void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)

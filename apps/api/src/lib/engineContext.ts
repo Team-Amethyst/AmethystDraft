@@ -60,6 +60,8 @@ export interface EngineValuationContext {
   schemaVersion?: string;
   deterministic?: boolean;
   seed?: number;
+  user_team_id?: string;
+  inflation_model?: "replacement_slots_v2";
 }
 
 export interface EngineTeamPlayersSection {
@@ -122,6 +124,40 @@ function toDraftedPlayers(entries: IRosterEntry[]): EngineDraftedPlayer[] {
   });
 }
 
+function isMinorSlot(slot: string | undefined): boolean {
+  const normalized = (slot ?? "").toUpperCase();
+  return normalized.includes("MIN");
+}
+
+function isTaxiSlot(slot: string | undefined): boolean {
+  const normalized = (slot ?? "").toUpperCase();
+  return normalized.includes("TAXI");
+}
+
+function toTeamPlayersSections(
+  entries: IRosterEntry[],
+): EngineTeamPlayersSection[] {
+  const byTeam = new Map<string, EngineRosterOnlyPlayer[]>();
+  for (const e of entries) {
+    const rows = byTeam.get(e.teamId) ?? [];
+    rows.push({
+      player_id: String(e.externalPlayerId),
+      name: e.playerName,
+      positions: e.positions.length ? [...e.positions] : undefined,
+      team: e.playerTeam,
+      team_id: e.teamId,
+      paid: e.price,
+      is_keeper: e.isKeeper,
+      roster_slot: e.rosterSlot,
+    });
+    byTeam.set(e.teamId, rows);
+  }
+  return [...byTeam.entries()].map(([team_id, players]) => ({
+    team_id,
+    players,
+  }));
+}
+
 /** Remaining budget per team: total_budget − sum(paid) for players on that team. */
 export function computeBudgetByTeamRemaining(
   totalBudget: number,
@@ -155,12 +191,19 @@ export function computeBudgetByTeamRemaining(
 export function buildValuationContext(
   league: ILeague,
   rosterEntries: IRosterEntry[],
+  options?: { userTeamId?: string },
 ): EngineValuationContext {
   const rosterSlots = Object.entries(league.rosterSlots).map(
     ([position, count]) => ({ position, count }),
   );
 
-  const drafted_players = toDraftedPlayers(rosterEntries);
+  const keeperEntries = rosterEntries.filter((e) => e.isKeeper);
+  const minorsEntries = rosterEntries.filter((e) => isMinorSlot(e.rosterSlot));
+  const taxiEntries = rosterEntries.filter((e) => isTaxiSlot(e.rosterSlot));
+  const draftedEntries = rosterEntries.filter(
+    (e) => !e.isKeeper && !isMinorSlot(e.rosterSlot) && !isTaxiSlot(e.rosterSlot),
+  );
+  const drafted_players = toDraftedPlayers(draftedEntries);
 
   return {
     roster_slots: rosterSlots,
@@ -183,6 +226,11 @@ export function buildValuationContext(
     ...(league.posEligibilityThreshold !== undefined
       ? { pos_eligibility_threshold: league.posEligibilityThreshold }
       : {}),
+    user_team_id: options?.userTeamId ?? "team_1",
+    inflation_model: "replacement_slots_v2",
+    pre_draft_rosters: toTeamPlayersSections(keeperEntries),
+    minors: toTeamPlayersSections(minorsEntries),
+    taxi: toTeamPlayersSections(taxiEntries),
   };
 }
 
@@ -392,6 +440,9 @@ export function buildEngineValuationCalculateBodyFromFixture(
       ? { deterministic: fixture.deterministic }
       : {}),
     ...(fixture.seed !== undefined ? { seed: fixture.seed } : {}),
+    user_team_id: fixture.user_team_id ?? fixture.league.user_team_id ?? "team_1",
+    inflation_model:
+      fixture.inflation_model ?? fixture.league.inflation_model ?? "replacement_slots_v2",
   };
 
   return body;
@@ -450,6 +501,8 @@ export function buildEngineValuationCalculateBodyFromFlat(
       ? { deterministic: flat.deterministic }
       : {}),
     ...(flat.seed !== undefined ? { seed: flat.seed } : {}),
+    user_team_id: flat.user_team_id ?? "team_1",
+    inflation_model: flat.inflation_model ?? "replacement_slots_v2",
   };
 
   return body;
