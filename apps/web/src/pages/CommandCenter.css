@@ -55,6 +55,7 @@
 .cc-right {
   border-right: none;
   border-left: 1px solid rgba(139, 92, 246, 0.1);
+  overflow-y: hidden;
 }
 
 .cc-divider {
@@ -578,8 +579,8 @@
 
 .pac-meta-row {
   display: grid;
-  grid-template-columns: repeat(7, minmax(84px, 1fr));
-  gap: 0.7rem;
+  grid-template-columns: repeat(8, minmax(70px, 1fr));
+  gap: 0.5rem;
   flex: 1;
   align-items: start;
 }
@@ -666,7 +667,7 @@
 }
 
 .pac-stat-value {
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   font-weight: 800;
   line-height: 1;
   color: #e2d9f3;
@@ -678,8 +679,19 @@
 .pac-stat-value.green { color: #22c55e; }
 .pac-stat-value--placeholder { color: #6d5e87; }
 .pac-stat-value--money {
-  min-width: 6.9ch;
+  min-width: 5.8ch;
   text-align: center;
+}
+.pac-stat--value-primary .pac-stat-value {
+  font-size: 1.8rem;
+}
+.pac-stat-value--muted {
+  font-size: 1rem;
+  color: #9d8cc4;
+}
+.pac-stat-value--tiny {
+  font-size: 0.92rem;
+  color: #b9acd6;
 }
 
 .pac-indicator {
@@ -752,8 +764,8 @@
 }
 
 .pac-log-result-label {
-  margin-top: 1rem;
-  padding-top: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid rgba(139, 92, 246, 0.2);
 }
 
@@ -869,8 +881,14 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
   align-items: end;
+}
+
+.log-result-grid--inline {
+  grid-template-columns: minmax(0, 1.5fr) 92px minmax(0, 0.8fr) 90px;
+  gap: 0.35rem;
+  align-items: center;
 }
 
 .log-slot-field { margin-top: 0.5rem; }
@@ -889,8 +907,8 @@
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(139, 92, 246, 0.2);
   border-radius: 8px;
-  padding: 0.5rem 0.6rem;
-  font-size: 0.8rem;
+  padding: 0.42rem 0.5rem;
+  font-size: 0.76rem;
   color: #c4b5d4;
   outline: none;
   font-family: 'DM Sans', sans-serif;
@@ -909,7 +927,7 @@
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(139, 92, 246, 0.2);
   border-radius: 8px;
-  padding: 0 0.6rem;
+  padding: 0 0.45rem;
 }
 
 .log-dollar { color: #6b4fa0; font-weight: 700; font-size: 0.9rem; }
@@ -919,8 +937,8 @@
   background: transparent;
   border: none;
   outline: none;
-  padding: 0.5rem 0.4rem;
-  font-size: 0.8rem;
+  padding: 0.42rem 0.35rem;
+  font-size: 0.76rem;
   color: #c4b5d4;
   font-family: 'DM Sans', sans-serif;
 }
@@ -941,6 +959,15 @@
   transition: all 0.2s;
 }
 
+.log-result-btn--inline {
+  width: 100%;
+  margin-top: 0;
+  padding: 0.5rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
 .log-result-btn:hover {
   background: rgba(139, 92, 246, 0.4);
   color: #ede9fe;
@@ -949,8 +976,11 @@
 /* ─── Right panel ───────────────────────────────────────────────────────────── */
 
 .cc-right {
-  padding: 0.75rem;
+  padding: 0.6rem;
   background: #0a0714;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .rp-section-label {
@@ -959,26 +989,26 @@
   letter-spacing: 0.1em;
   color: #6b4fa0;
   text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  margin-top: 0.25rem;
+  margin-bottom: 0.35rem;
+  margin-top: 0.1rem;
 }
 
 .budget-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
 }
 
 .budget-card {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(139, 92, 246, 0.12);
   border-radius: 8px;
-  padding: 0.6rem 0.75rem;
+  padding: 0.48rem 0.58rem;
 }
 
-.bc-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.07em; color: #4a3a60; text-transform: uppercase; }
-.bc-val   { font-size: 1.1rem; font-weight: 700; color: #e2d9f3; margin-top: 0.2rem; }
+.bc-label { font-size: 0.54rem; font-weight: 700; letter-spacing: 0.07em; color: #4a3a60; text-transform: uppercase; }
+.bc-val   { font-size: 1rem; font-weight: 700; color: #e2d9f3; margin-top: 0.15rem; }
 .bc-val.green { color: #22c55e; }
 
 .budget-progress-row {
@@ -986,20 +1016,20 @@
   justify-content: space-between;
   font-size: 0.68rem;
   color: #4a3a60;
-  padding: 0.25rem 0;
+  padding: 0.1rem 0;
 }
 
 .engine-market-card {
   border: 1px solid rgba(139, 92, 246, 0.22);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
-  padding: 0.55rem 0.6rem;
+  padding: 0.45rem 0.5rem;
 }
 
 .engine-market-main {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.4rem;
+  gap: 0.3rem;
 }
 
 .engine-market-kpi {
@@ -1007,7 +1037,7 @@
 }
 
 .em-label {
-  font-size: 0.56rem;
+  font-size: 0.53rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   color: #4a3a60;
@@ -1015,7 +1045,7 @@
 }
 
 .em-value {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.1;
   color: #e2d9f3;
@@ -1025,7 +1055,7 @@
 
 .em-sub {
   margin-top: 0.08rem;
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   color: #8f7ab6;
   line-height: 1.2;
 }
@@ -1040,7 +1070,7 @@
 }
 
 .engine-market-meta {
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
   font-size: 0.55rem;
   line-height: 1.2;
   color: #7a6a9a;
@@ -1062,22 +1092,22 @@
 .pos-budget-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.74rem;
+  font-size: 0.68rem;
 }
 
 .pos-budget-table th {
-  font-size: 0.6rem;
+  font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   color: #4a3a60;
   text-transform: uppercase;
-  padding: 0.3rem 0.25rem;
+  padding: 0.22rem 0.18rem;
   text-align: left;
   border-bottom: 1px solid rgba(139, 92, 246, 0.1);
 }
 
 .pos-budget-table td {
-  padding: 0.32rem 0.25rem;
+  padding: 0.24rem 0.18rem;
   color: #b0a0cc;
   border-bottom: 1px solid rgba(255,255,255,0.02);
   font-variant-numeric: tabular-nums;
@@ -1090,6 +1120,32 @@
 .pos-budget-table tr.dim td { opacity: 0.45; }
 
 .pb-pos { font-weight: 700; color: #c4b5d4; }
+
+.pac-notes-collapsible {
+  margin-top: 0.6rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.14);
+  padding-top: 0.4rem;
+}
+
+.pac-notes-summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #6b4fa0;
+}
+
+.pac-notes-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pac-notes-grid {
+  margin-top: 0.35rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
 
 /* Category pace */
 

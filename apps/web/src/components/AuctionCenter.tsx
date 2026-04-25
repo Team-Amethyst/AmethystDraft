@@ -131,6 +131,7 @@ export function AuctionCenter({
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
+  const [notesOpen, setNotesOpen] = useState(false);
   // Seed "Won By" default when league loads
   useEffect(() => {
     if (league && !wonBy) setWonBy(league.teamNames[0] ?? "");
@@ -205,6 +206,28 @@ export function AuctionCenter({
     bidPriceTouchedRef.current = true;
     setFinalPrice(value);
   }, []);
+
+  const getEngineDisplayValues = useCallback(
+    (valuationRow: ValuationResult | undefined, fallbackValue: number) => {
+      const baseline = valuationRow?.baseline_value;
+      const market = valuationRow?.adjusted_value;
+      const likely =
+        valuationRow?.recommended_bid ?? market ?? baseline ?? fallbackValue;
+      const your =
+        valuationRow?.team_adjusted_value ??
+        valuationRow?.recommended_bid ??
+        market ??
+        baseline ??
+        fallbackValue;
+      return {
+        your,
+        likely,
+        market: market ?? likely,
+        strength: baseline ?? market ?? likely,
+      };
+    },
+    [],
+  );
 
   const dropdownResults = (() => {
     if (searchQuery.length < 1) return [];
@@ -655,38 +678,43 @@ export function AuctionCenter({
                 <div className="pac-meta-row">
                   {(() => {
                     const valuationRow = valuationMap.get(selectedPlayer.id);
-                    const listValue =
-                      valuationRow?.baseline_value ?? selectedPlayer.value;
-                    const yourValue = valuationRow
-                      ? resolveValuationNumber(
-                          {
-                            value: selectedPlayer.value,
-                            baseline_value: valuationRow.baseline_value,
-                            adjusted_value: valuationRow.adjusted_value,
-                            recommended_bid: valuationRow.recommended_bid,
-                            team_adjusted_value: valuationRow.team_adjusted_value,
-                          },
-                          "team_adjusted_value",
-                        )
-                      : selectedPlayer.value;
-                    const likelyBid = valuationRow
-                      ? resolveValuationNumber(
-                          {
-                            value: selectedPlayer.value,
-                            baseline_value: valuationRow.baseline_value,
-                            adjusted_value: valuationRow.adjusted_value,
-                            recommended_bid: valuationRow.recommended_bid,
-                            team_adjusted_value: valuationRow.team_adjusted_value,
-                          },
-                          "recommended_bid",
-                        )
-                      : selectedPlayer.value;
+                    const values = getEngineDisplayValues(
+                      valuationRow,
+                      selectedPlayer.value,
+                    );
                     const tierValue = valuationRow?.tier ?? selectedPlayer.tier;
                     const adpValue = valuationRow?.adp ?? selectedPlayer.adp;
                     return (
                       <>
+                        <div
+                          className="pac-stat pac-stat--value-primary"
+                          title="Personalized value based on your roster and budget"
+                        >
+                          <span className="pac-stat-label">Your Value</span>
+                          <span className="pac-stat-value pac-stat-value--money green">
+                            ${Math.round(values.your)}
+                          </span>
+                        </div>
+                        <div
+                          className="pac-stat"
+                          title="Expected auction price"
+                        >
+                          <span className="pac-stat-label">Likely Bid</span>
+                          <span className="pac-stat-value pac-stat-value--money">
+                            ${Math.round(values.likely)}
+                          </span>
+                        </div>
+                        <div
+                          className="pac-stat"
+                          title="Model value based on league dynamics"
+                        >
+                          <span className="pac-stat-label">Market Value</span>
+                          <span className="pac-stat-value pac-stat-value--money pac-stat-value--muted">
+                            ${Math.round(values.market)}
+                          </span>
+                        </div>
                         <div className="pac-stat">
-                          <span className="pac-stat-label">Position</span>
+                          <span className="pac-stat-label">Pos</span>
                           <div
                             style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
                           >
@@ -700,8 +728,17 @@ export function AuctionCenter({
                         </div>
                         <div className="pac-stat">
                           <span className="pac-stat-label">Team</span>
-                          <span className="pac-stat-value">
+                          <span className="pac-stat-value pac-stat-value--tiny">
                             {selectedPlayer.team}
+                          </span>
+                        </div>
+                        <div
+                          className="pac-stat"
+                          title="Baseline model player strength"
+                        >
+                          <span className="pac-stat-label">Strength</span>
+                          <span className="pac-stat-value pac-stat-value--tiny">
+                            ${Math.round(values.strength)}
                           </span>
                         </div>
                         <div className="pac-stat">
@@ -720,42 +757,6 @@ export function AuctionCenter({
                             }}
                           >
                             {tierValue}
-                          </span>
-                        </div>
-                        <div
-                          className="pac-stat"
-                          title="Personalized value based on your roster needs and budget."
-                        >
-                          <span className="pac-stat-label">Your Value</span>
-                          <span className="pac-stat-value pac-stat-value--money green">
-                            ${yourValue}
-                          </span>
-                        </div>
-                        <div
-                          className="pac-stat"
-                          title="General auction guidance based on player strength and market conditions."
-                        >
-                          <span className="pac-stat-label">Likely Bid</span>
-                          <span
-                            className={
-                              "pac-stat-value pac-stat-value--money green " +
-                              (valuationRow ? "" : "pac-stat-value--placeholder")
-                            }
-                          >
-                            {valuationRow ? `$${likelyBid}` : "—"}
-                          </span>
-                        </div>
-                        <div
-                          className="pac-stat"
-                          title={`Market Value: ${
-                            valuationRow ? `$${valuationRow.adjusted_value}` : "—"
-                          } · Player Strength: $${Math.round(listValue)}`}
-                        >
-                          <span className="pac-stat-label">Market / Strength</span>
-                          <span className="pac-stat-value pac-stat-value--money">
-                            {valuationRow
-                              ? `$${valuationRow.adjusted_value} / $${Math.round(listValue)}`
-                              : `— / $${Math.round(listValue)}`}
                           </span>
                         </div>
                         <div className="pac-stat">
@@ -794,24 +795,8 @@ export function AuctionCenter({
               </div>
             </div>
 
-            <div className="pac-notes-wrap">
-              <div className="pac-notes-label">PLAYER NOTES</div>
-              <textarea
-                className="pac-notes"
-                value={
-                  (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
-                }
-                onChange={(e) => {
-                  setNote(selectedPlayer.id, e.target.value);
-                }}
-                placeholder="Add scouting notes..."
-                rows={2}
-              />
-            </div>
-
-            {/* Performance snapshot */}
             <div className="pac-snapshot-header">
-              <span className="pac-section-label">PERFORMANCE SNAPSHOT</span>
+              <span className="pac-section-label">PLAYER IMPACT</span>
               <div className="stat-view-toggle">
                 <button
                   className={
@@ -937,14 +922,13 @@ export function AuctionCenter({
               </div>
             )}
 
-            {/* Category impact */}
             {catImpactRows.length > 0 && (
               <>
                 <div
                   className="pac-section-label"
-                  style={{ marginTop: "1rem", marginBottom: "0.5rem" }}
+                  style={{ marginTop: "0.75rem", marginBottom: "0.45rem" }}
                 >
-                  CATEGORY IMPACT
+                  CATEGORY DELTA
                 </div>
                 <div className="cat-impact-boxes">
                   {catImpactRows.map((row) => (
@@ -971,12 +955,9 @@ export function AuctionCenter({
             )}
 
             {/* Log result */}
-            <div className="pac-section-label pac-log-result-label">
-              LOG RESULT
-            </div>
-            <div className="log-result-grid">
+            <div className="pac-section-label pac-log-result-label">LOG RESULT</div>
+            <div className="log-result-grid log-result-grid--inline">
               <div className="log-field">
-                <label className="log-label">WON BY</label>
                 <select
                   className="log-select"
                   value={wonBy}
@@ -988,7 +969,6 @@ export function AuctionCenter({
                 </select>
               </div>
               <div className="log-field">
-                <label className="log-label">FINAL PRICE</label>
                 <div className="log-price-input-wrap">
                   <span className="log-dollar">$</span>
                   <input
@@ -1001,7 +981,6 @@ export function AuctionCenter({
                 </div>
               </div>
               <div className="log-field">
-                <label className="log-label">DRAFTED TO SLOT</label>
                 <select
                   className={
                     "log-select" +
@@ -1018,30 +997,54 @@ export function AuctionCenter({
                   ))}
                 </select>
               </div>
+              <button
+                className="log-result-btn log-result-btn--inline"
+                onClick={() => void handleLogResult()}
+                disabled={
+                  submitting || !wonBy || !finalPrice || slotOptions.length === 0
+                }
+              >
+                {submitting ? "Logging…" : "Log"}
+              </button>
             </div>
 
-            <button
-              className="log-result-btn"
-              onClick={() => void handleLogResult()}
-              disabled={
-                submitting || !wonBy || !finalPrice || slotOptions.length === 0
+            <details
+              className="pac-notes-collapsible"
+              open={notesOpen}
+              onToggle={(e) =>
+                setNotesOpen((e.target as HTMLDetailsElement).open)
               }
             >
-              {submitting ? "Logging…" : "Log Result"}
-            </button>
+              <summary className="pac-notes-summary">NOTES</summary>
+              <div className="pac-notes-grid">
+                <div className="pac-notes-wrap">
+                  <div className="pac-notes-label">PLAYER</div>
+                  <textarea
+                    className="pac-notes"
+                    value={
+                      (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
+                    }
+                    onChange={(e) => {
+                      setNote(selectedPlayer.id, e.target.value);
+                    }}
+                    placeholder="Scouting notes..."
+                    rows={2}
+                  />
+                </div>
+                <div className="pac-notes-wrap">
+                  <div className="pac-notes-label">DRAFT</div>
+                  <textarea
+                    className="pac-notes"
+                    value={getNote("__draft__")}
+                    onChange={(e) => setNote("__draft__", e.target.value)}
+                    placeholder="Draft strategy notes..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </details>
           </div>
         )}
-      </div>
-
-      <div className="cc-draft-footer">
-        <div className="pac-notes-label">DRAFT NOTES</div>
-        <textarea
-          className="pac-notes"
-          style={{ height: "120px" }}
-          value={getNote("__draft__")}
-          onChange={(e) => setNote("__draft__", e.target.value)}
-          placeholder="Pre-draft strategic notes..."
-        />
       </div>
     </div>
   );

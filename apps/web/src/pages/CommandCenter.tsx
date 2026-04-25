@@ -16,7 +16,6 @@ import { AuctionCenter } from "../components/AuctionCenter";
 import PosBadge from "../components/PosBadge";
 import {
   type TeamSummary,
-  getStatByCategory,
   computeTeamData,
   computePositionMarket,
   buildProjectedStandings,
@@ -31,14 +30,9 @@ import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
   getValuation,
-  getScarcity,
-  type ScarcityResponse,
   type ValuationResponse,
 } from "../api/engine";
 import { resolveUserTeamId } from "../utils/team";
-
-const ENABLE_SCARCITY_USAGE_TELEMETRY_LOG =
-  import.meta.env.DEV || import.meta.env.VITE_SCARCITY_USAGE_TELEMETRY === "1";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,8 +129,6 @@ function LeftPanel({
   rosterEntries,
   onRemovePick,
   onUpdatePick,
-  leagueId,
-  token,
   engineMarket,
 }: {
   activeTab: string;
@@ -153,8 +145,6 @@ function LeftPanel({
     id: string,
     data: { price?: number; rosterSlot?: string; teamId?: string },
   ) => void;
-  leagueId?: string;
-  token?: string | null;
   engineMarket?: ValuationResponse | null;
 }) {
   const eligibleMarketPositions = useMemo(
@@ -203,139 +193,6 @@ function LeftPanel({
     },
     [activeMarketPosition, allPlayers, draftedIds, rosterEntries, engineMarket],
   );
-
-  const [engineScarcity, setEngineScarcity] = useState<ScarcityResponse | null>(
-    null,
-  );
-
-  const scarcityPrimaryPos = activeMarketPosition;
-
-  useEffect(() => {
-    if (!leagueId || !token || activeTab !== "Market" || !scarcityPrimaryPos) {
-      return;
-    }
-    let cancelled = false;
-    void getScarcity(leagueId, token, scarcityPrimaryPos)
-      .then((data) => {
-        if (!cancelled) setEngineScarcity(data);
-      })
-      .catch(() => {
-        if (!cancelled) setEngineScarcity(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    leagueId,
-    token,
-    activeTab,
-    scarcityPrimaryPos,
-    rosterEntries.length,
-  ]);
-
-  const enginePosRow = useMemo(() => {
-    if (!posMarket || !engineScarcity) return null;
-    return engineScarcity.positions.find((p) => p.position === posMarket.position) ?? null;
-  }, [posMarket, engineScarcity]);
-  const enginePosExplainer = engineScarcity?.selected_position_explainer ?? null;
-  const engineTierBuckets = useMemo(() => {
-    if (!posMarket || !engineScarcity) return null;
-    const order = ["Tier 1", "Tier 2", "Tier 3", "Tier 4", "Tier 5"] as const;
-    const byPos = engineScarcity.tier_buckets?.find(
-      (row) => row.position === posMarket.position,
-    );
-    if (byPos && byPos.buckets.length > 0) {
-      return order.map((tier) => {
-        const fromApi = byPos.buckets.find((b) => b.tier === tier);
-        return {
-          tier,
-          remaining: fromApi?.remaining ?? 0,
-          urgency_score: fromApi?.urgency_score ?? 0,
-          message: fromApi?.message,
-          recommended_action: fromApi?.recommended_action,
-        };
-      });
-    }
-    if (!enginePosRow) return null;
-    const tier1 = Math.max(0, enginePosRow.elite_remaining ?? 0);
-    const mid = Math.max(0, enginePosRow.mid_tier_remaining ?? 0);
-    const depth = Math.max(
-      0,
-      (enginePosRow.depth_remaining ?? enginePosRow.total_remaining) -
-        tier1 -
-        mid,
-    );
-    // Legacy fallback mapping (documented for rollout clarity):
-    // - Tier 1 := elite_remaining
-    // - Tier 2/3 := split mid_tier_remaining (ceil/floor)
-    // - Tier 4/5 := split depth_remaining or residual total_remaining (ceil/floor)
-    const tier2 = Math.ceil(mid / 2);
-    const tier3 = Math.max(0, mid - tier2);
-    const tier4 = Math.ceil(depth / 2);
-    const tier5 = Math.max(0, depth - tier4);
-    return [
-      {
-        tier: "Tier 1" as const,
-        remaining: tier1,
-        urgency_score: enginePosRow.scarcity_score,
-        message: enginePosRow.alert,
-        recommended_action: undefined,
-      },
-      {
-        tier: "Tier 2" as const,
-        remaining: tier2,
-        urgency_score: enginePosRow.scarcity_score,
-      },
-      {
-        tier: "Tier 3" as const,
-        remaining: tier3,
-        urgency_score: enginePosRow.scarcity_score,
-      },
-      {
-        tier: "Tier 4" as const,
-        remaining: tier4,
-        urgency_score: enginePosRow.scarcity_score,
-      },
-      {
-        tier: "Tier 5" as const,
-        remaining: tier5,
-        urgency_score: enginePosRow.scarcity_score,
-      },
-    ];
-  }, [engineScarcity, enginePosRow, posMarket]);
-  const draftroomTierRows = useMemo(() => {
-    const order = [1, 2, 3, 4, 5] as const;
-    const byTier = new Map((posMarket?.supply ?? []).map((s) => [s.tier, s]));
-    return order.map((tier) => {
-      const row = byTier.get(tier);
-      return {
-        tier,
-        remaining: row?.count ?? 0,
-        avgVal: row?.avgVal ?? null,
-      };
-    });
-  }, [posMarket]);
-
-  useEffect(() => {
-    if (!engineScarcity || !posMarket) return;
-    const hasTierBuckets =
-      !!engineScarcity.tier_buckets &&
-      engineScarcity.tier_buckets.some(
-        (row) => row.position === posMarket.position && row.buckets.length > 0,
-      );
-    const detail = {
-      uses_tier_buckets: hasTierBuckets,
-      fallback_legacy_scarcity: !hasTierBuckets,
-      position: posMarket.position,
-    };
-    // Temporary rollout telemetry; remove once legacy fields are sunset.
-    window.dispatchEvent(
-      new CustomEvent("amethyst:scarcity-field-usage", { detail }),
-    );
-    if (ENABLE_SCARCITY_USAGE_TELEMETRY_LOG) {
-      console.info("[scarcity-field-usage]", detail);
-    }
-  }, [engineScarcity, posMarket]);
 
   const playerMap = useMemo(
     () => new Map(allPlayers.map((p) => [p.id, p])),
@@ -591,115 +448,6 @@ function LeftPanel({
                 {posMarket ? posMarket.remainingCount : "—"}
               </span>
             </div>
-            {enginePosRow && (
-              <>
-                <div className="cc-divider" />
-                <div className="market-section-label">ENGINE SCARCITY</div>
-                <div className="msr-source-note">
-                  Model-driven urgency for {enginePosRow.position}
-                </div>
-                <div className="market-stat-row">
-                  <span className="msr-label">SCORE</span>
-                  <span className="msr-value">{enginePosRow.scarcity_score}</span>
-                </div>
-                {enginePosExplainer ? (
-                  <>
-                    <div
-                      className={`msr-engine-severity msr-engine-severity--${enginePosExplainer.severity}`}
-                      title={`Engine urgency ${enginePosExplainer.urgency_score}`}
-                    >
-                      {enginePosExplainer.severity.toUpperCase()} ·{" "}
-                      {enginePosExplainer.urgency_score}
-                    </div>
-                    <div
-                      className="msr-engine-alert"
-                      title={enginePosExplainer.message}
-                    >
-                      {enginePosExplainer.message}
-                    </div>
-                    <div className="msr-engine-action">
-                      {enginePosExplainer.recommended_action}
-                    </div>
-                  </>
-                ) : engineTierBuckets?.[0]?.message ? (
-                  <>
-                    <div className="msr-engine-alert" title={engineTierBuckets[0].message}>
-                      {engineTierBuckets[0].message}
-                    </div>
-                    {engineTierBuckets[0].recommended_action ? (
-                      <div className="msr-engine-action">
-                        {engineTierBuckets[0].recommended_action}
-                      </div>
-                    ) : null}
-                  </>
-                ) : enginePosRow.alert ? (
-                  <div
-                    className="msr-engine-alert"
-                    title={enginePosRow.alert}
-                  >
-                    {enginePosRow.alert.length > 72
-                      ? `${enginePosRow.alert.slice(0, 69)}…`
-                      : enginePosRow.alert}
-                  </div>
-                ) : null}
-                {engineScarcity &&
-                engineScarcity.monopoly_warnings.length > 0 ? (
-                  <div className="msr-engine-monos">
-                    {engineScarcity.monopoly_warnings.slice(0, 2).map((w, i) => (
-                      <div key={i} className="msr-engine-mono" title={w.message}>
-                        {w.message.length > 80
-                          ? `${w.message.slice(0, 77)}…`
-                          : w.message}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </>
-            )}
-            {posMarket && engineTierBuckets ? (
-              <div className="msr-compare-wrap">
-                <div className="market-section-label">TIER COMPARISON</div>
-                <div className="msr-compare-grid">
-                  <div className="msr-compare-card">
-                    <div className="msr-compare-card-title">Engine Scarcity</div>
-                    <div className="msr-source-note">Urgency (0-100)</div>
-                    {engineTierBuckets.map((bucket) => (
-                      <div key={bucket.tier} className="market-stat-row msr-tier-row">
-                        <span className="msr-label msr-tier-label-wrap">
-                          <span
-                            className={
-                              "msr-tier-chip msr-tier-chip--" +
-                              (bucket.tier.split(" ")[1] ?? "1")
-                            }
-                          >
-                            {bucket.tier.split(" ")[1]}
-                          </span>
-                          {bucket.tier}
-                        </span>
-                        <span className="msr-value">{bucket.urgency_score}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="msr-compare-card">
-                    <div className="msr-compare-card-title">Draftroom Supply</div>
-                    <div className="msr-source-note">Remaining · Avg $</div>
-                    {draftroomTierRows.map((row) => (
-                      <div key={row.tier} className="market-stat-row msr-tier-row">
-                        <span className="msr-label msr-tier-label-wrap">
-                          <span className={"msr-tier-chip msr-tier-chip--" + row.tier}>
-                            {row.tier}
-                          </span>
-                          Tier {row.tier}
-                        </span>
-                        <span className="msr-value">
-                          {row.remaining} · {row.avgVal != null ? `$${row.avgVal}` : "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : null}
             {posMarket ? (
               <div
                 className="msr-count-rank-footnote"
@@ -1015,16 +763,12 @@ function RightPanel({
   teamData,
   myTeamName,
   myTeamEntries,
-  allPlayers,
-  rosterEntries,
   engineMarket,
 }: {
   league: League | null;
   teamData: TeamSummary[];
   myTeamName: string;
   myTeamEntries: RosterEntry[];
-  allPlayers: Player[];
-  rosterEntries: RosterEntry[];
   engineMarket: ValuationResponse | null;
 }) {
   const my = teamData.find((t) => t.name === myTeamName);
@@ -1052,24 +796,6 @@ function RightPanel({
           : inflationFactor <= 0.9
             ? "cool"
             : "neutral";
-  const marketGuidance =
-    inflationFactor == null
-      ? null
-      : inflationFactor >= 1.35
-        ? "Market is very hot. Raise bid caps for priority targets."
-        : inflationFactor >= 1.15
-          ? "Market is warm. Expect premiums above list values."
-          : inflationFactor <= 0.9
-            ? "Market is cool. Stay disciplined and value-driven."
-            : "Market is near neutral. Baseline values are mostly stable.";
-
-  const hittingCats = (league?.scoringCategories ?? []).filter(
-    (c) => c.type === "batting",
-  );
-  const pitchingCats = (league?.scoringCategories ?? []).filter(
-    (c) => c.type === "pitching",
-  );
-
   // Position budget plan — read saved targets from MyDraft localStorage
   const savedPositionTargets: Record<string, number> = (() => {
     try {
@@ -1093,42 +819,6 @@ function RightPanel({
         return { pos, open, target, spent, delta };
       })
     : [];
-
-  // Category pace percentages
-  const numTeams = league?.teamNames?.length ?? 1;
-  const allCats = [...hittingCats, ...pitchingCats];
-  const catPace: Record<string, number> = {};
-  for (const cat of allCats) {
-    const n = cat.name.toUpperCase();
-    const isLowerBetter = ["ERA", "WHIP"].includes(n);
-    const isRate = isLowerBetter || ["AVG", "OBP", "SLG"].includes(n);
-    const getVal = (entry: RosterEntry) => {
-      const p = allPlayers.find((a) => a.id === entry.externalPlayerId);
-      return p ? getStatByCategory(p, cat.name, cat.type) : 0;
-    };
-    if (isRate) {
-      const myVals = myTeamEntries.map(getVal).filter((v) => v > 0);
-      const allVals = rosterEntries.map(getVal).filter((v) => v > 0);
-      const myAvg = myVals.length
-        ? myVals.reduce((a, b) => a + b, 0) / myVals.length
-        : 0;
-      const allAvg = allVals.length
-        ? allVals.reduce((a, b) => a + b, 0) / allVals.length
-        : 0;
-      // For lower-is-better (ERA/WHIP): allAvg/myAvg — lower mine = higher %
-      // For higher-is-better (AVG/OBP/SLG): myAvg/allAvg
-      catPace[cat.name] =
-        allAvg > 0 && myAvg > 0
-          ? Math.round((isLowerBetter ? allAvg / myAvg : myAvg / allAvg) * 100)
-          : 0;
-    } else {
-      const myTotal = myTeamEntries.reduce((s, e) => s + getVal(e), 0);
-      const allTotal = rosterEntries.reduce((s, e) => s + getVal(e), 0);
-      const avgTotal = numTeams > 0 ? allTotal / numTeams : 0;
-      catPace[cat.name] =
-        avgTotal > 0 ? Math.round((myTotal / avgTotal) * 100) : 0;
-    }
-  }
 
   return (
     <div className="cc-right">
@@ -1159,7 +849,7 @@ function RightPanel({
       </div>
 
       <div className="cc-divider" />
-      <div className="rp-section-label">ENGINE MARKET</div>
+      <div className="rp-section-label">MARKET & BUDGET</div>
       {engineMarket ? (
         <div className={`engine-market-card ${marketClass}`}>
           <div className="engine-market-main">
@@ -1170,40 +860,29 @@ function RightPanel({
               </div>
               <div className="em-sub">
                 {inflationPct != null
-                  ? `${inflationPct >= 0 ? "+" : ""}${inflationPct}% vs neutral`
+                  ? `${inflationPct >= 0 ? "+" : ""}${inflationPct}%`
                   : "—"}
               </div>
             </div>
             <div className="engine-market-kpi">
-              <div className="em-label">League $ Left</div>
+              <div className="em-label">$ Left</div>
               <div className="em-value">${engineMarket.total_budget_remaining}</div>
-              <div className="em-sub">league-wide</div>
             </div>
             <div className="engine-market-kpi">
               <div className="em-label">Players Left</div>
               <div className="em-value">{engineMarket.players_remaining}</div>
-              <div className="em-sub">league-wide</div>
             </div>
           </div>
-          {marketGuidance ? (
-            <div className="engine-market-guidance">{marketGuidance}</div>
-          ) : null}
           <div className="engine-market-meta">
             {engineMarket.valuation_model_version
               ? `${engineMarket.valuation_model_version}`
               : "Engine model"}
-            {engineMarket.engine_contract_version
-              ? ` · contract ${engineMarket.engine_contract_version}`
-              : ""}
           </div>
         </div>
       ) : (
         <div className="engine-market-empty">Engine market snapshot unavailable.</div>
       )}
 
-      <div className="cc-divider" />
-
-      <div className="rp-section-label">POSITION BUDGET PLAN</div>
       <table className="pos-budget-table">
         <thead>
           <tr>
@@ -1253,81 +932,6 @@ function RightPanel({
           )}
         </tbody>
       </table>
-
-      <div className="cc-divider" />
-
-      <div className="rp-section-label">CATEGORY PACE</div>
-      <div className="cat-pace-section">
-        {hittingCats.length > 0 && (
-          <>
-            <div className="cat-pace-group-label">HITTING</div>
-            <div className="cat-pace-row">
-              {hittingCats.map((c) => {
-                const pct = catPace[c.name] ?? 0;
-                const hasData = pct > 0;
-                const color =
-                  pct >= 95 ? "green" : pct >= 75 ? "yellow" : "red";
-                const displayName =
-                  c.name.match(/\(([^)]+)\)$/)?.[1] ??
-                  (c.name.toUpperCase() === "WALKS + HITS PER IP"
-                    ? "WHIP"
-                    : c.name);
-                return (
-                  <div key={c.name} className="cat-pace-item">
-                    <div className="cp-label">{displayName}</div>
-                    {hasData ? (
-                      <div className={`cp-pct ${color}`}>{pct}%</div>
-                    ) : (
-                      <div className="cp-pct dim">--</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {pitchingCats.length > 0 && (
-          <>
-            <div
-              className="cat-pace-group-label"
-              style={{ marginTop: "0.6rem" }}
-            >
-              PITCHING
-            </div>
-            <div className="cat-pace-row">
-              {pitchingCats.map((c) => {
-                const pct = catPace[c.name] ?? 0;
-                const hasData = pct > 0;
-                const color =
-                  pct >= 95 ? "green" : pct >= 75 ? "yellow" : "red";
-                const displayName =
-                  c.name.match(/\(([^)]+)\)$/)?.[1] ??
-                  (c.name.toUpperCase() === "WALKS + HITS PER IP"
-                    ? "WHIP"
-                    : c.name);
-                return (
-                  <div key={c.name} className="cat-pace-item">
-                    <div className="cp-label">{displayName}</div>
-                    {hasData ? (
-                      <div className={`cp-pct ${color}`}>{pct}%</div>
-                    ) : (
-                      <div className="cp-pct dim">--</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {hittingCats.length === 0 && pitchingCats.length === 0 && (
-          <div
-            className="dim"
-            style={{ fontSize: "0.72rem", padding: "0.5rem 0" }}
-          >
-            Scoring categories not configured
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1556,8 +1160,6 @@ export default function CommandCenter() {
           rosterEntries={rosterEntries}
           onRemovePick={handleRemovePick}
           onUpdatePick={handleUpdatePick}
-          leagueId={leagueId}
-          token={token}
           engineMarket={engineMarket}
         />
         <AuctionCenter
@@ -1578,8 +1180,6 @@ export default function CommandCenter() {
           teamData={teamData}
           myTeamName={myTeamName}
           myTeamEntries={myTeamEntries}
-          allPlayers={allPlayers}
-          rosterEntries={rosterEntries}
           engineMarket={engineMarket}
         />
       </div>
