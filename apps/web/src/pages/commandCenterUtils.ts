@@ -64,6 +64,33 @@ export function getStatByCategory(
   }
 }
 
+/** Mirrors API engineContext: auction board picks only (excludes keepers, minors, taxi). */
+export function isEngineAuctionBoardEntry(entry: RosterEntry): boolean {
+  if (entry.isKeeper) return false;
+  const slot = (entry.rosterSlot ?? "").toUpperCase();
+  if (slot.includes("MIN")) return false;
+  if (slot.includes("TAXI")) return false;
+  return true;
+}
+
+/** Per-team roster slots from league settings (same basis as engine roster_slot_count_sum). */
+export function rosterSlotsPerTeam(league: League): number {
+  return Object.values(league.rosterSlots).reduce(
+    (a, b) => a + (Number(b) || 0),
+    0,
+  );
+}
+
+/** League-wide auction slots still empty (pre-draft or in-draft), excluding keepers/minors/taxi rows. */
+export function leagueWideAuctionSlotsRemaining(
+  league: League,
+  entries: RosterEntry[],
+): number {
+  const cap = rosterSlotsPerTeam(league) * league.teams;
+  const onBoard = entries.filter(isEngineAuctionBoardEntry).length;
+  return Math.max(0, cap - onBoard);
+}
+
 export function computeTeamData(
   league: League,
   entries: RosterEntry[],

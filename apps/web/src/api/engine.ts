@@ -84,6 +84,12 @@ export interface ValuationResponse {
   total_budget_remaining: number;
   pool_value_remaining: number;
   players_remaining: number;
+  /** Optional Engine fields (when present on JSON; used for diagnostics / UI copy). */
+  remaining_slots?: number;
+  players_left?: number;
+  draftable_pool_size?: number;
+  inflation_raw?: number;
+  inflation_bounded_by?: string;
   valuations: ValuationResult[];
   calculated_at: string;
   /** Present when Engine includes contract version on inflation payloads. */

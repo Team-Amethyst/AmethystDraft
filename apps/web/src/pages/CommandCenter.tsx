@@ -25,6 +25,7 @@ import {
   formatStatCell,
   teamCanBid,
   normalizeCatName,
+  leagueWideAuctionSlotsRemaining,
 } from "./commandCenterUtils";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
@@ -762,17 +763,52 @@ function LeftPanel({
   );
 }
 
+function enginePlayersKpiCopy(
+  playersRemaining: number,
+  valuationsLen: number,
+  leagueWideSlots: number | null,
+): { label: string; title: string } {
+  if (
+    leagueWideSlots != null &&
+    valuationsLen > 0 &&
+    playersRemaining === valuationsLen
+  ) {
+    return {
+      label: "Players available",
+      title:
+        "Matches the number of valuation rows returned (catalog-style subset), not full league roster capacity.",
+    };
+  }
+  if (
+    leagueWideSlots != null &&
+    Math.abs(playersRemaining - leagueWideSlots) <= 2
+  ) {
+    return {
+      label: "League spots left",
+      title:
+        "Auction roster spots remaining across all teams, consistent with your league roster template.",
+    };
+  }
+  return {
+    label: "Players left (engine)",
+    title:
+      "From the valuation engine; may differ from roster template when the engine uses a player subset or another market-depth definition.",
+  };
+}
+
 function RightPanel({
   league,
   teamData,
   myTeamName,
   myTeamEntries,
+  rosterEntries,
   engineMarket,
 }: {
   league: League | null;
   teamData: TeamSummary[];
   myTeamName: string;
   myTeamEntries: RosterEntry[];
+  rosterEntries: RosterEntry[];
   engineMarket: ValuationResponse | null;
 }) {
   const my = teamData.find((t) => t.name === myTeamName);
@@ -790,6 +826,17 @@ function RightPanel({
   const inflationPct =
     engineMarket?.context_v2?.market_summary.inflation_percent_vs_neutral ??
     (inflationFactor != null ? Math.round((inflationFactor - 1) * 100) : null);
+  const leagueWideSpotsLeft =
+    league != null
+      ? leagueWideAuctionSlotsRemaining(league, rosterEntries)
+      : null;
+  const enginePlayersKpi = engineMarket
+    ? enginePlayersKpiCopy(
+        engineMarket.players_remaining,
+        engineMarket.valuations?.length ?? 0,
+        leagueWideSpotsLeft,
+      )
+    : null;
   const marketClass =
     inflationFactor == null
       ? ""
@@ -873,7 +920,9 @@ function RightPanel({
               <div className="em-value">${engineMarket.total_budget_remaining}</div>
             </div>
             <div className="engine-market-kpi">
-              <div className="em-label">Players Left</div>
+              <div className="em-label" title={enginePlayersKpi?.title}>
+                {enginePlayersKpi?.label ?? "Players left (engine)"}
+              </div>
               <div className="em-value">{engineMarket.players_remaining}</div>
             </div>
           </div>
@@ -1214,6 +1263,7 @@ export default function CommandCenter() {
           teamData={teamData}
           myTeamName={myTeamName}
           myTeamEntries={myTeamEntries}
+          rosterEntries={rosterEntries}
           engineMarket={engineMarket}
         />
       </div>

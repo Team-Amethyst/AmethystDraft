@@ -243,6 +243,16 @@ export function summarizeEngineValuationPayload(
     (s, r) => s + (typeof r.count === "number" && Number.isFinite(r.count) ? r.count : 0),
     0,
   );
+  const bb = payload.budget_by_team_id as Record<string, number> | undefined;
+  let budget_by_team_id_sum: number | null = null;
+  if (bb && typeof bb === "object") {
+    let s = 0;
+    for (const v of Object.values(bb)) {
+      if (typeof v === "number" && Number.isFinite(v)) s += v;
+    }
+    budget_by_team_id_sum = s;
+  }
+
   return {
     drafted_players_length: drafted.length,
     drafted_players_first_20: drafted.slice(0, 20),
@@ -260,6 +270,7 @@ export function summarizeEngineValuationPayload(
     num_teams: payload.num_teams,
     total_budget: payload.total_budget,
     budget_by_team_id: payload.budget_by_team_id,
+    budget_by_team_id_sum,
     inflation_model: payload.inflation_model,
     user_team_id: payload.user_team_id,
   };
@@ -277,6 +288,48 @@ export function logEngineValuationPayloadIfEnabled(
   console.info(
     "[engine-valuation] summary:",
     JSON.stringify(summarizeEngineValuationPayload(payload)),
+  );
+}
+
+/** Picks useful top-level / nested keys from Engine JSON (schemas vary by Engine version). */
+export function pickEngineValuationResponseDebug(
+  data: unknown,
+): Record<string, unknown> {
+  const d =
+    typeof data === "object" && data !== null
+      ? (data as Record<string, unknown>)
+      : {};
+  const v2 = d.context_v2;
+  const market =
+    v2 && typeof v2 === "object"
+      ? ((v2 as Record<string, unknown>).market_summary as
+          | Record<string, unknown>
+          | undefined)
+      : undefined;
+  const vals = d.valuations;
+  const valuationsLength = Array.isArray(vals) ? vals.length : null;
+  const pick = (k: string) => (Object.prototype.hasOwnProperty.call(d, k) ? d[k] : undefined);
+
+  return {
+    valuations_length: valuationsLength,
+    players_remaining: d.players_remaining,
+    total_budget_remaining: d.total_budget_remaining,
+    inflation_factor: d.inflation_factor,
+    pool_value_remaining: d.pool_value_remaining,
+    remaining_slots: pick("remaining_slots"),
+    players_left: pick("players_left"),
+    draftable_pool_size: pick("draftable_pool_size"),
+    inflation_raw: pick("inflation_raw"),
+    inflation_bounded_by: pick("inflation_bounded_by"),
+    context_v2_market_summary: market,
+  };
+}
+
+export function logEngineValuationResponseIfEnabled(data: unknown): void {
+  if (process.env.LOG_ENGINE_VALUATION_DEBUG !== "1") return;
+  console.info(
+    "[engine-valuation] response pick:",
+    JSON.stringify(pickEngineValuationResponseDebug(data)),
   );
 }
 
