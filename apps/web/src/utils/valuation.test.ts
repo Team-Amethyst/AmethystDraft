@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
+  commandCenterBidDecision,
+  commandCenterConstrainedMoney,
+  commandCenterMaxExecutableBid,
   commandCenterValuationMoney,
+  commandCenterWalletCapsFromMyTeam,
   defaultValuationSortForPage,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
@@ -10,6 +14,7 @@ import {
   valuationSortLabel,
   valuationTooltip,
 } from "./valuation";
+import type { League } from "../contexts/LeagueContext";
 
 function basePlayer(): Player {
   return {
@@ -112,6 +117,92 @@ describe("valuation helpers", () => {
     expect(m2.market).toBe(20);
 
     expect(commandCenterValuationMoney(undefined, 12).your).toBe(12);
+  });
+
+  it("commandCenterMaxExecutableBid is min(max_bid, budget − (spots−1))", () => {
+    const caps = { maxBid: 18, budgetRemaining: 40, openSpots: 3 };
+    expect(commandCenterMaxExecutableBid(caps)).toBe(18);
+    const loose = { maxBid: 200, budgetRemaining: 40, openSpots: 3 };
+    expect(commandCenterMaxExecutableBid(loose)).toBe(38);
+  });
+
+  it("commandCenterConstrainedMoney applies caps and likelyActionable", () => {
+    const row = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 1,
+      baseline_value: 5,
+      adjusted_value: 20,
+      recommended_bid: 35,
+      team_adjusted_value: 40,
+      indicator: "Fair Value" as const,
+    };
+    const caps = { maxBid: 18, budgetRemaining: 40, openSpots: 3 };
+    const d = commandCenterConstrainedMoney(row, 5, caps);
+    expect(d.youCanPay).toBe(18);
+    expect(d.yourIntrinsic).toBe(40);
+    expect(d.likelyActionable).toBe(18);
+    expect(d.budgetLimited).toBe(true);
+    expect(d.market).toBe(20);
+  });
+
+  it("commandCenterBidDecision caps suggested bid and flags budget-limited", () => {
+    const caps = { maxBid: 18, budgetRemaining: 40, openSpots: 3 };
+    const row = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 3,
+      baseline_value: 5,
+      adjusted_value: 20,
+      recommended_bid: 35,
+      team_adjusted_value: 40,
+      indicator: "Fair Value" as const,
+    };
+    const dec = commandCenterBidDecision(row, 5, caps);
+    expect(dec.maxExecutableBid).toBe(18);
+    expect(dec.suggestedBid).toBe(18);
+    expect(dec.budgetLimited).toBe(true);
+    expect(dec.aggressive).toBe(true);
+    expect(dec.edge).toBe(5);
+
+    const rowCon = { ...row, tier: 5, team_adjusted_value: 16 };
+    const dec2 = commandCenterBidDecision(rowCon, 5, caps);
+    expect(dec2.aggressive).toBe(false);
+    expect(dec2.suggestedBid).toBe(18);
+    expect(dec2.baseUncapped).toBe(35);
+  });
+
+  it("commandCenterBidDecision uses engine edge when present", () => {
+    const caps = { maxBid: 50, budgetRemaining: 100, openSpots: 2 };
+    const row = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 5,
+      baseline_value: 1,
+      adjusted_value: 10,
+      recommended_bid: 10,
+      team_adjusted_value: 12,
+      edge: 10,
+      indicator: "Fair Value" as const,
+    };
+    const dec = commandCenterBidDecision(row, 5, caps);
+    expect(dec.aggressive).toBe(true);
+    expect(dec.edge).toBe(10);
+  });
+
+  it("commandCenterWalletCapsFromMyTeam mirrors roster math", () => {
+    const league = {
+      rosterSlots: { SP: 5 },
+      budget: 260,
+    } as Pick<League, "rosterSlots" | "budget">;
+    const caps = commandCenterWalletCapsFromMyTeam(league, []);
+    expect(caps).not.toBeNull();
+    expect(caps!.openSpots).toBe(5);
+    expect(caps!.budgetRemaining).toBe(260);
+    expect(caps!.maxBid).toBe(256);
   });
 
   it("exposes compact labels and tooltip copy", () => {

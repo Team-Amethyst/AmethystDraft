@@ -790,7 +790,7 @@ function enginePlayersKpiCopy(
     };
   }
   return {
-    label: "Players left",
+    label: "Player pool",
     title:
       "From the valuation engine; may differ from roster template when the engine uses a player subset or another market-depth definition.",
   };
@@ -926,7 +926,7 @@ function RightPanel({
             </div>
             <div className="engine-market-kpi">
               <div className="em-label" title={enginePlayersKpi?.title}>
-                {enginePlayersKpi?.label ?? "Players left"}
+                {enginePlayersKpi?.label ?? "Player pool"}
               </div>
               <div className="em-value">{engineMarket.players_remaining}</div>
             </div>
@@ -1257,6 +1257,7 @@ export default function CommandCenter() {
           // Pass the modal trigger down so AuctionCenter can open it
           // when a searched player is not found
           onAddMissingPlayer={() => setShowAddModal(true)}
+          engineMarket={engineMarket}
         />
         <RightPanel
           league={league}

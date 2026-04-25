@@ -1,5 +1,7 @@
 import type { Player } from "../types/player";
 import type { ValuationResult } from "../api/engine";
+import type { League } from "../contexts/LeagueContext";
+import type { RosterEntry } from "../api/roster";
 
 export type ValuationSortField =
   | "team_adjusted_value"
@@ -66,6 +68,215 @@ export function commandCenterValuationMoney(
     your: firstFiniteDollar([t, r, a, b, v]),
     likely: firstFiniteDollar([r, a, b, t, v]),
     market: firstFiniteDollar([a, r, b, t, v]),
+  };
+}
+
+/** Draftroom budget caps for the signed-in user's team (Command Center constraint layer). */
+export type CommandCenterWalletCaps = {
+  maxBid: number;
+  budgetRemaining: number;
+  openSpots: number;
+};
+
+export function commandCenterWalletCapsFromMyTeam(
+  league: Pick<League, "rosterSlots" | "budget"> | null | undefined,
+  myTeamEntries: RosterEntry[],
+): CommandCenterWalletCaps | null {
+  if (!league?.rosterSlots) return null;
+  const totalSlots = Object.values(league.rosterSlots).reduce((a, b) => a + b, 0);
+  const filled = myTeamEntries.length;
+  const spent = myTeamEntries.reduce((s, e) => s + e.price, 0);
+  const openSpots = Math.max(0, totalSlots - filled);
+  const budgetRemaining = Math.max(0, (league.budget ?? 0) - spent);
+  const maxBid =
+    openSpots > 0 ? Math.max(1, budgetRemaining - (openSpots - 1)) : 0;
+  return { maxBid, budgetRemaining, openSpots };
+}
+
+/**
+ * Max dollars legally executable on the next bid (Command Center constraint only).
+ * min(max_bid, budget_remaining - (open_spots - 1))
+ */
+export function commandCenterMaxExecutableBid(caps: CommandCenterWalletCaps): number {
+  const stretchCap = Math.max(
+    0,
+    caps.budgetRemaining - Math.max(0, caps.openSpots - 1),
+  );
+  return Math.min(caps.maxBid, stretchCap);
+}
+
+const COMMAND_CENTER_EDGE_AGGRESSIVE_USD = 3;
+const COMMAND_CENTER_TOP_TIER_MAX = 2;
+
+/** Round bid display to half-dollar steps; stays within [0, cap] when cap is passed. */
+export function commandCenterRoundBidIncrement(
+  n: number,
+  maxExecutable?: number,
+): number {
+  let x = Math.max(0, Math.round(n * 2) / 2);
+  if (typeof maxExecutable === "number" && Number.isFinite(maxExecutable)) {
+    x = Math.min(x, maxExecutable);
+  }
+  return x;
+}
+
+export type CommandCenterBidDecision = {
+  /** team_adjusted → recommended → adjusted → baseline → player.value */
+  yourValue: number | undefined;
+  /** Primary actionable bid (capped + rounded). */
+  suggestedBid: number;
+  /** Raw cap before rounding (same units as engine dollars). */
+  maxExecutableBid: number;
+  /** Engine `edge`, else team_adjusted − recommended when both finite. */
+  edge: number | undefined;
+  /** True when the executable cap binds below uncapped base (shows “budget-limited”). */
+  budgetLimited: boolean;
+  /** Uncapped base before min(max_executable): TA-leaning or recommended-leaning. */
+  baseUncapped: number | undefined;
+  /** Used TA-heavy base vs recommended-heavy base. */
+  aggressive: boolean;
+  likelyBid: number | undefined;
+  marketValue: number | undefined;
+  playerStrength: number | undefined;
+};
+
+/**
+ * Decision-layer bid from engine fields + roster caps only (does not change engine numbers).
+ */
+export function commandCenterBidDecision(
+  row: ValuationResult | undefined | null,
+  playerValue: number | undefined,
+  caps: CommandCenterWalletCaps | null,
+): CommandCenterBidDecision {
+  const rawTA = row?.team_adjusted_value;
+  const rawR = row?.recommended_bid;
+  const rawA = row?.adjusted_value;
+  const rawB = row?.baseline_value;
+
+  const yourValue = firstFiniteDollar([rawTA, rawR, rawA, rawB, playerValue]);
+  const likelyBid = firstFiniteDollar([rawR, rawA, rawB, rawTA, playerValue]);
+  const marketValue = firstFiniteDollar([rawA, rawR, rawB, rawTA, playerValue]);
+  const playerStrength = firstFiniteDollar([rawB, rawA, rawR, rawTA, playerValue]);
+
+  const edgeFromRow =
+    typeof row?.edge === "number" && Number.isFinite(row.edge)
+      ? row.edge
+      : typeof rawTA === "number" &&
+          typeof rawR === "number" &&
+          Number.isFinite(rawTA) &&
+          Number.isFinite(rawR)
+        ? rawTA - rawR
+        : undefined;
+
+  const tier = row?.tier;
+  const aggressive =
+    (typeof edgeFromRow === "number" &&
+      edgeFromRow > COMMAND_CENTER_EDGE_AGGRESSIVE_USD) ||
+    (typeof tier === "number" &&
+      tier >= 1 &&
+      tier <= COMMAND_CENTER_TOP_TIER_MAX);
+
+  const baseAgg = firstFiniteDollar([rawTA, rawR, rawA, rawB, playerValue]);
+  const baseCon = firstFiniteDollar([rawR, rawTA, rawA, rawB, playerValue]);
+  const baseUncapped = aggressive ? baseAgg : baseCon;
+
+  if (!caps) {
+    const raw =
+      baseUncapped ??
+      yourValue ??
+      firstFiniteDollar([playerValue]) ??
+      0;
+    const suggestedBid = commandCenterRoundBidIncrement(raw);
+    return {
+      yourValue,
+      suggestedBid,
+      maxExecutableBid: suggestedBid,
+      edge: edgeFromRow,
+      budgetLimited: false,
+      baseUncapped,
+      aggressive,
+      likelyBid,
+      marketValue,
+      playerStrength,
+    };
+  }
+
+  const maxExecutableBid = Math.max(0, commandCenterMaxExecutableBid(caps));
+  const baseNum = baseUncapped ?? 0;
+  const rawSuggested = Math.min(baseNum, maxExecutableBid);
+  const suggestedBid = commandCenterRoundBidIncrement(
+    rawSuggested,
+    maxExecutableBid,
+  );
+
+  const budgetLimited =
+    typeof baseUncapped === "number" &&
+    Number.isFinite(baseUncapped) &&
+    baseUncapped > maxExecutableBid + 1e-6;
+
+  return {
+    yourValue,
+    suggestedBid,
+    maxExecutableBid,
+    edge: edgeFromRow,
+    budgetLimited,
+    baseUncapped,
+    aggressive,
+    likelyBid,
+    marketValue,
+    playerStrength,
+  };
+}
+
+export type CommandCenterConstrainedMoney = {
+  /** Intrinsic personalized value (unchanged engine semantics + fallbacks). */
+  yourIntrinsic: number | undefined;
+  /** Defaults log bid input — same as suggested bid (integer dollars). */
+  youCanPay: number;
+  /** Model / list value (uncapped reference). */
+  market: number | undefined;
+  /** min(recommended guidance, max executable); for log default / internal use. */
+  likelyActionable: number | undefined;
+  /** Executable cap binds below uncapped decision base. */
+  budgetLimited: boolean;
+};
+
+/**
+ * Applies roster budget caps on top of engine rows (Draftroom only; does not alter engine numbers).
+ */
+export function commandCenterConstrainedMoney(
+  row: ValuationResult | undefined | null,
+  playerValue: number | undefined,
+  caps: CommandCenterWalletCaps | null,
+): CommandCenterConstrainedMoney {
+  const base = commandCenterValuationMoney(row, playerValue);
+  const d = commandCenterBidDecision(row, playerValue, caps);
+
+  if (!caps) {
+    const y = base.your ?? base.likely ?? playerValue ?? 0;
+    return {
+      yourIntrinsic: base.your,
+      youCanPay: Math.max(0, Math.round(Number(y))),
+      market: base.market,
+      likelyActionable: base.likely,
+      budgetLimited: false,
+    };
+  }
+
+  const youCanPay = Math.max(0, Math.round(d.suggestedBid));
+
+  const likelyBase = base.likely;
+  const likelyActionable =
+    likelyBase != null && Number.isFinite(likelyBase)
+      ? Math.min(likelyBase, Math.round(d.maxExecutableBid))
+      : undefined;
+
+  return {
+    yourIntrinsic: d.yourValue ?? base.your,
+    youCanPay,
+    market: d.marketValue ?? base.market,
+    likelyActionable,
+    budgetLimited: d.budgetLimited,
   };
 }
 
