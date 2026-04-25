@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useParams } from "react-router";
 import PosBadge from "./PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
@@ -16,12 +23,41 @@ import {
 } from "../api/engine";
 import { resolveUserTeamId } from "../utils/team";
 import { resolveValuationNumber } from "../utils/valuation";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+  valuationResultNumbersEqual,
+  valuationResultStableKey,
+} from "../utils/valuationDeps";
 
 import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
 import { UserPlus } from "lucide-react";
+
+function formatEngineMoney(n: number | undefined): string {
+  if (n === undefined || !Number.isFinite(n)) return "—";
+  return `$${Math.round(n)}`;
+}
+
+/** UI-only read of auction pressure from Engine fields (does not recompute valuations). */
+function computeDerivedMarketSignal(
+  recommendedBid: number | undefined,
+  adjustedValue: number | undefined,
+): { label: string; variant: "fair" | "hot" | "soft" } | null {
+  if (recommendedBid === undefined || adjustedValue === undefined) return null;
+  if (!Number.isFinite(recommendedBid) || !Number.isFinite(adjustedValue))
+    return null;
+  const adj = Math.max(adjustedValue, 1e-6);
+  const rel = Math.abs(recommendedBid - adjustedValue) / adj;
+  if (rel <= 0.04) return { label: "Fair Value", variant: "fair" };
+  if (recommendedBid >= adjustedValue * 1.06)
+    return { label: "Aggressive Market", variant: "hot" };
+  if (recommendedBid <= adjustedValue * 0.94)
+    return { label: "Soft Market", variant: "soft" };
+  return null;
+}
 
 interface AuctionCenterProps {
   rosterEntries: RosterEntry[];
@@ -56,11 +92,63 @@ export function AuctionCenter({
     Map<string, ValuationResult>
   >(new Map());
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [wonBy, setWonBy] = useState("");
+  const [finalPrice, setFinalPrice] = useState("");
+  /** True after user edits bid $; avoids overwriting with late Engine payload. */
+  const bidPriceTouchedRef = useRef(false);
+  const [draftedToSlot, setDraftedToSlot] = useState("");
+  const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
+  const [submitting, setSubmitting] = useState(false);
+  const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const playerNotesTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const userTeamId = useMemo(
+    () => resolveUserTeamId(league ?? null, user?.id),
+    [league?.id, league?.memberIds?.join(","), user?.id],
+  );
+
+  const selectedPlayerValuationKey = useMemo(() => {
+    if (!selectedPlayer?.id) return "";
+    const v = valuationMap.get(selectedPlayer.id);
+    if (!v) return `missing:${selectedPlayer.id}`;
+    return valuationResultStableKey(v);
+  }, [selectedPlayer?.id, valuationMap]);
+
+  const activeValuationRow = useMemo(() => {
+    if (!selectedPlayer?.id) return undefined;
+    return valuationMap.get(selectedPlayer.id);
+  }, [selectedPlayer?.id, selectedPlayerValuationKey, valuationMap]);
+
   // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
   useEffect(() => {
     if (!leagueId || !token) return;
     let cancelled = false;
-    const userTeamId = resolveUserTeamId(league, user?.id);
     getValuation(leagueId, token, userTeamId)
       .then((res) => {
         if (cancelled) return;
@@ -73,14 +161,13 @@ export function AuctionCenter({
     return () => {
       cancelled = true;
     };
-  }, [leagueId, token, rosterEntries.length, league, user?.id]);
+  }, [leagueId, token, userTeamId, rosterValuationKey, leagueValuationKey]);
 
   // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
   useEffect(() => {
     if (!leagueId || !token || !selectedPlayer) return;
     let cancelled = false;
     const playerId = selectedPlayer.id;
-    const userTeamId = resolveUserTeamId(league, user?.id);
     void getValuationPlayer(leagueId, token, playerId, userTeamId)
       .then((res) => {
         if (cancelled) return;
@@ -88,6 +175,8 @@ export function AuctionCenter({
         if (row && row.player_id !== playerId) return;
         if (row) {
           setValuationMap((prev) => {
+            const cur = prev.get(playerId);
+            if (cur && valuationResultNumbersEqual(cur, row)) return prev;
             const next = new Map(prev);
             next.set(playerId, row);
             return next;
@@ -100,13 +189,14 @@ export function AuctionCenter({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when selected id changes
-  }, [leagueId, token, selectedPlayer?.id, league, user?.id]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  }, [
+    leagueId,
+    token,
+    userTeamId,
+    leagueValuationKey,
+    rosterValuationKey,
+    selectedPlayer?.id,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -123,25 +213,26 @@ export function AuctionCenter({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const [wonBy, setWonBy] = useState("");
-  const [finalPrice, setFinalPrice] = useState("");
-  /** True after user edits bid $; avoids overwriting with late Engine payload. */
-  const bidPriceTouchedRef = useRef(false);
-  const [draftedToSlot, setDraftedToSlot] = useState("");
-  const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
-  const [submitting, setSubmitting] = useState(false);
-  const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
-  const [notesOpen, setNotesOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (notesExpanded) {
+      playerNotesTextareaRef.current?.focus({ preventScroll: true });
+    }
+  }, [notesExpanded]);
+
+  useEffect(() => {
+    setNotesExpanded(false);
+  }, [selectedPlayer?.id]);
   // Seed "Won By" default when league loads
   useEffect(() => {
-    if (league && !wonBy) setWonBy(league.teamNames[0] ?? "");
-  }, [league, wonBy]);
+    if (!league?.id || wonBy) return;
+    setWonBy(league.teamNames[0] ?? "");
+  }, [league?.id, league?.teamNames?.join("\u0001"), wonBy]);
 
   // Seed slot default when league loads
   useEffect(() => {
-    if (league && !draftedToSlot)
-      setDraftedToSlot(Object.keys(league.rosterSlots)[0] ?? "SP");
-  }, [league, draftedToSlot]);
+    if (!league?.id || draftedToSlot) return;
+    setDraftedToSlot(Object.keys(league.rosterSlots)[0] ?? "SP");
+  }, [league?.id, league ? JSON.stringify(league.rosterSlots) : "", draftedToSlot]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -178,8 +269,8 @@ export function AuctionCenter({
         )
       : selectedPlayer.value;
     setFinalPrice(String(seed));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset bid when the selected player changes
-  }, [selectedPlayer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when selected player id changes
+  }, [selectedPlayer?.id]);
 
   // When valuations refresh, update bid default from Engine if user has not edited the field
   useEffect(() => {
@@ -200,34 +291,49 @@ export function AuctionCenter({
         ),
       ),
     );
-  }, [valuationMap, selectedPlayer]);
+  }, [selectedPlayer?.id, selectedPlayerValuationKey, selectedPlayer?.value]);
 
   const onFinalPriceChange = useCallback((value: string) => {
     bidPriceTouchedRef.current = true;
     setFinalPrice(value);
   }, []);
 
-  const getEngineDisplayValues = useCallback(
-    (valuationRow: ValuationResult | undefined, fallbackValue: number) => {
-      const baseline = valuationRow?.baseline_value;
-      const market = valuationRow?.adjusted_value;
-      const likely =
-        valuationRow?.recommended_bid ?? market ?? baseline ?? fallbackValue;
-      const your =
-        valuationRow?.team_adjusted_value ??
-        valuationRow?.recommended_bid ??
-        market ??
-        baseline ??
-        fallbackValue;
-      return {
-        your,
-        likely,
-        market: market ?? likely,
-        strength: baseline ?? market ?? likely,
-      };
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!import.meta.env.DEV || !selectedPlayer?.id) return;
+    if (
+      !selectedPlayerValuationKey ||
+      selectedPlayerValuationKey.startsWith("missing:")
+    ) {
+      return;
+    }
+    const v = valuationMap.get(selectedPlayer.id);
+    if (!v) return;
+    console.info("[cc-valuation-change]", {
+      t: new Date().toISOString(),
+      player_id: v.player_id,
+      baseline_value: v.baseline_value,
+      adjusted_value: v.adjusted_value,
+      recommended_bid: v.recommended_bid,
+      team_adjusted_value: v.team_adjusted_value,
+      reason: "valuation_row_key_changed",
+    });
+    const y = v.team_adjusted_value;
+    const l = v.recommended_bid;
+    const m = v.adjusted_value;
+    if (
+      y !== undefined &&
+      l !== undefined &&
+      Number.isFinite(y) &&
+      Number.isFinite(l) &&
+      Number.isFinite(m) &&
+      y === l &&
+      l === m
+    ) {
+      console.warn(
+        "[cc-valuation-change] team_adjusted_value, recommended_bid, and adjusted_value are identical — check Engine payload.",
+      );
+    }
+  }, [selectedPlayer?.id, selectedPlayerValuationKey]);
 
   const dropdownResults = (() => {
     if (searchQuery.length < 1) return [];
@@ -651,73 +757,87 @@ export function AuctionCenter({
         ) : (
           <div className="player-auction-card">
             <div className="pac-header">
-              <div className="pac-name-row">
-                <img
-                  src={selectedPlayer.headshot}
-                  alt={selectedPlayer.name}
-                  className="pac-headshot"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-                <div className="pac-name-block">
-                  <h1 className="pac-name">
-                    {selectedPlayer.name}
-                    {selectedPlayer.injuryStatus && (
-                      <span className="pt-il-badge">
-                        {selectedPlayer.injuryStatus.replace("DL", "IL")}
-                      </span>
-                    )}
-                    {isInWatchlist(selectedPlayer.id) && (
-                      <span className="pac-wl-badge" title="On your watchlist">
-                        ★
-                      </span>
-                    )}
-                  </h1>
-                </div>
-                <div className="pac-meta-row">
-                  {(() => {
-                    const valuationRow = valuationMap.get(selectedPlayer.id);
-                    const values = getEngineDisplayValues(
-                      valuationRow,
-                      selectedPlayer.value,
-                    );
-                    const tierValue = valuationRow?.tier ?? selectedPlayer.tier;
-                    const adpValue = valuationRow?.adp ?? selectedPlayer.adp;
-                    return (
-                      <>
-                        <div
-                          className="pac-stat pac-stat--value-primary"
-                          title="Personalized value based on your roster and budget"
-                        >
-                          <span className="pac-stat-label">Your Value</span>
-                          <span className="pac-stat-value pac-stat-value--money green">
-                            ${Math.round(values.your)}
-                          </span>
-                        </div>
-                        <div
-                          className="pac-stat"
-                          title="Expected auction price"
-                        >
-                          <span className="pac-stat-label">Likely Bid</span>
-                          <span className="pac-stat-value pac-stat-value--money">
-                            ${Math.round(values.likely)}
-                          </span>
-                        </div>
-                        <div
-                          className="pac-stat"
-                          title="Model value based on league dynamics"
-                        >
-                          <span className="pac-stat-label">Market Value</span>
-                          <span className="pac-stat-value pac-stat-value--money pac-stat-value--muted">
-                            ${Math.round(values.market)}
-                          </span>
-                        </div>
-                        <div className="pac-stat">
-                          <span className="pac-stat-label">Pos</span>
+              {(() => {
+                const v = activeValuationRow;
+                const tierValue = v?.tier ?? selectedPlayer.tier;
+                const adpValue = v?.adp ?? selectedPlayer.adp;
+                const marketSignal = computeDerivedMarketSignal(
+                  v?.recommended_bid,
+                  v?.adjusted_value,
+                );
+                return (
+                  <>
+                    <div className="pac-header-grid">
+                      <div className="pac-col pac-col--left">
+                        <img
+                          src={selectedPlayer.headshot}
+                          alt={selectedPlayer.name}
+                          className="pac-headshot"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                        <div className="pac-name-block">
+                          <h1 className="pac-name pac-name--header">
+                            {selectedPlayer.name}
+                            {selectedPlayer.injuryStatus && (
+                              <span className="pt-il-badge">
+                                {selectedPlayer.injuryStatus.replace("DL", "IL")}
+                              </span>
+                            )}
+                            {isInWatchlist(selectedPlayer.id) && (
+                              <span
+                                className="pac-wl-badge"
+                                title="On your watchlist"
+                              >
+                                ★
+                              </span>
+                            )}
+                          </h1>
                           <div
-                            style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
+                            className="pac-adp-line"
+                            title={
+                              v?.adp != null
+                                ? `Engine ADP (valuation row): ${v.adp}`
+                                : "Catalog ADP"
+                            }
                           >
+                            <span className="pac-adp-label">ADP</span>
+                            <span className="pac-adp-value">{adpValue}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className="pac-col pac-col--center"
+                        aria-label="Valuation"
+                      >
+                        <div className="pac-val-stack">
+                          <div
+                            title="Personalized value based on your roster and budget"
+                          >
+                            <div className="pac-val-sublabel">Your Value</div>
+                            <div className="pac-val-primary green">
+                              {formatEngineMoney(v?.team_adjusted_value)}
+                            </div>
+                          </div>
+                          <div title="Expected auction price">
+                            <div className="pac-val-sublabel">Likely Bid</div>
+                            <div className="pac-val-secondary">
+                              {formatEngineMoney(v?.recommended_bid)}
+                            </div>
+                          </div>
+                          <div title="Model value based on league dynamics">
+                            <div className="pac-val-sublabel">Market Value</div>
+                            <div className="pac-val-tertiary">
+                              {formatEngineMoney(v?.adjusted_value)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pac-col pac-col--right">
+                        <div className="pac-meta-line">
+                          <span className="pac-meta-label">POS</span>
+                          <div className="pac-meta-badges">
                             {(selectedPlayer.positions?.length
                               ? selectedPlayer.positions
                               : [selectedPlayer.position]
@@ -726,25 +846,19 @@ export function AuctionCenter({
                             ))}
                           </div>
                         </div>
-                        <div className="pac-stat">
-                          <span className="pac-stat-label">Team</span>
-                          <span className="pac-stat-value pac-stat-value--tiny">
+                        <div className="pac-meta-line">
+                          <span className="pac-meta-label">TEAM</span>
+                          <span
+                            className="pac-meta-value pac-meta-value--team"
+                            title={selectedPlayer.team}
+                          >
                             {selectedPlayer.team}
                           </span>
                         </div>
-                        <div
-                          className="pac-stat"
-                          title="Baseline model player strength"
-                        >
-                          <span className="pac-stat-label">Strength</span>
-                          <span className="pac-stat-value pac-stat-value--tiny">
-                            ${Math.round(values.strength)}
-                          </span>
-                        </div>
-                        <div className="pac-stat">
-                          <span className="pac-stat-label">Tier</span>
+                        <div className="pac-meta-line pac-meta-line--tier">
+                          <span className="pac-meta-label">TIER</span>
                           <span
-                            className="pac-stat-value pac-tier-badge"
+                            className="pac-tier-badge"
                             style={{
                               background:
                                 [
@@ -759,41 +873,131 @@ export function AuctionCenter({
                             {tierValue}
                           </span>
                         </div>
-                        <div className="pac-stat">
-                          <span className="pac-stat-label">Signal</span>
-                          <span
-                            className={
-                              "pac-indicator " +
-                              (valuationRow
-                                ? valuationRow.indicator === "Steal"
-                                  ? "pac-indicator--steal"
-                                  : valuationRow.indicator === "Reach"
-                                    ? "pac-indicator--reach"
-                                    : "pac-indicator--fair"
-                                : "pac-indicator--placeholder")
-                            }
-                            title={valuationRow?.why?.join(" · ")}
-                          >
-                            {valuationRow?.indicator ?? "—"}
-                          </span>
-                        </div>
-                        <div
-                          className="pac-stat"
-                          title={
-                            valuationRow?.adp != null
-                              ? `Engine ADP (valuation row): ${valuationRow.adp}`
-                              : "Catalog ADP"
-                          }
-                        >
-                          <span className="pac-stat-label">ADP</span>
-                          <span className="pac-stat-value">{adpValue}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
+                        {marketSignal ? (
+                          <div className="pac-meta-line pac-meta-line--signal">
+                            <span className="pac-meta-label">SIGNAL</span>
+                            <span
+                              className={
+                                "pac-market-signal pac-market-signal--" +
+                                marketSignal.variant
+                              }
+                            >
+                              {marketSignal.label}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    {typeof v?.baseline_value === "number" &&
+                    Number.isFinite(v.baseline_value) ? (
+                      <div className="pac-strength-detail">
+                        <span className="pac-strength-detail-label">
+                          Player strength
+                        </span>
+                        <span className="pac-strength-detail-val">
+                          {formatEngineMoney(v.baseline_value)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
             </div>
+
+            <section className="pac-notes-section" aria-label="Notes">
+              <div className="pac-notes-section-head">
+                <span className="pac-section-label pac-section-label--inline">
+                  NOTES
+                </span>
+                {notesExpanded ? (
+                  <button
+                    type="button"
+                    className="pac-notes-collapse"
+                    onClick={() => setNotesExpanded(false)}
+                  >
+                    Collapse
+                  </button>
+                ) : (
+                  <span className="pac-notes-hint">Click or Tab to edit</span>
+                )}
+              </div>
+              {!notesExpanded ? (
+                <button
+                  type="button"
+                  className="pac-notes-peek"
+                  onClick={() => setNotesExpanded(true)}
+                  onFocus={() => setNotesExpanded(true)}
+                >
+                  <div className="pac-notes-preview-row">
+                    <span className="pac-notes-preview-tag" aria-hidden>
+                      P
+                    </span>
+                    <span
+                      className={
+                        "pac-notes-preview-text" +
+                        (!(getNote(selectedPlayer.id) || selectedPlayer.outlook)
+                          ?.trim()
+                          ? " pac-notes-preview-text--empty"
+                          : "")
+                      }
+                    >
+                      {(getNote(selectedPlayer.id) || selectedPlayer.outlook)
+                        ?.trim() || "Player notes…"}
+                    </span>
+                  </div>
+                  <div className="pac-notes-preview-row">
+                    <span className="pac-notes-preview-tag" aria-hidden>
+                      D
+                    </span>
+                    <span
+                      className={
+                        "pac-notes-preview-text" +
+                        (!getNote("__draft__")?.trim()
+                          ? " pac-notes-preview-text--empty"
+                          : "")
+                      }
+                    >
+                      {getNote("__draft__")?.trim() || "Draft notes…"}
+                    </span>
+                  </div>
+                </button>
+              ) : (
+                <div className="pac-notes-editor-grid">
+                  <div className="pac-notes-editor-col">
+                    <label className="pac-notes-inline-label" htmlFor="pac-note-player">
+                      Player
+                    </label>
+                    <textarea
+                      id="pac-note-player"
+                      ref={playerNotesTextareaRef}
+                      className="pac-notes pac-notes--compact"
+                      value={
+                        (getNote(selectedPlayer.id) || selectedPlayer.outlook) ??
+                        ""
+                      }
+                      onChange={(e) => {
+                        setNote(selectedPlayer.id, e.target.value);
+                      }}
+                      placeholder="Scouting notes…"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="pac-notes-editor-col">
+                    <label className="pac-notes-inline-label" htmlFor="pac-note-draft">
+                      Draft
+                    </label>
+                    <textarea
+                      id="pac-note-draft"
+                      className="pac-notes pac-notes--compact"
+                      value={getNote("__draft__") ?? ""}
+                      onChange={(e) => setNote("__draft__", e.target.value)}
+                      placeholder="Draft strategy…"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
 
             <div className="pac-snapshot-header">
               <span className="pac-section-label">PLAYER IMPACT</span>
@@ -924,12 +1128,7 @@ export function AuctionCenter({
 
             {catImpactRows.length > 0 && (
               <>
-                <div
-                  className="pac-section-label"
-                  style={{ marginTop: "0.75rem", marginBottom: "0.45rem" }}
-                >
-                  CATEGORY DELTA
-                </div>
+                <div className="pac-section-label">CATEGORY DELTA</div>
                 <div className="cat-impact-boxes">
                   {catImpactRows.map((row) => (
                     <div key={row.name} className="ci-box">
@@ -1007,42 +1206,6 @@ export function AuctionCenter({
                 {submitting ? "Logging…" : "Log"}
               </button>
             </div>
-
-            <details
-              className="pac-notes-collapsible"
-              open={notesOpen}
-              onToggle={(e) =>
-                setNotesOpen((e.target as HTMLDetailsElement).open)
-              }
-            >
-              <summary className="pac-notes-summary">NOTES</summary>
-              <div className="pac-notes-grid">
-                <div className="pac-notes-wrap">
-                  <div className="pac-notes-label">PLAYER</div>
-                  <textarea
-                    className="pac-notes"
-                    value={
-                      (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
-                    }
-                    onChange={(e) => {
-                      setNote(selectedPlayer.id, e.target.value);
-                    }}
-                    placeholder="Scouting notes..."
-                    rows={2}
-                  />
-                </div>
-                <div className="pac-notes-wrap">
-                  <div className="pac-notes-label">DRAFT</div>
-                  <textarea
-                    className="pac-notes"
-                    value={getNote("__draft__")}
-                    onChange={(e) => setNote("__draft__", e.target.value)}
-                    placeholder="Draft strategy notes..."
-                    rows={2}
-                  />
-                </div>
-              </div>
-            </details>
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import {
   buildScarcityContext,
   buildSimulationContext,
   finalizeEngineValuationPostPayload,
+  logEngineValuationPayloadIfEnabled,
   userIdToTeamId,
 } from "../lib/engineContext";
 import { validateBody, validateQuery } from "../validation/validate";
@@ -76,6 +77,7 @@ const calculateValuation: RequestHandler = async (
       userTeamId: resolveUserTeamId(req, league),
     });
     const payload = finalizeEngineValuationPostPayload(context);
+    logEngineValuationPayloadIfEnabled(payload);
     const axiosRes = await amethyst.post("/valuation/calculate", payload);
     forwardEngineCorrelationHeaders(res, axiosRes);
     res.json(axiosRes.data);
@@ -102,6 +104,7 @@ const calculateValuationPlayer: RequestHandler = async (
       userTeamId: resolveUserTeamId(req, league),
     });
     const base = finalizeEngineValuationPostPayload(context);
+    logEngineValuationPayloadIfEnabled(base);
     const { player_id } = req.body as { player_id: string };
     const payload = { ...base, player_id };
     const axiosRes = await amethyst.post("/valuation/player", payload);

@@ -33,6 +33,10 @@ import {
   type ValuationResponse,
 } from "../api/engine";
 import { resolveUserTeamId } from "../utils/team";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,7 +84,7 @@ function DraftLog({
     );
   return (
     <>
-      <div className="market-section-label" style={{ marginTop: "1rem" }}>
+      <div className="market-section-label market-section-label--spaced">
         DRAFT LOG
       </div>
       <div className="draft-log-list">
@@ -961,6 +965,31 @@ export default function CommandCenter() {
     [customPlayers, mlbPlayers],
   );
 
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const userTeamIdForValuation = useMemo(
+    () => resolveUserTeamId(league ?? null, user?.id),
+    [league?.id, league?.memberIds?.join(","), user?.id],
+  );
+
   // 1/2/3 → switch tabs (Market / Teams / Standings)
   useEffect(() => {
     const TABS = ["Market", "Teams", "Standings"];
@@ -988,8 +1017,7 @@ export default function CommandCenter() {
   useEffect(() => {
     if (!leagueId || !token) return;
     let cancelled = false;
-    const userTeamId = resolveUserTeamId(league, user?.id);
-    void getValuation(leagueId, token, userTeamId)
+    void getValuation(leagueId, token, userTeamIdForValuation)
       .then((res) => {
         if (!cancelled) setEngineMarket(res);
       })
@@ -999,7 +1027,13 @@ export default function CommandCenter() {
     return () => {
       cancelled = true;
     };
-  }, [leagueId, token, rosterEntries.length, league, user?.id]);
+  }, [
+    leagueId,
+    token,
+    userTeamIdForValuation,
+    rosterValuationKey,
+    leagueValuationKey,
+  ]);
 
   // useEffect(() => {
   //   void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)

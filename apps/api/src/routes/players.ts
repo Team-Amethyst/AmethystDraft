@@ -13,6 +13,7 @@ import {
 } from "../validation/valuationRequestSchema";
 import {
   finalizeEngineValuationPostPayload,
+  logEngineValuationPayloadIfEnabled,
   valuationIncomingToEngineContext,
 } from "../lib/engineContext";
 import { amethyst } from "../lib/amethyst";
@@ -1314,6 +1315,7 @@ const postFixtureValuations: RequestHandler = async (
     const parsed = req.body as ValuationIncomingParsed;
     const context = valuationIncomingToEngineContext(parsed);
     const payload = finalizeEngineValuationPostPayload(context);
+    logEngineValuationPayloadIfEnabled(payload);
     const axiosRes = await amethyst.post("/valuation/calculate", payload);
     forwardEngineCorrelationHeaders(res, axiosRes);
     res.json(axiosRes.data);

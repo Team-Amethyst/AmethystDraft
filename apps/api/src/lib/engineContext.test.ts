@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import mongoose from "mongoose";
 import type { ILeague } from "../models/League";
 import type { IRosterEntry } from "../models/RosterEntry";
 import {
@@ -7,6 +8,8 @@ import {
   buildEngineValuationCalculateBodyFromFixture,
   buildEngineValuationCalculateBodyFromFlat,
   finalizeEngineValuationPostPayload,
+  leagueRosterSlotsForEngine,
+  resolveLeagueNumTeams,
 } from "./engineContext";
 import {
   valuationRequestSchema,
@@ -79,6 +82,73 @@ describe("computeBudgetByTeamRemaining", () => {
       2,
     );
     expect(out.team_1).toBe(100);
+  });
+});
+
+describe("leagueRosterSlotsForEngine", () => {
+  it("accepts array-shaped rosterSlots (Mongo Mixed) without Object.entries corruption", () => {
+    const league = {
+      rosterSlots: [
+        { position: "C", count: 1 },
+        { position: "OF", count: 3 },
+        { position: "BN", count: 5 },
+      ],
+      scoringCategories: [],
+      budget: 260,
+      teams: 6,
+      teamNames: [],
+      memberIds: [],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(leagueRosterSlotsForEngine(league)).toEqual([
+      { position: "C", count: 1 },
+      { position: "OF", count: 3 },
+      { position: "BN", count: 5 },
+    ]);
+  });
+
+  it("coerces string counts and plain record input", () => {
+    const league = {
+      rosterSlots: { C: "1" as unknown as number, UTIL: 2 },
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      teamNames: [],
+      memberIds: [],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(leagueRosterSlotsForEngine(league)).toEqual([
+      { position: "C", count: 1 },
+      { position: "UTIL", count: 2 },
+    ]);
+  });
+});
+
+describe("resolveLeagueNumTeams", () => {
+  it("uses explicit teams when valid", () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 6,
+      teamNames: ["a"],
+      memberIds: [],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(resolveLeagueNumTeams(league)).toBe(6);
+  });
+
+  it("falls back to teamNames.length when teams is missing", () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: undefined,
+      teamNames: ["a", "b", "c", "d", "e", "f"],
+      memberIds: [new mongoose.Types.ObjectId()],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(resolveLeagueNumTeams(league)).toBe(6);
   });
 });
 

@@ -5,6 +5,7 @@ import {
   type ValuationRequestFixture,
   type ValuationFlatRequest,
   type ValuationIncomingParsed,
+  type RosterSlotsNormalized,
 } from "../validation/valuationRequestSchema";
 
 export interface EngineRosterSlot {
@@ -186,6 +187,100 @@ export function computeBudgetByTeamRemaining(
 }
 
 /**
+ * Engine roster_slots: always `{ position, count }[]` with integer counts.
+ * League.rosterSlots is `Mixed` in Mongo — it may be a plain record or an array
+ * of `{ position, count }`. Using Object.entries on an array produces bogus rows
+ * ("0", { position: "C", count: 1 }) and breaks downstream capacity math.
+ */
+export function leagueRosterSlotsForEngine(league: ILeague): EngineRosterSlot[] {
+  const raw = league.rosterSlots as unknown;
+  if (raw == null || typeof raw !== "object") return [];
+  const normalized: RosterSlotsNormalized = normalizeRosterSlots(
+    raw as Parameters<typeof normalizeRosterSlots>[0],
+  );
+  return normalized
+    .map((row) => ({
+      position: String(row.position),
+      count: Math.max(
+        0,
+        Math.floor(
+          typeof row.count === "number"
+            ? row.count
+            : Number(row.count as unknown) || 0,
+        ),
+      ),
+    }))
+    .filter((row) => row.position.length > 0);
+}
+
+/** Canonical team count for engine payloads when `teams` is missing or invalid. */
+export function resolveLeagueNumTeams(league: ILeague): number {
+  const explicit = Number(league.teams);
+  if (Number.isFinite(explicit) && explicit >= 2) {
+    return Math.floor(explicit);
+  }
+  const nameLen = Array.isArray(league.teamNames) ? league.teamNames.length : 0;
+  if (nameLen >= 2) return nameLen;
+  const memberLen = league.memberIds?.length ?? 0;
+  if (memberLen >= 2) return memberLen;
+  return 12;
+}
+
+function countSectionPlayers(
+  sections: EngineTeamPlayersSection[] | undefined,
+): number {
+  if (!sections?.length) return 0;
+  return sections.reduce((n, s) => n + (s.players?.length ?? 0), 0);
+}
+
+/** Structured summary for LOG_ENGINE_VALUATION_DEBUG=1 (exact POST body is logged separately). */
+export function summarizeEngineValuationPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const drafted = (payload.drafted_players as EngineDraftedPlayer[]) ?? [];
+  const roster_slots = (payload.roster_slots as EngineRosterSlot[]) ?? [];
+  const slotSum = roster_slots.reduce(
+    (s, r) => s + (typeof r.count === "number" && Number.isFinite(r.count) ? r.count : 0),
+    0,
+  );
+  return {
+    drafted_players_length: drafted.length,
+    drafted_players_first_20: drafted.slice(0, 20),
+    pre_draft_rosters_player_count: countSectionPlayers(
+      payload.pre_draft_rosters as EngineTeamPlayersSection[] | undefined,
+    ),
+    minors_player_count: countSectionPlayers(
+      payload.minors as EngineTeamPlayersSection[] | undefined,
+    ),
+    taxi_player_count: countSectionPlayers(
+      payload.taxi as EngineTeamPlayersSection[] | undefined,
+    ),
+    roster_slots,
+    roster_slot_count_sum: slotSum,
+    num_teams: payload.num_teams,
+    total_budget: payload.total_budget,
+    budget_by_team_id: payload.budget_by_team_id,
+    inflation_model: payload.inflation_model,
+    user_team_id: payload.user_team_id,
+  };
+}
+
+/** Set LOG_ENGINE_VALUATION_DEBUG=1 on the API to log the exact engine POST body and a summary. */
+export function logEngineValuationPayloadIfEnabled(
+  payload: Record<string, unknown>,
+): void {
+  if (process.env.LOG_ENGINE_VALUATION_DEBUG !== "1") return;
+  console.info(
+    "[engine-valuation] POST /valuation/calculate body:",
+    JSON.stringify(payload),
+  );
+  console.info(
+    "[engine-valuation] summary:",
+    JSON.stringify(summarizeEngineValuationPayload(payload)),
+  );
+}
+
+/**
  * Builds the full context object for /valuation/calculate and /analysis/scarcity.
  */
 export function buildValuationContext(
@@ -193,9 +288,8 @@ export function buildValuationContext(
   rosterEntries: IRosterEntry[],
   options?: { userTeamId?: string },
 ): EngineValuationContext {
-  const rosterSlots = Object.entries(league.rosterSlots).map(
-    ([position, count]) => ({ position, count }),
-  );
+  const rosterSlots = leagueRosterSlotsForEngine(league);
+  const numTeams = resolveLeagueNumTeams(league);
 
   const keeperEntries = rosterEntries.filter((e) => e.isKeeper);
   const minorsEntries = rosterEntries.filter((e) => isMinorSlot(e.rosterSlot));
@@ -209,13 +303,13 @@ export function buildValuationContext(
     roster_slots: rosterSlots,
     scoring_categories: league.scoringCategories,
     total_budget: league.budget,
-    num_teams: league.teams,
+    num_teams: numTeams,
     league_scope: league.playerPool,
     drafted_players,
     budget_by_team_id: computeBudgetByTeamRemaining(
       league.budget,
       drafted_players,
-      league.teams,
+      numTeams,
     ),
     ...(league.scoringFormat
       ? { scoring_format: league.scoringFormat }
@@ -244,9 +338,7 @@ export function buildSimulationContext(
   budgetByTeamId: Record<string, number>,
   availablePlayerIds?: string[],
 ): EngineSimulationContext {
-  const rosterSlots = Object.entries(league.rosterSlots).map(
-    ([position, count]) => ({ position, count }),
-  );
+  const rosterSlots = leagueRosterSlotsForEngine(league);
 
   const teamIds = league.memberIds.map((_, i) => `team_${i + 1}`);
 
@@ -280,7 +372,7 @@ export function buildScarcityContext(
   return {
     drafted_players: toDraftedPlayers(rosterEntries),
     scoring_categories: league.scoringCategories,
-    num_teams: league.teams,
+    num_teams: resolveLeagueNumTeams(league),
     league_scope: league.playerPool,
     ...(position ? { position } : {}),
   };

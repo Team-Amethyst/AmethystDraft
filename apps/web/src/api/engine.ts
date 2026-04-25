@@ -11,6 +11,10 @@ export interface ValuationResult {
   adjusted_value: number;
   recommended_bid?: number;
   team_adjusted_value?: number;
+  /** When Engine includes roster-need adjustment (optional; debug / future UI). */
+  positional_need_multiplier?: number;
+  /** When Engine includes budget-pressure adjustment (optional; debug / future UI). */
+  budget_pressure_multiplier?: number;
   inflation_model?: "replacement_slots_v2";
   indicator: "Steal" | "Reach" | "Fair Value";
   /** Engine explainability; safe to ignore in UI. */
