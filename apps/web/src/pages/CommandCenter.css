@@ -582,6 +582,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 0.45rem;
 }
 
 .player-auction-card .log-result-section {
@@ -600,23 +601,72 @@
 .pac-header-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.pac-header-identity {
+  display: flex;
+  align-items: flex-start;
   gap: 0.65rem;
   min-width: 0;
+  flex: 1;
+}
+
+.pac-header-identity-text {
+  min-width: 0;
+}
+
+.pac-meta-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  min-width: 0;
+  color: #b0a0cc;
+}
+
+.pac-meta-inline-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.pac-meta-inline-team,
+.pac-meta-inline-adp {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pac-meta-inline-team {
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pac-header-values {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.28rem;
+  align-items: stretch;
+  gap: 0.25rem;
   flex-shrink: 0;
-  min-width: 0;
-  max-width: 11rem;
+  width: 210px;
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  padding: 0.4rem 0.45rem;
+}
+
+.pac-val-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
 }
 
 .pac-val-line--signal {
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .pac-edge-line {
@@ -640,8 +690,8 @@
 }
 
 .pac-val-details {
-  margin-top: 0.15rem;
-  align-self: flex-end;
+  margin-top: 0.12rem;
+  align-self: flex-start;
   max-width: 100%;
 }
 
@@ -661,7 +711,7 @@
 }
 
 .pac-val-details-dl {
-  margin: 0.35rem 0 0;
+  margin: 0.28rem 0 0;
   padding: 0.35rem 0.4rem;
   border-radius: 6px;
   background: rgba(139, 92, 246, 0.06);
@@ -695,6 +745,117 @@
   font-weight: 700;
   color: #e2d9f3;
   font-variant-numeric: tabular-nums;
+}
+
+.pac-notes-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.pac-notes-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pac-notes-col-label {
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--cc-heading-color);
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+
+textarea.pac-notes.pac-notes--always {
+  min-height: 54px;
+  max-height: 64px;
+  padding: 0.38rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.24;
+  resize: none;
+  overflow-y: hidden;
+  transition: max-height 0.18s ease, min-height 0.18s ease;
+}
+
+textarea.pac-notes.pac-notes--always:focus {
+  min-height: 64px;
+  max-height: 120px;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+.pac-impact-wrap {
+  margin-top: 0.1rem;
+}
+
+.pac-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--cc-gap-sm);
+}
+
+.pac-impact-grid--fixed {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.pac-impact-mini {
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  padding: 0.35rem 0.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16rem;
+  min-height: 74px;
+}
+
+.pac-impact-mini-label {
+  font-size: 0.56rem;
+  color: var(--cc-heading-color);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+.pac-impact-mini-stat {
+  font-size: 1.05rem;
+  color: #e2d9f3;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.pac-impact-mini-delta {
+  font-size: 0.72rem;
+  line-height: 1.05;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pac-impact-mini-delta--green { color: var(--cc-value-green); }
+.pac-impact-mini-delta--red { color: #f87171; }
+.pac-impact-mini-delta--neutral { color: #f59e0b; }
+.pac-impact-mini-delta--muted { color: #9d8cc4; }
+
+.pac-log-action-bar {
+  margin-top: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.pac-log-action-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--cc-heading-color);
+  text-transform: uppercase;
+  margin-bottom: var(--cc-heading-mb);
 }
 
 .pac-header-grid {
@@ -1418,7 +1579,7 @@ textarea.pac-notes.pac-notes--compact {
 .log-result-grid--inline {
   grid-template-columns: minmax(0, 1.5fr) 92px minmax(0, 0.8fr) 90px;
   gap: var(--cc-gap-sm);
-  align-items: stretch;
+  align-items: center;
   margin-top: 0;
 }
 
