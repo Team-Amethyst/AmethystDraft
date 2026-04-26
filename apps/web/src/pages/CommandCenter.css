@@ -718,7 +718,7 @@
 .bid-decision-card {
   width: 100%;
   box-sizing: border-box;
-  padding: var(--cc-bdc-card-pad-y) var(--cc-bdc-card-pad-x);
+  padding: calc(var(--cc-bdc-card-pad-y) - 6px) var(--cc-bdc-card-pad-x);
   border-radius: var(--cc-card-radius);
   border: var(--cc-bdc-card-border);
   background: var(--cc-bdc-card-bg);
@@ -733,20 +733,19 @@
 }
 
 .bid-decision-card .bdc-metric-row {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: var(--cc-space-8);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: var(--cc-space-8);
+  align-items: last baseline;
   min-width: 0;
 }
 
 .bid-decision-card .bdc-metric-row > .bdc-metric-grid {
-  flex: 1 1 auto;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   column-gap: var(--cc-space-8);
-  align-items: baseline;
+  align-items: last baseline;
   border: none;
   background: none;
   box-shadow: none;
@@ -755,12 +754,12 @@
 .bid-decision-card .bdc-metric-tile {
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--cc-space-8) var(--cc-space-8);
+  padding: var(--cc-space-8);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 0;
+  gap: var(--cc-space-4);
   text-align: left;
   background: transparent;
   border: none;
@@ -776,7 +775,6 @@
 }
 
 .bid-decision-card .bdc-metric-tile-value {
-  margin-top: var(--cc-space-4);
   font-size: var(--cc-bdc-metric-value-fs);
   font-weight: var(--cc-bdc-metric-value-fw);
   color: var(--cc-bdc-metric-value-fg);
@@ -789,14 +787,12 @@
 }
 
 .bid-decision-card .bdc-metric-tile--primary .bdc-metric-tile-value {
-  font-size: var(--cc-bdc-bid-fs);
+  font-size: calc(var(--cc-bdc-bid-fs) + 4px);
   font-weight: var(--cc-bdc-bid-fw);
-  letter-spacing: -0.01em;
-  line-height: 1.05;
+  line-height: 1.15;
 }
 
 .bid-decision-card .bdc-metric-tile-delta {
-  margin-top: var(--cc-space-4);
   font-size: var(--cc-bdc-delta-fs);
   font-weight: 500;
   color: var(--cc-bdc-label-fg);
@@ -810,10 +806,9 @@
   align-items: baseline;
   flex-wrap: nowrap;
   gap: var(--cc-space-4);
-  flex: 0 0 auto;
-  font-size: var(--cc-bdc-edge-fs);
-  font-weight: var(--cc-bdc-edge-fw);
-  line-height: 1.2;
+  font-size: var(--cc-bdc-metric-value-fs);
+  font-weight: var(--cc-bdc-metric-value-fw);
+  line-height: 1.15;
   white-space: nowrap;
 }
 
@@ -869,33 +864,33 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: var(--cc-space-8);
-  align-items: baseline;
+  align-items: last baseline;
   min-width: 0;
   margin-top: 0;
   background: transparent;
   border: none;
   box-shadow: none;
   overflow: visible;
-  opacity: var(--cc-bdc-constraints-row-opacity);
+  opacity: 0.3;
 }
 
 .bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile {
-  padding: var(--cc-space-8) var(--cc-space-12);
+  padding: var(--cc-space-8);
   min-height: 0;
 }
 
 .bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile-label {
   font-size: var(--cc-bdc-constraints-label-fs);
-  font-weight: 500;
+  font-weight: 450;
   letter-spacing: 0.06em;
   color: var(--cc-bdc-constraints-label-fg);
 }
 
 .bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile-value {
-  margin-top: var(--cc-space-4);
   font-size: var(--cc-bdc-constraints-value-fs);
-  font-weight: 500;
+  font-weight: 450;
   color: var(--cc-bdc-constraints-value-fg);
+  line-height: 1.15;
 }
 
 .bid-decision-card .bdc-meta-row {
