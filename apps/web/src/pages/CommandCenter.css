@@ -86,7 +86,7 @@
   --cc-bdc-constraints-value-fg: color-mix(in srgb, white 72%, var(--cc-value-muted));
   --cc-bdc-constraints-label-fs: 11px;
   --cc-bdc-constraints-value-fs: 12px;
-  --cc-bdc-constraints-row-opacity: 0.45;
+  --cc-bdc-constraints-row-opacity: 1;
   --cc-bdc-edge-pos: color-mix(in srgb, var(--cc-value-green) 82%, white);
   --cc-bdc-edge-neg: #f87171;
   --cc-bdc-edge-muted: color-mix(in srgb, white 62%, var(--cc-value-muted));
@@ -762,8 +762,8 @@
   margin-top: 6px;
   font-size: 11px;
   line-height: 1.35;
-  color: var(--cc-bdc-label-fg);
-  opacity: 0.5;
+  color: color-mix(in srgb, var(--cc-value-muted) 82%, white);
+  opacity: 1;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -902,13 +902,13 @@
   font-size: var(--cc-bdc-constraints-label-fs);
   font-weight: 450;
   letter-spacing: 0.06em;
-  color: var(--cc-bdc-constraints-label-fg);
+  color: color-mix(in srgb, var(--cc-value-muted) 86%, white);
 }
 
 .bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile-value {
   font-size: var(--cc-bdc-constraints-value-fs);
   font-weight: 450;
-  color: var(--cc-bdc-constraints-value-fg);
+  color: color-mix(in srgb, white 72%, var(--cc-value-muted));
   line-height: 1.15;
 }
 
