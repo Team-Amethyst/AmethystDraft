@@ -13,6 +13,7 @@ export interface Player {
   adjusted_value?: number;
   recommended_bid?: number;
   team_adjusted_value?: number;
+  edge?: number;
   inflation_model?: "replacement_slots_v2";
   indicator?: "Steal" | "Reach" | "Fair Value";
   explain_v2?: {

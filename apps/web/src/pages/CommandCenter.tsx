@@ -911,7 +911,7 @@ function RightPanel({
       </div>
 
       <div className="cc-divider" />
-      <div className="rp-section-label">MARKET & BUDGET</div>
+      <div className="rp-section-label">MARKET PRESSURE</div>
       {engineMarket ? (
         <div className={`engine-market-card ${marketClass}`}>
           <div className="engine-market-main">

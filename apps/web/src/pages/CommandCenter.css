@@ -29,6 +29,71 @@
   --cc-card-bg: rgba(255, 255, 255, 0.03);
   --cc-card-border: 1px solid rgba(139, 92, 246, 0.12);
   --cc-card-pad: 0.5rem 0.45rem;
+
+  /* Spacing scale (Command Center — 4 / 8 / 12 / 16 / 24 only) */
+  --cc-space-4: 4px;
+  --cc-space-8: 8px;
+  --cc-space-12: 12px;
+  --cc-space-16: 16px;
+  --cc-space-20: 20px;
+  --cc-space-24: 24px;
+  --cc-space-32: 32px;
+
+  /* Valuation card (BDC) — typography */
+  --cc-bdc-bid-fs: 30px;
+  --cc-bdc-bid-fw: 700;
+  --cc-bdc-bid-filter: brightness(0.93);
+  --cc-bdc-value-fs: 14px;
+  --cc-bdc-value-fw: 550;
+  --cc-bdc-value-tracking: 0.003em;
+  --cc-bdc-value-fg: color-mix(in srgb, white 97%, transparent);
+  --cc-bdc-edge-fs: 14px;
+  --cc-bdc-edge-fw: 550;
+  --cc-bdc-metric-value-fs: 14px;
+  --cc-bdc-metric-value-fw: 550;
+  --cc-bdc-label-fs: 12px;
+  --cc-bdc-label-fw: 500;
+  --cc-bdc-delta-fs: 13px;
+  --cc-bdc-label-tracking: 0.08em;
+  --cc-bdc-label-fg: color-mix(in srgb, white 78%, transparent);
+  --cc-bdc-metric-value-fg: color-mix(in srgb, white 92%, transparent);
+  --cc-bdc-sublabel-fs: 10px;
+  --cc-bdc-sublabel-fw: 700;
+  --cc-bdc-sublabel-tracking: 0.07em;
+  --cc-bdc-sublabel-fg: color-mix(in srgb, var(--cc-value-muted) 92%, white);
+
+  /* Valuation card — surfaces & borders (derived from existing palette) */
+  --cc-bdc-card-border: 1px solid color-mix(in srgb, var(--cc-heading-color) 40%, transparent);
+  --cc-bdc-card-bg: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--cc-heading-color) 14%, transparent) 0%,
+    color-mix(in srgb, white 4%, transparent) 42%,
+    color-mix(in srgb, white 2%, transparent) 100%
+  );
+  --cc-bdc-card-shadow: 0 var(--cc-space-4) 0 color-mix(in srgb, black 20%, transparent);
+  --cc-bdc-card-pad-y: var(--cc-space-12);
+  --cc-bdc-card-pad-x: var(--cc-space-12);
+  --cc-bdc-metric-bg: transparent;
+  --cc-bdc-metric-border: 1px solid color-mix(in srgb, white 8%, transparent);
+  --cc-bdc-metric-row-pad-y: var(--cc-space-8);
+  --cc-bdc-metric-row-pad-x: var(--cc-space-12);
+  --cc-bdc-metric-divider: 1px solid color-mix(in srgb, var(--cc-heading-color) 16%, transparent);
+  --cc-bdc-strip-bg: color-mix(in srgb, black 18%, transparent);
+  --cc-bdc-strip-border: 1px solid color-mix(in srgb, var(--cc-heading-color) 18%, transparent);
+  --cc-bdc-constraints-bg: color-mix(in srgb, black 12%, transparent);
+  --cc-bdc-constraints-border: 1px solid color-mix(in srgb, var(--cc-heading-color) 14%, transparent);
+  --cc-bdc-constraints-label-fg: color-mix(in srgb, var(--cc-value-muted) 88%, white);
+  --cc-bdc-constraints-value-fg: color-mix(in srgb, white 72%, var(--cc-value-muted));
+  --cc-bdc-constraints-label-fs: 11px;
+  --cc-bdc-constraints-value-fs: 12px;
+  --cc-bdc-constraints-row-opacity: 0.45;
+  --cc-bdc-edge-pos: color-mix(in srgb, var(--cc-value-green) 82%, white);
+  --cc-bdc-edge-neg: #f87171;
+  --cc-bdc-edge-muted: color-mix(in srgb, white 62%, var(--cc-value-muted));
+  --cc-bdc-danger-fg: #fca5a5;
+  --cc-bdc-fair-fg: #e9ddff;
+  --cc-bdc-success-fg: #86efac;
+  --cc-bdc-success-glow: color-mix(in srgb, var(--cc-bdc-success-fg) 18%, transparent);
 }
 
 /* ─── Shared panel styles ──────────────────────────────────────────────────── */
@@ -648,130 +713,74 @@
   flex-direction: column;
 }
 
+/* ========== BidDecisionCard (canonical; scope under .bid-decision-card only) ========== */
+
 .bid-decision-card {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.66rem 0.76rem 0.72rem;
+  padding: var(--cc-bdc-card-pad-y) var(--cc-bdc-card-pad-x);
   border-radius: var(--cc-card-radius);
-  border: 1px solid rgba(139, 92, 246, 0.26);
-  background: linear-gradient(
-    155deg,
-    rgba(139, 92, 246, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 42%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  border: var(--cc-bdc-card-border);
+  background: var(--cc-bdc-card-bg);
+  box-shadow: var(--cc-bdc-card-shadow);
 }
 
-.bdc-grid {
+.bid-decision-card .bdc-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cc-space-16);
   min-width: 0;
 }
 
-.bdc-row1 {
+.bid-decision-card .bdc-metric-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--cc-space-8);
+  min-width: 0;
+}
+
+.bid-decision-card .bdc-metric-row > .bdc-metric-grid {
+  flex: 1 1 auto;
+  min-width: 0;
   display: grid;
-  grid-template-columns: 11fr 9fr;
-  gap: 10px;
-  min-width: 0;
-}
-
-.bdc-decision-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.bdc-tier2 {
-  margin-top: 1px;
-  display: flex;
+  grid-template-columns: minmax(0, 1.35fr) repeat(4, minmax(0, 1fr));
+  column-gap: var(--cc-space-8);
   align-items: baseline;
-  gap: 6px;
-  min-width: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
 }
 
-.bdc-tier2-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #7e6aa5;
-  line-height: 1.1;
-}
-
-.bdc-tier2-value {
-  font-size: 14px;
-  font-weight: 800;
-  color: #d6caee;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-.bdc-edge-card {
-  min-width: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(139, 92, 246, 0.22);
-  background: rgba(0, 0, 0, 0.18);
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-
-.bdc-edge-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #7e6aa5;
-  line-height: 1.1;
-}
-
-.bdc-edge-value {
-  font-size: 19px;
-  font-weight: 900;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-.bdc-mini-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 0;
-}
-
-.bdc-mini-card {
+.bid-decision-card .bdc-metric-tile {
   box-sizing: border-box;
-  padding: 8px 11px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(139, 92, 246, 0.2);
   min-width: 0;
+  padding: var(--cc-space-8) var(--cc-space-8);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  overflow: hidden;
+  justify-content: flex-start;
+  gap: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
 }
 
-.bdc-mini-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+.bid-decision-card .bdc-metric-tile-label {
+  font-size: var(--cc-bdc-label-fs);
+  font-weight: var(--cc-bdc-label-fw);
+  letter-spacing: var(--cc-bdc-label-tracking);
   text-transform: uppercase;
-  color: #7e6aa5;
-  line-height: 1.1;
+  color: var(--cc-bdc-label-fg);
+  line-height: 1.15;
 }
 
-.bdc-mini-value {
-  font-size: 14px;
-  font-weight: 800;
-  color: #d2c7e8;
-  line-height: 1.1;
+.bid-decision-card .bdc-metric-tile-value {
+  margin-top: var(--cc-space-4);
+  font-size: var(--cc-bdc-metric-value-fs);
+  font-weight: var(--cc-bdc-metric-value-fw);
+  color: var(--cc-bdc-metric-value-fg);
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -779,45 +788,121 @@
   width: 100%;
 }
 
-.bdc-context-edge--pos {
-  color: #4ade80;
+.bid-decision-card .bdc-metric-tile--primary .bdc-metric-tile-value {
+  font-size: var(--cc-bdc-bid-fs);
+  font-weight: var(--cc-bdc-bid-fw);
+  letter-spacing: -0.01em;
+  line-height: 1.05;
 }
 
-.bdc-context-edge--neg {
-  color: #f87171;
+.bid-decision-card .bdc-metric-tile-delta {
+  margin-top: var(--cc-space-4);
+  font-size: var(--cc-bdc-delta-fs);
+  font-weight: 500;
+  color: var(--cc-bdc-label-fg);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.bdc-context-edge--muted {
-  color: #9ca3af;
+.bid-decision-card .bdc-metric-row > .bdc-edge-inline {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: var(--cc-space-4);
+  flex: 0 0 auto;
+  font-size: var(--cc-bdc-edge-fs);
+  font-weight: var(--cc-bdc-edge-fw);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.bdc-mini-row--constraints .bdc-mini-card {
-  background: rgba(0, 0, 0, 0.13);
-  border-color: transparent;
-  padding-top: 6px;
-  padding-bottom: 6px;
+.bid-decision-card .bdc-edge-inline .bdc-edge-value {
+  font-variant-numeric: tabular-nums;
 }
 
-.bdc-mini-row--constraints {
-  margin-top: 2px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(139, 92, 246, 0.16);
+.bid-decision-card .bdc-edge-inline .bdc-edge-label {
+  letter-spacing: var(--cc-bdc-label-tracking);
 }
 
-.bdc-mini-row--constraints .bdc-mini-label {
-  color: #766297;
+.bid-decision-card .bdc-context-edge--pos {
+  color: var(--cc-bdc-edge-pos);
 }
 
-.bdc-mini-row--constraints .bdc-mini-value {
-  color: #b4a8ce;
-  font-size: 13px;
+.bid-decision-card .bdc-context-edge--neg {
+  color: var(--cc-bdc-edge-neg);
 }
 
-.bdc-meta-row {
+.bid-decision-card .bdc-context-edge--muted {
+  color: var(--cc-bdc-edge-muted);
+}
+
+.bid-decision-card.bdc-tone--overpay .bdc-recommended-value {
+  color: color-mix(in srgb, var(--cc-bdc-danger-fg) 86%, transparent) !important;
+}
+
+.bid-decision-card.bdc-tone--fair .bdc-recommended-value {
+  color: var(--cc-bdc-fair-fg);
+}
+
+.bid-decision-card.bdc-tone--value .bdc-recommended-value {
+  color: var(--cc-bdc-success-fg) !important;
+  text-shadow: 0 0 var(--cc-space-8) var(--cc-bdc-success-glow);
+}
+
+.bid-decision-card .bdc-recommended-value {
+  transition: color 0.18s ease, text-shadow 0.18s ease;
+  filter: var(--cc-bdc-bid-filter);
+}
+
+.bid-decision-card .bdc-recommended-value--danger {
+  color: color-mix(in srgb, var(--cc-bdc-danger-fg) 86%, transparent) !important;
+}
+
+.bid-decision-card .bdc-recommended-value--strong {
+  color: var(--cc-bdc-success-fg) !important;
+  text-shadow: 0 0 var(--cc-space-8) var(--cc-bdc-success-glow);
+}
+
+.bid-decision-card .bdc-metric-grid--constraints,
+.bid-decision-card .bdc-constraints-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--cc-space-8);
+  align-items: baseline;
+  min-width: 0;
+  margin-top: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+  opacity: var(--cc-bdc-constraints-row-opacity);
+}
+
+.bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile {
+  padding: var(--cc-space-8) var(--cc-space-12);
+  min-height: 0;
+}
+
+.bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile-label {
+  font-size: var(--cc-bdc-constraints-label-fs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--cc-bdc-constraints-label-fg);
+}
+
+.bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile-value {
+  margin-top: var(--cc-space-4);
+  font-size: var(--cc-bdc-constraints-value-fs);
+  font-weight: 500;
+  color: var(--cc-bdc-constraints-value-fg);
+}
+
+.bid-decision-card .bdc-meta-row {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.35rem 0.55rem;
+  gap: var(--cc-space-4) var(--cc-space-8);
   min-width: 0;
 }
 
@@ -1118,14 +1203,6 @@ textarea.pac-notes.pac-notes--always:focus {
 }
 
 .pac-val-primary.green { color: var(--cc-value-green); }
-.pac-val-primary--bid-card {
-  font-size: 2rem;
-  font-weight: 900;
-  line-height: 1;
-  margin: 0;
-  margin-top: -1px;
-  margin-bottom: -1px;
-}
 
 .pac-val-secondary {
   font-size: 1.05rem;
@@ -1133,12 +1210,6 @@ textarea.pac-notes.pac-notes--always:focus {
   line-height: 1.05;
   color: #e2d9f3;
   font-variant-numeric: tabular-nums;
-}
-.bid-decision-card .pac-val-sublabel {
-  font-size: 10px;
-  line-height: 1;
-  letter-spacing: 0.07em;
-  color: #8a7ab8;
 }
 
 .player-identity-card .pac-name.pac-name--identity {
@@ -1197,8 +1268,8 @@ textarea.pac-notes.pac-notes--always:focus {
     max-height: 72px;
   }
 
-  .bdc-grid {
-    gap: 0.45rem;
+  .bid-decision-card .bdc-grid {
+    gap: var(--cc-space-8);
   }
 }
 

@@ -5,6 +5,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
+import type { ReactNode } from "react";
 import { useParams } from "react-router";
 import PosBadge from "./PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
@@ -32,6 +33,8 @@ import {
   commandCenterValuationMoney,
   commandCenterBidDecision,
   commandCenterWalletCapsFromMyTeam,
+  formatDollar,
+  formatMaybeDollar,
   type CommandCenterBidDecision,
   type CommandCenterWalletCaps,
 } from "../utils/valuation";
@@ -48,23 +51,20 @@ import {
 } from "../utils/eligibility";
 import { UserPlus } from "lucide-react";
 
-function formatEngineMoney(n: number | undefined): string {
-  if (n === undefined || !Number.isFinite(n)) return "—";
-  return `$${Math.round(n)}`;
-}
+const formatEngineMoney = (n: number | undefined) => formatDollar(n);
 
 function formatSuggestedBidLine(n: number): string {
   if (!Number.isFinite(n)) return "—";
-  const x = Math.round(n * 2) / 2;
-  if (x % 1 === 0) return `$${x}`;
-  return `$${x.toFixed(1)}`;
+  return formatDollar(Math.round(n));
 }
 
 function formatEdgeLine(edge: number | undefined): string {
   if (edge === undefined || !Number.isFinite(edge)) return "—";
-  const r = Math.round(edge);
-  const sign = r > 0 ? "+" : "";
-  return `${sign}$${r}`;
+  const rounded = Math.round(edge);
+  const absText = String(Math.abs(rounded));
+  if (rounded > 0) return `+${absText}`;
+  if (rounded < 0) return `-${absText}`;
+  return "0";
 }
 
 function ValuationMoneySkeleton({ tall }: { tall?: boolean }) {
@@ -75,6 +75,36 @@ function ValuationMoneySkeleton({ tall }: { tall?: boolean }) {
       }
       aria-hidden
     />
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  delta,
+  variant = "default",
+  title,
+}: {
+  label: string;
+  value: ReactNode;
+  delta?: ReactNode;
+  variant?: "default" | "primary";
+  title?: string;
+}) {
+  return (
+    <div
+      className={
+        "bdc-metric-tile" +
+        (variant === "primary" ? " bdc-metric-tile--primary" : "")
+      }
+      title={title}
+    >
+      <span className="bdc-metric-tile-label">{label}</span>
+      <div className="bdc-metric-tile-value">{value}</div>
+      {delta != null ? (
+        <div className="bdc-metric-tile-delta">{delta}</div>
+      ) : null}
+    </div>
   );
 }
 
@@ -297,6 +327,7 @@ function BidDecisionCard({
   suggestedBidSkeleton: boolean;
 }) {
   const row = valuationRow ?? null;
+  const roundWhole = (n: number) => Math.round(n);
 
   const suggestedDisplay = suggestedDisplayFromValuationRow(
     row ?? undefined,
@@ -390,99 +421,134 @@ function BidDecisionCard({
           ? "neg"
           : "muted"
       : "muted";
-
+  const decisionTone =
+    decisionData.edge != null
+      ? decisionData.edge < -10
+        ? "overpay"
+        : decisionData.edge > 5
+          ? "value"
+          : "fair"
+      : "fair";
+  const decisionDanger = decisionData.edge != null && decisionData.edge < -15;
+  const decisionStrong = decisionData.edge != null && decisionData.edge > 10;
+  const recommendedBidDisplay =
+    actionableBid == null ? null : formatSuggestedBidLine(actionableBid);
+  const roundedRecommendedBid =
+    actionableBid != null && Number.isFinite(actionableBid)
+      ? roundWhole(actionableBid)
+      : null;
+  const roundedYourValue =
+    decisionData.team_adjusted_value != null &&
+    Number.isFinite(decisionData.team_adjusted_value)
+      ? roundWhole(decisionData.team_adjusted_value)
+      : null;
+  const computedDelta =
+    roundedYourValue != null && roundedRecommendedBid != null
+      ? roundWhole(roundedYourValue - roundedRecommendedBid)
+      : null;
+  const fallbackDelta =
+    decisionData.edge != null && Number.isFinite(decisionData.edge)
+      ? roundWhole(decisionData.edge)
+      : null;
+  const displayDelta = computedDelta ?? fallbackDelta;
+  const edgeDisplay = formatEdgeLine(displayDelta ?? undefined);
+  const edgeLabel =
+    displayDelta == null
+      ? "Fair Price"
+      : displayDelta > 0
+        ? "Strong Value"
+        : displayDelta < 0
+          ? "Overpay"
+          : "Fair Price";
   const fmtMoney = (n: number | null) =>
     n != null ? formatEngineMoney(n) : "—";
 
   return (
-    <div className="bid-decision-card" aria-label="Valuation">
+    <div
+      className={"bid-decision-card bdc-tone--" + decisionTone}
+      aria-label="Valuation"
+    >
       <div className="bdc-grid">
-        <div className="bdc-row1">
-          <div className="bdc-decision-main">
-            <div className="pac-val-sublabel">SUGGESTED BID</div>
-            <div
-              className="pac-val-primary green pac-val-primary--bid-card"
-              title="Suggested bid (primary recommendation)"
-            >
-              {suggestedBidSkeleton ? (
-                <ValuationMoneySkeleton tall />
-              ) : actionableBid != null ? (
-                formatSuggestedBidLine(actionableBid)
-              ) : (
-                "—"
-              )}
-            </div>
-            <div className="bdc-tier2" aria-label="Your value">
-              <span className="bdc-tier2-label">Your Value</span>
-              <span className="bdc-tier2-value">
-                {suggestedBidSkeleton ? (
+        <div className="bdc-metric-row">
+          <div className="bdc-metric-grid" aria-label="Valuation metrics">
+            <MetricTile
+              variant="primary"
+              label="Bid"
+              title="Primary bid recommendation"
+              value={
+                suggestedBidSkeleton ? (
+                  <ValuationMoneySkeleton tall />
+                ) : recommendedBidDisplay != null ? (
+                  <span
+                    className={
+                      "bdc-metric-tile-bid bdc-recommended-value" +
+                      (decisionDanger ? " bdc-recommended-value--danger" : "") +
+                      (decisionStrong ? " bdc-recommended-value--strong" : "")
+                    }
+                  >
+                    {recommendedBidDisplay}
+                  </span>
+                ) : (
+                  "—"
+                )
+              }
+            />
+            <MetricTile
+              label="Your Value"
+              title="Intrinsic value for your team"
+              value={
+                suggestedBidSkeleton ? (
                   <ValuationMoneySkeleton />
                 ) : (
                   fmtMoney(decisionData.team_adjusted_value)
-                )}
-              </span>
-            </div>
-          </div>
-
-          <div className="bdc-edge-card" aria-label="Your edge">
-            <span className="bdc-edge-label">Your Edge</span>
-            <span
-              className={
-                "bdc-edge-value bdc-context-edge--" + edgeTone
+                )
               }
-            >
-              {decisionData.edge != null ? formatEdgeLine(decisionData.edge) : "—"}
-            </span>
+            />
+            <MetricTile
+              label="Adjusted Value"
+              title="Incremental roster value"
+              value={fmtMoney(decisionData.adjusted_value)}
+            />
+            <MetricTile
+              label="Market"
+              title="Expected room price"
+              value={fmtMoney(decisionData.recommended_bid)}
+            />
+            <MetricTile
+              label="Ceiling"
+              title="Maximum reasonable stretch"
+              value={fmtMoney(decisionData.baseline_value)}
+            />
           </div>
-        </div>
-
-        <div className="bdc-mini-row" aria-label="Market context">
-          <div className="bdc-mini-card">
-            <span className="bdc-mini-label">Market Bid</span>
-            <span className="bdc-mini-value">
-              {fmtMoney(decisionData.recommended_bid)}
-            </span>
-          </div>
-          <div className="bdc-mini-card">
-            <span className="bdc-mini-label">Marginal Value</span>
-            <span className="bdc-mini-value">
-              {fmtMoney(decisionData.adjusted_value)}
-            </span>
-          </div>
-          <div className="bdc-mini-card">
-            <span className="bdc-mini-label">Player Strength</span>
-            <span className="bdc-mini-value">
-              {fmtMoney(decisionData.baseline_value)}
-            </span>
+          <div
+            className={"bdc-edge-slot bdc-edge-inline bdc-context-edge--" + edgeTone}
+            title="Edge = Your Value minus recommended bid"
+          >
+            <span className="bdc-edge-value">{edgeDisplay}</span>
+            <span className="bdc-edge-label">{edgeLabel}</span>
           </div>
         </div>
 
         <div
-          className="bdc-mini-row bdc-mini-row--constraints"
+          className="bdc-metric-grid bdc-metric-grid--constraints bdc-constraints-grid bdc-strip-row bdc-strip-row--constraints"
           title="Budget constraints from your current roster and wallet"
         >
-          <div className="bdc-mini-card bdc-mini-card--constraint">
-            <span className="bdc-mini-label">Max Bid</span>
-            <strong className="bdc-mini-value">
-              {formatEngineMoney(myWalletCaps?.maxBid)}
-            </strong>
-          </div>
-          <div className="bdc-mini-card bdc-mini-card--constraint">
-            <span className="bdc-mini-label">Budget Left</span>
-            <strong className="bdc-mini-value">
-              {formatEngineMoney(myWalletCaps?.budgetRemaining)}
-            </strong>
-          </div>
-          <div className="bdc-mini-card bdc-mini-card--constraint">
-            <span className="bdc-mini-label">$/Spot</span>
-            <strong className="bdc-mini-value">
-              {formatEngineMoney(
-                myWalletCaps && myWalletCaps.openSpots > 0
-                  ? myWalletCaps.budgetRemaining / myWalletCaps.openSpots
-                  : undefined,
-              )}
-            </strong>
-          </div>
+          <MetricTile
+            label="Max Bid"
+            value={formatEngineMoney(myWalletCaps?.maxBid)}
+          />
+          <MetricTile
+            label="Budget Left"
+            value={formatEngineMoney(myWalletCaps?.budgetRemaining)}
+          />
+          <MetricTile
+            label="$/Spot"
+            value={formatEngineMoney(
+              myWalletCaps && myWalletCaps.openSpots > 0
+                ? myWalletCaps.budgetRemaining / myWalletCaps.openSpots
+                : undefined,
+            )}
+          />
         </div>
 
         {showMetaRow ? (

@@ -15,6 +15,7 @@ export interface ValuationShape {
   adjusted_value?: number;
   recommended_bid?: number;
   team_adjusted_value?: number;
+  edge?: number;
   inflation_model?: "replacement_slots_v2";
   indicator?: "Steal" | "Reach" | "Fair Value";
   explain_v2?: Player["explain_v2"];
@@ -32,6 +33,40 @@ export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
 function coerceNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
+
+export function formatCurrencyWhole(value: number | null | undefined): string {
+  const n = coerceNumber(value);
+  if (n === undefined) return "—";
+  return `$${Math.round(n)}`;
+}
+
+export function formatDeltaWhole(value: number | null | undefined): string {
+  const n = coerceNumber(value);
+  if (n === undefined) return "—";
+  const r = Math.round(n);
+  const sign = r > 0 ? "+" : "";
+  return `${sign}${r}`;
+}
+
+export function formatMaybeDelta(value: number | null | undefined): string {
+  return formatDeltaWhole(value);
+}
+
+export function formatMaybeDollar(
+  value: number | null | undefined,
+  options?: { oneDecimal?: boolean },
+): string {
+  const n = coerceNumber(value);
+  if (n === undefined) return "—";
+  if (!options?.oneDecimal) return formatCurrencyWhole(n);
+  const rounded = Math.round(n * 10) / 10;
+  if (Number.isInteger(rounded)) return `$${rounded}`;
+  return `$${rounded.toFixed(1)}`;
+}
+
+// Back-compat aliases during migration to semantic formatter names.
+export const formatDollar = formatCurrencyWhole;
+export const formatDollarDelta = formatDeltaWhole;
 
 /** Align catalog `Player.id` with Engine `player_id` (string vs number JSON, whitespace). */
 export function normalizeValuationPlayerId(id: string | number): string {
@@ -315,6 +350,7 @@ export function mergePlayerWithValuation(
       coerceNumber(valuation.recommended_bid) ?? player.recommended_bid,
     team_adjusted_value:
       coerceNumber(valuation.team_adjusted_value) ?? player.team_adjusted_value,
+    edge: coerceNumber(valuation.edge) ?? player.edge,
     inflation_model: valuation.inflation_model ?? player.inflation_model,
     indicator: valuation.indicator ?? player.indicator,
     explain_v2: valuation.explain_v2 ?? player.explain_v2,

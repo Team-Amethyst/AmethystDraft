@@ -14,6 +14,7 @@ import { Minus, Plus, Star, X } from "lucide-react";
 import type { WatchlistPlayer } from "../../api/watchlist";
 import PosBadge from "../PosBadge";
 import {
+  formatDollar,
   resolveValuationNumber,
   valuationSortLabel,
   valuationTooltip,
@@ -187,7 +188,7 @@ export default function WatchlistTable({
                         valuationTooltip(valuationSortField)
                       }
                     >
-                      ${Math.round(primary)}
+                      {formatDollar(primary)}
                       <div
                         style={{
                           fontSize: "0.62rem",
@@ -201,7 +202,7 @@ export default function WatchlistTable({
                             ? "recommended_bid"
                             : "team_adjusted_value",
                         )}
-                        : ${Math.round(supporting)}
+                        : {formatDollar(supporting)}
                       </div>
                     </td>
 

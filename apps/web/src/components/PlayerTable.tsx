@@ -5,7 +5,8 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
 import "./PlayerTable.css";
 import {
-  resolveValuationNumber,
+  formatCurrencyWhole,
+  formatMaybeDelta,
   valuationSortLabel,
   type ValuationSortField,
 } from "../utils/valuation";
@@ -276,9 +277,19 @@ function NoteCell({
   );
 }
 
-function getValDiff(player: Player): number {
-  const adpValue = Math.max(1, Math.round(50 - player.adp * 0.3));
-  return resolveValuationNumber(player, "recommended_bid") - adpValue;
+function asFinite(n: unknown): number | undefined {
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+}
+
+function getValDiff(player: Player): number | undefined {
+  const edge = asFinite(player.edge);
+  if (edge !== undefined) return edge;
+  const likelyBid = asFinite(player.recommended_bid);
+  const yourValue = asFinite(player.team_adjusted_value);
+  if (likelyBid !== undefined && yourValue !== undefined) {
+    return yourValue - likelyBid;
+  }
+  return undefined;
 }
 
 const DEFAULT_BAT_COLS = ["AVG", "HR", "RBI", "R", "SB"];
@@ -664,12 +675,26 @@ export default function PlayerTable({
     return [...filteredRowData].sort((a, b) => {
       if (col === "adp") return mult * (a.player.adp - b.player.adp);
       if (col === "value") {
-        const av = resolveValuationNumber(a.player, valuationSortField);
-        const bv = resolveValuationNumber(b.player, valuationSortField);
+        const av =
+          valuationSortField === "recommended_bid"
+            ? asFinite(a.player.recommended_bid) ?? -Infinity
+            : valuationSortField === "team_adjusted_value"
+              ? asFinite(a.player.team_adjusted_value) ?? -Infinity
+              : asFinite(a.player[valuationSortField]) ?? -Infinity;
+        const bv =
+          valuationSortField === "recommended_bid"
+            ? asFinite(b.player.recommended_bid) ?? -Infinity
+            : valuationSortField === "team_adjusted_value"
+              ? asFinite(b.player.team_adjusted_value) ?? -Infinity
+              : asFinite(b.player[valuationSortField]) ?? -Infinity;
         return mult * (av - bv);
       }
       if (col === "tier") return mult * (a.player.tier - b.player.tier);
-      if (col === "valdiff") return mult * (a.valDiff - b.valDiff);
+      if (col === "valdiff") {
+        const av = a.valDiff ?? -Infinity;
+        const bv = b.valDiff ?? -Infinity;
+        return mult * (av - bv);
+      }
       if (col.startsWith("stat-")) {
         const i = parseInt(col.slice(5));
         const aStat = a.isBatter ? batCols[i] : pitCols[i];
@@ -952,14 +977,8 @@ export default function PlayerTable({
               ({ player, bat, pit, isBatter, tags, valDiff }, index) => {
                 const isStarred = isInWatchlist(player.id);
                 const eng = engineCatalogByPlayerId?.get(player.id);
-                const primaryValue = resolveValuationNumber(
-                  player,
-                  "recommended_bid",
-                );
-                const secondaryValue = resolveValuationNumber(
-                  player,
-                  "team_adjusted_value",
-                );
+                const primaryValue = asFinite(player.recommended_bid);
+                const secondaryValue = asFinite(player.team_adjusted_value);
 
                 return (
                   <tr
@@ -1074,7 +1093,7 @@ export default function PlayerTable({
                         className="value-chip"
                         title="General auction guidance based on player strength and market conditions."
                       >
-                        ${Math.round(primaryValue)}
+                        {formatCurrencyWhole(primaryValue)}
                       </span>
                       <div
                         style={{
@@ -1085,16 +1104,18 @@ export default function PlayerTable({
                         }}
                         title="Personalized value based on your roster needs and budget."
                       >
-                        {valuationSortLabel("team_adjusted_value")}: $
-                        {Math.round(secondaryValue)}
+                        {valuationSortLabel("team_adjusted_value")}:{" "}
+                        {formatCurrencyWhole(secondaryValue)}
                       </div>
                     </td>
 
                     <td
-                      className={"td-valdiff " + (valDiff >= 0 ? "pos" : "neg")}
+                      className={
+                        "td-valdiff " +
+                        (valDiff == null ? "" : valDiff >= 0 ? "pos" : "neg")
+                      }
                     >
-                      {valDiff >= 0 ? "+" : ""}
-                      {valDiff}
+                      {formatMaybeDelta(valDiff)}
                     </td>
 
                     {focusedCols
