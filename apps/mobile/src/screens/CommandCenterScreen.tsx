@@ -10,6 +10,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  getNewsSignals,
+  getScarcity,
+  type ScarcityResponse,
+} from "../api/engine";
 import { getPlayers } from "../api/players";
 import {
   addRosterEntry,
@@ -22,6 +27,44 @@ import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { Player } from "../types/player";
 import { computeTeamData } from "../utils/commandCenterUtils";
+
+const LOCAL_POSITIONS = ["C", "1B", "2B", "SS", "3B", "OF", "SP", "RP"];
+
+function playerMatchesPosition(player: Player, position: string): boolean {
+  const target = position.toUpperCase();
+
+  const direct = player.position
+    .split("/")
+    .map((p) => p.trim().toUpperCase())
+    .includes(target);
+
+  const multi = (player.positions ?? []).map((p) => p.toUpperCase()).includes(target);
+
+  if (direct || multi) return true;
+
+  if (target === "OF") {
+    return ["LF", "CF", "RF"].some((p) =>
+      player.position.toUpperCase().includes(p),
+    );
+  }
+
+  return false;
+}
+
+function rosterEntryMatchesPosition(entry: RosterEntry, position: string): boolean {
+  const target = position.toUpperCase();
+
+  if (entry.rosterSlot.toUpperCase() === target) {
+    return true;
+  }
+
+  return (entry.positions ?? []).map((p) => p.toUpperCase()).includes(target);
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
 
 export default function CommandCenterScreen({ route }: any) {
   const { leagueId } = route.params;
@@ -38,6 +81,11 @@ export default function CommandCenterScreen({ route }: any) {
   const [teamNumber, setTeamNumber] = useState("1");
   const [price, setPrice] = useState("");
   const [rosterSlot, setRosterSlot] = useState("");
+
+  const [engineScarcity, setEngineScarcity] = useState<ScarcityResponse | null>(
+    null,
+  );
+  const [newsStrip, setNewsStrip] = useState<string | null>(null);
 
   const league = allLeagues.find((item) => item.id === leagueId);
 
@@ -74,17 +122,128 @@ export default function CommandCenterScreen({ route }: any) {
 
   useEffect(() => {
     if (!selectedPlayer) return;
+
     if (!rosterSlot) {
       const defaultSlot =
         selectedPlayer.positions?.[0] ??
         selectedPlayer.position.split("/")[0] ??
         "";
+
       setRosterSlot(defaultSlot);
     }
   }, [selectedPlayer, rosterSlot]);
 
+  useEffect(() => {
+    if (!token) {
+      const clear = setTimeout(() => setNewsStrip(null), 0);
+      return () => clearTimeout(clear);
+    }
+
+    const handle = setTimeout(() => {
+      void getNewsSignals(token, { days: 7 })
+        .then((response) => {
+          setNewsStrip(
+            response.count > 0
+              ? `${response.count} news signal${response.count === 1 ? "" : "s"} (7d, Engine)`
+              : null,
+          );
+        })
+        .catch(() => setNewsStrip(null));
+    }, 1500);
+
+    return () => clearTimeout(handle);
+  }, [token]);
+
+  const primaryPosition = useMemo(() => {
+    if (!selectedPlayer) return null;
+    return (
+      selectedPlayer.positions?.[0] ??
+      selectedPlayer.position.split("/")[0] ??
+      null
+    );
+  }, [selectedPlayer]);
+
+  useEffect(() => {
+    if (!leagueId || !token || !primaryPosition) {
+      setEngineScarcity(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void getScarcity(leagueId, token, primaryPosition)
+      .then((data) => {
+        if (!cancelled) {
+          setEngineScarcity(data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEngineScarcity(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [leagueId, token, primaryPosition, roster.length]);
+
+  const draftedIds = useMemo(
+    () => new Set(roster.map((entry) => entry.externalPlayerId)),
+    [roster],
+  );
+
+  const localPositionMarket = useMemo(() => {
+    if (!primaryPosition) return null;
+
+    const undraftedAtPos = players.filter(
+      (player) =>
+        !draftedIds.has(player.id) && playerMatchesPosition(player, primaryPosition),
+    );
+
+    const draftedAtPos = roster.filter((entry) =>
+      rosterEntryMatchesPosition(entry, primaryPosition),
+    );
+
+    const avgCatalogValue = average(undraftedAtPos.map((player) => player.value));
+    const avgPaid = average(draftedAtPos.map((entry) => entry.price));
+    const delta = avgPaid - avgCatalogValue;
+
+    const rankedCounts = LOCAL_POSITIONS.map((position) => ({
+      position,
+      count: players.filter(
+        (player) =>
+          !draftedIds.has(player.id) && playerMatchesPosition(player, position),
+      ).length,
+    })).sort((a, b) => b.count - a.count);
+
+    const supplyRankNum =
+      rankedCounts.findIndex((item) => item.position === primaryPosition) + 1;
+
+    return {
+      position: primaryPosition,
+      remainingCount: undraftedAtPos.length,
+      avgCatalogValue,
+      avgPaid,
+      delta,
+      supplyRankNum: supplyRankNum > 0 ? supplyRankNum : rankedCounts.length,
+      supplyRankOf: rankedCounts.length,
+    };
+  }, [draftedIds, players, primaryPosition, roster]);
+
+  const enginePosRow = useMemo(() => {
+    if (!engineScarcity || !primaryPosition) return null;
+
+    return (
+      engineScarcity.positions.find(
+        (position) => position.position.toUpperCase() === primaryPosition.toUpperCase(),
+      ) ?? engineScarcity.positions[0] ?? null
+    );
+  }, [engineScarcity, primaryPosition]);
+
   const teamData = useMemo(() => {
     if (!league) return [];
+
     return computeTeamData(
       {
         teamNames: league.teamNames,
@@ -193,6 +352,21 @@ export default function CommandCenterScreen({ route }: any) {
         <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 12 }}>
           Command Center
         </Text>
+
+        {newsStrip ? (
+          <View
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              backgroundColor: "#eff6ff",
+              borderWidth: 1,
+              borderColor: "#bfdbfe",
+              marginBottom: 14,
+            }}
+          >
+            <Text style={{ color: "#1e3a8a", fontWeight: "600" }}>{newsStrip}</Text>
+          </View>
+        ) : null}
 
         {selectedPlayer ? (
           <View
@@ -311,6 +485,77 @@ export default function CommandCenterScreen({ route }: any) {
           </View>
         )}
 
+        {localPositionMarket ? (
+          <View
+            style={{
+              padding: 14,
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderRadius: 10,
+              marginBottom: 16,
+              backgroundColor: "#fafafa",
+            }}
+          >
+            <Text style={{ fontWeight: "700", marginBottom: 8 }}>
+              Market • {localPositionMarket.position}
+            </Text>
+            <Text>
+              AVG CATALOG $: ${localPositionMarket.avgCatalogValue.toFixed(1)}
+            </Text>
+            <Text>
+              AVG PAID $: ${localPositionMarket.avgPaid.toFixed(1)}
+            </Text>
+            <Text>
+              SPEND VS CATALOG: {localPositionMarket.delta >= 0 ? "+" : ""}
+              {localPositionMarket.delta.toFixed(1)}
+            </Text>
+            <Text>REMAINING COUNT: {localPositionMarket.remainingCount}</Text>
+            <Text style={{ color: "#6b7280", marginTop: 6 }}>
+              Count rank (local): {localPositionMarket.supplyRankNum} /{" "}
+              {localPositionMarket.supplyRankOf}
+            </Text>
+          </View>
+        ) : null}
+
+        {enginePosRow ? (
+          <View
+            style={{
+              padding: 14,
+              borderWidth: 1,
+              borderColor: "#dbeafe",
+              borderRadius: 10,
+              marginBottom: 16,
+              backgroundColor: "#f8fbff",
+            }}
+          >
+            <Text style={{ fontWeight: "700", marginBottom: 8 }}>
+              Engine Scarcity • {enginePosRow.position}
+            </Text>
+            <Text>SCORE: {enginePosRow.scarcity_score}</Text>
+            <Text>
+              ELITE / MID / TOTAL: {enginePosRow.elite_remaining} /{" "}
+              {enginePosRow.mid_tier_remaining} / {enginePosRow.total_remaining}
+            </Text>
+            {enginePosRow.alert ? (
+              <Text style={{ marginTop: 6 }}>{enginePosRow.alert}</Text>
+            ) : null}
+
+            {engineScarcity &&
+            engineScarcity.monopoly_warnings.length > 0 ? (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ fontWeight: "600", marginBottom: 4 }}>
+                  Monopoly Warnings
+                </Text>
+                {engineScarcity.monopoly_warnings.slice(0, 2).map((warning, index) => (
+                  <Text key={index} style={{ marginBottom: 4 }}>
+                    • {warning.message}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         <Text style={{ marginBottom: 16 }}>
           Players loaded: {players.length} | Picks logged: {roster.length}
         </Text>
@@ -340,7 +585,14 @@ export default function CommandCenterScreen({ route }: any) {
           ListEmptyComponent={<Text>No team data yet.</Text>}
         />
 
-        <Text style={{ fontSize: 18, fontWeight: "700", marginTop: 18, marginBottom: 10 }}>
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "700",
+            marginTop: 18,
+            marginBottom: 10,
+          }}
+        >
           Recent Picks
         </Text>
 
