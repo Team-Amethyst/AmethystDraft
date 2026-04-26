@@ -51,6 +51,8 @@ import {
   hasPitcherEligibility,
 } from "../utils/eligibility";
 import { UserPlus } from "lucide-react";
+import CustomPlayerHeadshot from "./CustomPlayerHeadshot";
+
 
 const formatEngineMoney = (n: number | undefined) => formatDollar(n);
 
@@ -140,14 +142,18 @@ function PlayerIdentityCard({
       <div className="pic-layout">
         <div className="pic-player-col">
           <div className="pic-row">
-            <img
-              src={selectedPlayer.headshot}
-              alt=""
-              className="pac-headshot pac-headshot--identity"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
+            {selectedPlayer.id.startsWith("custom_") || !selectedPlayer.headshot ? (
+                <CustomPlayerHeadshot size={52} className="pac-headshot pac-headshot--identity" />
+              ) : (
+                <img
+                  src={selectedPlayer.headshot}
+                  alt=""
+                  className="pac-headshot pac-headshot--identity"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
             <div className="pic-identity-text">
               <h1 className="pac-name pac-name--identity">
                 {selectedPlayer.name}

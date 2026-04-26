@@ -10,6 +10,8 @@ import {
   valuationSortLabel,
   type ValuationSortField,
 } from "../utils/valuation";
+import CustomPlayerHeadshot from "./CustomPlayerHeadshot";
+
 
 type StatBasis = "projections" | "last-year" | "3-year-avg";
 
@@ -77,7 +79,15 @@ function TierBadge({ tier }: { tier: number }) {
   );
 }
 
-function PlayerHeadshot({ src, name }: { src: string; name: string }) {
+function PlayerHeadshot({
+  src,
+  name,
+  isCustom,
+}: {
+  src: string;
+  name: string;
+  isCustom?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   const initials = name
     .split(" ")
@@ -85,7 +95,11 @@ function PlayerHeadshot({ src, name }: { src: string; name: string }) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  if (failed) {
+
+  if (isCustom) {
+    return <CustomPlayerHeadshot size={32} />;
+  }
+  if (failed || !src) {
     return <div className="headshot-fallback">{initials}</div>;
   }
   return (
@@ -1024,6 +1038,7 @@ export default function PlayerTable({
                         <PlayerHeadshot
                           src={player.headshot}
                           name={player.name}
+                          isCustom={isCustomPlayer?.(player.id)}
                         />
                         <div className="player-name-col">
                           <span className="player-name">
