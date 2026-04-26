@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -65,17 +66,6 @@ function formatEdgeLine(edge: number | undefined): string {
   if (rounded > 0) return `+${absText}`;
   if (rounded < 0) return `-${absText}`;
   return "0";
-}
-
-function ValuationMoneySkeleton({ tall }: { tall?: boolean }) {
-  return (
-    <span
-      className={
-        "pac-val-skeleton" + (tall ? " pac-val-skeleton--tall" : "")
-      }
-      aria-hidden
-    />
-  );
 }
 
 function MetricTile({
@@ -255,32 +245,15 @@ function engineFiniteOrNull(
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
-function pickFirstFinite(
-  ...candidates: (number | undefined | null)[]
-): number | null {
-  for (const c of candidates) {
-    if (typeof c === "number" && Number.isFinite(c)) return c;
-  }
-  return null;
-}
-
-/** Engine valuation chain only (never max_bid / wallet caps). */
-function suggestedDisplayFromValuationRow(
+/** `recommended_bid` capped by max bid (wallet); never falls back to other valuation fields. */
+function actionableBidFromRecommendedAndMaxBid(
   row: ValuationResult | undefined,
-  _catalogValue: number | undefined,
-): number | null {
-  return pickFirstFinite(row?.recommended_bid, row?.team_adjusted_value);
-}
-
-function actionableBidFromRowAndMaxBid(
-  row: ValuationResult | undefined,
-  catalogValue: number | undefined,
   maxBid: number | undefined | null,
 ): number | null {
-  const s = suggestedDisplayFromValuationRow(row, catalogValue);
-  if (s == null) return null;
-  if (maxBid != null && Number.isFinite(maxBid)) return Math.min(s, maxBid);
-  return s;
+  const r = row ? engineFiniteOrNull(row.recommended_bid) : null;
+  if (r == null) return null;
+  if (maxBid != null && Number.isFinite(maxBid)) return Math.min(r, maxBid);
+  return r;
 }
 
 /** Merge engine row with catalog `Player` optional valuation fields when the row omits them. */
@@ -307,7 +280,7 @@ function mergeDisplayValuationRow(
       engineFiniteOrNull(row.baseline_value) ??
       engineFiniteOrNull(player.baseline_value) ??
       row.baseline_value,
-    edge: engineFiniteOrNull(row.edge) ?? row.edge,
+    edge: engineFiniteOrNull(row.edge),
   };
 }
 
@@ -316,49 +289,35 @@ function BidDecisionCard({
   selectedPlayer,
   bidDecision,
   myWalletCaps,
-  showValuationMoneySkeleton,
-  suggestedBidSkeleton,
 }: {
   valuationRow: ValuationResult | null | undefined;
   selectedPlayer: Player;
   bidDecision: CommandCenterBidDecision;
   myWalletCaps: CommandCenterWalletCaps | null;
-  showValuationMoneySkeleton: boolean;
-  suggestedBidSkeleton: boolean;
 }) {
   const row = valuationRow ?? null;
   const roundWhole = (n: number) => Math.round(n);
 
-  const suggestedDisplay = suggestedDisplayFromValuationRow(
-    row ?? undefined,
-    selectedPlayer.value,
-  );
+  const finiteRecommendedBid = row
+    ? engineFiniteOrNull(row.recommended_bid)
+    : null;
 
   const maxBid =
     myWalletCaps != null && Number.isFinite(myWalletCaps.maxBid)
       ? myWalletCaps.maxBid
       : null;
 
-  const actionableBid = actionableBidFromRowAndMaxBid(
-    row ?? undefined,
-    selectedPlayer.value,
-    maxBid,
-  );
-
   const budgetLimitedByMaxBid =
-    suggestedDisplay != null &&
+    finiteRecommendedBid != null &&
     maxBid != null &&
     Number.isFinite(maxBid) &&
-    suggestedDisplay > maxBid;
+    finiteRecommendedBid > maxBid;
 
   const showMetaRow =
-    bidDecision.budgetLimited ||
-    budgetLimitedByMaxBid ||
-    showValuationMoneySkeleton;
+    bidDecision.budgetLimited || budgetLimitedByMaxBid;
 
   const decisionData = {
-    suggestedDisplay,
-    actionableBid,
+    finiteRecommendedBid,
     team_adjusted_value: row ? engineFiniteOrNull(row.team_adjusted_value) : null,
     recommended_bid: row ? engineFiniteOrNull(row.recommended_bid) : null,
     adjusted_value: row ? engineFiniteOrNull(row.adjusted_value) : null,
@@ -367,11 +326,10 @@ function BidDecisionCard({
   };
 
   useEffect(() => {
-    if (suggestedBidSkeleton || row == null) return;
+    if (row == null) return;
     if (
       decisionData.recommended_bid == null ||
-      decisionData.team_adjusted_value == null ||
-      suggestedDisplay == null
+      decisionData.team_adjusted_value == null
     ) {
       const cat = selectedPlayer;
       console.warn(
@@ -379,7 +337,7 @@ function BidDecisionCard({
         {
           player_id: selectedPlayer.id,
           name: selectedPlayer.name,
-          suggestedDisplay,
+          finiteRecommendedBid: decisionData.finiteRecommendedBid,
           recommended_bid: decisionData.recommended_bid,
           team_adjusted_value: decisionData.team_adjusted_value,
           adjusted_value: decisionData.adjusted_value,
@@ -403,8 +361,7 @@ function BidDecisionCard({
     }
   }, [
     row,
-    suggestedBidSkeleton,
-    suggestedDisplay,
+    decisionData.finiteRecommendedBid,
     decisionData.recommended_bid,
     decisionData.team_adjusted_value,
     decisionData.adjusted_value,
@@ -432,36 +389,37 @@ function BidDecisionCard({
   const decisionDanger = decisionData.edge != null && decisionData.edge < -15;
   const decisionStrong = decisionData.edge != null && decisionData.edge > 10;
   const recommendedBidDisplay =
-    actionableBid == null ? null : formatSuggestedBidLine(actionableBid);
-  const roundedRecommendedBid =
-    actionableBid != null && Number.isFinite(actionableBid)
-      ? roundWhole(actionableBid)
-      : null;
-  const roundedYourValue =
-    decisionData.team_adjusted_value != null &&
-    Number.isFinite(decisionData.team_adjusted_value)
-      ? roundWhole(decisionData.team_adjusted_value)
-      : null;
-  const computedDelta =
-    roundedYourValue != null && roundedRecommendedBid != null
-      ? roundWhole(roundedYourValue - roundedRecommendedBid)
-      : null;
-  const fallbackDelta =
-    decisionData.edge != null && Number.isFinite(decisionData.edge)
-      ? roundWhole(decisionData.edge)
-      : null;
-  const displayDelta = computedDelta ?? fallbackDelta;
-  const edgeDisplay = formatEdgeLine(displayDelta ?? undefined);
+    decisionData.recommended_bid == null
+      ? null
+      : formatSuggestedBidLine(decisionData.recommended_bid);
+  const edgeForUi = decisionData.edge;
+  const edgeDisplay = formatEdgeLine(edgeForUi ?? undefined);
   const edgeLabel =
-    displayDelta == null
+    edgeForUi == null || !Number.isFinite(edgeForUi)
       ? "Fair Price"
-      : displayDelta > 0
+      : edgeForUi > 0
         ? "Strong Value"
-        : displayDelta < 0
+        : edgeForUi < 0
           ? "Overpay"
           : "Fair Price";
   const fmtMoney = (n: number | null) =>
     n != null ? formatEngineMoney(n) : "—";
+
+  const taMv = decisionData.team_adjusted_value;
+  const adjMv = decisionData.adjusted_value;
+  const hideLeagueMarginalTile =
+    taMv != null &&
+    adjMv != null &&
+    Number.isFinite(taMv) &&
+    Number.isFinite(adjMv) &&
+    Math.round(taMv) === Math.round(adjMv);
+
+  const metricSublMarket = formatEngineMoney(
+    decisionData.recommended_bid ?? undefined,
+  );
+  const metricSublRoster = formatEngineMoney(
+    decisionData.team_adjusted_value ?? undefined,
+  );
 
   return (
     <div
@@ -470,15 +428,19 @@ function BidDecisionCard({
     >
       <div className="bdc-grid">
         <div className="bdc-metric-row">
-          <div className="bdc-metric-grid" aria-label="Valuation metrics">
+          <div
+            className={
+              "bdc-metric-grid" +
+              (hideLeagueMarginalTile ? " bdc-metric-grid--4" : "")
+            }
+            aria-label="Valuation metrics"
+          >
             <MetricTile
               variant="primary"
               label="Bid"
-              title="Primary bid recommendation"
+              title="Engine recommended_bid (expected clearing price)"
               value={
-                suggestedBidSkeleton ? (
-                  <ValuationMoneySkeleton tall />
-                ) : recommendedBidDisplay != null ? (
+                recommendedBidDisplay != null ? (
                   <span
                     className={
                       "bdc-metric-tile-bid bdc-recommended-value" +
@@ -494,24 +456,20 @@ function BidDecisionCard({
               }
             />
             <MetricTile
-              label="Your Value"
+              label="Your Marginal Value"
               title="Intrinsic value for your team"
-              value={
-                suggestedBidSkeleton ? (
-                  <ValuationMoneySkeleton />
-                ) : (
-                  fmtMoney(decisionData.team_adjusted_value)
-                )
-              }
+              value={fmtMoney(decisionData.team_adjusted_value)}
             />
+            {hideLeagueMarginalTile ? null : (
+              <MetricTile
+                label="League Marginal Value"
+                title="Incremental roster value"
+                value={fmtMoney(decisionData.adjusted_value)}
+              />
+            )}
             <MetricTile
-              label="Adjusted Value"
-              title="Incremental roster value"
-              value={fmtMoney(decisionData.adjusted_value)}
-            />
-            <MetricTile
-              label="Market"
-              title="Expected room price"
+              label="Clearing Price"
+              title="Engine recommended_bid (same field as Bid; room clearing price)"
               value={fmtMoney(decisionData.recommended_bid)}
             />
             <MetricTile
@@ -522,7 +480,7 @@ function BidDecisionCard({
           </div>
           <div
             className={"bdc-edge-slot bdc-edge-inline bdc-context-edge--" + edgeTone}
-            title="Edge = Your Value minus recommended bid"
+            title="Engine edge (team_adjusted_value − recommended_bid when provided by API)"
           >
             <span className="bdc-edge-value">{edgeDisplay}</span>
             <span className="bdc-edge-label">{edgeLabel}</span>
@@ -550,6 +508,14 @@ function BidDecisionCard({
             )}
           />
         </div>
+
+        <p className="bdc-explain-line">
+          {"Market price ~" +
+            metricSublMarket +
+            ". Your marginal value ~" +
+            metricSublRoster +
+            "."}
+        </p>
 
         {showMetaRow ? (
           <div className="bdc-meta-row">
@@ -628,7 +594,7 @@ export function AuctionCenter({
   const [valuationMap, setValuationMap] = useState<
     Map<string, ValuationResult>
   >(new Map());
-  /** True while per-player Engine fetch is in flight and the map has no row for that player yet. */
+  /** True while the active per-player Engine `getValuationPlayer` request is in flight. */
   const [playerEngineFetchPending, setPlayerEngineFetchPending] =
     useState(false);
 
@@ -636,8 +602,6 @@ export function AuctionCenter({
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const valuationMapRef = useRef(valuationMap);
-  valuationMapRef.current = valuationMap;
 
   const [wonBy, setWonBy] = useState("");
   const [finalPrice, setFinalPrice] = useState("");
@@ -701,6 +665,27 @@ export function AuctionCenter({
     [displayValuationRow, activeValuationRow],
   );
 
+  useLayoutEffect(() => {
+    if (!leagueId || !token || !selectedPlayer) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
+    setPlayerEngineFetchPending(true);
+  }, [
+    leagueId,
+    token,
+    selectedPlayer?.id,
+    leagueValuationKey,
+    rosterValuationKey,
+    userTeamId,
+  ]);
+
+  /** Hide merged/catalog numbers until the latest player valuation response lands (avoids flash). */
+  const rowForValuationUi =
+    playerEngineFetchPending && selectedPlayerNormId
+      ? undefined
+      : mergedValuationRow;
+
   const myTeamWalletFingerprint = useMemo(
     () =>
       myTeamEntries
@@ -719,39 +704,26 @@ export function AuctionCenter({
   const intrinsicMoney = useMemo(
     () =>
       commandCenterValuationMoney(
-        mergedValuationRow,
+        rowForValuationUi,
         selectedPlayer?.value,
       ),
-    [mergedValuationRow, selectedPlayer?.value],
+    [rowForValuationUi, selectedPlayer?.value],
   );
 
   const bidDecision = useMemo(
     () =>
       commandCenterBidDecision(
-        mergedValuationRow,
+        rowForValuationUi,
         selectedPlayer?.value,
         myWalletCaps,
       ),
-    [mergedValuationRow, selectedPlayer?.value, myWalletCaps],
-  );
-
-  const showValuationMoneySkeleton = Boolean(
-    selectedPlayerNormId &&
-      playerEngineFetchPending &&
-      !valuationMap.has(selectedPlayerNormId),
+    [rowForValuationUi, selectedPlayer?.value, myWalletCaps],
   );
 
   const hasBidSignal = Boolean(
-    mergedValuationRow &&
-      (engineFiniteOrNull(mergedValuationRow.recommended_bid) != null ||
-        engineFiniteOrNull(mergedValuationRow.team_adjusted_value) != null),
-  );
-
-  const suggestedBidSkeleton = Boolean(
-    showValuationMoneySkeleton ||
-      (Boolean(selectedPlayerNormId) &&
-        playerEngineFetchPending &&
-        !hasBidSignal),
+    rowForValuationUi &&
+      (engineFiniteOrNull(rowForValuationUi.recommended_bid) != null ||
+        engineFiniteOrNull(rowForValuationUi.team_adjusted_value) != null),
   );
 
   useEffect(() => {
@@ -774,7 +746,7 @@ export function AuctionCenter({
       adjusted_value: null,
       baseline_value: null,
       edge: null,
-      suggestedDisplay: null as number | null,
+      finite_recommended_bid: null as number | null,
       max_bid: maxB,
     });
 
@@ -787,13 +759,7 @@ export function AuctionCenter({
       adjusted_value: p.adjusted_value ?? null,
       baseline_value: p.baseline_value ?? null,
       edge: null,
-      suggestedDisplay: pickFirstFinite(
-        p.recommended_bid,
-        p.team_adjusted_value,
-        p.adjusted_value,
-        p.baseline_value,
-        p.value,
-      ),
+      finite_recommended_bid: engineFiniteOrNull(p.recommended_bid),
       max_bid: maxB,
     };
 
@@ -807,7 +773,7 @@ export function AuctionCenter({
           adjusted_value: eng.adjusted_value ?? null,
           baseline_value: eng.baseline_value ?? null,
           edge: eng.edge ?? null,
-          suggestedDisplay: suggestedDisplayFromValuationRow(eng, p.value),
+          finite_recommended_bid: engineFiniteOrNull(eng.recommended_bid),
           max_bid: maxB,
         }
       : nullRowSnap("2_matched_engine_row (none)");
@@ -822,14 +788,14 @@ export function AuctionCenter({
           adjusted_value: cardRow.adjusted_value ?? null,
           baseline_value: cardRow.baseline_value ?? null,
           edge: cardRow.edge ?? null,
-          suggestedDisplay: suggestedDisplayFromValuationRow(cardRow, p.value),
+          finite_recommended_bid: engineFiniteOrNull(cardRow.recommended_bid),
           max_bid: maxB,
         }
       : nullRowSnap("3_final_row_passed_to_BidDecisionCard (none)");
 
     const actionablePreview =
       cardRow != null
-        ? actionableBidFromRowAndMaxBid(cardRow, p.value, maxB)
+        ? actionableBidFromRecommendedAndMaxBid(cardRow, maxB)
         : null;
 
     console.log("[BidDecisionCard valuation diagnostic]", {
@@ -953,11 +919,6 @@ export function AuctionCenter({
     }
     const playerIdRaw = selectedPlayer.id;
     const playerId = normalizeValuationPlayerId(playerIdRaw);
-    if (valuationMapRef.current.has(playerId)) {
-      setPlayerEngineFetchPending(false);
-    } else {
-      setPlayerEngineFetchPending(true);
-    }
     if (import.meta.env.DEV) {
       console.info("[valuation player request]", {
         selected_player_id: playerId,
@@ -1098,31 +1059,15 @@ export function AuctionCenter({
       selectedPlayer.position,
     );
     setStatView(isPitcher ? "pitching" : "hitting");
-    const nid = normalizeValuationPlayerId(selectedPlayer.id);
-    const v = valuationMap.get(nid);
-    const mergedRow =
-      mergeDisplayValuationRow(v, selectedPlayer) ?? v ?? undefined;
-    const caps =
-      league && user?.id && league.memberIds.includes(user.id)
-        ? commandCenterWalletCapsFromMyTeam(league, myTeamEntries)
-        : null;
-    const actionable = actionableBidFromRowAndMaxBid(
-      mergedRow,
-      selectedPlayer.value,
-      caps?.maxBid ?? null,
-    );
-    if (actionable != null) {
-      setFinalPrice(String(Math.max(1, Math.round(actionable))));
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when selected player id changes
   }, [selectedPlayer?.id]);
 
   // When valuations refresh, update bid default from Engine if user has not edited the field
   useEffect(() => {
     if (!selectedPlayer || bidPriceTouchedRef.current) return;
-    const actionable = actionableBidFromRowAndMaxBid(
-      mergedValuationRow,
-      selectedPlayer.value,
+    if (playerEngineFetchPending) return;
+    const actionable = actionableBidFromRecommendedAndMaxBid(
+      rowForValuationUi ?? undefined,
       myWalletCaps?.maxBid ?? null,
     );
     if (actionable != null) {
@@ -1131,8 +1076,9 @@ export function AuctionCenter({
   }, [
     selectedPlayer?.id,
     selectedPlayer?.value,
-    mergedValuationRow,
+    rowForValuationUi,
     myWalletCaps,
+    playerEngineFetchPending,
   ]);
 
   const onFinalPriceChange = useCallback((value: string) => {
@@ -1605,10 +1551,13 @@ export function AuctionCenter({
                 const rowUi = mergedValuationRow;
                 const tierValue = rowUi?.tier ?? selectedPlayer.tier;
                 const adpValue = rowUi?.adp ?? selectedPlayer.adp;
-                const marketSignal = computeDerivedMarketSignal(
-                  intrinsicMoney.likely,
-                  intrinsicMoney.market,
-                );
+                const marketSignal =
+                  rowForValuationUi == null
+                    ? null
+                    : computeDerivedMarketSignal(
+                        intrinsicMoney.likely,
+                        intrinsicMoney.market,
+                      );
                 const adpTitle =
                   rowUi?.adp != null
                     ? `Engine ADP (valuation row): ${rowUi.adp}`
@@ -1630,12 +1579,10 @@ export function AuctionCenter({
                       }
                     />
                     <BidDecisionCard
-                      valuationRow={mergedValuationRow}
+                      valuationRow={rowForValuationUi}
                       selectedPlayer={selectedPlayer}
                       bidDecision={bidDecision}
                       myWalletCaps={myWalletCaps}
-                      showValuationMoneySkeleton={showValuationMoneySkeleton}
-                      suggestedBidSkeleton={suggestedBidSkeleton}
                     />
                   </>
                 );

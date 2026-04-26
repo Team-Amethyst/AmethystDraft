@@ -85,7 +85,7 @@ describe("valuation helpers", () => {
     expect(normalizeValuationPlayerId(456)).toBe("456");
   });
 
-  it("commandCenterValuationMoney uses per-column fallback chains", () => {
+  it("commandCenterValuationMoney binds one engine field per line (no cross-field fallbacks)", () => {
     const row = {
       player_id: "1",
       name: "A",
@@ -100,7 +100,7 @@ describe("valuation helpers", () => {
     const m = commandCenterValuationMoney(row, 5);
     expect(m.your).toBe(40);
     expect(m.likely).toBe(30);
-    expect(m.market).toBe(20);
+    expect(m.market).toBe(30);
 
     const partial = {
       player_id: "1",
@@ -112,11 +112,11 @@ describe("valuation helpers", () => {
       indicator: "Fair Value" as const,
     } as ValuationResult;
     const m2 = commandCenterValuationMoney(partial, 99);
-    expect(m2.your).toBe(20);
-    expect(m2.likely).toBe(20);
-    expect(m2.market).toBe(20);
+    expect(m2.your).toBeUndefined();
+    expect(m2.likely).toBeUndefined();
+    expect(m2.market).toBeUndefined();
 
-    expect(commandCenterValuationMoney(undefined, 12).your).toBe(12);
+    expect(commandCenterValuationMoney(undefined, 12).your).toBeUndefined();
   });
 
   it("commandCenterMaxExecutableBid is min(max_bid, budget − (spots−1))", () => {
@@ -144,7 +144,7 @@ describe("valuation helpers", () => {
     expect(d.yourIntrinsic).toBe(40);
     expect(d.likelyActionable).toBe(18);
     expect(d.budgetLimited).toBe(true);
-    expect(d.market).toBe(20);
+    expect(d.market).toBe(35);
   });
 
   it("commandCenterBidDecision caps suggested bid and flags budget-limited", () => {
@@ -158,6 +158,7 @@ describe("valuation helpers", () => {
       adjusted_value: 20,
       recommended_bid: 35,
       team_adjusted_value: 40,
+      edge: 5,
       indicator: "Fair Value" as const,
     };
     const dec = commandCenterBidDecision(row, 5, caps);
@@ -167,7 +168,7 @@ describe("valuation helpers", () => {
     expect(dec.aggressive).toBe(true);
     expect(dec.edge).toBe(5);
 
-    const rowCon = { ...row, tier: 5, team_adjusted_value: 16 };
+    const rowCon = { ...row, tier: 5, team_adjusted_value: 16, edge: undefined };
     const dec2 = commandCenterBidDecision(rowCon, 5, caps);
     expect(dec2.aggressive).toBe(false);
     expect(dec2.suggestedBid).toBe(18);

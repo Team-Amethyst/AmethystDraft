@@ -742,6 +742,8 @@
 
 .bid-decision-card .bdc-metric-row > .bdc-metric-grid {
   min-width: 0;
+  width: 100%;
+  max-width: none;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   column-gap: var(--cc-space-8);
@@ -749,6 +751,23 @@
   border: none;
   background: none;
   box-shadow: none;
+}
+
+.bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.bid-decision-card .bdc-explain-line {
+  margin: 0;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--cc-bdc-label-fg);
+  opacity: 0.5;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bid-decision-card .bdc-metric-tile {
@@ -871,7 +890,7 @@
   border: none;
   box-shadow: none;
   overflow: visible;
-  opacity: 0.3;
+  opacity: 0.45;
 }
 
 .bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile {

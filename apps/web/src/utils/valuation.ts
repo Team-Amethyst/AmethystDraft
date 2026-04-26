@@ -84,25 +84,17 @@ function firstFiniteDollar(
 }
 
 /**
- * Command Center header: three lines with explicit fallback chains (Engine row + catalog).
- * Your Value: team_adjusted → recommended_bid → adjusted_value → baseline_value → player.value
- * Likely Bid: recommended_bid → adjusted_value → baseline_value → team_adjusted → player.value
- * Market Value: adjusted_value → recommended_bid → baseline_value → team_adjusted → player.value
+ * Command Center header lines: one engine field each (no cross-field fallbacks).
+ * Your Value → team_adjusted_value; Likely / Market clearing → recommended_bid.
  */
 export function commandCenterValuationMoney(
   row: ValuationResult | undefined | null,
-  playerValue: number | undefined,
+  _playerValue: number | undefined,
 ): { your: number | undefined; likely: number | undefined; market: number | undefined } {
-  const t = row?.team_adjusted_value;
-  const r = row?.recommended_bid;
-  const a = row?.adjusted_value;
-  const b = row?.baseline_value;
-  const v = playerValue;
-
   return {
-    your: firstFiniteDollar([t, r, a, b, v]),
-    likely: firstFiniteDollar([r, a, b, t, v]),
-    market: firstFiniteDollar([a, r, b, t, v]),
+    your: coerceNumber(row?.team_adjusted_value),
+    likely: coerceNumber(row?.recommended_bid),
+    market: coerceNumber(row?.recommended_bid),
   };
 }
 
@@ -156,13 +148,13 @@ export function commandCenterRoundBidIncrement(
 }
 
 export type CommandCenterBidDecision = {
-  /** team_adjusted → recommended → adjusted → baseline → player.value */
+  /** Engine `team_adjusted_value` only (no fallbacks). */
   yourValue: number | undefined;
   /** Primary actionable bid (capped + rounded). */
   suggestedBid: number;
   /** Raw cap before rounding (same units as engine dollars). */
   maxExecutableBid: number;
-  /** Engine `edge`, else team_adjusted − recommended when both finite. */
+  /** Engine `edge` only (no client-side recompute). */
   edge: number | undefined;
   /** True when the executable cap binds below uncapped base (shows “budget-limited”). */
   budgetLimited: boolean;
@@ -188,20 +180,13 @@ export function commandCenterBidDecision(
   const rawA = row?.adjusted_value;
   const rawB = row?.baseline_value;
 
-  const yourValue = firstFiniteDollar([rawTA, rawR, rawA, rawB, playerValue]);
-  const likelyBid = firstFiniteDollar([rawR, rawA, rawB, rawTA, playerValue]);
-  const marketValue = firstFiniteDollar([rawA, rawR, rawB, rawTA, playerValue]);
+  const yourValue = coerceNumber(rawTA);
+  const likelyBid = coerceNumber(rawR);
+  const marketValue = coerceNumber(rawR);
   const playerStrength = firstFiniteDollar([rawB, rawA, rawR, rawTA, playerValue]);
 
   const edgeFromRow =
-    typeof row?.edge === "number" && Number.isFinite(row.edge)
-      ? row.edge
-      : typeof rawTA === "number" &&
-          typeof rawR === "number" &&
-          Number.isFinite(rawTA) &&
-          Number.isFinite(rawR)
-        ? rawTA - rawR
-        : undefined;
+    typeof row?.edge === "number" && Number.isFinite(row.edge) ? row.edge : undefined;
 
   const tier = row?.tier;
   const aggressive =
