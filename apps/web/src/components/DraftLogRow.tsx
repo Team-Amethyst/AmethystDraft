@@ -136,39 +136,49 @@ export function DraftLogRow({
   return (
     <>
       <div className="draft-log-row">
-        <span className="dl-pick">#{pickNum}</span>
-        {headshot ? (
-          <img src={headshot} alt={entry.playerName} className="dl-headshot" />
-        ) : (
-          <div className="dl-headshot-fallback">{initials}</div>
-        )}
+        <div className="dl-left-section">
+          <span className="dl-pick">#{pickNum}</span>
+          {headshot ? (
+            <img src={headshot} alt={entry.playerName} className="dl-headshot" />
+          ) : (
+            <div className="dl-headshot-fallback">{initials}</div>
+          )}
+        </div>
+
         <div className="dl-body">
           <div className="dl-row-top">
-            <span className="dl-name">{entry.playerName}</span>
-            <span className="dl-mlb-team">
-              {mlbTeam || entry.playerTeam || "—"}
+            <span className="dl-name" title={entry.playerName}>
+              {entry.playerName}
             </span>
-          </div>
-          <div className="dl-row-bottom">
-            <span className="dl-fantasy-team">{teamName}</span>
-            <span className="dl-slot">{entry.rosterSlot}</span>
             <span className="dl-price">${entry.price}</span>
           </div>
+          <div className="dl-row-bottom">
+            <span className="dl-info">
+              {mlbTeam || entry.playerTeam || "—"} · {entry.rosterSlot} ·{" "}
+              {teamName}
+            </span>
+            <div className="dl-actions">
+              {onUpdate && (
+                <button
+                  className="dl-edit"
+                  title="Edit pick"
+                  onClick={openModal}
+                >
+                  <Pencil size={16} />
+                </button>
+              )}
+              {onRemove && (
+                <button
+                  className="dl-remove"
+                  title="Remove pick"
+                  onClick={() => onRemove(entry._id)}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-        {onUpdate && (
-          <button className="dl-edit" title="Edit pick" onClick={openModal}>
-            <Pencil size={11} />
-          </button>
-        )}
-        {onRemove && (
-          <button
-            className="dl-remove"
-            title="Remove pick"
-            onClick={() => onRemove(entry._id)}
-          >
-            <X size={12} />
-          </button>
-        )}
       </div>
       {editing && (
         <div className="dl-modal-overlay" onClick={() => setEditing(false)}>
