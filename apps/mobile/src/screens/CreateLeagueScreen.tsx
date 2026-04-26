@@ -9,13 +9,16 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { createLeague } from "../api/leagues";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import type { RootStackParamList } from "../navigation/types";
 
 const PLAYER_POOLS = ["Mixed", "AL", "NL"] as const;
-
 type PlayerPool = (typeof PLAYER_POOLS)[number];
+
+type Props = NativeStackScreenProps<RootStackParamList, "CreateLeague">;
 
 function PoolChip({
   label,
@@ -46,7 +49,7 @@ function PoolChip({
   );
 }
 
-export default function CreateLeagueScreen({ navigation }: any) {
+export default function CreateLeagueScreen({ navigation }: Props) {
   const { token } = useAuth();
   const { refreshLeagues } = useLeague();
 
@@ -130,10 +133,7 @@ export default function CreateLeagueScreen({ navigation }: any) {
           ],
           playerPool,
           posEligibilityThreshold: thresholdValue,
-          teamNames: Array.from(
-            { length: teamCount },
-            (_, i) => `Team ${i + 1}`,
-          ),
+          teamNames: Array.from({ length: teamCount }, (_, i) => `Team ${i + 1}`),
         },
         token,
       );
@@ -143,6 +143,8 @@ export default function CreateLeagueScreen({ navigation }: any) {
       navigation.replace("LeagueTabs", {
         leagueId: league.id,
         leagueName: league.name,
+        screen: "Research",
+        params: { leagueId: league.id },
       });
     } catch (err) {
       Alert.alert(

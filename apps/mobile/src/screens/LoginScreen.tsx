@@ -2,15 +2,19 @@ import { useState } from "react";
 import {
   Alert,
   Button,
-  SafeAreaView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { loginUser } from "../api/auth";
 import { useAuth } from "../contexts/AuthContext";
+import type { RootStackParamList } from "../navigation/types";
 
-export default function LoginScreen({ navigation }: any) {
+type Props = NativeStackScreenProps<RootStackParamList, "Login">;
+
+export default function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -75,10 +79,7 @@ export default function LoginScreen({ navigation }: any) {
 
       <View style={{ height: 12 }} />
 
-      <Button
-        title="Go to Sign Up"
-        onPress={() => navigation.navigate("Signup")}
-      />
+      <Button title="Go to Sign Up" onPress={() => navigation.navigate("Signup")} />
     </SafeAreaView>
   );
 }
