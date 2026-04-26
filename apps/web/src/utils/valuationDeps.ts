@@ -38,6 +38,7 @@ export function valuationResultNumbersEqual(
     a.adjusted_value === b.adjusted_value &&
     a.recommended_bid === b.recommended_bid &&
     a.team_adjusted_value === b.team_adjusted_value &&
+    a.edge === b.edge &&
     a.tier === b.tier &&
     a.indicator === b.indicator &&
     a.adp === b.adp
@@ -51,6 +52,7 @@ export function valuationResultStableKey(v: ValuationResult): string {
     v.adjusted_value,
     v.recommended_bid ?? "",
     v.team_adjusted_value ?? "",
+    v.edge ?? "",
     v.tier,
     v.indicator,
     v.adp ?? "",

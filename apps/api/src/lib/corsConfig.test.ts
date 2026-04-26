@@ -9,7 +9,7 @@ describe("corsOptionsFromEnv", () => {
     else process.env.CORS_ORIGIN = orig;
   });
 
-  it("defaults to localhost:5173 when CORS_ORIGIN is unset", async () => {
+  it("allows localhost/127.0.0.1 dev origins when CORS_ORIGIN is unset", async () => {
     delete process.env.CORS_ORIGIN;
     const { origin } = corsOptionsFromEnv();
     expect(typeof origin).toBe("function");
@@ -17,13 +17,19 @@ describe("corsOptionsFromEnv", () => {
       o: string | undefined,
       cb: (err: Error | null, allow?: boolean) => void,
     ) => void;
-    await new Promise<void>((resolve) => {
-      fn("http://localhost:5173", (err, allow) => {
-        expect(err).toBeNull();
-        expect(allow).toBe(true);
-        resolve();
+    for (const url of [
+      "http://localhost:5173",
+      "http://localhost:5187",
+      "http://127.0.0.1:5173",
+    ]) {
+      await new Promise<void>((resolve) => {
+        fn(url, (err, allow) => {
+          expect(err).toBeNull();
+          expect(allow).toBe(true);
+          resolve();
+        });
       });
-    });
+    }
     await new Promise<void>((resolve) => {
       fn("https://draftroom.uk", (err, allow) => {
         expect(err).toBeNull();
@@ -58,6 +64,14 @@ describe("corsOptionsFromEnv", () => {
       fn("https://evil.example", (err, allow) => {
         expect(err).toBeNull();
         expect(allow).toBe(false);
+        resolve();
+      });
+    });
+
+    await new Promise<void>((resolve) => {
+      fn("http://localhost:5187", (err, allow) => {
+        expect(err).toBeNull();
+        expect(allow).toBe(true);
         resolve();
       });
     });

@@ -20,12 +20,20 @@ import {
   type ValuationResponse,
   type ValuationResult,
 } from "../api/engine";
+import {
+  mergeValuationBoardRowIntoPrevious,
+  normalizeValuationResultRow,
+  valuationRowDebugLiterals,
+  valuationRowPipelineSnapshot,
+} from "../api/valuationNormalize";
 import { resolveUserTeamId } from "../utils/team";
 import {
   normalizeValuationPlayerId,
   commandCenterValuationMoney,
   commandCenterBidDecision,
   commandCenterWalletCapsFromMyTeam,
+  type CommandCenterBidDecision,
+  type CommandCenterWalletCaps,
 } from "../utils/valuation";
 import {
   leagueValuationConfigKey,
@@ -86,6 +94,437 @@ function computeDerivedMarketSignal(
   if (recommendedBid <= adjustedValue * 0.94)
     return { label: "Soft Market", variant: "soft" };
   return null;
+}
+
+function PlayerIdentityCard({
+  selectedPlayer,
+  tierValue,
+  adpValue,
+  adpTitle,
+  marketSignal,
+  isInWatchlist,
+  playerNote,
+  setPlayerNote,
+}: {
+  selectedPlayer: Player;
+  tierValue: number;
+  adpValue: number;
+  adpTitle: string;
+  marketSignal: ReturnType<typeof computeDerivedMarketSignal>;
+  isInWatchlist: (id: string) => boolean;
+  playerNote: string;
+  setPlayerNote: (value: string) => void;
+}) {
+  return (
+    <div className="player-identity-card command-center-header">
+      <div className="pic-layout">
+        <div className="pic-player-col">
+          <div className="pic-row">
+            <img
+              src={selectedPlayer.headshot}
+              alt=""
+              className="pac-headshot pac-headshot--identity"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+            <div className="pic-identity-text">
+              <h1 className="pac-name pac-name--identity">
+                {selectedPlayer.name}
+                {selectedPlayer.injuryStatus && (
+                  <span className="pt-il-badge">
+                    {selectedPlayer.injuryStatus.replace("DL", "IL")}
+                  </span>
+                )}
+                {isInWatchlist(selectedPlayer.id) && (
+                  <span className="pac-wl-badge" title="On your watchlist">
+                    ★
+                  </span>
+                )}
+              </h1>
+              <div className="pac-meta-inline">
+                <span className="pac-meta-inline-badges">
+                  {(selectedPlayer.positions?.length
+                    ? selectedPlayer.positions
+                    : [selectedPlayer.position]
+                  ).map((pos) => (
+                    <PosBadge key={pos} pos={pos} />
+                  ))}
+                </span>
+                <span className="pac-meta-dot" aria-hidden>
+                  ·
+                </span>
+                <span className="pac-meta-inline-team" title={selectedPlayer.team}>
+                  {selectedPlayer.team}
+                </span>
+                <span className="pac-meta-dot" aria-hidden>
+                  ·
+                </span>
+                <span
+                  className="pac-tier-badge pac-tier-badge--inline"
+                  style={{
+                    background:
+                      [
+                        "#a855f7",
+                        "#6366f1",
+                        "#22c55e",
+                        "#f59e0b",
+                        "#6b7280",
+                      ][tierValue - 1] ?? "#6b7280",
+                  }}
+                >
+                  T{tierValue}
+                </span>
+                <span className="pac-meta-dot" aria-hidden>
+                  ·
+                </span>
+                <span className="pac-meta-inline-adp" title={adpTitle}>
+                  ADP {adpValue}
+                </span>
+                {marketSignal ? (
+                  <>
+                    <span className="pac-meta-dot" aria-hidden>
+                      ·
+                    </span>
+                    <span
+                      className={
+                        "pac-market-signal pac-market-signal--inline pac-market-signal--" +
+                        marketSignal.variant
+                      }
+                    >
+                      {marketSignal.label}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="pic-notes-col">
+          <label className="pac-notes-col-label" htmlFor="pac-note-player">
+            PLAYER NOTES
+          </label>
+          <textarea
+            id="pac-note-player"
+            className="pac-notes pac-notes--identity"
+            value={playerNote}
+            onChange={(e) => setPlayerNote(e.target.value)}
+            placeholder="Scouting notes, injury watch, platoon risk…"
+            rows={2}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function engineFiniteOrNull(
+  n: number | undefined | null,
+): number | null {
+  if (n == null) return null;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+function pickFirstFinite(
+  ...candidates: (number | undefined | null)[]
+): number | null {
+  for (const c of candidates) {
+    if (typeof c === "number" && Number.isFinite(c)) return c;
+  }
+  return null;
+}
+
+/** Engine valuation chain only (never max_bid / wallet caps). */
+function suggestedDisplayFromValuationRow(
+  row: ValuationResult | undefined,
+  _catalogValue: number | undefined,
+): number | null {
+  return pickFirstFinite(row?.recommended_bid, row?.team_adjusted_value);
+}
+
+function actionableBidFromRowAndMaxBid(
+  row: ValuationResult | undefined,
+  catalogValue: number | undefined,
+  maxBid: number | undefined | null,
+): number | null {
+  const s = suggestedDisplayFromValuationRow(row, catalogValue);
+  if (s == null) return null;
+  if (maxBid != null && Number.isFinite(maxBid)) return Math.min(s, maxBid);
+  return s;
+}
+
+/** Merge engine row with catalog `Player` optional valuation fields when the row omits them. */
+function mergeDisplayValuationRow(
+  row: ValuationResult | undefined,
+  player: Player,
+): ValuationResult | undefined {
+  if (!row) return undefined;
+  return {
+    ...row,
+    recommended_bid:
+      engineFiniteOrNull(row.recommended_bid) ??
+      engineFiniteOrNull(player.recommended_bid) ??
+      row.recommended_bid,
+    team_adjusted_value:
+      engineFiniteOrNull(row.team_adjusted_value) ??
+      engineFiniteOrNull(player.team_adjusted_value) ??
+      row.team_adjusted_value,
+    adjusted_value:
+      engineFiniteOrNull(row.adjusted_value) ??
+      engineFiniteOrNull(player.adjusted_value) ??
+      row.adjusted_value,
+    baseline_value:
+      engineFiniteOrNull(row.baseline_value) ??
+      engineFiniteOrNull(player.baseline_value) ??
+      row.baseline_value,
+    edge: engineFiniteOrNull(row.edge) ?? row.edge,
+  };
+}
+
+function BidDecisionCard({
+  valuationRow,
+  selectedPlayer,
+  bidDecision,
+  myWalletCaps,
+  showValuationMoneySkeleton,
+  suggestedBidSkeleton,
+}: {
+  valuationRow: ValuationResult | null | undefined;
+  selectedPlayer: Player;
+  bidDecision: CommandCenterBidDecision;
+  myWalletCaps: CommandCenterWalletCaps | null;
+  showValuationMoneySkeleton: boolean;
+  suggestedBidSkeleton: boolean;
+}) {
+  const row = valuationRow ?? null;
+
+  const suggestedDisplay = suggestedDisplayFromValuationRow(
+    row ?? undefined,
+    selectedPlayer.value,
+  );
+
+  const maxBid =
+    myWalletCaps != null && Number.isFinite(myWalletCaps.maxBid)
+      ? myWalletCaps.maxBid
+      : null;
+
+  const actionableBid = actionableBidFromRowAndMaxBid(
+    row ?? undefined,
+    selectedPlayer.value,
+    maxBid,
+  );
+
+  const budgetLimitedByMaxBid =
+    suggestedDisplay != null &&
+    maxBid != null &&
+    Number.isFinite(maxBid) &&
+    suggestedDisplay > maxBid;
+
+  const showMetaRow =
+    bidDecision.budgetLimited ||
+    budgetLimitedByMaxBid ||
+    showValuationMoneySkeleton;
+
+  const decisionData = {
+    suggestedDisplay,
+    actionableBid,
+    team_adjusted_value: row ? engineFiniteOrNull(row.team_adjusted_value) : null,
+    recommended_bid: row ? engineFiniteOrNull(row.recommended_bid) : null,
+    adjusted_value: row ? engineFiniteOrNull(row.adjusted_value) : null,
+    baseline_value: row ? engineFiniteOrNull(row.baseline_value) : null,
+    edge: row ? engineFiniteOrNull(row.edge) : null,
+  };
+
+  useEffect(() => {
+    if (suggestedBidSkeleton || row == null) return;
+    if (
+      decisionData.recommended_bid == null ||
+      decisionData.team_adjusted_value == null ||
+      suggestedDisplay == null
+    ) {
+      const cat = selectedPlayer;
+      console.warn(
+        "BidDecisionCard missing valuation fields (merge/API gap: no finite value on merged engine+catalog row after catalog fill)",
+        {
+          player_id: selectedPlayer.id,
+          name: selectedPlayer.name,
+          suggestedDisplay,
+          recommended_bid: decisionData.recommended_bid,
+          team_adjusted_value: decisionData.team_adjusted_value,
+          adjusted_value: decisionData.adjusted_value,
+          baseline_value: decisionData.baseline_value,
+          edge: decisionData.edge,
+          catalog_had_finite: {
+            recommended_bid:
+              cat.recommended_bid != null && Number.isFinite(cat.recommended_bid),
+            team_adjusted_value:
+              cat.team_adjusted_value != null &&
+              Number.isFinite(cat.team_adjusted_value),
+            adjusted_value:
+              cat.adjusted_value != null && Number.isFinite(cat.adjusted_value),
+            baseline_value:
+              cat.baseline_value != null && Number.isFinite(cat.baseline_value),
+            value: cat.value != null && Number.isFinite(cat.value),
+          },
+          merged_row: row,
+        },
+      );
+    }
+  }, [
+    row,
+    suggestedBidSkeleton,
+    suggestedDisplay,
+    decisionData.recommended_bid,
+    decisionData.team_adjusted_value,
+    decisionData.adjusted_value,
+    decisionData.baseline_value,
+    decisionData.edge,
+    selectedPlayer,
+  ]);
+
+  const edgeTone =
+    decisionData.edge != null
+      ? decisionData.edge > 2
+        ? "pos"
+        : decisionData.edge < -2
+          ? "neg"
+          : "muted"
+      : "muted";
+
+  const fmtMoney = (n: number | null) =>
+    n != null ? formatEngineMoney(n) : "—";
+
+  return (
+    <div className="bid-decision-card" aria-label="Valuation">
+      <div className="bdc-grid">
+        <div className="bdc-row1">
+          <div className="bdc-decision-main">
+            <div className="pac-val-sublabel">SUGGESTED BID</div>
+            <div
+              className="pac-val-primary green pac-val-primary--bid-card"
+              title="Suggested bid (primary recommendation)"
+            >
+              {suggestedBidSkeleton ? (
+                <ValuationMoneySkeleton tall />
+              ) : actionableBid != null ? (
+                formatSuggestedBidLine(actionableBid)
+              ) : (
+                "—"
+              )}
+            </div>
+            <div className="bdc-tier2" aria-label="Your value">
+              <span className="bdc-tier2-label">Your Value</span>
+              <span className="bdc-tier2-value">
+                {suggestedBidSkeleton ? (
+                  <ValuationMoneySkeleton />
+                ) : (
+                  fmtMoney(decisionData.team_adjusted_value)
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="bdc-edge-card" aria-label="Your edge">
+            <span className="bdc-edge-label">Your Edge</span>
+            <span
+              className={
+                "bdc-edge-value bdc-context-edge--" + edgeTone
+              }
+            >
+              {decisionData.edge != null ? formatEdgeLine(decisionData.edge) : "—"}
+            </span>
+          </div>
+        </div>
+
+        <div className="bdc-mini-row" aria-label="Market context">
+          <div className="bdc-mini-card">
+            <span className="bdc-mini-label">Market Bid</span>
+            <span className="bdc-mini-value">
+              {fmtMoney(decisionData.recommended_bid)}
+            </span>
+          </div>
+          <div className="bdc-mini-card">
+            <span className="bdc-mini-label">Marginal Value</span>
+            <span className="bdc-mini-value">
+              {fmtMoney(decisionData.adjusted_value)}
+            </span>
+          </div>
+          <div className="bdc-mini-card">
+            <span className="bdc-mini-label">Player Strength</span>
+            <span className="bdc-mini-value">
+              {fmtMoney(decisionData.baseline_value)}
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="bdc-mini-row bdc-mini-row--constraints"
+          title="Budget constraints from your current roster and wallet"
+        >
+          <div className="bdc-mini-card bdc-mini-card--constraint">
+            <span className="bdc-mini-label">Max Bid</span>
+            <strong className="bdc-mini-value">
+              {formatEngineMoney(myWalletCaps?.maxBid)}
+            </strong>
+          </div>
+          <div className="bdc-mini-card bdc-mini-card--constraint">
+            <span className="bdc-mini-label">Budget Left</span>
+            <strong className="bdc-mini-value">
+              {formatEngineMoney(myWalletCaps?.budgetRemaining)}
+            </strong>
+          </div>
+          <div className="bdc-mini-card bdc-mini-card--constraint">
+            <span className="bdc-mini-label">$/Spot</span>
+            <strong className="bdc-mini-value">
+              {formatEngineMoney(
+                myWalletCaps && myWalletCaps.openSpots > 0
+                  ? myWalletCaps.budgetRemaining / myWalletCaps.openSpots
+                  : undefined,
+              )}
+            </strong>
+          </div>
+        </div>
+
+        {showMetaRow ? (
+          <div className="bdc-meta-row">
+            {bidDecision.budgetLimited || budgetLimitedByMaxBid ? (
+              <span
+                className="pac-budget-limited"
+                title={
+                  budgetLimitedByMaxBid
+                    ? "Model suggestion exceeds max bid (wallet constraint)"
+                    : "Suggested bid is below uncapped base because of roster budget cap"
+                }
+              >
+                budget-limited
+              </span>
+            ) : null}
+            <details className="pac-val-details">
+              <summary className="pac-val-details-summary">Details</summary>
+              <dl className="pac-val-details-dl">
+                <div className="pac-val-details-row">
+                  <dt>Likely bid</dt>
+                  <dd>{formatEngineMoney(bidDecision.likelyBid)}</dd>
+                </div>
+                <div className="pac-val-details-row">
+                  <dt>Market value</dt>
+                  <dd>{formatEngineMoney(bidDecision.marketValue)}</dd>
+                </div>
+                <div className="pac-val-details-row">
+                  <dt>Player strength</dt>
+                  <dd>{formatEngineMoney(bidDecision.playerStrength)}</dd>
+                </div>
+                <div className="pac-val-details-row">
+                  <dt>Max you can pay</dt>
+                  <dd>{formatEngineMoney(bidDecision.maxExecutableBid)}</dd>
+                </div>
+              </dl>
+            </details>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 interface AuctionCenterProps {
@@ -185,6 +624,17 @@ export function AuctionCenter({
     return valuationMap.get(selectedPlayerNormId);
   }, [selectedPlayerNormId, selectedPlayerValuationKey, valuationMap]);
 
+  const displayValuationRow = useMemo(() => {
+    if (!selectedPlayer) return undefined;
+    return mergeDisplayValuationRow(activeValuationRow, selectedPlayer);
+  }, [activeValuationRow, selectedPlayer]);
+
+  /** Single row for card, bid default, bidDecision, and actionable math (catalog fills engine gaps). */
+  const mergedValuationRow = useMemo(
+    () => displayValuationRow ?? activeValuationRow ?? undefined,
+    [displayValuationRow, activeValuationRow],
+  );
+
   const myTeamWalletFingerprint = useMemo(
     () =>
       myTeamEntries
@@ -203,20 +653,20 @@ export function AuctionCenter({
   const intrinsicMoney = useMemo(
     () =>
       commandCenterValuationMoney(
-        activeValuationRow,
+        mergedValuationRow,
         selectedPlayer?.value,
       ),
-    [activeValuationRow, selectedPlayer?.value],
+    [mergedValuationRow, selectedPlayer?.value],
   );
 
   const bidDecision = useMemo(
     () =>
       commandCenterBidDecision(
-        activeValuationRow,
+        mergedValuationRow,
         selectedPlayer?.value,
         myWalletCaps,
       ),
-    [activeValuationRow, selectedPlayer?.value, myWalletCaps],
+    [mergedValuationRow, selectedPlayer?.value, myWalletCaps],
   );
 
   const showValuationMoneySkeleton = Boolean(
@@ -225,6 +675,159 @@ export function AuctionCenter({
       !valuationMap.has(selectedPlayerNormId),
   );
 
+  const hasBidSignal = Boolean(
+    mergedValuationRow &&
+      (engineFiniteOrNull(mergedValuationRow.recommended_bid) != null ||
+        engineFiniteOrNull(mergedValuationRow.team_adjusted_value) != null),
+  );
+
+  const suggestedBidSkeleton = Boolean(
+    showValuationMoneySkeleton ||
+      (Boolean(selectedPlayerNormId) &&
+        playerEngineFetchPending &&
+        !hasBidSignal),
+  );
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !selectedPlayer) return;
+    const p = selectedPlayer;
+    const maxB =
+      myWalletCaps != null && Number.isFinite(myWalletCaps.maxBid)
+        ? myWalletCaps.maxBid
+        : null;
+    const eng = activeValuationRow;
+    const merged = displayValuationRow;
+    const cardRow = mergedValuationRow;
+
+    const nullRowSnap = (label: string) => ({
+      source: label,
+      player_id: p.id,
+      name: p.name,
+      recommended_bid: null,
+      team_adjusted_value: null,
+      adjusted_value: null,
+      baseline_value: null,
+      edge: null,
+      suggestedDisplay: null as number | null,
+      max_bid: maxB,
+    });
+
+    const catalogSnap = {
+      source: "1_raw_catalog_player",
+      player_id: p.id,
+      name: p.name,
+      recommended_bid: p.recommended_bid ?? null,
+      team_adjusted_value: p.team_adjusted_value ?? null,
+      adjusted_value: p.adjusted_value ?? null,
+      baseline_value: p.baseline_value ?? null,
+      edge: null,
+      suggestedDisplay: pickFirstFinite(
+        p.recommended_bid,
+        p.team_adjusted_value,
+        p.adjusted_value,
+        p.baseline_value,
+        p.value,
+      ),
+      max_bid: maxB,
+    };
+
+    const engineSnap = eng
+      ? {
+          source: "2_matched_engine_row",
+          player_id: eng.player_id,
+          name: eng.name,
+          recommended_bid: eng.recommended_bid ?? null,
+          team_adjusted_value: eng.team_adjusted_value ?? null,
+          adjusted_value: eng.adjusted_value ?? null,
+          baseline_value: eng.baseline_value ?? null,
+          edge: eng.edge ?? null,
+          suggestedDisplay: suggestedDisplayFromValuationRow(eng, p.value),
+          max_bid: maxB,
+        }
+      : nullRowSnap("2_matched_engine_row (none)");
+
+    const finalSnap = cardRow
+      ? {
+          source: "3_final_row_passed_to_BidDecisionCard",
+          player_id: cardRow.player_id,
+          name: cardRow.name,
+          recommended_bid: cardRow.recommended_bid ?? null,
+          team_adjusted_value: cardRow.team_adjusted_value ?? null,
+          adjusted_value: cardRow.adjusted_value ?? null,
+          baseline_value: cardRow.baseline_value ?? null,
+          edge: cardRow.edge ?? null,
+          suggestedDisplay: suggestedDisplayFromValuationRow(cardRow, p.value),
+          max_bid: maxB,
+        }
+      : nullRowSnap("3_final_row_passed_to_BidDecisionCard (none)");
+
+    const actionablePreview =
+      cardRow != null
+        ? actionableBidFromRowAndMaxBid(cardRow, p.value, maxB)
+        : null;
+
+    console.log("[BidDecisionCard valuation diagnostic]", {
+      raw_catalog_player: catalogSnap,
+      matched_engine_row: engineSnap,
+      final_row_passed_to_BidDecisionCard: finalSnap,
+      actionableBid_preview: actionablePreview,
+      engine_missing_catalog_had: eng
+        ? {
+            recommended_bid:
+              (eng.recommended_bid == null || !Number.isFinite(eng.recommended_bid)) &&
+              p.recommended_bid != null &&
+              Number.isFinite(p.recommended_bid),
+            team_adjusted_value:
+              (eng.team_adjusted_value == null ||
+                !Number.isFinite(eng.team_adjusted_value)) &&
+              p.team_adjusted_value != null &&
+              Number.isFinite(p.team_adjusted_value),
+          }
+        : null,
+      merge_recovered_field: merged && eng
+        ? {
+            recommended_bid:
+              (eng.recommended_bid == null || !Number.isFinite(eng.recommended_bid)) &&
+              merged.recommended_bid != null &&
+              Number.isFinite(merged.recommended_bid),
+            team_adjusted_value:
+              (eng.team_adjusted_value == null ||
+                !Number.isFinite(eng.team_adjusted_value)) &&
+              merged.team_adjusted_value != null &&
+              Number.isFinite(merged.team_adjusted_value),
+          }
+        : null,
+    });
+
+    const nid = normalizeValuationPlayerId(p.id);
+    const mapEntry = valuationMap.get(nid);
+    console.info("[valuation pipeline]", {
+      source: "draftroom_ui",
+      note: "A–D: logs with source=api_client_http from getValuation (A,B) and getValuationPlayer (C,D).",
+      selected_player_id: nid,
+      E_valuationMap_entry: valuationRowPipelineSnapshot(mapEntry),
+      F_mergedValuationRow_for_BidDecisionCard: valuationRowPipelineSnapshot(
+        mergedValuationRow,
+      ),
+      catalog_player_valuation_fields: {
+        player_id: p.id,
+        recommended_bid: p.recommended_bid ?? null,
+        team_adjusted_value: p.team_adjusted_value ?? null,
+        edge: null,
+        adjusted_value: p.adjusted_value ?? null,
+        baseline_value: p.baseline_value ?? null,
+        value: p.value,
+      },
+    });
+  }, [
+    selectedPlayer,
+    activeValuationRow,
+    displayValuationRow,
+    mergedValuationRow,
+    myWalletCaps,
+    valuationMap,
+  ]);
+
   // Merge board valuations from Command Center’s single engine snapshot (no duplicate getValuation).
   useEffect(() => {
     if (!engineMarket?.valuations?.length) return;
@@ -232,11 +835,49 @@ export function AuctionCenter({
       const next = new Map(prev);
       for (const v of engineMarket.valuations) {
         const id = normalizeValuationPlayerId(v.player_id);
-        next.set(id, { ...v, player_id: id });
+        const boardRow = normalizeValuationResultRow(
+          v as unknown as Record<string, unknown>,
+        );
+        boardRow.player_id = id;
+        const prevRow = next.get(id);
+        next.set(id, mergeValuationBoardRowIntoPrevious(prevRow, boardRow));
       }
       return next;
     });
   }, [engineMarket]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !engineMarket?.valuations?.length || !selectedPlayer)
+      return;
+    const nid = normalizeValuationPlayerId(selectedPlayer.id);
+    const inBoard = engineMarket.valuations.some(
+      (x) => normalizeValuationPlayerId(x.player_id) === nid,
+    );
+    if (!inBoard) return;
+    const vr = valuationMap.get(nid);
+    if (!vr) {
+      console.warn(
+        "[AuctionCenter] engine snapshot lists player but valuationMap has no row",
+        { player_id: nid },
+      );
+      return;
+    }
+    if (
+      typeof vr.recommended_bid !== "number" ||
+      !Number.isFinite(vr.recommended_bid) ||
+      typeof vr.team_adjusted_value !== "number" ||
+      !Number.isFinite(vr.team_adjusted_value)
+    ) {
+      console.warn(
+        "[AuctionCenter] valuation row for board player missing recommended_bid or team_adjusted_value",
+        {
+          player_id: nid,
+          recommended_bid: vr.recommended_bid,
+          team_adjusted_value: vr.team_adjusted_value,
+        },
+      );
+    }
+  }, [engineMarket, selectedPlayer, valuationMap, selectedPlayerNormId]);
 
   // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
   useEffect(() => {
@@ -251,10 +892,37 @@ export function AuctionCenter({
     } else {
       setPlayerEngineFetchPending(true);
     }
+    if (import.meta.env.DEV) {
+      console.info("[valuation player request]", {
+        selected_player_id: playerId,
+        request_url: `/api/engine/leagues/${leagueId}/valuation/player`,
+        request_body: {
+          player_id: String(playerIdRaw),
+          user_team_id: userTeamId,
+          inflation_model: "replacement_slots_v2",
+        },
+      });
+    }
     let cancelled = false;
     void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId)
       .then((res) => {
         if (cancelled) return;
+        if (import.meta.env.DEV) {
+          const responseRow =
+            res.player ??
+            (Array.isArray(res.valuations)
+              ? res.valuations.find(
+                  (x) => normalizeValuationPlayerId(x.player_id) === playerId,
+                )
+              : undefined);
+          console.info("[valuation player response]", {
+            selected_player_id: playerId,
+            response_player_id: responseRow?.player_id ?? null,
+            recommended_bid: responseRow?.recommended_bid ?? null,
+            team_adjusted_value: responseRow?.team_adjusted_value ?? null,
+            edge: responseRow?.edge ?? null,
+          });
+        }
         if (import.meta.env.DEV) {
           const p = res.player;
           console.info("[cc-valuation-player-response]", {
@@ -272,12 +940,6 @@ export function AuctionCenter({
           });
         }
         let row: ValuationResult | undefined = res.player;
-        if (
-          row &&
-          normalizeValuationPlayerId(row.player_id) !== playerId
-        ) {
-          row = undefined;
-        }
         if (!row && Array.isArray(res.valuations)) {
           row =
             res.valuations.find(
@@ -288,14 +950,17 @@ export function AuctionCenter({
         if (row) {
           const normalizedRow: ValuationResult = {
             ...row,
-            player_id: normalizeValuationPlayerId(row.player_id ?? playerId),
+            player_id: playerId,
           };
           setValuationMap((prev) => {
             const cur = prev.get(playerId);
-            if (cur && valuationResultNumbersEqual(cur, normalizedRow))
-              return prev;
+            const mergedRow = mergeValuationBoardRowIntoPrevious(
+              cur,
+              normalizedRow,
+            );
+            if (cur && valuationResultNumbersEqual(cur, mergedRow)) return prev;
             const next = new Map(prev);
-            next.set(playerId, normalizedRow);
+            next.set(playerId, mergedRow);
             return next;
           });
         }
@@ -361,6 +1026,7 @@ export function AuctionCenter({
   useEffect(() => {
     if (!selectedPlayer) return;
     bidPriceTouchedRef.current = false;
+    setFinalPrice("");
     const isPitcher = hasPitcherEligibility(
       selectedPlayer.positions,
       selectedPlayer.position,
@@ -368,25 +1034,38 @@ export function AuctionCenter({
     setStatView(isPitcher ? "pitching" : "hitting");
     const nid = normalizeValuationPlayerId(selectedPlayer.id);
     const v = valuationMap.get(nid);
+    const mergedRow =
+      mergeDisplayValuationRow(v, selectedPlayer) ?? v ?? undefined;
     const caps =
       league && user?.id && league.memberIds.includes(user.id)
         ? commandCenterWalletCapsFromMyTeam(league, myTeamEntries)
         : null;
-    const dm = commandCenterBidDecision(v, selectedPlayer.value, caps);
-    setFinalPrice(String(Math.max(1, Math.round(dm.suggestedBid))));
+    const actionable = actionableBidFromRowAndMaxBid(
+      mergedRow,
+      selectedPlayer.value,
+      caps?.maxBid ?? null,
+    );
+    if (actionable != null) {
+      setFinalPrice(String(Math.max(1, Math.round(actionable))));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when selected player id changes
   }, [selectedPlayer?.id]);
 
   // When valuations refresh, update bid default from Engine if user has not edited the field
   useEffect(() => {
     if (!selectedPlayer || bidPriceTouchedRef.current) return;
-    const v = valuationMap.get(normalizeValuationPlayerId(selectedPlayer.id));
-    const dm = commandCenterBidDecision(v, selectedPlayer.value, myWalletCaps);
-    setFinalPrice(String(Math.max(1, Math.round(dm.suggestedBid))));
+    const actionable = actionableBidFromRowAndMaxBid(
+      mergedValuationRow,
+      selectedPlayer.value,
+      myWalletCaps?.maxBid ?? null,
+    );
+    if (actionable != null) {
+      setFinalPrice(String(Math.max(1, Math.round(actionable))));
+    }
   }, [
     selectedPlayer?.id,
     selectedPlayer?.value,
-    selectedPlayerValuationKey,
+    mergedValuationRow,
     myWalletCaps,
   ]);
 
@@ -854,232 +1533,51 @@ export function AuctionCenter({
             </div>
           </div>
         ) : (
-          <div className="player-auction-card">
-            <div className="pac-header">
+          <div className="player-auction-card command-center-main">
+            <div className="pac-cards-stack">
               {(() => {
-                const v = activeValuationRow;
-                const tierValue = v?.tier ?? selectedPlayer.tier;
-                const adpValue = v?.adp ?? selectedPlayer.adp;
+                const rowUi = mergedValuationRow;
+                const tierValue = rowUi?.tier ?? selectedPlayer.tier;
+                const adpValue = rowUi?.adp ?? selectedPlayer.adp;
                 const marketSignal = computeDerivedMarketSignal(
                   intrinsicMoney.likely,
                   intrinsicMoney.market,
                 );
+                const adpTitle =
+                  rowUi?.adp != null
+                    ? `Engine ADP (valuation row): ${rowUi.adp}`
+                    : "Catalog ADP";
                 return (
                   <>
-                    <div className="pac-header-row">
-                      <div className="pac-header-identity">
-                        <img
-                          src={selectedPlayer.headshot}
-                          alt=""
-                          className="pac-headshot pac-headshot--header"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                        <div className="pac-header-identity-text">
-                          <h1 className="pac-name pac-name--header">
-                            {selectedPlayer.name}
-                            {selectedPlayer.injuryStatus && (
-                              <span className="pt-il-badge">
-                                {selectedPlayer.injuryStatus.replace("DL", "IL")}
-                              </span>
-                            )}
-                            {isInWatchlist(selectedPlayer.id) && (
-                              <span
-                                className="pac-wl-badge"
-                                title="On your watchlist"
-                              >
-                                ★
-                              </span>
-                            )}
-                          </h1>
-                          <div className="pac-meta-inline">
-                            <span className="pac-meta-inline-badges">
-                              {(selectedPlayer.positions?.length
-                                ? selectedPlayer.positions
-                                : [selectedPlayer.position]
-                              ).map((pos) => (
-                                <PosBadge key={pos} pos={pos} />
-                              ))}
-                            </span>
-                            <span className="pac-meta-dot" aria-hidden>
-                              ·
-                            </span>
-                            <span
-                              className="pac-meta-inline-team"
-                              title={selectedPlayer.team}
-                            >
-                              {selectedPlayer.team}
-                            </span>
-                            <span className="pac-meta-dot" aria-hidden>
-                              ·
-                            </span>
-                            <span
-                              className="pac-tier-badge pac-tier-badge--inline"
-                              style={{
-                                background:
-                                  [
-                                    "#a855f7",
-                                    "#6366f1",
-                                    "#22c55e",
-                                    "#f59e0b",
-                                    "#6b7280",
-                                  ][tierValue - 1] ?? "#6b7280",
-                              }}
-                            >
-                              T{tierValue}
-                            </span>
-                            <span className="pac-meta-dot" aria-hidden>
-                              ·
-                            </span>
-                            <span
-                              className="pac-meta-inline-adp"
-                              title={
-                                v?.adp != null
-                                  ? `Engine ADP (valuation row): ${v.adp}`
-                                  : "Catalog ADP"
-                              }
-                            >
-                              ADP {adpValue}
-                            </span>
-                            {marketSignal ? (
-                              <>
-                                <span className="pac-meta-dot" aria-hidden>
-                                  ·
-                                </span>
-                                <span
-                                  className={
-                                    "pac-market-signal pac-market-signal--inline pac-market-signal--" +
-                                    marketSignal.variant
-                                  }
-                                >
-                                  {marketSignal.label}
-                                </span>
-                              </>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="pac-header-values" aria-label="Valuation">
-                        <div
-                          className="pac-val-line"
-                          title="Suggested bid (decision layer: aggressive vs conservative base, capped by max executable, rounded)"
-                        >
-                          <div className="pac-val-sublabel">SUGGESTED BID</div>
-                          <div className="pac-val-primary green pac-val-primary--header">
-                            {showValuationMoneySkeleton ? (
-                              <ValuationMoneySkeleton tall />
-                            ) : (
-                              formatSuggestedBidLine(bidDecision.suggestedBid)
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          className="pac-val-line"
-                          title="Your value: team-adjusted with catalog fallbacks"
-                        >
-                          <div className="pac-val-sublabel">YOUR VALUE</div>
-                          <div className="pac-val-secondary pac-val-secondary--header">
-                            {showValuationMoneySkeleton ? (
-                              <ValuationMoneySkeleton />
-                            ) : (
-                              formatEngineMoney(bidDecision.yourValue)
-                            )}
-                          </div>
-                        </div>
-                        <div className="pac-val-line pac-val-line--signal">
-                          <div className="pac-val-sublabel-row">
-                            <span className="pac-val-sublabel">EDGE</span>
-                            {bidDecision.budgetLimited ? (
-                              <span
-                                className="pac-budget-limited"
-                                title="Suggested bid is below uncapped base because of roster budget cap"
-                              >
-                                budget-limited
-                              </span>
-                            ) : null}
-                          </div>
-                          <div
-                            className={
-                              "pac-edge-line" +
-                              (bidDecision.edge == null ||
-                              !Number.isFinite(bidDecision.edge)
-                                ? ""
-                                : bidDecision.edge > 0
-                                  ? " pac-edge-line--pos"
-                                  : bidDecision.edge < 0
-                                    ? " pac-edge-line--neg"
-                                    : " pac-edge-line--zero")
-                            }
-                          >
-                            {showValuationMoneySkeleton ? (
-                              <ValuationMoneySkeleton />
-                            ) : (
-                              formatEdgeLine(bidDecision.edge)
-                            )}
-                          </div>
-                        </div>
-                        <details className="pac-val-details">
-                          <summary className="pac-val-details-summary">
-                            Details
-                          </summary>
-                          <dl className="pac-val-details-dl">
-                            <div className="pac-val-details-row">
-                              <dt>Likely bid</dt>
-                              <dd>
-                                {formatEngineMoney(bidDecision.likelyBid)}
-                              </dd>
-                            </div>
-                            <div className="pac-val-details-row">
-                              <dt>Market value</dt>
-                              <dd>
-                                {formatEngineMoney(bidDecision.marketValue)}
-                              </dd>
-                            </div>
-                            <div className="pac-val-details-row">
-                              <dt>Player strength</dt>
-                              <dd>
-                                {formatEngineMoney(bidDecision.playerStrength)}
-                              </dd>
-                            </div>
-                            <div className="pac-val-details-row">
-                              <dt>Max you can pay</dt>
-                              <dd>
-                                {formatEngineMoney(bidDecision.maxExecutableBid)}
-                              </dd>
-                            </div>
-                          </dl>
-                        </details>
-                      </div>
-                    </div>
+                    <PlayerIdentityCard
+                      selectedPlayer={selectedPlayer}
+                      tierValue={tierValue}
+                      adpValue={adpValue}
+                      adpTitle={adpTitle}
+                      marketSignal={marketSignal}
+                      isInWatchlist={isInWatchlist}
+                      playerNote={
+                        (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
+                      }
+                      setPlayerNote={(value) =>
+                        setNote(selectedPlayer.id, value)
+                      }
+                    />
+                    <BidDecisionCard
+                      valuationRow={mergedValuationRow}
+                      selectedPlayer={selectedPlayer}
+                      bidDecision={bidDecision}
+                      myWalletCaps={myWalletCaps}
+                      showValuationMoneySkeleton={showValuationMoneySkeleton}
+                      suggestedBidSkeleton={suggestedBidSkeleton}
+                    />
                   </>
                 );
               })()}
             </div>
 
-            <section className="pac-notes-section" aria-label="Notes">
-              <div className="pac-notes-row">
-                <div className="pac-notes-col">
-                  <label
-                    className="pac-notes-col-label"
-                    htmlFor="pac-note-player"
-                  >
-                    PLAYER NOTES
-                  </label>
-                  <textarea
-                    id="pac-note-player"
-                    className="pac-notes pac-notes--always"
-                    value={
-                      (getNote(selectedPlayer.id) || selectedPlayer.outlook) ??
-                      ""
-                    }
-                    onChange={(e) => {
-                      setNote(selectedPlayer.id, e.target.value);
-                    }}
-                    placeholder="Scouting notes, injury watch, platoon risk…"
-                    rows={2}
-                  />
-                </div>
+            <section className="pac-notes-section command-center-notes" aria-label="Notes">
+              <div className="pac-notes-row pac-notes-row--single">
                 <div className="pac-notes-col">
                   <label
                     className="pac-notes-col-label"
@@ -1123,7 +1621,7 @@ export function AuctionCenter({
               </div>
               {statView === "pitching" ? (
                 pitchingCats.length > 0 ? (
-                  <div className="pac-impact-grid">
+                  <div className="pac-impact-grid command-center-impact-grid">
                     {pitchingCats.map((cat) => {
                       const label =
                         cat.name.match(/\(([^)]+)\)$/)?.[1] ??
@@ -1151,7 +1649,10 @@ export function AuctionCenter({
                             : "red"
                         : "muted";
                       return (
-                        <div key={cat.name} className="pac-impact-mini">
+                        <div
+                          key={cat.name}
+                          className="pac-impact-mini command-center-impact-card"
+                        >
                           <div className="pac-impact-mini-label">{label}</div>
                           <div className="pac-impact-mini-stat">{display}</div>
                           <div
@@ -1164,7 +1665,7 @@ export function AuctionCenter({
                     })}
                   </div>
                 ) : (
-                  <div className="pac-impact-grid pac-impact-grid--fixed">
+                  <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
                     {(
                       [
                         ["ERA", sp?.era ?? "—"],
@@ -1174,7 +1675,10 @@ export function AuctionCenter({
                         ["SV", sp?.saves ?? "—"],
                       ] as const
                     ).map(([lab, val]) => (
-                      <div key={lab} className="pac-impact-mini">
+                      <div
+                        key={lab}
+                        className="pac-impact-mini command-center-impact-card"
+                      >
                         <div className="pac-impact-mini-label">{lab}</div>
                         <div className="pac-impact-mini-stat">{val}</div>
                         <div className="pac-impact-mini-delta pac-impact-mini-delta--muted">
@@ -1185,7 +1689,7 @@ export function AuctionCenter({
                   </div>
                 )
               ) : hittingCats.length > 0 ? (
-                <div className="pac-impact-grid">
+                <div className="pac-impact-grid command-center-impact-grid">
                   {hittingCats.map((cat) => {
                     const label =
                       cat.name.match(/\(([^)]+)\)$/)?.[1] ?? cat.name;
@@ -1210,7 +1714,10 @@ export function AuctionCenter({
                           : "red"
                       : "muted";
                     return (
-                      <div key={cat.name} className="pac-impact-mini">
+                      <div
+                        key={cat.name}
+                        className="pac-impact-mini command-center-impact-card"
+                      >
                         <div className="pac-impact-mini-label">{label}</div>
                         <div className="pac-impact-mini-stat">{display}</div>
                         <div
@@ -1223,7 +1730,7 @@ export function AuctionCenter({
                   })}
                 </div>
               ) : (
-                <div className="pac-impact-grid pac-impact-grid--fixed">
+                <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
                   {(
                     [
                       ["AVG", sb?.avg ?? ".---"],
@@ -1233,7 +1740,10 @@ export function AuctionCenter({
                       ["SB", sb?.sb ?? "—"],
                     ] as const
                   ).map(([lab, val]) => (
-                    <div key={lab} className="pac-impact-mini">
+                    <div
+                      key={lab}
+                      className="pac-impact-mini command-center-impact-card"
+                    >
                       <div className="pac-impact-mini-label">{lab}</div>
                       <div className="pac-impact-mini-stat">{val}</div>
                       <div className="pac-impact-mini-delta pac-impact-mini-delta--muted">
@@ -1247,7 +1757,7 @@ export function AuctionCenter({
 
             <div className="pac-log-action-bar" role="group" aria-label="Log result">
               <div className="pac-log-action-label">LOG RESULT</div>
-              <div className="log-result-grid log-result-grid--inline">
+              <div className="log-result-grid log-result-grid--inline command-center-log-row">
               <div className="log-field">
                 <select
                   className="log-select"
@@ -1292,7 +1802,11 @@ export function AuctionCenter({
                 className="log-result-btn log-result-btn--inline"
                 onClick={() => void handleLogResult()}
                 disabled={
-                  submitting || !wonBy || !finalPrice || slotOptions.length === 0
+                  submitting ||
+                  !wonBy ||
+                  !finalPrice ||
+                  slotOptions.length === 0 ||
+                  !hasBidSignal
                 }
               >
                 {submitting ? "Logging…" : "Log"}

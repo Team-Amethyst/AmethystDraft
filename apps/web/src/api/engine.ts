@@ -1,4 +1,11 @@
-import { requireAuthHeaders, requestJson } from "./client";
+import { requireAuthHeaders, requestJson, requestJsonParsed } from "./client";
+import {
+  findRawValuationEntry,
+  normalizeValuationPlayerResponseBody,
+  normalizeValuationResponseBody,
+  rawValuationRowPipelineSnapshot,
+  valuationRowPipelineSnapshot,
+} from "./valuationNormalize";
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
@@ -104,12 +111,38 @@ export interface ValuationResponse {
   context_v2?: ValuationContextV2;
 }
 
+function logDraftroomValuationPipeline(
+  route: string,
+  raw: unknown,
+  normalized: ValuationResponse,
+  focusPlayerId?: string,
+): void {
+  if (!import.meta.env.DEV) return;
+  const focus = focusPlayerId?.trim();
+  const rawRow = focus ? findRawValuationEntry(raw, focus) : undefined;
+  const normRow = focus
+    ? normalized.valuations.find(
+        (v) => String(v.player_id).trim() === focus,
+      )
+    : undefined;
+  console.info("[valuation pipeline]", {
+    source: "api_client_http",
+    route: "POST /api/engine/leagues/:leagueId/valuation",
+    selected_player_id: focus ?? null,
+    A_board_raw_row: rawValuationRowPipelineSnapshot(rawRow),
+    B_getValuation_normalized_row: valuationRowPipelineSnapshot(normRow),
+    valuations_len: normalized.valuations.length,
+  });
+}
+
 export async function getValuation(
   leagueId: string,
   token: string,
   userTeamId = "team_1",
+  /** When set (e.g. selected Draftroom player), DEV logs raw vs normalized row for that id. */
+  devLogFocusPlayerId?: string | null,
 ): Promise<ValuationResponse> {
-  return requestJson<ValuationResponse>(
+  return requestJsonParsed<ValuationResponse>(
     `/api/engine/leagues/${leagueId}/valuation`,
     {
       method: "POST",
@@ -120,6 +153,16 @@ export async function getValuation(
       }),
     },
     "Valuation request failed",
+    (raw) => {
+      const normalized = normalizeValuationResponseBody(raw);
+      logDraftroomValuationPipeline(
+        "POST /valuation (board)",
+        raw,
+        normalized,
+        devLogFocusPlayerId ?? undefined,
+      );
+      return normalized;
+    },
   );
 }
 
@@ -134,7 +177,8 @@ export async function getValuationPlayer(
   playerId: string,
   userTeamId = "team_1",
 ): Promise<ValuationPlayerResponse> {
-  return requestJson<ValuationPlayerResponse>(
+  const pid = String(playerId).trim();
+  return requestJsonParsed<ValuationPlayerResponse>(
     `/api/engine/leagues/${leagueId}/valuation/player`,
     {
       method: "POST",
@@ -146,6 +190,29 @@ export async function getValuationPlayer(
       }),
     },
     "Valuation (player) request failed",
+    (raw) => {
+      const normalized = normalizeValuationPlayerResponseBody(raw);
+      if (!import.meta.env.DEV) return normalized;
+      const rawRow =
+        findRawValuationEntry(raw, pid) ??
+        (raw &&
+        typeof raw === "object" &&
+        (raw as Record<string, unknown>).player &&
+        typeof (raw as Record<string, unknown>).player === "object"
+          ? (raw as Record<string, unknown>).player
+          : undefined);
+      const normRow =
+        normalized.player ??
+        normalized.valuations.find((v) => String(v.player_id).trim() === pid);
+      console.info("[valuation pipeline]", {
+        source: "api_client_http",
+        route: "POST /api/engine/leagues/:leagueId/valuation/player",
+        selected_player_id: pid,
+        C_player_raw_row: rawValuationRowPipelineSnapshot(rawRow),
+        D_getValuationPlayer_normalized_row: valuationRowPipelineSnapshot(normRow),
+      });
+      return normalized;
+    },
   );
 }
 

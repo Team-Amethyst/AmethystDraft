@@ -10,11 +10,14 @@ import type { CorsOptions } from "cors";
  */
 export function corsOptionsFromEnv(): Pick<CorsOptions, "origin" | "credentials"> {
   const raw = process.env.CORS_ORIGIN?.trim();
+  const isProduction = process.env.NODE_ENV === "production";
   const list = raw
     ? raw.split(",").map((s) => s.trim()).filter(Boolean)
     : ["http://localhost:5173"];
 
   const allowed = new Set(list.map((o) => o.replace(/\/$/, "")));
+  const localDevOriginRe =
+    /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/i;
 
   return {
     credentials: true,
@@ -24,7 +27,9 @@ export function corsOptionsFromEnv(): Pick<CorsOptions, "origin" | "credentials"
         return;
       }
       const normalized = origin.replace(/\/$/, "");
-      callback(null, allowed.has(normalized));
+      const localDevAllowed = !isProduction && localDevOriginRe.test(normalized);
+      const allow = allowed.has(normalized) || localDevAllowed;
+      callback(null, allow);
     },
   };
 }

@@ -471,10 +471,10 @@ function LeftPanel({
                 {(
                   [
                     ["name", "TEAM"],
-                    ["remaining", "$ LEFT"],
+                    ["remaining", "LEFT"],
                     ["open", "OPEN"],
-                    ["maxBid", "MAX BID"],
-                    ["ppSpot", "$/SPOT"],
+                    ["maxBid", "MAX"],
+                    ["ppSpot", "$/SP"],
                   ] as [LiqCol, string][]
                 ).map(([col, label]) => (
                   <th
@@ -816,10 +816,10 @@ function RightPanel({
     ? Object.values(league.rosterSlots).reduce((a, b) => a + b, 0)
     : 0;
 
-  const budgetRemaining = my?.remaining ?? league?.budget ?? 260;
+  const budgetSpent = my?.spent ?? 0;
   const openSpots = my?.open ?? totalSlots;
-  const maxBid = my?.maxBid ?? Math.max(1, budgetRemaining - (openSpots - 1));
-  const ppSpot = my?.ppSpot ?? 0;
+  const avgSpentPerFilled =
+    my != null && my.filled > 0 ? Math.round((my.spent / my.filled) * 10) / 10 : null;
   const inflationFactor =
     engineMarket?.context_v2?.market_summary.inflation_factor ??
     engineMarket?.inflation_factor;
@@ -870,33 +870,44 @@ function RightPanel({
         return { pos, open, target, spent, delta };
       })
     : [];
+  const topNeed = posBudgetPlan
+    .filter((x) => x.open > 0)
+    .sort((a, b) => b.open - a.open || b.delta - a.delta)[0];
+  const pitcherCount = myTeamEntries.filter((e) =>
+    /(^|[^A-Z])P([^A-Z]|$)|^SP$|^RP$/i.test(e.rosterSlot ?? ""),
+  ).length;
+  const hitterCount = Math.max(0, myTeamEntries.length - pitcherCount);
 
   return (
     <div className="cc-right">
-      <div className="rp-section-label">YOUR BUDGET</div>
+      <div className="rp-section-label">ROSTER CONTEXT</div>
       <div className="budget-grid">
         <div className="budget-card">
-          <div className="bc-label">BUDGET REMAINING</div>
-          <div className="bc-val green">${budgetRemaining}</div>
+          <div className="bc-label">FILLED SLOTS</div>
+          <div className="bc-val">
+            {my ? `${my.filled}/${totalSlots}` : `0/${totalSlots}`}
+          </div>
         </div>
         <div className="budget-card">
           <div className="bc-label">OPEN SPOTS</div>
           <div className="bc-val">{openSpots}</div>
         </div>
         <div className="budget-card">
-          <div className="bc-label">MAX BID</div>
-          <div className="bc-val green">${maxBid}</div>
+          <div className="bc-label">TOP NEED</div>
+          <div className="bc-val">{topNeed ? `${topNeed.pos} (${topNeed.open})` : "—"}</div>
         </div>
         <div className="budget-card">
-          <div className="bc-label">$ PER SPOT</div>
-          <div className="bc-val">${ppSpot}</div>
+          <div className="bc-label">HIT / PIT</div>
+          <div className="bc-val">
+            {hitterCount} / {pitcherCount}
+          </div>
         </div>
       </div>
       <div className="budget-progress-row">
+        <span className="bp-text">${budgetSpent} spent</span>
         <span className="bp-text">
-          {my ? `${my.filled}/${totalSlots} filled` : `0/${totalSlots} filled`}
+          {avgSpentPerFilled != null ? `$${avgSpentPerFilled} avg / filled` : "— avg / filled"}
         </span>
-        <span className="bp-text">${my?.spent ?? 0} spent</span>
       </div>
 
       <div className="cc-divider" />
@@ -1039,6 +1050,10 @@ export default function CommandCenter() {
     [league?.id, league?.memberIds?.join(","), user?.id],
   );
 
+  /** DEV only: focus board-valuation logs on the selected Draftroom player. */
+  const valuationBoardLogPlayerId =
+    import.meta.env.DEV ? selectedPlayer?.id : undefined;
+
   // 1/2/3 → switch tabs (Market / Teams / Standings)
   useEffect(() => {
     const TABS = ["Market", "Teams", "Standings"];
@@ -1066,7 +1081,12 @@ export default function CommandCenter() {
   useEffect(() => {
     if (!leagueId || !token) return;
     let cancelled = false;
-    void getValuation(leagueId, token, userTeamIdForValuation)
+    void getValuation(
+      leagueId,
+      token,
+      userTeamIdForValuation,
+      valuationBoardLogPlayerId ?? null,
+    )
       .then((res) => {
         if (!cancelled) setEngineMarket(res);
       })
@@ -1082,6 +1102,7 @@ export default function CommandCenter() {
     userTeamIdForValuation,
     rosterValuationKey,
     leagueValuationKey,
+    valuationBoardLogPlayerId,
   ]);
 
   // useEffect(() => {
