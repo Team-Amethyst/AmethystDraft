@@ -59,6 +59,21 @@ const DEPTH_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const depthChartCache = new Map<string, DepthChartResponse>();
 const depthChartCacheTime = new Map<string, number>();
 
+export function getPlayersCached(
+  sortBy: "adp" | "value" | "name" = "value",
+  posEligibilityThreshold?: number,
+  playerPool?: "Mixed" | "AL" | "NL",
+): Player[] | null {
+  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
+  const ts = playersCacheTime.get(cacheKey);
+
+  if (ts && Date.now() - ts < CACHE_TTL_MS) {
+    return playersCache.get(cacheKey) ?? null;
+  }
+
+  return null;
+}
+
 export async function getPlayers(
   sortBy: "adp" | "value" | "name" = "value",
   posEligibilityThreshold?: number,
@@ -110,17 +125,28 @@ export function getDepthChartCached(
 export async function getTeamDepthChart(
   teamId: number,
   season?: number,
+  forceRefresh = false,
 ): Promise<DepthChartResponse> {
   const cacheKey = `${teamId}-${season ?? "current"}`;
   const ts = depthChartCacheTime.get(cacheKey);
 
-  if (ts && Date.now() - ts < DEPTH_CACHE_TTL_MS && depthChartCache.has(cacheKey)) {
+  if (
+    !forceRefresh &&
+    ts &&
+    Date.now() - ts < DEPTH_CACHE_TTL_MS &&
+    depthChartCache.has(cacheKey)
+  ) {
     return depthChartCache.get(cacheKey)!;
   }
 
   const query = new URLSearchParams();
+
   if (season !== undefined) {
     query.set("season", String(season));
+  }
+
+  if (forceRefresh) {
+    query.set("refresh", "1");
   }
 
   const queryString = query.size > 0 ? `?${query.toString()}` : "";

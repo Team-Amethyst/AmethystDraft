@@ -6,14 +6,7 @@ import SignupScreen from "../screens/SignupScreen";
 import LeaguesScreen from "../screens/LeaguesScreen";
 import CreateLeagueScreen from "../screens/CreateLeagueScreen";
 import LeagueTabs from "./LeagueTabs";
-
-export type RootStackParamList = {
-  Login: undefined;
-  Signup: undefined;
-  Leagues: undefined;
-  CreateLeague: undefined;
-  LeagueTabs: { leagueId: string; leagueName: string };
-};
+import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

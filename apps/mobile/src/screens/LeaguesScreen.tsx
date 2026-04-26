@@ -3,15 +3,18 @@ import {
   ActivityIndicator,
   Button,
   FlatList,
-  SafeAreaView,
   Text,
   TouchableOpacity,
-  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import type { RootStackParamList } from "../navigation/types";
 
-export default function LeaguesScreen({ navigation }: any) {
+type Props = NativeStackScreenProps<RootStackParamList, "Leagues">;
+
+export default function LeaguesScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const { allLeagues, loading, refreshLeagues } = useLeague();
 
@@ -27,16 +30,13 @@ export default function LeaguesScreen({ navigation }: any) {
 
       <Text style={{ marginBottom: 16 }}>Welcome, {user?.displayName}</Text>
 
-      <Button
-        title="Create League"
-        onPress={() => navigation.navigate("CreateLeague")}
-      />
+      <Button title="Create League" onPress={() => navigation.navigate("CreateLeague")} />
 
-      <View style={{ height: 12 }} />
+      <SafeAreaView style={{ height: 12 }} />
 
       <Button title="Logout" onPress={() => void logout()} />
 
-      <View style={{ height: 20 }} />
+      <SafeAreaView style={{ height: 20 }} />
 
       {loading ? (
         <ActivityIndicator />
@@ -50,6 +50,8 @@ export default function LeaguesScreen({ navigation }: any) {
                 navigation.navigate("LeagueTabs", {
                   leagueId: item.id,
                   leagueName: item.name,
+                  screen: "Research",
+                  params: { leagueId: item.id },
                 })
               }
               style={{

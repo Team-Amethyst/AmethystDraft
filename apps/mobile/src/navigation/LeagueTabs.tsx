@@ -1,17 +1,15 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import ResearchScreen from "../screens/ResearchScreen";
 import MyDraftScreen from "../screens/MyDraftScreen";
 import CommandCenterScreen from "../screens/CommandCenterScreen";
+import type { LeagueTabParamList, RootStackParamList } from "./types";
 
-export type LeagueTabParamList = {
-  Research: { leagueId: string };
-  MyDraft: { leagueId: string };
-  CommandCenter: { leagueId: string };
-};
+type Props = NativeStackScreenProps<RootStackParamList, "LeagueTabs">;
 
 const Tab = createBottomTabNavigator<LeagueTabParamList>();
 
-export default function LeagueTabs({ route }: any) {
+export default function LeagueTabs({ route }: Props) {
   const { leagueId } = route.params;
 
   return (

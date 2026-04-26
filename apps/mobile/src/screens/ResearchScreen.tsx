@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   ScrollView,
   Text,
   TextInput,
@@ -10,21 +9,25 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getValuation, type ValuationResult } from "../api/engine";
 import {
   getDepthChartCached,
   getPlayers,
+  getPlayersCached,
   getTeamDepthChart,
+  type DepthChartPlayerRow,
   type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
-import { getCatalogBatchValues } from "../api/engine";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import type { Player } from "../types/player";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import type { LeagueTabParamList } from "../navigation/types";
 
-type ResearchView = "player-database" | "depth-charts";
+type ResearchView = "player-database" | "tiers" | "depth-charts";
 type PositionFilter =
   | "ALL"
   | "C"
@@ -107,7 +110,15 @@ function positionMatches(player: Player, filter: PositionFilter): boolean {
 
   const multi = (player.positions ?? []).map((p) => p.toUpperCase()).includes(filter);
 
-  return direct || multi;
+  if (direct || multi) return true;
+
+  if (filter === "OF") {
+    return ["LF", "CF", "RF"].some((p) =>
+      player.position.toUpperCase().includes(p),
+    );
+  }
+
+  return false;
 }
 
 function SegmentButton({
@@ -195,7 +206,8 @@ function TeamChip({
   );
 }
 
-export default function ResearchScreen({ route, navigation }: any) {
+type Props = BottomTabScreenProps<LeagueTabParamList, "Research">;
+export default function ResearchScreen({ route, navigation }: Props) {
   const { leagueId } = route.params;
   const { token } = useAuth();
   const { allLeagues } = useLeague();
@@ -208,18 +220,37 @@ export default function ResearchScreen({ route, navigation }: any) {
     isInWatchlist,
   } = useWatchlist();
 
+  const league = allLeagues.find((item) => item.id === leagueId);
+  const watchlist = getWatchlistForLeague(leagueId);
+
   const [selectedView, setSelectedView] =
     useState<ResearchView>("player-database");
 
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<Player[]>(
+    () =>
+      getPlayersCached(
+        "adp",
+        league?.posEligibilityThreshold,
+        league?.playerPool,
+      ) ?? [],
+  );
+  const [playersError, setPlayersError] = useState("");
+  const [loadingPlayers, setLoadingPlayers] = useState(
+    () =>
+      getPlayersCached(
+        "adp",
+        league?.posEligibilityThreshold,
+        league?.playerPool,
+      ) === null,
+  );
+
+  const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
+    ReadonlyMap<string, ValuationResult>
+  >(new Map());
+
   const [search, setSearch] = useState("");
   const [positionFilter, setPositionFilter] =
     useState<PositionFilter>("ALL");
-  const [loadingPlayers, setLoadingPlayers] = useState(true);
-
-  const [engineCatalogByPlayerId, setEngineCatalogByPlayerId] = useState<
-    ReadonlyMap<string, { value: number; tier: number }>
-  >(new Map());
 
   const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(147);
   const [depthChartData, setDepthChartData] = useState<DepthChartResponse | null>(
@@ -230,15 +261,26 @@ export default function ResearchScreen({ route, navigation }: any) {
   );
   const [depthChartError, setDepthChartError] = useState("");
 
-  const league = allLeagues.find((item) => item.id === leagueId);
-  const watchlist = getWatchlistForLeague(leagueId);
-
   useEffect(() => {
     void loadWatchlist(leagueId);
   }, [leagueId, loadWatchlist]);
 
   useEffect(() => {
+    if (selectedView !== "player-database" && selectedView !== "tiers") return;
+
     async function loadPlayers() {
+      const cached = getPlayersCached(
+        "adp",
+        league?.posEligibilityThreshold,
+        league?.playerPool,
+      );
+
+      if (!cached) {
+        setLoadingPlayers(true);
+      }
+
+      setPlayersError("");
+
       try {
         const data = await getPlayers(
           "adp",
@@ -246,93 +288,77 @@ export default function ResearchScreen({ route, navigation }: any) {
           league?.playerPool,
         );
         setPlayers(data);
+      } catch (err) {
+        setPlayersError(
+          err instanceof Error ? err.message : "Failed to load players",
+        );
       } finally {
         setLoadingPlayers(false);
       }
     }
 
     void loadPlayers();
-  }, [league?.playerPool, league?.posEligibilityThreshold, leagueId]);
+  }, [selectedView, league?.playerPool, league?.posEligibilityThreshold]);
 
   useEffect(() => {
-    if (!token || players.length === 0) {
-      setEngineCatalogByPlayerId(new Map());
+    if (!token || !leagueId || players.length === 0) {
+      setValuationsByPlayerId(new Map());
       return;
     }
 
-    const pool = league?.playerPool ?? "Mixed";
-    const BATCH = 150;
     let cancelled = false;
 
-    const ids = players.map((p) => p.id);
-
-    void (async () => {
-      const merged = new Map<string, { value: number; tier: number }>();
-
-      for (let i = 0; i < ids.length; i += BATCH) {
+    void getValuation(leagueId, token, "team_1")
+      .then((response) => {
         if (cancelled) return;
 
-        const chunk = ids.slice(i, i + BATCH);
-        if (chunk.length === 0) continue;
-
-        try {
-          const res = await getCatalogBatchValues(token, {
-            player_ids: chunk,
-            league_scope: pool,
-            pos_eligibility_threshold: league?.posEligibilityThreshold,
-          });
-
-          for (const row of res.players) {
-            merged.set(row.player_id, {
-              value: row.value,
-              tier: row.tier,
-            });
-          }
-        } catch {
-          if (!cancelled) {
-            setEngineCatalogByPlayerId(new Map());
-          }
-          return;
+        const merged = new Map<string, ValuationResult>();
+        for (const row of response.valuations) {
+          merged.set(row.player_id, row);
         }
-      }
-
-      if (!cancelled) {
-        setEngineCatalogByPlayerId(merged);
-      }
-    })();
+        setValuationsByPlayerId(merged);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setValuationsByPlayerId(new Map());
+        }
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [token, players, league?.playerPool, league?.posEligibilityThreshold]);
+  }, [token, leagueId, players.length]);
 
-  const loadDepthChart = useCallback(async (teamId: number) => {
-    const cached = getDepthChartCached(teamId);
+  const loadDepthChart = useCallback(
+    async (teamId: number, forceRefresh = false) => {
+      const cached = getDepthChartCached(teamId);
 
-    if (!cached) {
-      setIsLoadingDepthChart(true);
-    }
+      if (!cached || forceRefresh) {
+        setIsLoadingDepthChart(true);
+      }
 
-    setDepthChartError("");
+      setDepthChartError("");
 
-    try {
-      const depth = await getTeamDepthChart(teamId);
-      setDepthChartData(depth);
-    } catch (err) {
-      setDepthChartError(
-        err instanceof Error ? err.message : "Failed to load depth chart",
-      );
-    } finally {
-      setIsLoadingDepthChart(false);
-    }
-  }, []);
+      try {
+        const depth = await getTeamDepthChart(teamId, undefined, forceRefresh);
+        setDepthChartData(depth);
+      } catch (err) {
+        setDepthChartError(
+          err instanceof Error ? err.message : "Failed to load depth chart",
+        );
+      } finally {
+        setIsLoadingDepthChart(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (selectedView !== "depth-charts") return;
     void loadDepthChart(selectedDepthTeamId);
-  }, [loadDepthChart, selectedDepthTeamId, selectedView]);
+  }, [selectedView, selectedDepthTeamId, loadDepthChart]);
 
-  const filtered = useMemo(() => {
+  const filteredPlayers = useMemo(() => {
     const q = search.trim().toLowerCase();
 
     return players.filter((player) => {
@@ -341,6 +367,117 @@ export default function ResearchScreen({ route, navigation }: any) {
       return nameMatch && posMatch;
     });
   }, [players, search, positionFilter]);
+
+  const tierBuckets = useMemo(() => {
+    const grouped = new Map<number, Player[]>();
+
+    for (const player of filteredPlayers) {
+      const engineRow = valuationsByPlayerId.get(player.id);
+      const tier = engineRow?.tier ?? player.tier;
+
+      if (!grouped.has(tier)) {
+        grouped.set(tier, []);
+      }
+
+      grouped.get(tier)!.push(player);
+    }
+
+    const sortedTiers = Array.from(grouped.keys()).sort((a, b) => a - b);
+
+    return sortedTiers.map((tier) => ({
+      tier,
+      players: (grouped.get(tier) ?? []).sort((a, b) => {
+        const aValue = valuationsByPlayerId.get(a.id)?.adjusted_value ?? a.value;
+        const bValue = valuationsByPlayerId.get(b.id)?.adjusted_value ?? b.value;
+        return bValue - aValue;
+      }),
+    }));
+  }, [filteredPlayers, valuationsByPlayerId]);
+
+  const depthTotalSlots = DEPTH_POSITIONS.length * 3;
+  const depthAssignedCount = useMemo(() => {
+    if (!depthChartData) return 0;
+
+    return DEPTH_POSITIONS.reduce(
+      (total, position) => total + (depthChartData.positions[position]?.length ?? 0),
+      0,
+    );
+  }, [depthChartData]);
+
+  function handleOpenPlayer(player: Player) {
+    setSelectedPlayer(player);
+    navigation.navigate("CommandCenter", { leagueId });
+  }
+
+  async function resolveDepthPlayer(
+    slot: DepthChartPlayerRow,
+  ): Promise<Player | null> {
+    const existing =
+      players.find(
+        (player) =>
+          player.mlbId === slot.playerId || player.id === String(slot.playerId),
+      ) ?? null;
+
+    if (existing) {
+      return existing;
+    }
+
+    const refreshed = await getPlayers(
+      "adp",
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+    );
+    setPlayers(refreshed);
+
+    return (
+      refreshed.find(
+        (player) =>
+          player.mlbId === slot.playerId || player.id === String(slot.playerId),
+      ) ?? null
+    );
+  }
+
+  async function handleDepthPlayerPress(slot: DepthChartPlayerRow) {
+    try {
+      const player = await resolveDepthPlayer(slot);
+
+      if (!player) {
+        setDepthChartError(
+          `Could not open ${slot.playerName}. Player record was not found.`,
+        );
+        return;
+      }
+
+      handleOpenPlayer(player);
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error ? err.message : "Failed to open player",
+      );
+    }
+  }
+
+  async function handleDepthStarToggle(slot: DepthChartPlayerRow) {
+    try {
+      const player = await resolveDepthPlayer(slot);
+
+      if (!player) {
+        setDepthChartError(
+          `Could not star ${slot.playerName}. Player record was not found.`,
+        );
+        return;
+      }
+
+      if (isInWatchlist(leagueId, player.id)) {
+        await removeFromWatchlist(leagueId, player.id);
+      } else {
+        await addToWatchlist(leagueId, player);
+      }
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error ? err.message : "Failed to update watchlist",
+      );
+    }
+  }
 
   async function handleToggleWatchlist(player: Player) {
     try {
@@ -357,11 +494,6 @@ export default function ResearchScreen({ route, navigation }: any) {
     }
   }
 
-  function handleOpenPlayer(player: Player) {
-    setSelectedPlayer(player);
-    navigation.navigate("CommandCenter", { leagueId });
-  }
-
   return (
     <SafeAreaView style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: "row", marginBottom: 14 }}>
@@ -372,16 +504,23 @@ export default function ResearchScreen({ route, navigation }: any) {
             onPress={() => setSelectedView("player-database")}
           />
         </View>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <SegmentButton
+            label="Tiers"
+            selected={selectedView === "tiers"}
+            onPress={() => setSelectedView("tiers")}
+          />
+        </View>
         <View style={{ flex: 1 }}>
           <SegmentButton
-            label="Depth Charts"
+            label="Depth"
             selected={selectedView === "depth-charts"}
             onPress={() => setSelectedView("depth-charts")}
           />
         </View>
       </View>
 
-      {selectedView === "player-database" ? (
+      {selectedView === "player-database" || selectedView === "tiers" ? (
         <>
           <TextInput
             value={search}
@@ -411,22 +550,29 @@ export default function ResearchScreen({ route, navigation }: any) {
             ))}
           </ScrollView>
 
-          <Text style={{ marginBottom: 12, color: "#4b5563" }}>
-            Showing {filtered.length} players • Watchlist {watchlist.length}
-          </Text>
+          {playersError ? (
+            <Text style={{ color: "#b91c1c", marginBottom: 12 }}>
+              {playersError}
+            </Text>
+          ) : null}
 
           {loadingPlayers ? (
             <ActivityIndicator />
-          ) : (
-            <FlatList
-              data={filtered}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
+          ) : selectedView === "player-database" ? (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={{ marginBottom: 12, color: "#4b5563" }}>
+                Showing {filteredPlayers.length} players • Watchlist {watchlist.length}
+              </Text>
+
+              {filteredPlayers.map((item) => {
                 const watched = isInWatchlist(leagueId, item.id);
-                const eng = engineCatalogByPlayerId.get(item.id);
+                const engineRow = valuationsByPlayerId.get(item.id);
+                const displayTier = engineRow?.tier ?? item.tier;
+                const displayValue = engineRow?.adjusted_value ?? item.value;
 
                 return (
                   <View
+                    key={item.id}
                     style={{
                       paddingVertical: 12,
                       borderBottomWidth: 1,
@@ -447,13 +593,14 @@ export default function ResearchScreen({ route, navigation }: any) {
                         {item.team} • {item.position} • ADP {item.adp}
                       </Text>
                       <Text>
-                        List ${item.value}
-                        {eng ? ` • Eng $${eng.value}` : ""}
+                        ${displayValue}
+                        {engineRow ? ` • Eng Tier ${displayTier}` : ` • Tier ${displayTier}`}
                       </Text>
-                      <Text>
-                        List Tier {item.tier}
-                        {eng ? ` • Eng Tier ${eng.tier}` : ""}
-                      </Text>
+                      {engineRow?.indicator ? (
+                        <Text style={{ color: "#6b7280", marginTop: 2 }}>
+                          {engineRow.indicator}
+                        </Text>
+                      ) : null}
                       {!!item.outlook && (
                         <Text
                           numberOfLines={2}
@@ -479,9 +626,85 @@ export default function ResearchScreen({ route, navigation }: any) {
                     </TouchableOpacity>
                   </View>
                 );
-              }}
-              ListEmptyComponent={<Text>No players found.</Text>}
-            />
+              })}
+
+              {filteredPlayers.length === 0 ? <Text>No players found.</Text> : null}
+            </ScrollView>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={{ marginBottom: 12, color: "#4b5563" }}>
+                {filteredPlayers.length} filtered players across {tierBuckets.length} tiers
+              </Text>
+
+              {tierBuckets.map((bucket) => (
+                <View
+                  key={bucket.tier}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#e5e7eb",
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
+                    Tier {bucket.tier}
+                  </Text>
+
+                  {bucket.players.slice(0, 15).map((player) => {
+                    const engineRow = valuationsByPlayerId.get(player.id);
+                    const displayValue = engineRow?.adjusted_value ?? player.value;
+                    const watched = isInWatchlist(leagueId, player.id);
+
+                    return (
+                      <View
+                        key={player.id}
+                        style={{
+                          paddingVertical: 10,
+                          borderTopWidth: 1,
+                          borderTopColor: "#f1f5f9",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => handleOpenPlayer(player)}
+                          style={{ flex: 1, marginRight: 12 }}
+                        >
+                          <Text style={{ fontWeight: "600" }}>{player.name}</Text>
+                          <Text>
+                            {player.team} • {player.position} • ${displayValue}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => void handleToggleWatchlist(player)}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor: watched ? "#111827" : "#e5e7eb",
+                          }}
+                        >
+                          <Text style={{ color: watched ? "white" : "black" }}>
+                            {watched ? "Saved" : "Save"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+
+                  {bucket.players.length > 15 ? (
+                    <Text style={{ color: "#6b7280", marginTop: 8 }}>
+                      +{bucket.players.length - 15} more players in this tier
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+
+              {tierBuckets.length === 0 ? <Text>No tiers found.</Text> : null}
+            </ScrollView>
           )}
         </>
       ) : (
@@ -500,6 +723,20 @@ export default function ResearchScreen({ route, navigation }: any) {
               />
             ))}
           </ScrollView>
+
+          <View style={{ flexDirection: "row", marginBottom: 12 }}>
+            <TouchableOpacity
+              onPress={() => void loadDepthChart(selectedDepthTeamId, true)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: "#111827",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "600" }}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
 
           {depthChartError ? (
             <Text style={{ color: "#b91c1c", marginBottom: 12 }}>
@@ -532,6 +769,8 @@ export default function ResearchScreen({ route, navigation }: any) {
                 <Text>
                   Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
                 </Text>
+                <Text>Assignments {depthAssignedCount}/{depthTotalSlots}</Text>
+                <Text>Manual review {depthChartData.manualReview.length}</Text>
                 <Text style={{ marginTop: 4 }}>
                   {depthChartData.constraints.note}
                 </Text>
@@ -552,7 +791,7 @@ export default function ResearchScreen({ route, navigation }: any) {
                     }}
                   >
                     <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
-                      {position}
+                      {position} • {rows.length}/3
                     </Text>
 
                     {[1, 2, 3].map((rank) => {
@@ -573,18 +812,41 @@ export default function ResearchScreen({ route, navigation }: any) {
 
                           {row ? (
                             <>
-                              <Text>{row.playerName}</Text>
-                              <Text style={{ color: "#4b5563", marginTop: 2 }}>
-                                {row.primaryPosition} • {row.status}
-                              </Text>
-                              <Text style={{ color: "#4b5563" }}>
-                                {row.usageStarts} starts • {row.usageAppearances} apps
-                              </Text>
-                              {row.outOfPosition || row.needsManualReview ? (
-                                <Text style={{ color: "#b91c1c", marginTop: 4 }}>
-                                  OOF / Manual Review
+                              <TouchableOpacity
+                                onPress={() => void handleDepthPlayerPress(row)}
+                              >
+                                <Text>{row.playerName}</Text>
+                                <Text style={{ color: "#4b5563", marginTop: 2 }}>
+                                  {row.primaryPosition} • {row.status}
                                 </Text>
-                              ) : null}
+                                <Text style={{ color: "#4b5563" }}>
+                                  {row.usageStarts} starts • {row.usageAppearances} apps
+                                </Text>
+                                {row.outOfPosition || row.needsManualReview ? (
+                                  <Text style={{ color: "#b91c1c", marginTop: 4 }}>
+                                    OOF / Manual Review
+                                  </Text>
+                                ) : null}
+                              </TouchableOpacity>
+
+                              <View style={{ marginTop: 8 }}>
+                                <TouchableOpacity
+                                  onPress={() => void handleDepthStarToggle(row)}
+                                  style={{
+                                    alignSelf: "flex-start",
+                                    paddingHorizontal: 10,
+                                    paddingVertical: 8,
+                                    borderRadius: 8,
+                                    backgroundColor: "#f3f4f6",
+                                  }}
+                                >
+                                  <Text style={{ fontWeight: "600" }}>
+                                    {isInWatchlist(leagueId, String(row.playerId))
+                                      ? "Saved"
+                                      : "Save"}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
                             </>
                           ) : (
                             <Text style={{ color: "#6b7280" }}>No assignment</Text>
