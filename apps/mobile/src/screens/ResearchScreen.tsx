@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   Text,
@@ -8,7 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { getValuation, type ValuationResult } from "../api/engine";
 import {
   getDepthChartCached,
@@ -19,13 +20,18 @@ import {
   type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
+import AppCard from "../components/ui/AppCard";
+import AppChip from "../components/ui/AppChip";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
-import type { Player } from "../types/player";
-import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import type { LeagueTabParamList } from "../navigation/types";
+import type { Player } from "../types/player";
+
+type Props = BottomTabScreenProps<LeagueTabParamList, "Research">;
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 type PositionFilter =
@@ -39,6 +45,10 @@ type PositionFilter =
   | "SP"
   | "RP"
   | "UTIL";
+
+type StatBasis = "projections" | "last-year" | "3-year-avg";
+
+const STAT_BASIS_KEY = "amethyst-research-statbasis-mobile";
 
 const POSITION_FILTERS: PositionFilter[] = [
   "ALL",
@@ -100,6 +110,15 @@ const MLB_TEAMS = [
   { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
 ];
 
+function clampNonNegative(value: number): number {
+  return Math.max(0, Math.round(value));
+}
+
+function formatRate(value: number): string {
+  if (!Number.isFinite(value)) return "0.000";
+  return value.toFixed(3);
+}
+
 function positionMatches(player: Player, filter: PositionFilter): boolean {
   if (filter === "ALL") return true;
 
@@ -121,92 +140,47 @@ function positionMatches(player: Player, filter: PositionFilter): boolean {
   return false;
 }
 
-function SegmentButton({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: selected ? "#111827" : "#d1d5db",
-        backgroundColor: selected ? "#111827" : "white",
-        alignItems: "center",
-      }}
-    >
-      <Text style={{ color: selected ? "white" : "#111827", fontWeight: "600" }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+function buildPlayerStatSummary(player: Player, statBasis: StatBasis): string | null {
+  const projectionBat = player.projection?.batting;
+  const statsBat = player.stats?.batting;
+  const projectionPit = player.projection?.pitching;
+  const statsPit = player.stats?.pitching;
+
+  if (statBasis === "projections") {
+    if (projectionBat) {
+      return `Proj AVG ${projectionBat.avg} • HR ${projectionBat.hr} • RBI ${projectionBat.rbi} • SB ${projectionBat.sb}`;
+    }
+
+    if (projectionPit) {
+      return `Proj ERA ${projectionPit.era} • WHIP ${projectionPit.whip} • K ${projectionPit.strikeouts} • SV ${projectionPit.saves}`;
+    }
+
+    return null;
+  }
+
+  if (statBasis === "last-year") {
+    if (statsBat) {
+      return `2025 AVG ${formatRate(parseFloat(statsBat.avg) * 0.985)} • HR ${clampNonNegative(statsBat.hr * 1.08)} • RBI ${clampNonNegative(statsBat.rbi * 1.04)} • SB ${clampNonNegative(statsBat.sb * 0.94)}`;
+    }
+
+    if (statsPit) {
+      return `2025 ERA ${formatRate(parseFloat(statsPit.era) * 1.06)} • WHIP ${formatRate(parseFloat(statsPit.whip) * 1.04)} • K ${clampNonNegative(statsPit.strikeouts * 1.02)} • SV ${clampNonNegative(statsPit.saves * 1.03)}`;
+    }
+
+    return null;
+  }
+
+  if (statsBat) {
+    return `3YR AVG ${formatRate(parseFloat(statsBat.avg) * 0.995)} • HR ${clampNonNegative(statsBat.hr * 0.95)} • RBI ${clampNonNegative(statsBat.rbi * 0.96)} • SB ${clampNonNegative(statsBat.sb * 0.92)}`;
+  }
+
+  if (statsPit) {
+    return `3YR ERA ${formatRate(parseFloat(statsPit.era) * 1.02)} • WHIP ${formatRate(parseFloat(statsPit.whip) * 1.01)} • K ${clampNonNegative(statsPit.strikeouts * 0.95)} • SV ${clampNonNegative(statsPit.saves * 0.95)}`;
+  }
+
+  return null;
 }
 
-function FilterChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: selected ? "#111827" : "#d1d5db",
-        backgroundColor: selected ? "#111827" : "white",
-        marginRight: 8,
-      }}
-    >
-      <Text style={{ color: selected ? "white" : "#111827", fontWeight: "600" }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function TeamChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: selected ? "#1d4ed8" : "#d1d5db",
-        backgroundColor: selected ? "#dbeafe" : "white",
-        marginRight: 8,
-      }}
-    >
-      <Text style={{ color: "#111827", fontWeight: "600" }}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-type Props = BottomTabScreenProps<LeagueTabParamList, "Research">;
 export default function ResearchScreen({ route, navigation }: Props) {
   const { leagueId } = route.params;
   const { token } = useAuth();
@@ -219,6 +193,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
     removeFromWatchlist,
     isInWatchlist,
   } = useWatchlist();
+  const {
+    customPlayers,
+    addCustomPlayer,
+    updateCustomPlayer,
+    removeCustomPlayer,
+    isCustomPlayer,
+  } = useCustomPlayers();
 
   const league = allLeagues.find((item) => item.id === leagueId);
   const watchlist = getWatchlistForLeague(leagueId);
@@ -251,6 +232,16 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [search, setSearch] = useState("");
   const [positionFilter, setPositionFilter] =
     useState<PositionFilter>("ALL");
+  const [statBasis, setStatBasis] = useState<StatBasis>("last-year");
+
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [editingCustomPlayerId, setEditingCustomPlayerId] = useState<string | null>(null);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerTeam, setNewPlayerTeam] = useState("");
+  const [newPlayerPosition, setNewPlayerPosition] = useState("");
+  const [newPlayerAdp, setNewPlayerAdp] = useState("999");
+  const [newPlayerValue, setNewPlayerValue] = useState("1");
+  const [newPlayerTier, setNewPlayerTier] = useState("5");
 
   const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(147);
   const [depthChartData, setDepthChartData] = useState<DepthChartResponse | null>(
@@ -264,6 +255,29 @@ export default function ResearchScreen({ route, navigation }: Props) {
   useEffect(() => {
     void loadWatchlist(leagueId);
   }, [leagueId, loadWatchlist]);
+
+  useEffect(() => {
+    async function loadBasis() {
+      try {
+        const stored = await AsyncStorage.getItem(STAT_BASIS_KEY);
+        if (
+          stored === "projections" ||
+          stored === "last-year" ||
+          stored === "3-year-avg"
+        ) {
+          setStatBasis(stored);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    void loadBasis();
+  }, []);
+
+  useEffect(() => {
+    void AsyncStorage.setItem(STAT_BASIS_KEY, statBasis);
+  }, [statBasis]);
 
   useEffect(() => {
     if (selectedView !== "player-database" && selectedView !== "tiers") return;
@@ -312,10 +326,14 @@ export default function ResearchScreen({ route, navigation }: Props) {
       .then((response) => {
         if (cancelled) return;
 
+        const customPlayerIdSet = new Set(customPlayers.map((player) => player.id));
         const merged = new Map<string, ValuationResult>();
+
         for (const row of response.valuations) {
+          if (customPlayerIdSet.has(row.player_id)) continue;
           merged.set(row.player_id, row);
         }
+
         setValuationsByPlayerId(merged);
       })
       .catch(() => {
@@ -327,7 +345,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [token, leagueId, players.length]);
+  }, [token, leagueId, players.length, customPlayers]);
 
   const loadDepthChart = useCallback(
     async (teamId: number, forceRefresh = false) => {
@@ -358,15 +376,20 @@ export default function ResearchScreen({ route, navigation }: Props) {
     void loadDepthChart(selectedDepthTeamId);
   }, [selectedView, selectedDepthTeamId, loadDepthChart]);
 
+  const allPlayers = useMemo(
+    () => [...customPlayers, ...players],
+    [customPlayers, players],
+  );
+
   const filteredPlayers = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    return players.filter((player) => {
+    return allPlayers.filter((player) => {
       const nameMatch = player.name.toLowerCase().includes(q);
       const posMatch = positionMatches(player, positionFilter);
       return nameMatch && posMatch;
     });
-  }, [players, search, positionFilter]);
+  }, [allPlayers, search, positionFilter]);
 
   const tierBuckets = useMemo(() => {
     const grouped = new Map<number, Player[]>();
@@ -404,6 +427,28 @@ export default function ResearchScreen({ route, navigation }: Props) {
     );
   }, [depthChartData]);
 
+  function resetCustomPlayerForm() {
+    setEditingCustomPlayerId(null);
+    setNewPlayerName("");
+    setNewPlayerTeam("");
+    setNewPlayerPosition("");
+    setNewPlayerAdp("999");
+    setNewPlayerValue("1");
+    setNewPlayerTier("5");
+    setShowAddPlayer(false);
+  }
+
+  function startEditingCustomPlayer(player: Player) {
+    setEditingCustomPlayerId(player.id);
+    setNewPlayerName(player.name);
+    setNewPlayerTeam(player.team);
+    setNewPlayerPosition(player.position);
+    setNewPlayerAdp(String(player.adp ?? 999));
+    setNewPlayerValue(String(player.value ?? 1));
+    setNewPlayerTier(String(player.tier ?? 5));
+    setShowAddPlayer(true);
+  }
+
   function handleOpenPlayer(player: Player) {
     setSelectedPlayer(player);
     navigation.navigate("CommandCenter", { leagueId });
@@ -413,7 +458,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     slot: DepthChartPlayerRow,
   ): Promise<Player | null> {
     const existing =
-      players.find(
+      allPlayers.find(
         (player) =>
           player.mlbId === slot.playerId || player.id === String(slot.playerId),
       ) ?? null;
@@ -462,7 +507,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
       if (!player) {
         setDepthChartError(
-          `Could not star ${slot.playerName}. Player record was not found.`,
+          `Could not save ${slot.playerName}. Player record was not found.`,
         );
         return;
       }
@@ -494,27 +539,85 @@ export default function ResearchScreen({ route, navigation }: Props) {
     }
   }
 
+  async function handleSaveCustomPlayer() {
+    if (!newPlayerName.trim() || !newPlayerTeam.trim() || !newPlayerPosition.trim()) {
+      Alert.alert("Missing fields", "Please enter name, team, and position.");
+      return;
+    }
+
+    const adp = Number(newPlayerAdp);
+    const value = Number(newPlayerValue);
+    const tier = Number(newPlayerTier);
+
+    if (!Number.isFinite(adp) || adp < 0) {
+      Alert.alert("Invalid ADP", "ADP must be a non-negative number.");
+      return;
+    }
+
+    if (!Number.isFinite(value) || value < 0) {
+      Alert.alert("Invalid value", "Value must be a non-negative number.");
+      return;
+    }
+
+    if (!Number.isFinite(tier) || tier < 1) {
+      Alert.alert("Invalid tier", "Tier must be at least 1.");
+      return;
+    }
+
+    try {
+      if (editingCustomPlayerId) {
+        await updateCustomPlayer(editingCustomPlayerId, {
+          name: newPlayerName,
+          team: newPlayerTeam,
+          position: newPlayerPosition,
+          adp,
+          value,
+          tier,
+        });
+      } else {
+        await addCustomPlayer({
+          name: newPlayerName,
+          team: newPlayerTeam,
+          position: newPlayerPosition,
+          adp,
+          value,
+          tier,
+        });
+      }
+
+      resetCustomPlayerForm();
+    } catch (err) {
+      Alert.alert(
+        editingCustomPlayerId ? "Could not update player" : "Could not add player",
+        err instanceof Error ? err.message : "Something went wrong.",
+      );
+    }
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: "row", marginBottom: 14 }}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <SegmentButton
+          <AppChip
             label="Players"
             selected={selectedView === "player-database"}
+            fullWidth
             onPress={() => setSelectedView("player-database")}
           />
         </View>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <SegmentButton
+          <AppChip
             label="Tiers"
             selected={selectedView === "tiers"}
+            fullWidth
             onPress={() => setSelectedView("tiers")}
           />
         </View>
         <View style={{ flex: 1 }}>
-          <SegmentButton
+          <AppChip
             label="Depth"
             selected={selectedView === "depth-charts"}
+            fullWidth
             onPress={() => setSelectedView("depth-charts")}
           />
         </View>
@@ -541,94 +644,282 @@ export default function ResearchScreen({ route, navigation }: Props) {
             style={{ marginBottom: 12 }}
           >
             {POSITION_FILTERS.map((filter) => (
-              <FilterChip
+              <AppChip
                 key={filter}
                 label={filter}
                 selected={positionFilter === filter}
                 onPress={() => setPositionFilter(filter)}
+                style={{ marginRight: 8 }}
               />
             ))}
           </ScrollView>
 
-          {playersError ? (
-            <Text style={{ color: "#b91c1c", marginBottom: 12 }}>
-              {playersError}
-            </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 12 }}
+          >
+            <AppChip
+              label="PROJ"
+              selected={statBasis === "projections"}
+              onPress={() => setStatBasis("projections")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="2025"
+              selected={statBasis === "last-year"}
+              onPress={() => setStatBasis("last-year")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="3YR"
+              selected={statBasis === "3-year-avg"}
+              onPress={() => setStatBasis("3-year-avg")}
+              style={{ marginRight: 8 }}
+            />
+          </ScrollView>
+
+          {selectedView === "player-database" ? (
+            <View style={{ marginBottom: 12, flexDirection: "row" }}>
+              <AppChip
+                label={showAddPlayer ? "Close Add Player" : "Add Player"}
+                selected
+                onPress={() => {
+                  if (showAddPlayer) {
+                    resetCustomPlayerForm();
+                  } else {
+                    setShowAddPlayer(true);
+                  }
+                }}
+              />
+            </View>
           ) : null}
 
+          {showAddPlayer && selectedView === "player-database" ? (
+            <AppCard backgroundColor="#fafafa">
+              <Text style={{ fontWeight: "700", marginBottom: 10 }}>
+                {editingCustomPlayerId ? "Edit Custom Player" : "Add Custom Player"}
+              </Text>
+
+              <TextInput
+                value={newPlayerName}
+                onChangeText={setNewPlayerName}
+                placeholder="Name"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#cbd5e1",
+                  borderRadius: 8,
+                  padding: 10,
+                  backgroundColor: "white",
+                  marginBottom: 8,
+                }}
+              />
+
+              <TextInput
+                value={newPlayerTeam}
+                onChangeText={setNewPlayerTeam}
+                placeholder="Team"
+                autoCapitalize="characters"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#cbd5e1",
+                  borderRadius: 8,
+                  padding: 10,
+                  backgroundColor: "white",
+                  marginBottom: 8,
+                }}
+              />
+
+              <TextInput
+                value={newPlayerPosition}
+                onChangeText={setNewPlayerPosition}
+                placeholder="Position e.g. OF or SP"
+                autoCapitalize="characters"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#cbd5e1",
+                  borderRadius: 8,
+                  padding: 10,
+                  backgroundColor: "white",
+                  marginBottom: 8,
+                }}
+              />
+
+              <TextInput
+                value={newPlayerAdp}
+                onChangeText={setNewPlayerAdp}
+                placeholder="ADP"
+                keyboardType="numeric"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#cbd5e1",
+                  borderRadius: 8,
+                  padding: 10,
+                  backgroundColor: "white",
+                  marginBottom: 8,
+                }}
+              />
+
+              <TextInput
+                value={newPlayerValue}
+                onChangeText={setNewPlayerValue}
+                placeholder="Value"
+                keyboardType="numeric"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#cbd5e1",
+                  borderRadius: 8,
+                  padding: 10,
+                  backgroundColor: "white",
+                  marginBottom: 8,
+                }}
+              />
+
+              <TextInput
+                value={newPlayerTier}
+                onChangeText={setNewPlayerTier}
+                placeholder="Tier"
+                keyboardType="numeric"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#cbd5e1",
+                  borderRadius: 8,
+                  padding: 10,
+                  backgroundColor: "white",
+                  marginBottom: 10,
+                }}
+              />
+
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                <TouchableOpacity
+                  onPress={() => void handleSaveCustomPlayer()}
+                  style={{
+                    alignSelf: "flex-start",
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    backgroundColor: "#111827",
+                    marginRight: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ color: "white", fontWeight: "700" }}>
+                    {editingCustomPlayerId ? "Update Custom Player" : "Save Custom Player"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={resetCustomPlayerForm}
+                  style={{
+                    alignSelf: "flex-start",
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    backgroundColor: "#e5e7eb",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ color: "#111827", fontWeight: "700" }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          ) : null}
+
+          {playersError ? <ErrorState label={playersError} /> : null}
+
           {loadingPlayers ? (
-            <ActivityIndicator />
+            <LoadingState label="Loading players..." />
           ) : selectedView === "player-database" ? (
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={{ marginBottom: 12, color: "#4b5563" }}>
                 Showing {filteredPlayers.length} players • Watchlist {watchlist.length}
               </Text>
 
-              {filteredPlayers.map((item) => {
-                const watched = isInWatchlist(leagueId, item.id);
-                const engineRow = valuationsByPlayerId.get(item.id);
-                const displayTier = engineRow?.tier ?? item.tier;
-                const displayValue = engineRow?.adjusted_value ?? item.value;
+              {filteredPlayers.length === 0 ? (
+                <EmptyState label="No players found." />
+              ) : (
+                filteredPlayers.map((item) => {
+                  const watched = isInWatchlist(leagueId, item.id);
+                  const engineRow = valuationsByPlayerId.get(item.id);
+                  const displayTier = engineRow?.tier ?? item.tier;
+                  const displayValue = engineRow?.adjusted_value ?? item.value;
+                  const statSummary = buildPlayerStatSummary(item, statBasis);
+                  const custom = isCustomPlayer(item.id);
 
-                return (
-                  <View
-                    key={item.id}
-                    style={{
-                      paddingVertical: 12,
-                      borderBottomWidth: 1,
-                      borderBottomColor: "#eee",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <TouchableOpacity
-                      onPress={() => handleOpenPlayer(item)}
-                      style={{ flex: 1, marginRight: 12 }}
-                    >
-                      <Text style={{ fontWeight: "600", marginBottom: 2 }}>
-                        {item.name}
-                      </Text>
-                      <Text>
-                        {item.team} • {item.position} • ADP {item.adp}
-                      </Text>
-                      <Text>
-                        ${displayValue}
-                        {engineRow ? ` • Eng Tier ${displayTier}` : ` • Tier ${displayTier}`}
-                      </Text>
-                      {engineRow?.indicator ? (
-                        <Text style={{ color: "#6b7280", marginTop: 2 }}>
-                          {engineRow.indicator}
-                        </Text>
-                      ) : null}
-                      {!!item.outlook && (
-                        <Text
-                          numberOfLines={2}
-                          style={{ color: "#6b7280", marginTop: 4 }}
+                  return (
+                    <AppCard key={item.id}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => handleOpenPlayer(item)}
+                          style={{ flex: 1, marginRight: 12 }}
                         >
-                          {item.outlook}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
+                          <Text style={{ fontWeight: "600", marginBottom: 2 }}>
+                            {item.name}
+                            {custom ? " • Custom" : ""}
+                          </Text>
+                          <Text>
+                            {item.team} • {item.position} • ADP {item.adp}
+                          </Text>
+                          <Text>
+                            ${displayValue}
+                            {engineRow ? ` • Eng Tier ${displayTier}` : ` • Tier ${displayTier}`}
+                          </Text>
+                          {engineRow?.indicator ? (
+                            <Text style={{ color: "#6b7280", marginTop: 2 }}>
+                              {engineRow.indicator}
+                            </Text>
+                          ) : null}
+                          {statSummary ? (
+                            <Text numberOfLines={2} style={{ color: "#6b7280", marginTop: 4 }}>
+                              {statSummary}
+                            </Text>
+                          ) : null}
+                          {!!item.outlook && (
+                            <Text
+                              numberOfLines={2}
+                              style={{ color: "#6b7280", marginTop: 4 }}
+                            >
+                              {item.outlook}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => void handleToggleWatchlist(item)}
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        backgroundColor: watched ? "#111827" : "#e5e7eb",
-                      }}
-                    >
-                      <Text style={{ color: watched ? "white" : "black" }}>
-                        {watched ? "Saved" : "Save"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
+                        <View>
+                          <AppChip
+                            label={watched ? "Saved" : "Save"}
+                            selected={watched}
+                            onPress={() => void handleToggleWatchlist(item)}
+                            style={{ marginBottom: custom ? 8 : 0 }}
+                          />
 
-              {filteredPlayers.length === 0 ? <Text>No players found.</Text> : null}
+                          {custom ? (
+                            <>
+                              <AppChip
+                                label="Edit"
+                                tone="info"
+                                onPress={() => startEditingCustomPlayer(item)}
+                                style={{ marginBottom: 8 }}
+                              />
+
+                              <AppChip
+                                label="Remove"
+                                tone="danger"
+                                onPress={() => void removeCustomPlayer(item.id)}
+                              />
+                            </>
+                          ) : null}
+                        </View>
+                      </View>
+                    </AppCard>
+                  );
+                })
+              )}
             </ScrollView>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -636,74 +927,69 @@ export default function ResearchScreen({ route, navigation }: Props) {
                 {filteredPlayers.length} filtered players across {tierBuckets.length} tiers
               </Text>
 
-              {tierBuckets.map((bucket) => (
-                <View
-                  key={bucket.tier}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
-                    Tier {bucket.tier}
-                  </Text>
+              {tierBuckets.length === 0 ? (
+                <EmptyState label="No tiers found." />
+              ) : (
+                tierBuckets.map((bucket) => (
+                  <AppCard key={bucket.tier}>
+                    <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
+                      Tier {bucket.tier}
+                    </Text>
 
-                  {bucket.players.slice(0, 15).map((player) => {
-                    const engineRow = valuationsByPlayerId.get(player.id);
-                    const displayValue = engineRow?.adjusted_value ?? player.value;
-                    const watched = isInWatchlist(leagueId, player.id);
+                    {bucket.players.slice(0, 15).map((player, index) => {
+                      const engineRow = valuationsByPlayerId.get(player.id);
+                      const displayValue = engineRow?.adjusted_value ?? player.value;
+                      const watched = isInWatchlist(leagueId, player.id);
+                      const statSummary = buildPlayerStatSummary(player, statBasis);
+                      const custom = isCustomPlayer(player.id);
 
-                    return (
-                      <View
-                        key={player.id}
-                        style={{
-                          paddingVertical: 10,
-                          borderTopWidth: 1,
-                          borderTopColor: "#f1f5f9",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <TouchableOpacity
-                          onPress={() => handleOpenPlayer(player)}
-                          style={{ flex: 1, marginRight: 12 }}
-                        >
-                          <Text style={{ fontWeight: "600" }}>{player.name}</Text>
-                          <Text>
-                            {player.team} • {player.position} • ${displayValue}
-                          </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          onPress={() => void handleToggleWatchlist(player)}
+                      return (
+                        <View
+                          key={player.id}
                           style={{
-                            paddingHorizontal: 10,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            backgroundColor: watched ? "#111827" : "#e5e7eb",
+                            paddingVertical: 10,
+                            borderTopWidth: index === 0 ? 0 : 1,
+                            borderTopColor: "#f1f5f9",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
                           }}
                         >
-                          <Text style={{ color: watched ? "white" : "black" }}>
-                            {watched ? "Saved" : "Save"}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
+                          <TouchableOpacity
+                            onPress={() => handleOpenPlayer(player)}
+                            style={{ flex: 1, marginRight: 12 }}
+                          >
+                            <Text style={{ fontWeight: "600" }}>
+                              {player.name}
+                              {custom ? " • Custom" : ""}
+                            </Text>
+                            <Text>
+                              {player.team} • {player.position} • ${displayValue}
+                            </Text>
+                            {statSummary ? (
+                              <Text numberOfLines={2} style={{ color: "#6b7280", marginTop: 4 }}>
+                                {statSummary}
+                              </Text>
+                            ) : null}
+                          </TouchableOpacity>
 
-                  {bucket.players.length > 15 ? (
-                    <Text style={{ color: "#6b7280", marginTop: 8 }}>
-                      +{bucket.players.length - 15} more players in this tier
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
+                          <AppChip
+                            label={watched ? "Saved" : "Save"}
+                            selected={watched}
+                            onPress={() => void handleToggleWatchlist(player)}
+                          />
+                        </View>
+                      );
+                    })}
 
-              {tierBuckets.length === 0 ? <Text>No tiers found.</Text> : null}
+                    {bucket.players.length > 15 ? (
+                      <Text style={{ color: "#6b7280", marginTop: 8 }}>
+                        +{bucket.players.length - 15} more players in this tier
+                      </Text>
+                    ) : null}
+                  </AppCard>
+                ))
+              )}
             </ScrollView>
           )}
         </>
@@ -715,51 +1001,34 @@ export default function ResearchScreen({ route, navigation }: Props) {
             style={{ marginBottom: 12 }}
           >
             {MLB_TEAMS.map((team) => (
-              <TeamChip
+              <AppChip
                 key={team.id}
                 label={team.abbr}
                 selected={selectedDepthTeamId === team.id}
+                tone="info"
                 onPress={() => setSelectedDepthTeamId(team.id)}
+                style={{ marginRight: 8 }}
               />
             ))}
           </ScrollView>
 
           <View style={{ flexDirection: "row", marginBottom: 12 }}>
-            <TouchableOpacity
+            <AppChip
+              label="Refresh"
+              selected
               onPress={() => void loadDepthChart(selectedDepthTeamId, true)}
-              style={{
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                borderRadius: 10,
-                backgroundColor: "#111827",
-              }}
-            >
-              <Text style={{ color: "white", fontWeight: "600" }}>Refresh</Text>
-            </TouchableOpacity>
+            />
           </View>
 
-          {depthChartError ? (
-            <Text style={{ color: "#b91c1c", marginBottom: 12 }}>
-              {depthChartError}
-            </Text>
-          ) : null}
+          {depthChartError ? <ErrorState label={depthChartError} /> : null}
 
           {isLoadingDepthChart ? (
-            <ActivityIndicator />
+            <LoadingState label="Loading depth chart..." />
           ) : !depthChartData ? (
-            <Text>No depth chart data available.</Text>
+            <EmptyState label="No depth chart data available." />
           ) : (
             <>
-              <View
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#e5e7eb",
-                  borderRadius: 12,
-                  padding: 14,
-                  backgroundColor: "#f9fafb",
-                  marginBottom: 16,
-                }}
-              >
+              <AppCard backgroundColor="#f9fafb">
                 <Text style={{ fontWeight: "700", marginBottom: 6 }}>
                   Team Depth Summary
                 </Text>
@@ -774,35 +1043,55 @@ export default function ResearchScreen({ route, navigation }: Props) {
                 <Text style={{ marginTop: 4 }}>
                   {depthChartData.constraints.note}
                 </Text>
-              </View>
+              </AppCard>
 
               {DEPTH_POSITIONS.map((position) => {
                 const rows = depthChartData.positions[position] ?? [];
 
                 return (
-                  <View
-                    key={position}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#e5e7eb",
-                      borderRadius: 12,
-                      padding: 12,
-                      marginBottom: 12,
-                    }}
-                  >
+                  <AppCard key={position}>
                     <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
                       {position} • {rows.length}/3
                     </Text>
 
-                    {[1, 2, 3].map((rank) => {
+                    {[1, 2, 3].map((rank, index) => {
                       const row = rows.find((item) => item.rank === rank);
+
+                      if (!row) {
+                        return (
+                          <View
+                            key={`${position}-${rank}`}
+                            style={{
+                              paddingVertical: 10,
+                              borderTopWidth: index === 0 ? 0 : 1,
+                              borderTopColor: "#f1f5f9",
+                            }}
+                          >
+                            <Text style={{ fontWeight: "600", marginBottom: 4 }}>
+                              #{rank}
+                            </Text>
+                            <Text style={{ color: "#6b7280" }}>No assignment</Text>
+                          </View>
+                        );
+                      }
+
+                      const matchedPlayer =
+                        allPlayers.find(
+                          (player) =>
+                            player.mlbId === row.playerId ||
+                            player.id === String(row.playerId),
+                        ) ?? null;
+
+                      const isSaved = matchedPlayer
+                        ? isInWatchlist(leagueId, matchedPlayer.id)
+                        : false;
 
                       return (
                         <View
                           key={`${position}-${rank}`}
                           style={{
                             paddingVertical: 10,
-                            borderTopWidth: rank === 1 ? 0 : 1,
+                            borderTopWidth: index === 0 ? 0 : 1,
                             borderTopColor: "#f1f5f9",
                           }}
                         >
@@ -810,65 +1099,37 @@ export default function ResearchScreen({ route, navigation }: Props) {
                             #{rank}
                           </Text>
 
-                          {row ? (
-                            <>
-                              <TouchableOpacity
-                                onPress={() => void handleDepthPlayerPress(row)}
-                              >
-                                <Text>{row.playerName}</Text>
-                                <Text style={{ color: "#4b5563", marginTop: 2 }}>
-                                  {row.primaryPosition} • {row.status}
-                                </Text>
-                                <Text style={{ color: "#4b5563" }}>
-                                  {row.usageStarts} starts • {row.usageAppearances} apps
-                                </Text>
-                                {row.outOfPosition || row.needsManualReview ? (
-                                  <Text style={{ color: "#b91c1c", marginTop: 4 }}>
-                                    OOF / Manual Review
-                                  </Text>
-                                ) : null}
-                              </TouchableOpacity>
+                          <TouchableOpacity onPress={() => void handleDepthPlayerPress(row)}>
+                            <Text>{row.playerName}</Text>
+                            <Text style={{ color: "#4b5563", marginTop: 2 }}>
+                              {row.primaryPosition} • {row.status}
+                            </Text>
+                            <Text style={{ color: "#4b5563" }}>
+                              {row.usageStarts} starts • {row.usageAppearances} apps
+                            </Text>
+                            {row.outOfPosition || row.needsManualReview ? (
+                              <Text style={{ color: "#b91c1c", marginTop: 4 }}>
+                                OOF / Manual Review
+                              </Text>
+                            ) : null}
+                          </TouchableOpacity>
 
-                              <View style={{ marginTop: 8 }}>
-                                <TouchableOpacity
-                                  onPress={() => void handleDepthStarToggle(row)}
-                                  style={{
-                                    alignSelf: "flex-start",
-                                    paddingHorizontal: 10,
-                                    paddingVertical: 8,
-                                    borderRadius: 8,
-                                    backgroundColor: "#f3f4f6",
-                                  }}
-                                >
-                                  <Text style={{ fontWeight: "600" }}>
-                                    {isInWatchlist(leagueId, String(row.playerId))
-                                      ? "Saved"
-                                      : "Save"}
-                                  </Text>
-                                </TouchableOpacity>
-                              </View>
-                            </>
-                          ) : (
-                            <Text style={{ color: "#6b7280" }}>No assignment</Text>
-                          )}
+                          <View style={{ marginTop: 8 }}>
+                            <AppChip
+                              label={isSaved ? "Saved" : "Save"}
+                              selected={isSaved}
+                              onPress={() => void handleDepthStarToggle(row)}
+                            />
+                          </View>
                         </View>
                       );
                     })}
-                  </View>
+                  </AppCard>
                 );
               })}
 
               {depthChartData.manualReview.length > 0 ? (
-                <View
-                  style={{
-                    borderWidth: 1,
-                    borderColor: "#fecaca",
-                    borderRadius: 12,
-                    padding: 12,
-                    backgroundColor: "#fef2f2",
-                    marginBottom: 16,
-                  }}
-                >
+                <AppCard backgroundColor="#fef2f2" borderColor="#fecaca">
                   <Text style={{ fontWeight: "700", marginBottom: 8 }}>
                     Manual Review Required
                   </Text>
@@ -880,7 +1141,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                       {item.playerName} — {item.requestedPosition} ({item.reason})
                     </Text>
                   ))}
-                </View>
+                </AppCard>
               ) : null}
             </>
           )}
