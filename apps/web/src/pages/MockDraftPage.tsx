@@ -336,6 +336,17 @@ export default function MockDraftPage() {
           <span className="md-status-pick">
             Pick {Math.min(state.log.length + 1, state.snakeOrder.length)} of {state.snakeOrder.length}
           </span>
+          <button
+            className="md-reset-btn"
+            onClick={() => {
+              if (window.confirm("Reset the mock draft? All progress will be lost.")) {
+                resetDraft();
+              }
+            }}
+            title="Reset mock draft"
+          >
+            ↺ Reset
+          </button>
         </div>
 
         {/* Auction center */}

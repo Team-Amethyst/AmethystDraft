@@ -465,3 +465,24 @@
   margin-bottom: 1rem;
   line-height: 1.5;
 }
+
+
+.md-reset-btn {
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 6px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #f87171;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.md-reset-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.4);
+  opacity: 1;
+}
