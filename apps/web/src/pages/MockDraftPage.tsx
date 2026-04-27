@@ -130,11 +130,15 @@ function SetupScreen({
   budget,
   onStart,
   onBack,
+  onReset,        
+  hasSavedDraft,  
 }: {
   teamNames: string[];
   budget: number;
   onStart: () => void;
   onBack: () => void;
+  onReset: () => void;        
+  hasSavedDraft: boolean;    
 }) {
   return (
     <div className="md-setup">
@@ -144,6 +148,12 @@ function SetupScreen({
           Simulate your auction draft against AI-controlled teams.
           Snake nomination order · Strategic AI bidding
         </p>
+
+        {hasSavedDraft && (
+          <div className="md-resume-notice">
+            📋 You have a draft in progress for this league — click Resume to continue, or Reset to start over.
+          </div>
+        )}
 
         <div className="md-setup-details">
           <div className="md-setup-row">
@@ -176,6 +186,11 @@ function SetupScreen({
 
         <div className="md-setup-actions">
           <button className="md-btn-secondary" onClick={onBack}>← Back</button>
+          {onReset && (
+            <button className="md-btn-secondary" onClick={onReset}>
+              Reset Draft
+            </button>
+          )}
           <button className="md-btn-primary" onClick={onStart}>Start Mock Draft</button>
         </div>
       </div>
@@ -232,13 +247,15 @@ export default function MockDraftPage() {
   const {
     state,
     startDraft,
+    resetDraft,
     nominatePlayer,
-    userBid,
+    placeBid,
     confirmSell,
     keepBidding,
     isUserTurn,
     currentTeamIdx,
-  } = useMockDraft(teamNames, budget, rosterSlots, allPlayers, watchlistPlayers);
+    hasSavedDraft,
+  } = useMockDraft(leagueId ?? "", teamNames, budget, rosterSlots, allPlayers, watchlistPlayers);
 
   // Player search for nomination
   const [searchQuery, setSearchQuery] = useState("");
@@ -258,6 +275,8 @@ export default function MockDraftPage() {
         budget={budget}
         onStart={startDraft}
         onBack={() => navigate(`/leagues/${leagueId ?? ""}/my-draft`)}
+        onReset={resetDraft}         
+        hasSavedDraft={hasSavedDraft} 
       />
     );
   }
@@ -388,7 +407,7 @@ export default function MockDraftPage() {
                     className="md-btn-primary"
                     onClick={() => {
                       const amt = parseInt(bidInput);
-                      if (!isNaN(amt)) userBid(amt);
+                      if (!isNaN(amt)) placeBid(amt);
                     }}
                   >
                     Place Bid

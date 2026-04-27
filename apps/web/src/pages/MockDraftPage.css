@@ -454,3 +454,14 @@
 .md-result-left  { color: #22c55e; font-weight: 700; }
 
 .md-complete-actions { display: flex; gap: 0.75rem; justify-content: center; }
+
+.md-resume-notice {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.78rem;
+  color: #9080b0;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
