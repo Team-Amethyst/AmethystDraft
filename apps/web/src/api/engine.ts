@@ -127,7 +127,7 @@ function logDraftroomValuationPipeline(
     : undefined;
   console.info("[valuation pipeline]", {
     source: "api_client_http",
-    route: "POST /api/engine/leagues/:leagueId/valuation",
+    route,
     selected_player_id: focus ?? null,
     A_board_raw_row: rawValuationRowPipelineSnapshot(rawRow),
     B_getValuation_normalized_row: valuationRowPipelineSnapshot(normRow),

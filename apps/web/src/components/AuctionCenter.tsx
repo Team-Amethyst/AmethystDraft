@@ -25,7 +25,6 @@ import {
 import {
   mergeValuationBoardRowIntoPrevious,
   normalizeValuationResultRow,
-  valuationRowDebugLiterals,
   valuationRowPipelineSnapshot,
 } from "../api/valuationNormalize";
 import { resolveUserTeamId } from "../utils/team";
@@ -35,7 +34,6 @@ import {
   commandCenterBidDecision,
   commandCenterWalletCapsFromMyTeam,
   formatDollar,
-  formatMaybeDollar,
   type CommandCenterBidDecision,
   type CommandCenterWalletCaps,
 } from "../utils/valuation";
@@ -286,7 +284,7 @@ function mergeDisplayValuationRow(
       engineFiniteOrNull(row.baseline_value) ??
       engineFiniteOrNull(player.baseline_value) ??
       row.baseline_value,
-    edge: engineFiniteOrNull(row.edge),
+    edge: engineFiniteOrNull(row.edge) ?? undefined,
   };
 }
 
@@ -302,7 +300,6 @@ function BidDecisionCard({
   myWalletCaps: CommandCenterWalletCaps | null;
 }) {
   const row = valuationRow ?? null;
-  const roundWhole = (n: number) => Math.round(n);
 
   const finiteRecommendedBid = row
     ? engineFiniteOrNull(row.recommended_bid)
