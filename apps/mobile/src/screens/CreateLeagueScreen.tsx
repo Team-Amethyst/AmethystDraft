@@ -5,12 +5,13 @@ import {
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { createLeague } from "../api/leagues";
+import AppCard from "../components/ui/AppCard";
+import AppChip from "../components/ui/AppChip";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import type { RootStackParamList } from "../navigation/types";
@@ -30,22 +31,12 @@ function PoolChip({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity
+    <AppChip
+      label={label}
+      selected={selected}
       onPress={onPress}
-      style={{
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: selected ? "#111827" : "#d1d5db",
-        backgroundColor: selected ? "#111827" : "white",
-        marginRight: 10,
-      }}
-    >
-      <Text style={{ color: selected ? "white" : "#111827", fontWeight: "600" }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+      style={{ marginRight: 10 }}
+    />
   );
 }
 
@@ -60,39 +51,69 @@ export default function CreateLeagueScreen({ navigation }: Props) {
   const [posEligibilityThreshold, setPosEligibilityThreshold] = useState("20");
   const [loading, setLoading] = useState(false);
 
-  const previewTeamCount = useMemo(() => {
-    const value = Number(teams);
-    if (!Number.isFinite(value) || value <= 0) return 0;
-    return value;
-  }, [teams]);
+  const parsed = useMemo(() => {
+    return {
+      teamCount: Number(teams),
+      budgetValue: Number(budget),
+      thresholdValue: Number(posEligibilityThreshold),
+    };
+  }, [teams, budget, posEligibilityThreshold]);
+
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+
+    if (!name.trim()) {
+      errors.push("League name is required.");
+    } else if (name.trim().length < 3) {
+      errors.push("League name must be at least 3 characters.");
+    }
+
+    if (!Number.isInteger(parsed.teamCount) || parsed.teamCount < 2 || parsed.teamCount > 20) {
+      errors.push("Team count must be an integer from 2 to 20.");
+    }
+
+    if (!Number.isInteger(parsed.budgetValue) || parsed.budgetValue < 50 || parsed.budgetValue > 1000) {
+      errors.push("Budget must be an integer from 50 to 1000.");
+    }
+
+    if (
+      !Number.isInteger(parsed.thresholdValue) ||
+      parsed.thresholdValue < 1 ||
+      parsed.thresholdValue > 50
+    ) {
+      errors.push("Eligibility threshold must be an integer from 1 to 50.");
+    }
+
+    return errors;
+  }, [name, parsed]);
+
+  const validationWarnings = useMemo(() => {
+    const warnings: string[] = [];
+
+    if (playerPool !== "Mixed" && parsed.teamCount > 15) {
+      warnings.push("Single-league pools can get thin with more than 15 teams.");
+    }
+
+    if (parsed.budgetValue > 500) {
+      warnings.push("This is a very high auction budget.");
+    }
+
+    if (parsed.thresholdValue <= 5) {
+      warnings.push("A very low eligibility threshold creates many multi-position players.");
+    }
+
+    if (parsed.thresholdValue >= 35) {
+      warnings.push("A very high eligibility threshold can make rosters less flexible.");
+    }
+
+    return warnings;
+  }, [playerPool, parsed]);
 
   async function handleCreateLeague() {
     if (!token) return;
 
-    const teamCount = Number(teams);
-    const budgetValue = Number(budget);
-    const thresholdValue = Number(posEligibilityThreshold);
-
-    if (!name.trim()) {
-      Alert.alert("Missing league name", "Please enter a league name.");
-      return;
-    }
-
-    if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > 20) {
-      Alert.alert("Invalid team count", "Please enter a team count from 2 to 20.");
-      return;
-    }
-
-    if (!Number.isInteger(budgetValue) || budgetValue <= 0) {
-      Alert.alert("Invalid budget", "Please enter a positive auction budget.");
-      return;
-    }
-
-    if (!Number.isInteger(thresholdValue) || thresholdValue < 1) {
-      Alert.alert(
-        "Invalid eligibility threshold",
-        "Please enter a positive eligibility threshold.",
-      );
+    if (validationErrors.length > 0) {
+      Alert.alert("Fix the form first", validationErrors[0]);
       return;
     }
 
@@ -102,8 +123,8 @@ export default function CreateLeagueScreen({ navigation }: Props) {
       const league = await createLeague(
         {
           name: name.trim(),
-          teams: teamCount,
-          budget: budgetValue,
+          teams: parsed.teamCount,
+          budget: parsed.budgetValue,
           scoringFormat: "Roto",
           rosterSlots: {
             C: 1,
@@ -132,8 +153,8 @@ export default function CreateLeagueScreen({ navigation }: Props) {
             { name: "SV", type: "pitching" },
           ],
           playerPool,
-          posEligibilityThreshold: thresholdValue,
-          teamNames: Array.from({ length: teamCount }, (_, i) => `Team ${i + 1}`),
+          posEligibilityThreshold: parsed.thresholdValue,
+          teamNames: Array.from({ length: parsed.teamCount }, (_, i) => `Team ${i + 1}`),
         },
         token,
       );
@@ -240,29 +261,46 @@ export default function CreateLeagueScreen({ navigation }: Props) {
           }}
         />
 
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 18,
-            backgroundColor: "#f9fafb",
-          }}
-        >
+        {validationErrors.length > 0 ? (
+          <AppCard backgroundColor="#fef2f2" borderColor="#fecaca">
+            <Text style={{ fontWeight: "700", color: "#991b1b", marginBottom: 8 }}>
+              Fix these first
+            </Text>
+            {validationErrors.map((error, index) => (
+              <Text key={index} style={{ color: "#991b1b", marginBottom: 4 }}>
+                • {error}
+              </Text>
+            ))}
+          </AppCard>
+        ) : null}
+
+        {validationWarnings.length > 0 ? (
+          <AppCard backgroundColor="#fffbeb" borderColor="#fde68a">
+            <Text style={{ fontWeight: "700", color: "#92400e", marginBottom: 8 }}>
+              Heads up
+            </Text>
+            {validationWarnings.map((warning, index) => (
+              <Text key={index} style={{ color: "#92400e", marginBottom: 4 }}>
+                • {warning}
+              </Text>
+            ))}
+          </AppCard>
+        ) : null}
+
+        <AppCard backgroundColor="#f9fafb">
           <Text style={{ fontWeight: "700", marginBottom: 8 }}>League Summary</Text>
           <Text>Name: {name || "—"}</Text>
-          <Text>Teams: {previewTeamCount || "—"}</Text>
-          <Text>Budget: ${budget || "—"}</Text>
+          <Text>Teams: {parsed.teamCount || "—"}</Text>
+          <Text>Budget: ${parsed.budgetValue || "—"}</Text>
           <Text>Pool: {playerPool}</Text>
-          <Text>Eligibility threshold: {posEligibilityThreshold || "—"}</Text>
+          <Text>Eligibility threshold: {parsed.thresholdValue || "—"}</Text>
           <Text>Scoring: 5x5 Roto</Text>
-        </View>
+        </AppCard>
 
         <Button
           title={loading ? "Creating..." : "Create League"}
           onPress={handleCreateLeague}
-          disabled={loading}
+          disabled={loading || validationErrors.length > 0}
         />
 
         <View style={{ height: 12 }} />
