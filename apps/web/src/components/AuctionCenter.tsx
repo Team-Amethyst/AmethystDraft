@@ -442,7 +442,7 @@ function BidDecisionCard({
             aria-label="Recommended bid, your value, and draftroom value"
           >
             <MetricTile
-              label="Recommended bid"
+              label="Market Price"
               title="Engine recommended_bid (expected auction clearing price)"
               value={
                 recommendedBidDisplay != null ? (
