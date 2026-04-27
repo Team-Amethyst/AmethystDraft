@@ -387,7 +387,7 @@ function LeftPanel({
 
       {activeTab === "Market" && (
         <div className="cc-panel-content">
-          <>
+          <section className="cc-surface-card cc-surface-card--left">
             <div className="market-section-label">
               {posMarket ? posMarket.position : "—"} MARKET
               {posMarket && <PosBadge pos={posMarket.position} />}
@@ -462,83 +462,115 @@ function LeftPanel({
                 {posMarket.scarcityRankOf}
               </div>
             ) : null}
-            <div className="cc-divider" />
-          </>
-          <div className="market-section-label">TEAM LIQUIDITY</div>
-          <table className="liquidity-table">
-            <thead>
-              <tr>
-                {(
-                  [
-                    ["name", "TEAM"],
-                    ["remaining", "LEFT"],
-                    ["open", "OPEN"],
-                    ["maxBid", "MAX"],
-                    ["ppSpot", "$/SP"],
-                  ] as [LiqCol, string][]
-                ).map(([col, label]) => (
-                  <th
-                    key={col}
-                    className="liq-th-sortable"
-                    onClick={() => toggleLiqSort(col)}
-                  >
-                    {label}
-                    {liqSort.col === col ? (
-                      <span className="th-sort-icon th-sort-active">
-                        {liqSort.dir === "asc" ? "▲" : "▼"}
-                      </span>
-                    ) : (
-                      <span className="th-sort-icon th-sort-idle">↕</span>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTeamData.length > 0 ? (
-                sortedTeamData.map((t) => {
-                  const ineligible =
-                    selectedPlayerPositions.length > 0 &&
-                    !!league &&
-                    !teamCanBid(
-                      t.name,
-                      selectedPlayerPositions,
-                      league,
-                      rosterEntries,
-                    );
-                  return (
-                    <tr
-                      key={t.name}
-                      className={[
-                        t.name === myTeamName ? "my-team-row" : "",
-                        ineligible ? "liq-ineligible" : "",
-                      ]
-                        .join(" ")
-                        .trim()}
+            {posMarket?.supply?.length ? (
+              <>
+                <div className="cc-divider" />
+                <div className="market-section-label">POSITION TIERS</div>
+                <div className="msr-tier-list">
+                  {posMarket.supply.map((tierRow) => (
+                    <div
+                      key={`tier-${tierRow.tier}`}
+                      className="market-stat-row msr-tier-row"
+                      title="Remaining undrafted players in this tier"
                     >
-                      <td className="liq-team-name-cell" title={t.name}>
-                        {t.name}
-                      </td>
-                      <td>${t.remaining}</td>
-                      <td>{t.open}</td>
-                      <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
-                      <td>${t.ppSpot}</td>
-                    </tr>
-                  );
-                })
-              ) : (
+                      <span className="msr-label msr-tier-label-wrap">
+                        <span className={`msr-tier-chip msr-tier-chip--${tierRow.tier}`}>
+                          {tierRow.tier}
+                        </span>
+                        Tier {tierRow.tier}
+                      </span>
+                      <span className="msr-value">
+                        {tierRow.count}
+                        {tierRow.avgVal != null ? ` · $${tierRow.avgVal}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="msr-tier-legend">
+                  <span>Count = undrafted players remaining in tier.</span>
+                  <span>Dollar value = avg Draftroom $ for that tier.</span>
+                </div>
+              </>
+            ) : null}
+          </section>
+
+          <section className="cc-surface-card cc-surface-card--left">
+            <div className="market-section-label">TEAM LIQUIDITY</div>
+            <table className="liquidity-table">
+              <thead>
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="dim"
-                    style={{ textAlign: "center", padding: "1rem 0" }}
-                  >
-                    {league ? "No picks logged yet" : "No league loaded"}
-                  </td>
+                  {(
+                    [
+                      ["name", "TEAM"],
+                      ["remaining", "LEFT"],
+                      ["open", "OPEN"],
+                      ["maxBid", "MAX"],
+                      ["ppSpot", "$/SP"],
+                    ] as [LiqCol, string][]
+                  ).map(([col, label]) => (
+                    <th
+                      key={col}
+                      className="liq-th-sortable"
+                      onClick={() => toggleLiqSort(col)}
+                    >
+                      {label}
+                      {liqSort.col === col ? (
+                        <span className="th-sort-icon th-sort-active">
+                          {liqSort.dir === "asc" ? "▲" : "▼"}
+                        </span>
+                      ) : (
+                        <span className="th-sort-icon th-sort-idle">↕</span>
+                      )}
+                    </th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedTeamData.length > 0 ? (
+                  sortedTeamData.map((t) => {
+                    const ineligible =
+                      selectedPlayerPositions.length > 0 &&
+                      !!league &&
+                      !teamCanBid(
+                        t.name,
+                        selectedPlayerPositions,
+                        league,
+                        rosterEntries,
+                      );
+                    return (
+                      <tr
+                        key={t.name}
+                        className={[
+                          t.name === myTeamName ? "my-team-row" : "",
+                          ineligible ? "liq-ineligible" : "",
+                        ]
+                          .join(" ")
+                          .trim()}
+                      >
+                        <td className="liq-team-name-cell" title={t.name}>
+                          {t.name}
+                        </td>
+                        <td>${t.remaining}</td>
+                        <td>{t.open}</td>
+                        <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
+                        <td>${t.ppSpot}</td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="dim"
+                      style={{ textAlign: "center", padding: "1rem 0" }}
+                    >
+                      {league ? "No picks logged yet" : "No league loaded"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
         </div>
       )}
 
@@ -803,6 +835,7 @@ function RightPanel({
   myTeamEntries,
   rosterEntries,
   engineMarket,
+  selectedPlayer,
 }: {
   league: League | null;
   teamData: TeamSummary[];
@@ -810,6 +843,7 @@ function RightPanel({
   myTeamEntries: RosterEntry[];
   rosterEntries: RosterEntry[];
   engineMarket: ValuationResponse | null;
+  selectedPlayer: Player | null;
 }) {
   const my = teamData.find((t) => t.name === myTeamName);
   const totalSlots = league
@@ -877,125 +911,171 @@ function RightPanel({
     /(^|[^A-Z])P([^A-Z]|$)|^SP$|^RP$/i.test(e.rosterSlot ?? ""),
   ).length;
   const hitterCount = Math.max(0, myTeamEntries.length - pitcherCount);
+  const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
+  const selectedValuationRow =
+    selectedNormId && engineMarket
+      ? engineMarket.valuations.find(
+          (v) => String(v.player_id).trim() === selectedNormId,
+        )
+      : undefined;
+  const selectedCeiling =
+    (selectedValuationRow?.baseline_value != null &&
+    Number.isFinite(selectedValuationRow.baseline_value)
+      ? selectedValuationRow.baseline_value
+      : selectedPlayer?.baseline_value != null &&
+          Number.isFinite(selectedPlayer.baseline_value)
+        ? selectedPlayer.baseline_value
+        : undefined);
+  const maxBid = my?.maxBid;
+  const budgetLeft = my?.remaining;
+  const dollarsPerSpot = my?.ppSpot;
 
   return (
     <div className="cc-right">
-      <div className="rp-section-label">ROSTER CONTEXT</div>
-      <div className="budget-grid">
-        <div className="budget-card">
-          <div className="bc-label">FILLED SLOTS</div>
-          <div className="bc-val">
-            {my ? `${my.filled}/${totalSlots}` : `0/${totalSlots}`}
+      <section className="cc-surface-card cc-surface-card--right">
+        <div className="rp-section-label">BID CONTEXT</div>
+        <div className="rp-bid-context-grid">
+          <div className="budget-card budget-card--row">
+            <div className="bc-label">Ceiling</div>
+            <div className="bc-val">
+              {selectedCeiling != null ? `$${Math.round(selectedCeiling)}` : "—"}
+            </div>
+          </div>
+          <div className="budget-card budget-card--row">
+            <div className="bc-label">Max Bid</div>
+            <div className="bc-val">{maxBid != null ? `$${maxBid}` : "—"}</div>
+          </div>
+          <div className="budget-card budget-card--row">
+            <div className="bc-label">Budget Left</div>
+            <div className="bc-val">{budgetLeft != null ? `$${budgetLeft}` : "—"}</div>
+          </div>
+          <div className="budget-card budget-card--row">
+            <div className="bc-label">$/Spot</div>
+            <div className="bc-val">{dollarsPerSpot != null ? `$${dollarsPerSpot}` : "—"}</div>
           </div>
         </div>
-        <div className="budget-card">
-          <div className="bc-label">OPEN SPOTS</div>
-          <div className="bc-val">{openSpots}</div>
-        </div>
-        <div className="budget-card">
-          <div className="bc-label">TOP NEED</div>
-          <div className="bc-val">{topNeed ? `${topNeed.pos} (${topNeed.open})` : "—"}</div>
-        </div>
-        <div className="budget-card">
-          <div className="bc-label">HIT / PIT</div>
-          <div className="bc-val">
-            {hitterCount} / {pitcherCount}
-          </div>
-        </div>
-      </div>
-      <div className="budget-progress-row">
-        <span className="bp-text">${budgetSpent} spent</span>
-        <span className="bp-text">
-          {avgSpentPerFilled != null ? `$${avgSpentPerFilled} avg / filled` : "— avg / filled"}
-        </span>
-      </div>
+      </section>
 
-      <div className="cc-divider" />
-      <div className="rp-section-label">MARKET PRESSURE</div>
-      {engineMarket ? (
-        <div className={`engine-market-card ${marketClass}`}>
-          <div className="engine-market-main">
-            <div
-              className="engine-market-kpi"
-              title={
-                inflationPct != null
-                  ? `Vs neutral: ${inflationPct >= 0 ? "+" : ""}${inflationPct}%`
-                  : undefined
-              }
-            >
-              <div className="em-label em-label--inflation">
-                Inflation
-                {engineMarket.inflation_bounded_by ? " (clamped)" : ""}
-              </div>
-              <div className="em-value em-value--inflation">
-                {inflationFactor != null ? `${inflationFactor.toFixed(2)}x` : "—"}
-              </div>
+      <section className="cc-surface-card cc-surface-card--right">
+        <div className="rp-section-label">ROSTER CONTEXT</div>
+        <div className="budget-grid">
+          <div className="budget-card">
+            <div className="bc-label">FILLED SLOTS</div>
+            <div className="bc-val">
+              {my ? `${my.filled}/${totalSlots}` : `0/${totalSlots}`}
             </div>
-            <div className="engine-market-kpi">
-              <div className="em-label">$ Left</div>
-              <div className="em-value">${engineMarket.total_budget_remaining}</div>
-            </div>
-            <div className="engine-market-kpi">
-              <div className="em-label" title={enginePlayersKpi?.title}>
-                {enginePlayersKpi?.label ?? "Player pool"}
-              </div>
-              <div className="em-value">{engineMarket.players_remaining}</div>
+          </div>
+          <div className="budget-card">
+            <div className="bc-label">OPEN SPOTS</div>
+            <div className="bc-val">{openSpots}</div>
+          </div>
+          <div className="budget-card">
+            <div className="bc-label">TOP NEED</div>
+            <div className="bc-val">{topNeed ? `${topNeed.pos} (${topNeed.open})` : "—"}</div>
+          </div>
+          <div className="budget-card">
+            <div className="bc-label">HIT / PIT</div>
+            <div className="bc-val">
+              {hitterCount} / {pitcherCount}
             </div>
           </div>
         </div>
-      ) : (
-        <div className="engine-market-empty">Engine market snapshot unavailable.</div>
-      )}
+        <div className="budget-progress-row">
+          <span className="bp-text">${budgetSpent} spent</span>
+          <span className="bp-text">
+            {avgSpentPerFilled != null ? `$${avgSpentPerFilled} avg / filled` : "— avg / filled"}
+          </span>
+        </div>
+      </section>
 
-      <table className="pos-budget-table">
-        <thead>
-          <tr>
-            <th>POS</th>
-            <th>OPEN</th>
-            <th>TARGET</th>
-            <th>SPENT</th>
-            <th>Δ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {posBudgetPlan.map(({ pos, open, target, spent, delta }) => {
-            const pct = target > 0 ? spent / target : 0;
-            const spentClass =
-              pct > 1
-                ? "red"
-                : pct >= 0.8
-                  ? "yellow"
-                  : spent > 0
-                    ? "green"
-                    : "";
-            const filled = open === 0;
-            return (
-              <tr key={pos} className={filled ? "dim" : ""}>
-                <td className="pb-pos">{pos}</td>
-                <td className={open === 0 ? "dim" : ""}>
-                  {open === 0 ? "✓" : open}
-                </td>
-                <td>${target}</td>
-                <td className={spentClass}>${spent}</td>
-                <td className={delta >= 0 ? "green" : "red"}>
-                  {delta >= 0 ? `+${delta}` : delta}
+      <section className="cc-surface-card cc-surface-card--right">
+        <div className="rp-section-label">MARKET PRESSURE</div>
+        {engineMarket ? (
+          <div className={`engine-market-card ${marketClass}`}>
+            <div className="engine-market-main">
+              <div
+                className="engine-market-kpi"
+                title={
+                  inflationPct != null
+                    ? `Vs neutral: ${inflationPct >= 0 ? "+" : ""}${inflationPct}%`
+                    : undefined
+                }
+              >
+                <div className="em-label em-label--inflation">
+                  Inflation Index
+                </div>
+                <div className="em-value em-value--inflation">
+                  {inflationFactor != null ? `${inflationFactor.toFixed(2)}x` : "—"}
+                </div>
+              </div>
+              <div className="engine-market-kpi">
+                <div className="em-label">Budget Left</div>
+                <div className="em-value">${engineMarket.total_budget_remaining}</div>
+              </div>
+              <div className="engine-market-kpi">
+                <div className="em-label" title={enginePlayersKpi?.title}>
+                  {enginePlayersKpi?.label === "Slots remaining"
+                    ? "Open Slots"
+                    : "Players Remaining"}
+                </div>
+                <div className="em-value">{engineMarket.players_remaining}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="engine-market-empty">Engine market snapshot unavailable.</div>
+        )}
+
+        <table className="pos-budget-table">
+          <thead>
+            <tr>
+              <th>POS</th>
+              <th>OPEN</th>
+              <th>TARGET</th>
+              <th>SPENT</th>
+              <th>Δ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {posBudgetPlan.map(({ pos, open, target, spent, delta }) => {
+              const pct = target > 0 ? spent / target : 0;
+              const spentClass =
+                pct > 1
+                  ? "red"
+                  : pct >= 0.8
+                    ? "yellow"
+                    : spent > 0
+                      ? "green"
+                      : "";
+              const filled = open === 0;
+              return (
+                <tr key={pos} className={filled ? "dim" : ""}>
+                  <td className="pb-pos">{pos}</td>
+                  <td className={open === 0 ? "dim" : ""}>
+                    {open === 0 ? "✓" : open}
+                  </td>
+                  <td>${target}</td>
+                  <td className={spentClass}>${spent}</td>
+                  <td className={delta >= 0 ? "green" : "red"}>
+                    {delta >= 0 ? `+${delta}` : delta}
+                  </td>
+                </tr>
+              );
+            })}
+            {posBudgetPlan.length === 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="dim"
+                  style={{ textAlign: "center", padding: "0.5rem 0" }}
+                >
+                  —
                 </td>
               </tr>
-            );
-          })}
-          {posBudgetPlan.length === 0 && (
-            <tr>
-              <td
-                colSpan={5}
-                className="dim"
-                style={{ textAlign: "center", padding: "0.5rem 0" }}
-              >
-                —
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            )}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
@@ -1287,6 +1367,7 @@ export default function CommandCenter() {
           myTeamEntries={myTeamEntries}
           rosterEntries={rosterEntries}
           engineMarket={engineMarket}
+          selectedPlayer={selectedPlayer}
         />
       </div>
   

@@ -6,7 +6,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, MouseEvent as ReactMouseEvent } from "react";
 import { useParams } from "react-router";
 import PosBadge from "./PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
@@ -32,7 +32,6 @@ import {
   normalizeValuationPlayerId,
   commandCenterWalletCapsFromMyTeam,
   formatDollar,
-  type CommandCenterWalletCaps,
 } from "../utils/valuation";
 import {
   leagueValuationConfigKey,
@@ -275,6 +274,36 @@ function engineFiniteOrNull(
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
+function impactLabelParts(catName: string): { primary: string; secondary?: string } {
+  const shortFromParen = catName.match(/\(([^)]+)\)$/)?.[1];
+  const map: Record<string, string> = {
+    W: "Wins",
+    SV: "Saves",
+    R: "Runs",
+    SO: "Strikeouts",
+    "K/9": "Strikeouts/9",
+    WHIP: "Walks + Hits / IP",
+    RBI: "Runs Batted In",
+    HR: "Home Runs",
+    SB: "Stolen Bases",
+    AVG: "Batting Average",
+    OBP: "On-Base Pct",
+    SLG: "Slugging Pct",
+  };
+  const canonical = catName === "Walks + Hits per IP" ? "WHIP" : catName;
+  const mapped = map[canonical.toUpperCase()] ?? map[canonical] ?? canonical;
+  if (mapped.length <= 14) return { primary: mapped };
+  if (shortFromParen && shortFromParen.length <= 8)
+    return { primary: shortFromParen, secondary: mapped };
+  const compact = mapped
+    .replace("Percentage", "Pct")
+    .replace("Strikeouts", "Ks")
+    .replace("Runs Batted In", "RBI");
+  return compact.length <= 14
+    ? { primary: compact, secondary: mapped }
+    : { primary: mapped.slice(0, 14).trim() };
+}
+
 /** `recommended_bid` capped by max bid (wallet); never falls back to other valuation fields. */
 function actionableBidFromRecommendedAndMaxBid(
   row: ValuationResult | undefined,
@@ -317,11 +346,9 @@ function mergeDisplayValuationRow(
 function BidDecisionCard({
   valuationRow,
   selectedPlayer,
-  myWalletCaps,
 }: {
   valuationRow: ValuationResult | null | undefined;
   selectedPlayer: Player;
-  myWalletCaps: CommandCenterWalletCaps | null;
 }) {
   const row = valuationRow ?? null;
 
@@ -387,19 +414,18 @@ function BidDecisionCard({
     selectedPlayer,
   ]);
 
-  const edgeTone = computedVerdict?.tone ?? "muted";
   const decisionTone = computedVerdict?.cardTone ?? "fair";
   const decisionDanger = computedVerdict?.danger ?? false;
   const decisionStrong = computedVerdict?.strong ?? false;
 
   const displayBid = cleanedPair?.bid ?? decisionData.recommended_bid;
   const displayYour = cleanedPair?.yourValue ?? decisionData.team_adjusted_value;
+  const displayDraftroomValue =
+    decisionData.adjusted_value ??
+    engineFiniteOrNull(selectedPlayer.adjusted_value);
 
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
-  const edgeDisplay =
-    computedDelta != null ? formatEdgeLine(computedDelta) : "—";
-  const edgeLabel = computedVerdict?.label ?? "Fair Price";
 
   const fmtMoney = (n: number | null) =>
     n != null ? formatEngineMoney(n) : "—";
@@ -412,18 +438,17 @@ function BidDecisionCard({
       <div className="bdc-grid">
         <div className="bdc-metric-row">
           <div
-            className="bdc-metric-grid bdc-metric-grid--focus2"
-            aria-label="Recommended bid and your value"
+            className="bdc-metric-grid bdc-metric-grid--focus3 bdc-metric-grid--focus-boxes"
+            aria-label="Recommended bid, your value, and draftroom value"
           >
             <MetricTile
-              variant="primary"
               label="Recommended bid"
               title="Engine recommended_bid (expected auction clearing price)"
               value={
                 recommendedBidDisplay != null ? (
                   <span
                     className={
-                      "bdc-metric-tile-bid bdc-recommended-value" +
+                      "bdc-focus-value bdc-recommended-value" +
                       (decisionDanger ? " bdc-recommended-value--danger" : "") +
                       (decisionStrong ? " bdc-recommended-value--strong" : "")
                     }
@@ -438,43 +463,22 @@ function BidDecisionCard({
             <MetricTile
               label="Your Value"
               title="team_adjusted_value — intrinsic value for your roster (same finite cleanup as edge)"
-              value={fmtMoney(displayYour)}
+              value={
+                <span className="bdc-focus-value">
+                  {fmtMoney(displayYour)}
+                </span>
+              }
+            />
+            <MetricTile
+              label="Draftroom Value"
+              title="adjusted_value — league-wide value in the current draft context"
+              value={
+                <span className="bdc-focus-value">
+                  {fmtMoney(displayDraftroomValue)}
+                </span>
+              }
             />
           </div>
-          <div
-            className={"bdc-edge-slot bdc-edge-inline bdc-context-edge--" + edgeTone}
-            title="Your Value − recommended bid, rounded, after finite cleanup (same as header badge)"
-          >
-            <span className="bdc-edge-value">{edgeDisplay}</span>
-            <span className="bdc-edge-label">{edgeLabel}</span>
-          </div>
-        </div>
-
-        <div
-          className="bdc-metric-grid bdc-metric-grid--constraints bdc-constraints-grid bdc-strip-row bdc-strip-row--constraints"
-          title="Ceiling and budget constraints from your current roster and wallet"
-        >
-          <MetricTile
-            label="Ceiling"
-            title="Maximum reasonable stretch (baseline_value)"
-            value={fmtMoney(decisionData.baseline_value)}
-          />
-          <MetricTile
-            label="Max Bid"
-            value={formatEngineMoney(myWalletCaps?.maxBid)}
-          />
-          <MetricTile
-            label="Budget Left"
-            value={formatEngineMoney(myWalletCaps?.budgetRemaining)}
-          />
-          <MetricTile
-            label="$/Spot"
-            value={formatEngineMoney(
-              myWalletCaps && myWalletCaps.openSpots > 0
-                ? myWalletCaps.budgetRemaining / myWalletCaps.openSpots
-                : undefined,
-            )}
-          />
         </div>
       </div>
     </div>
@@ -529,10 +533,33 @@ export function AuctionCenter({
   const [finalPrice, setFinalPrice] = useState("");
   /** True after user edits bid $; avoids overwriting with late Engine payload. */
   const bidPriceTouchedRef = useRef(false);
+  const [draftNotesHeight, setDraftNotesHeight] = useState(180);
   const [draftedToSlot, setDraftedToSlot] = useState("");
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
+
+  const onDraftNotesResizeStart = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = draftNotesHeight;
+      const onMove = (evt: MouseEvent) => {
+        const next = Math.max(
+          120,
+          Math.min(520, startHeight + (startY - evt.clientY)),
+        );
+        setDraftNotesHeight(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [draftNotesHeight],
+  );
 
   const rosterValuationKey = useMemo(
     () => rosterValuationFingerprint(rosterEntries),
@@ -1321,6 +1348,181 @@ export function AuctionCenter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayer?.id, wonBy]);
 
+  const playerImpactSection = selectedPlayer ? (
+    <div className="pac-impact-wrap">
+      <div className="pac-snapshot-header">
+        <span className="pac-section-label">PLAYER IMPACT</span>
+        <div className="stat-view-toggle">
+          <button
+            className={
+              "svt-btn " + (statView === "hitting" ? "active" : "")
+            }
+            onClick={() => setStatView("hitting")}
+          >
+            Hitting
+          </button>
+          <button
+            className={
+              "svt-btn " + (statView === "pitching" ? "active" : "")
+            }
+            onClick={() => setStatView("pitching")}
+          >
+            Pitching
+          </button>
+        </div>
+      </div>
+      {statView === "pitching" ? (
+        pitchingCats.length > 0 ? (
+          <div className="pac-impact-grid command-center-impact-grid">
+            {pitchingCats.map((cat) => {
+              const labels = impactLabelParts(cat.name);
+              const raw = selectedPlayer
+                ? getStatByCategory(selectedPlayer, cat.name, "pitching")
+                : 0;
+              const isRate = [
+                "ERA",
+                "WHIP",
+                "WALKS + HITS PER IP",
+              ].includes(cat.name.toUpperCase());
+              const display =
+                raw === 0
+                  ? "—"
+                  : isRate
+                    ? raw.toFixed(2)
+                    : String(Math.round(raw));
+              const imp = catImpactRows.find((r) => r.name === cat.name);
+              const dTone = imp
+                ? imp.neutral
+                  ? "neutral"
+                  : imp.improved
+                    ? "green"
+                    : "red"
+                : "muted";
+              return (
+                <div
+                  key={cat.name}
+                  className="pac-impact-mini command-center-impact-card"
+                >
+                  <div className="pac-impact-mini-label">{labels.primary}</div>
+                  {labels.secondary ? (
+                    <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
+                  ) : null}
+                  <div className="pac-impact-mini-stat">{display}</div>
+                  <div
+                    className={`pac-impact-mini-delta-pill pac-impact-mini-delta--${dTone}`}
+                  >
+                    {imp?.deltaStr ?? "—"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
+            {(
+              [
+                ["ERA", sp?.era ?? "—"],
+                ["K/9", k9],
+                ["WHIP", sp?.whip ?? "—"],
+                ["Wins", sp?.wins ?? "—"],
+                ["Saves", sp?.saves ?? "—"],
+              ] as const
+            ).map(([catLabel, val]) => {
+              const labels = impactLabelParts(catLabel);
+              return (
+              <div
+                key={catLabel}
+                className="pac-impact-mini command-center-impact-card"
+              >
+                <div className="pac-impact-mini-label">{labels.primary}</div>
+                {labels.secondary ? (
+                  <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
+                ) : null}
+                <div className="pac-impact-mini-stat">{val}</div>
+                <div className="pac-impact-mini-delta-pill pac-impact-mini-delta--muted">
+                  —
+                </div>
+              </div>
+            );
+            })}
+          </div>
+        )
+      ) : hittingCats.length > 0 ? (
+        <div className="pac-impact-grid command-center-impact-grid">
+          {hittingCats.map((cat) => {
+            const labels = impactLabelParts(cat.name);
+            const raw = selectedPlayer
+              ? getStatByCategory(selectedPlayer, cat.name, "batting")
+              : 0;
+            const isRate = ["AVG", "OBP", "SLG"].includes(
+              cat.name.toUpperCase(),
+            );
+            const display =
+              raw === 0
+                ? "—"
+                : isRate
+                  ? raw.toFixed(3)
+                  : String(Math.round(raw));
+            const imp = catImpactRows.find((r) => r.name === cat.name);
+            const dTone = imp
+              ? imp.neutral
+                ? "neutral"
+                : imp.improved
+                  ? "green"
+                  : "red"
+              : "muted";
+            return (
+              <div
+                key={cat.name}
+                className="pac-impact-mini command-center-impact-card"
+              >
+                <div className="pac-impact-mini-label">{labels.primary}</div>
+                {labels.secondary ? (
+                  <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
+                ) : null}
+                <div className="pac-impact-mini-stat">{display}</div>
+                <div
+                  className={`pac-impact-mini-delta-pill pac-impact-mini-delta--${dTone}`}
+                >
+                  {imp?.deltaStr ?? "—"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
+          {(
+            [
+              ["Batting Avg", sb?.avg ?? ".---"],
+              ["Home Runs", sb?.hr ?? "—"],
+              ["Runs Batted In", sb?.rbi ?? "—"],
+              ["Runs", sb?.runs ?? "—"],
+              ["Stolen Bases", sb?.sb ?? "—"],
+            ] as const
+          ).map(([catLabel, val]) => {
+            const labels = impactLabelParts(catLabel);
+            return (
+            <div
+              key={catLabel}
+              className="pac-impact-mini command-center-impact-card"
+            >
+              <div className="pac-impact-mini-label">{labels.primary}</div>
+              {labels.secondary ? (
+                <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
+              ) : null}
+              <div className="pac-impact-mini-stat">{val}</div>
+              <div className="pac-impact-mini-delta-pill pac-impact-mini-delta--muted">
+                —
+              </div>
+            </div>
+          );
+          })}
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="cc-center">
       {/* Search bar + undo/redo */}
@@ -1455,16 +1657,17 @@ export function AuctionCenter({
       </div>
 
       <div className="cc-content-scroll">
-        {!selectedPlayer ? (
-          <div className="cc-empty-state">
-            <div className="cc-empty-icon">⊕</div>
-            <div className="cc-empty-title">No player loaded</div>
-            <div className="cc-empty-sub">
-              Search for a player above to begin the auction
+        <div className="player-auction-card command-center-main">
+          {!selectedPlayer ? (
+            <div className="cc-empty-state">
+              <div className="cc-empty-icon">⊕</div>
+              <div className="cc-empty-title">No player loaded</div>
+              <div className="cc-empty-sub">
+                Search for a player above to begin the auction
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="player-auction-card command-center-main">
+          ) : (
+            <>
             <div className="pac-cards-stack">
               {(() => {
                 const rowUi = mergedValuationRow;
@@ -1490,193 +1693,17 @@ export function AuctionCenter({
                         setNote(selectedPlayer.id, value)
                       }
                     />
-                    <BidDecisionCard
-                      valuationRow={rowForValuationUi}
-                      selectedPlayer={selectedPlayer}
-                      myWalletCaps={myWalletCaps}
-                    />
+                    {playerImpactSection}
+                    <section className="pac-bid-section" aria-label="Bid recommendation">
+                      <div className="pac-section-label">BID RECOMMENDATION</div>
+                      <BidDecisionCard
+                        valuationRow={rowForValuationUi}
+                        selectedPlayer={selectedPlayer}
+                      />
+                    </section>
                   </>
                 );
               })()}
-            </div>
-
-            <section className="pac-notes-section command-center-notes" aria-label="Notes">
-              <div className="pac-notes-row pac-notes-row--single">
-                <div className="pac-notes-col">
-                  <label
-                    className="pac-notes-col-label"
-                    htmlFor="pac-note-draft"
-                  >
-                    DRAFT NOTES
-                  </label>
-                  <textarea
-                    id="pac-note-draft"
-                    className="pac-notes pac-notes--always"
-                    value={getNote("__draft__") ?? ""}
-                    onChange={(e) => setNote("__draft__", e.target.value)}
-                    placeholder="Draft strategy, targets, budget rules…"
-                    rows={2}
-                  />
-                </div>
-              </div>
-            </section>
-
-            <div className="pac-impact-wrap">
-              <div className="pac-snapshot-header">
-                <span className="pac-section-label">PLAYER IMPACT</span>
-                <div className="stat-view-toggle">
-                  <button
-                    className={
-                      "svt-btn " + (statView === "hitting" ? "active" : "")
-                    }
-                    onClick={() => setStatView("hitting")}
-                  >
-                    Hitting
-                  </button>
-                  <button
-                    className={
-                      "svt-btn " + (statView === "pitching" ? "active" : "")
-                    }
-                    onClick={() => setStatView("pitching")}
-                  >
-                    Pitching
-                  </button>
-                </div>
-              </div>
-              {statView === "pitching" ? (
-                pitchingCats.length > 0 ? (
-                  <div className="pac-impact-grid command-center-impact-grid">
-                    {pitchingCats.map((cat) => {
-                      const label =
-                        cat.name.match(/\(([^)]+)\)$/)?.[1] ??
-                        (cat.name === "Walks + Hits per IP" ? "WHIP" : cat.name);
-                      const raw = selectedPlayer
-                        ? getStatByCategory(selectedPlayer, cat.name, "pitching")
-                        : 0;
-                      const isRate = [
-                        "ERA",
-                        "WHIP",
-                        "WALKS + HITS PER IP",
-                      ].includes(cat.name.toUpperCase());
-                      const display =
-                        raw === 0
-                          ? "—"
-                          : isRate
-                            ? raw.toFixed(2)
-                            : String(Math.round(raw));
-                      const imp = catImpactRows.find((r) => r.name === cat.name);
-                      const dTone = imp
-                        ? imp.neutral
-                          ? "neutral"
-                          : imp.improved
-                            ? "green"
-                            : "red"
-                        : "muted";
-                      return (
-                        <div
-                          key={cat.name}
-                          className="pac-impact-mini command-center-impact-card"
-                        >
-                          <div className="pac-impact-mini-label">{label}</div>
-                          <div className="pac-impact-mini-stat">{display}</div>
-                          <div
-                            className={`pac-impact-mini-delta pac-impact-mini-delta--${dTone}`}
-                          >
-                            {imp?.deltaStr ?? "—"}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
-                    {(
-                      [
-                        ["ERA", sp?.era ?? "—"],
-                        ["K/9", k9],
-                        ["WHIP", sp?.whip ?? "—"],
-                        ["W", sp?.wins ?? "—"],
-                        ["SV", sp?.saves ?? "—"],
-                      ] as const
-                    ).map(([lab, val]) => (
-                      <div
-                        key={lab}
-                        className="pac-impact-mini command-center-impact-card"
-                      >
-                        <div className="pac-impact-mini-label">{lab}</div>
-                        <div className="pac-impact-mini-stat">{val}</div>
-                        <div className="pac-impact-mini-delta pac-impact-mini-delta--muted">
-                          —
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : hittingCats.length > 0 ? (
-                <div className="pac-impact-grid command-center-impact-grid">
-                  {hittingCats.map((cat) => {
-                    const label =
-                      cat.name.match(/\(([^)]+)\)$/)?.[1] ?? cat.name;
-                    const raw = selectedPlayer
-                      ? getStatByCategory(selectedPlayer, cat.name, "batting")
-                      : 0;
-                    const isRate = ["AVG", "OBP", "SLG"].includes(
-                      cat.name.toUpperCase(),
-                    );
-                    const display =
-                      raw === 0
-                        ? "—"
-                        : isRate
-                          ? raw.toFixed(3)
-                          : String(Math.round(raw));
-                    const imp = catImpactRows.find((r) => r.name === cat.name);
-                    const dTone = imp
-                      ? imp.neutral
-                        ? "neutral"
-                        : imp.improved
-                          ? "green"
-                          : "red"
-                      : "muted";
-                    return (
-                      <div
-                        key={cat.name}
-                        className="pac-impact-mini command-center-impact-card"
-                      >
-                        <div className="pac-impact-mini-label">{label}</div>
-                        <div className="pac-impact-mini-stat">{display}</div>
-                        <div
-                          className={`pac-impact-mini-delta pac-impact-mini-delta--${dTone}`}
-                        >
-                          {imp?.deltaStr ?? "—"}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
-                  {(
-                    [
-                      ["AVG", sb?.avg ?? ".---"],
-                      ["HR", sb?.hr ?? "—"],
-                      ["RBI", sb?.rbi ?? "—"],
-                      ["R", sb?.runs ?? "—"],
-                      ["SB", sb?.sb ?? "—"],
-                    ] as const
-                  ).map(([lab, val]) => (
-                    <div
-                      key={lab}
-                      className="pac-impact-mini command-center-impact-card"
-                    >
-                      <div className="pac-impact-mini-label">{lab}</div>
-                      <div className="pac-impact-mini-stat">{val}</div>
-                      <div className="pac-impact-mini-delta pac-impact-mini-delta--muted">
-                        —
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="pac-log-action-bar" role="group" aria-label="Log result">
@@ -1737,8 +1764,31 @@ export function AuctionCenter({
               </button>
             </div>
             </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
+
+        <section
+          className="pac-notes-dock"
+          aria-label="Draft notes"
+          style={{ height: `${draftNotesHeight}px` }}
+        >
+          <div
+            className="pac-notes-dock-resizer"
+            onMouseDown={onDraftNotesResizeStart}
+            title="Drag to resize draft notes"
+            aria-hidden
+          />
+          <div className="pac-notes-dock-header">DRAFT NOTES</div>
+          <textarea
+            id="pac-note-draft"
+            className="pac-notes pac-notes--dock-only"
+            value={getNote("__draft__") ?? ""}
+            onChange={(e) => setNote("__draft__", e.target.value)}
+            placeholder="Draft strategy, targets, budget rules…"
+            rows={5}
+          />
+        </section>
       </div>
     </div>
   );
