@@ -423,6 +423,9 @@ function BidDecisionCard({
   const displayDraftroomValue =
     decisionData.adjusted_value ??
     engineFiniteOrNull(selectedPlayer.adjusted_value);
+  const displayBaseValue =
+    decisionData.baseline_value ??
+    engineFiniteOrNull(selectedPlayer.baseline_value);
 
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
@@ -439,7 +442,7 @@ function BidDecisionCard({
         <div className="bdc-metric-row">
           <div
             className="bdc-metric-grid bdc-metric-grid--focus3 bdc-metric-grid--focus-boxes"
-            aria-label="Recommended bid, your value, and draftroom value"
+            aria-label="Market price, your value, draftroom value, and base value"
           >
             <MetricTile
               label="Market Price"
@@ -476,6 +479,13 @@ function BidDecisionCard({
                 <span className="bdc-focus-value">
                   {fmtMoney(displayDraftroomValue)}
                 </span>
+              }
+            />
+            <MetricTile
+              label="Base Value"
+              title="baseline_value — neutral baseline projection before roster/context adjustments"
+              value={
+                <span className="bdc-focus-value">{fmtMoney(displayBaseValue)}</span>
               }
             />
           </div>
@@ -528,6 +538,7 @@ export function AuctionCenter({
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
 
   const [wonBy, setWonBy] = useState("");
   const [finalPrice, setFinalPrice] = useState("");
@@ -545,9 +556,13 @@ export function AuctionCenter({
       const startY = e.clientY;
       const startHeight = draftNotesHeight;
       const onMove = (evt: MouseEvent) => {
+        const maxAllowedHeight = Math.max(
+          120,
+          (contentScrollRef.current?.clientHeight ?? startHeight) - 8,
+        );
         const next = Math.max(
           120,
-          Math.min(520, startHeight + (startY - evt.clientY)),
+          Math.min(maxAllowedHeight, startHeight + (startY - evt.clientY)),
         );
         setDraftNotesHeight(next);
       };
@@ -1656,7 +1671,7 @@ export function AuctionCenter({
         </div>
       </div>
 
-      <div className="cc-content-scroll">
+      <div ref={contentScrollRef} className="cc-content-scroll">
         <div className="player-auction-card command-center-main">
           {!selectedPlayer ? (
             <div className="cc-empty-state">
