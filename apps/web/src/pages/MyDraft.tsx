@@ -40,6 +40,11 @@ import {
   type ValuationSortField,
 } from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
+import {
+  readPositionTargetsFromStorage,
+  writePositionTargetsToStorage,
+  clearPositionTargetsStorage,
+} from "../utils/positionTargetsStorage";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -136,9 +141,16 @@ export default function MyDraft() {
   const [positionTargets, setPositionTargets] = useState<Record<string, number>>(
     () => ({
       ...defaultPositionTargets,
-      ...loadFromStorage<Record<string, number>>("amethyst-position-targets", {}),
+      ...readPositionTargetsFromStorage(leagueId),
     }),
   );
+  useEffect(() => {
+    setPositionTargets({
+      ...defaultPositionTargets,
+      ...readPositionTargetsFromStorage(leagueId),
+    });
+  }, [leagueId]);
+
 
   const [targetOverrides, setTargetOverrides] = useState<Record<string, number>>(
     () => loadFromStorage("amethyst-target-overrides", {}),
@@ -210,7 +222,7 @@ export default function MyDraft() {
     if (value !== null) {
       setPositionTargets((prev) => {
         const next = { ...prev, [pos]: value };
-        saveToStorage("amethyst-position-targets", next);
+        writePositionTargetsToStorage(leagueId, next);
         return next;
       });
     }
@@ -222,7 +234,7 @@ export default function MyDraft() {
     if (isNaN(v) || v < 0) {
       setPositionTargets((prev) => {
         const next = { ...prev, [pos]: 0 };
-        saveToStorage("amethyst-position-targets", next);
+        writePositionTargetsToStorage(leagueId, next);
         return next;
       });
     }
@@ -235,7 +247,7 @@ export default function MyDraft() {
 
   function handleResetPositionTargets() {
     setPositionTargets(defaultPositionTargets);
-    localStorage.removeItem("amethyst-position-targets");
+    clearPositionTargetsStorage(leagueId);
   }
 
   // ── Watchlist target handlers ───────────────────────────────────────────────

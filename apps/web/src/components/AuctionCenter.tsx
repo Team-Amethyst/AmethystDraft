@@ -276,7 +276,7 @@ function engineFiniteOrNull(
 
 function impactLabelParts(catName: string): { primary: string; secondary?: string } {
   const shortFromParen = catName.match(/\(([^)]+)\)$/)?.[1];
-  const map: Record<string, string> = {
+  const fullByAbbrev: Record<string, string> = {
     W: "Wins",
     SV: "Saves",
     R: "Runs",
@@ -290,18 +290,35 @@ function impactLabelParts(catName: string): { primary: string; secondary?: strin
     OBP: "On-Base Pct",
     SLG: "Slugging Pct",
   };
-  const canonical = catName === "Walks + Hits per IP" ? "WHIP" : catName;
-  const mapped = map[canonical.toUpperCase()] ?? map[canonical] ?? canonical;
-  if (mapped.length <= 14) return { primary: mapped };
-  if (shortFromParen && shortFromParen.length <= 8)
-    return { primary: shortFromParen, secondary: mapped };
-  const compact = mapped
+  const abbrevByFull = new Map(
+    Object.entries(fullByAbbrev).map(([abbr, full]) => [full.toUpperCase(), abbr]),
+  );
+  const canonical = catName === "Walks + Hits per IP" ? "WHIP" : catName.trim();
+  const canonicalUpper = canonical.toUpperCase();
+  const knownAbbrev = Object.prototype.hasOwnProperty.call(fullByAbbrev, canonicalUpper)
+    ? canonicalUpper
+    : undefined;
+  const full =
+    (knownAbbrev ? fullByAbbrev[knownAbbrev] : undefined) ??
+    fullByAbbrev[canonical] ??
+    canonical;
+  const inferredAbbrev =
+    knownAbbrev ??
+    abbrevByFull.get(canonicalUpper) ??
+    abbrevByFull.get(full.toUpperCase()) ??
+    shortFromParen ??
+    canonical;
+
+  if (full.length <= 14) return { primary: full };
+  if (inferredAbbrev.length <= 10) return { primary: inferredAbbrev, secondary: full };
+
+  const compact = full
     .replace("Percentage", "Pct")
     .replace("Strikeouts", "Ks")
     .replace("Runs Batted In", "RBI");
   return compact.length <= 14
-    ? { primary: compact, secondary: mapped }
-    : { primary: mapped.slice(0, 14).trim() };
+    ? { primary: compact, secondary: full }
+    : { primary: full.slice(0, 14).trim() };
 }
 
 /** `recommended_bid` capped by max bid (wallet); never falls back to other valuation fields. */

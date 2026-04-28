@@ -11,7 +11,10 @@
 
 .cc-layout {
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns:
+    clamp(180px, 22vw, 300px)
+    minmax(0, 1fr)
+    clamp(180px, 22vw, 300px);
   margin-top: 56px; /* matches fixed navbar height */
   height: calc(100vh - 56px);
   overflow: hidden;
@@ -96,6 +99,136 @@
   --cc-bdc-success-glow: color-mix(in srgb, var(--cc-bdc-success-fg) 18%, transparent);
 }
 
+@media (max-width: 1500px) {
+  .cc-layout {
+    --cc-pad-x: 0.58rem;
+  }
+
+  .cc-surface-card--left,
+  .cc-surface-card--right {
+    padding: 6px;
+  }
+
+  .market-section-label,
+  .rp-section-label {
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+  }
+
+  .liquidity-table,
+  .supply-table,
+  .teams-table,
+  .standings-table {
+    font-size: 0.64rem;
+  }
+
+  .liquidity-table th,
+  .supply-table th,
+  .teams-table th,
+  .standings-table th {
+    font-size: 0.56rem;
+    padding: 0.24rem 0.2rem;
+  }
+
+  .budget-card {
+    padding: 0.28rem 0.24rem;
+    gap: 0.3rem;
+  }
+
+  .bc-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  .bc-val {
+    font-size: 0.88rem;
+  }
+
+  .engine-market-card {
+    padding: 0.32rem 0.34rem;
+  }
+
+  .engine-market-main {
+    gap: 0.22rem;
+  }
+
+  .engine-market-kpi {
+    padding: 0.2rem 0.18rem 0.22rem;
+    gap: 0.15rem;
+  }
+
+  .em-label {
+    font-size: 0.48rem;
+  }
+
+  .em-value {
+    font-size: 1.1rem;
+  }
+
+  .team-makeup-slot-row {
+    padding: 0.1rem 0.2rem;
+    min-height: 18px;
+  }
+
+  .team-makeup-slot-player {
+    font-size: 0.54rem;
+  }
+
+  .team-makeup-slot-money {
+    font-size: 0.49rem;
+  }
+
+  .rp-bid-context-grid,
+  .budget-grid,
+  .engine-market-main {
+    grid-template-columns: 1fr;
+  }
+
+  .rp-bid-context-grid {
+    gap: 0.2rem;
+  }
+
+  .budget-grid {
+    gap: 0.2rem;
+  }
+
+  .engine-market-main {
+    gap: 0.16rem;
+  }
+
+  .engine-market-kpi {
+    padding: 0.16rem 0.14rem 0.18rem;
+  }
+
+  .em-value {
+    font-size: 1.02rem;
+  }
+
+  .bc-val {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 1120px) {
+  .cc-layout {
+    --cc-pad-x: 0.48rem;
+  }
+
+  .cc-right {
+    padding: 0.24rem 0.32rem;
+  }
+
+  .budget-progress-row {
+    flex-direction: column;
+    gap: 0.12rem;
+    align-items: flex-start;
+  }
+
+  .liquidity-table-wrap {
+    max-height: none;
+  }
+}
+
 /* ─── Shared panel styles ──────────────────────────────────────────────────── */
 
 .cc-left,
@@ -103,6 +236,7 @@
 .cc-right {
   overflow-y: auto;
   overflow-x: hidden;
+  min-width: 0;
   min-height: 0;
   border-right: 1px solid rgba(139, 92, 246, 0.1);
   scrollbar-width: thin;
@@ -142,12 +276,13 @@
   flex-direction: column;
   gap: 0.24rem;
   min-height: 0;
-  width: 300px;
-  max-width: 320px;
+  width: 100%;
+  max-width: none;
 }
 
 .cc-right .cc-surface-card {
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -270,7 +405,8 @@
   letter-spacing: 0.1em;
   color: var(--cc-heading-color);
   text-transform: uppercase;
-  padding: var(--cc-gap-md) 0 var(--cc-heading-mb);
+  padding: 0 0 var(--cc-heading-mb);
+  margin-top: 0;
 }
 
 .market-section-label--spaced {
@@ -489,7 +625,8 @@
 .liquidity-table,
 .supply-table,
 .teams-table,
-.standings-table {
+.standings-table,
+.team-makeup-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.72rem;
@@ -500,12 +637,27 @@
 .liquidity-table {
   font-size: 0.68rem;
   table-layout: auto;
+  min-width: 360px;
 }
+
+.liquidity-table-wrap {
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
+}
+
+.liquidity-table-wrap::-webkit-scrollbar { width: 4px; }
+.liquidity-table-wrap::-webkit-scrollbar:horizontal { height: 4px; }
+.liquidity-table-wrap::-webkit-scrollbar-track { background: rgba(15, 10, 25, 0.8); }
+.liquidity-table-wrap::-webkit-scrollbar-thumb { background: #9070b8; border-radius: 3px; }
 
 .liquidity-table th,
 .supply-table th,
 .teams-table th,
-.standings-table th {
+.standings-table th,
+.team-makeup-table th {
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.07em;
@@ -559,7 +711,8 @@
 .liquidity-table td,
 .supply-table td,
 .teams-table td,
-.standings-table td {
+.standings-table td,
+.team-makeup-table td {
   padding: 0.3rem 0.25rem;
   color: #b0a0cc;
   border-bottom: 1px solid rgba(255,255,255,0.02);
@@ -573,6 +726,82 @@
 .teams-table-row { cursor: pointer; }
 .teams-table-row:hover td { background: rgba(139, 92, 246, 0.05); }
 .teams-expand-icon { color: #4a3a60; text-align: right; width: 20px; }
+
+.team-makeup-slots {
+  padding: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.team-makeup-head-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  column-gap: 4px;
+  align-items: center;
+  padding: 0 0.3rem;
+  margin-bottom: 0;
+}
+
+.team-makeup-head-player,
+.team-makeup-head-money {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4a3a60;
+}
+
+.team-makeup-head-money {
+  text-align: right;
+}
+
+.team-makeup-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.14rem 0.26rem;
+  border-radius: var(--cc-card-radius);
+  border: var(--cc-card-border);
+  background: var(--cc-card-bg);
+  min-height: 20px;
+}
+
+.team-makeup-slot-row:not(.team-makeup-slot-row--empty) {
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.team-makeup-slot-player {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #d8caf0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-makeup-slot-row--empty .team-makeup-slot-player {
+  color: #4a3a60;
+  font-style: italic;
+}
+
+.team-makeup-slot-money {
+  flex-shrink: 0;
+  min-width: 0;
+  text-align: right;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.team-makeup-slot-money--target {
+  color: #7c5cbf;
+}
 
 .teams-slots-row td { padding: 0; border-bottom: 1px solid rgba(139, 92, 246, 0.08); }
 .teams-slots-cell { padding: 0 !important; }
@@ -989,6 +1218,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--cc-space-8);
+  min-width: 0;
+}
+
+.rp-bid-context-grid > * {
+  min-width: 0;
 }
 
 .bid-decision-card .bdc-strip-row--constraints .bdc-metric-tile {
@@ -1208,13 +1442,17 @@ textarea.pac-notes.pac-notes--always:focus {
 }
 
 .pac-impact-mini-stat {
-  font-size: 1.42rem;
+  font-size: 1.58rem;
   color: #e2d9f3;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   text-align: center;
   width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pac-impact-mini-delta {
@@ -1351,9 +1589,44 @@ textarea.pac-notes.pac-notes--always:focus {
   letter-spacing: 0.04em;
 }
 
+@media (max-width: 1360px) {
+  .pic-layout {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .pic-row {
+    align-items: flex-start;
+  }
+
+  .player-identity-card .pac-name.pac-name--identity {
+    font-size: 1.22rem;
+  }
+
+  .pac-meta-inline {
+    margin-top: 4px;
+    gap: 0.22rem 0.42rem;
+  }
+
+  .pac-meta-dot {
+    opacity: 0.35;
+  }
+
+  textarea.pac-notes.pac-notes--identity {
+    min-height: 54px;
+    max-height: 74px;
+  }
+}
+
 @media (max-width: 1080px) {
+  .player-identity-card {
+    padding: 0.46rem 0.58rem;
+  }
+
   .pac-meta-inline {
     flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
   }
 
   .pic-layout {
@@ -1361,13 +1634,76 @@ textarea.pac-notes.pac-notes--always:focus {
     gap: 0.45rem;
   }
 
+  .pic-row {
+    gap: 10px;
+  }
+
+  .pac-headshot--identity {
+    width: 58px;
+    height: 58px;
+  }
+
+  .player-identity-card .pac-name.pac-name--identity {
+    font-size: 1.2rem;
+  }
+
+  .pac-meta-inline-team,
+  .pac-meta-inline-adp {
+    font-size: 0.78rem;
+  }
+
+  .pic-vb-badge-delta {
+    font-size: 0.74rem;
+  }
+
+  .pic-vb-badge-label {
+    font-size: 0.53rem;
+  }
+
   textarea.pac-notes.pac-notes--identity {
-    min-height: 56px;
-    max-height: 72px;
+    min-height: 50px;
+    max-height: 66px;
+    font-size: 0.64rem;
   }
 
   .bid-decision-card .bdc-grid {
     gap: var(--cc-space-8);
+  }
+}
+
+@media (max-width: 760px) {
+  .player-identity-card {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .pic-row {
+    gap: 8px;
+  }
+
+  .pac-headshot--identity {
+    width: 50px;
+    height: 50px;
+  }
+
+  .player-identity-card .pac-name.pac-name--identity {
+    font-size: 1.06rem;
+  }
+
+  .pac-meta-inline-team,
+  .pac-meta-inline-adp {
+    font-size: 0.72rem;
+  }
+
+  .pic-vb-badge {
+    padding: 0.06rem 0.26rem 0.08rem;
+  }
+
+  .pic-vb-badge-delta {
+    font-size: 0.66rem;
+  }
+
+  .pic-vb-badge-label {
+    font-size: 0.48rem;
   }
 }
 
@@ -2206,6 +2542,106 @@ textarea.pac-notes.pac-notes--compact {
   color: #ede9fe;
 }
 
+@media (max-width: 1280px) {
+  .log-result-grid--inline {
+    grid-template-columns: minmax(0, 1.35fr) 84px minmax(0, 0.75fr) 78px;
+    gap: 0.28rem;
+  }
+
+  .log-select,
+  .log-price-input-wrap,
+  .log-result-btn--inline {
+    min-height: 2.15rem;
+  }
+
+  .log-select,
+  .log-price-input {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 1120px) {
+  .log-result-grid--inline {
+    grid-template-columns: minmax(0, 1.35fr) 92px minmax(0, 0.8fr);
+    grid-template-areas:
+      "team price slot"
+      "log log log";
+    row-gap: 0.38rem;
+    column-gap: 0.3rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) {
+    grid-area: team;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) {
+    grid-area: price;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(3) {
+    grid-area: slot;
+  }
+
+  .log-result-btn--inline {
+    grid-area: log;
+    width: 100%;
+    min-height: 2.2rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) .log-select {
+    font-size: 0.8rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) .log-price-input,
+  .log-result-grid--inline .log-field:nth-child(3) .log-select {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 860px) {
+  .log-result-grid--inline {
+    grid-template-columns: minmax(0, 1.4fr) 82px minmax(0, 0.75fr);
+    grid-template-areas:
+      "team price slot"
+      "log log log";
+    row-gap: 0.3rem;
+    column-gap: 0.28rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) {
+    grid-area: team;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) {
+    grid-area: price;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(3) {
+    grid-area: slot;
+  }
+
+  .log-result-btn--inline {
+    grid-area: log;
+    width: 100%;
+    min-height: 2.1rem;
+    padding: 0 0.4rem;
+  }
+
+  .log-select,
+  .log-price-input-wrap {
+    min-height: 2.1rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) .log-select {
+    font-size: 0.78rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) .log-price-input,
+  .log-result-grid--inline .log-field:nth-child(3) .log-select {
+    font-size: 0.7rem;
+  }
+}
+
 /* ─── Right panel ───────────────────────────────────────────────────────────── */
 
 .rp-section-label {
@@ -2214,7 +2650,7 @@ textarea.pac-notes.pac-notes--compact {
   letter-spacing: 0.1em;
   color: var(--cc-heading-color);
   text-transform: uppercase;
-  margin: var(--cc-gap-md) 0 var(--cc-heading-mb);
+  margin: 0 0 var(--cc-heading-mb);
 }
 
 .cc-right > .rp-section-label:first-of-type {
@@ -2297,6 +2733,7 @@ textarea.pac-notes.pac-notes--compact {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.42rem;
   align-items: stretch;
+  min-width: 0;
 }
 
 .engine-market-kpi {
@@ -2753,4 +3190,14 @@ textarea.pac-notes.pac-notes--compact {
   background: rgba(139, 92, 246, 0.22);
   border-color: rgba(139, 92, 246, 0.5);
   color: #c4b5fd;
+}
+
+/* Keep right-rail cards readable at tighter desktop widths. Placed at end so
+   it wins over later base grid declarations. */
+@media (max-width: 1500px) {
+  .rp-bid-context-grid,
+  .budget-grid,
+  .engine-market-main {
+    grid-template-columns: 1fr;
+  }
 }

@@ -38,6 +38,7 @@ import {
   leagueValuationConfigKey,
   rosterValuationFingerprint,
 } from "../utils/valuationDeps";
+import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -496,80 +497,82 @@ function LeftPanel({
 
           <section className="cc-surface-card cc-surface-card--left">
             <div className="market-section-label">TEAM LIQUIDITY</div>
-            <table className="liquidity-table">
-              <thead>
-                <tr>
-                  {(
-                    [
-                      ["name", "TEAM"],
-                      ["remaining", "LEFT"],
-                      ["open", "OPEN"],
-                      ["maxBid", "MAX"],
-                      ["ppSpot", "$/SP"],
-                    ] as [LiqCol, string][]
-                  ).map(([col, label]) => (
-                    <th
-                      key={col}
-                      className="liq-th-sortable"
-                      onClick={() => toggleLiqSort(col)}
-                    >
-                      {label}
-                      {liqSort.col === col ? (
-                        <span className="th-sort-icon th-sort-active">
-                          {liqSort.dir === "asc" ? "▲" : "▼"}
-                        </span>
-                      ) : (
-                        <span className="th-sort-icon th-sort-idle">↕</span>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTeamData.length > 0 ? (
-                  sortedTeamData.map((t) => {
-                    const ineligible =
-                      selectedPlayerPositions.length > 0 &&
-                      !!league &&
-                      !teamCanBid(
-                        t.name,
-                        selectedPlayerPositions,
-                        league,
-                        rosterEntries,
-                      );
-                    return (
-                      <tr
-                        key={t.name}
-                        className={[
-                          t.name === myTeamName ? "my-team-row" : "",
-                          ineligible ? "liq-ineligible" : "",
-                        ]
-                          .join(" ")
-                          .trim()}
-                      >
-                        <td className="liq-team-name-cell" title={t.name}>
-                          {t.name}
-                        </td>
-                        <td>${t.remaining}</td>
-                        <td>{t.open}</td>
-                        <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
-                        <td>${t.ppSpot}</td>
-                      </tr>
-                    );
-                  })
-                ) : (
+            <div className="liquidity-table-wrap">
+              <table className="liquidity-table">
+                <thead>
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="dim"
-                      style={{ textAlign: "center", padding: "1rem 0" }}
-                    >
-                      {league ? "No picks logged yet" : "No league loaded"}
-                    </td>
+                    {(
+                      [
+                        ["name", "TEAM"],
+                        ["remaining", "LEFT"],
+                        ["open", "OPEN"],
+                        ["maxBid", "MAX"],
+                        ["ppSpot", "$/SP"],
+                      ] as [LiqCol, string][]
+                    ).map(([col, label]) => (
+                      <th
+                        key={col}
+                        className="liq-th-sortable"
+                        onClick={() => toggleLiqSort(col)}
+                      >
+                        {label}
+                        {liqSort.col === col ? (
+                          <span className="th-sort-icon th-sort-active">
+                            {liqSort.dir === "asc" ? "▲" : "▼"}
+                          </span>
+                        ) : (
+                          <span className="th-sort-icon th-sort-idle">↕</span>
+                        )}
+                      </th>
+                    ))}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sortedTeamData.length > 0 ? (
+                    sortedTeamData.map((t) => {
+                      const ineligible =
+                        selectedPlayerPositions.length > 0 &&
+                        !!league &&
+                        !teamCanBid(
+                          t.name,
+                          selectedPlayerPositions,
+                          league,
+                          rosterEntries,
+                        );
+                      return (
+                        <tr
+                          key={t.name}
+                          className={[
+                            t.name === myTeamName ? "my-team-row" : "",
+                            ineligible ? "liq-ineligible" : "",
+                          ]
+                            .join(" ")
+                            .trim()}
+                        >
+                          <td className="liq-team-name-cell" title={t.name}>
+                            {t.name}
+                          </td>
+                          <td>${t.remaining}</td>
+                          <td>{t.open}</td>
+                          <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
+                          <td>${t.ppSpot}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="dim"
+                        style={{ textAlign: "center", padding: "1rem 0" }}
+                      >
+                        {league ? "No picks logged yet" : "No league loaded"}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         </div>
       )}
@@ -836,6 +839,7 @@ function RightPanel({
   rosterEntries,
   engineMarket,
   selectedPlayer,
+  savedPositionTargets,
 }: {
   league: League | null;
   teamData: TeamSummary[];
@@ -844,6 +848,7 @@ function RightPanel({
   rosterEntries: RosterEntry[];
   engineMarket: ValuationResponse | null;
   selectedPlayer: Player | null;
+  savedPositionTargets: Record<string, number>;
 }) {
   const my = teamData.find((t) => t.name === myTeamName);
   const totalSlots = league
@@ -881,16 +886,6 @@ function RightPanel({
           : inflationFactor <= 0.9
             ? "cool"
             : "neutral";
-  // Position budget plan — read saved targets from MyDraft localStorage
-  const savedPositionTargets: Record<string, number> = (() => {
-    try {
-      const raw = localStorage.getItem("amethyst-position-targets");
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  })();
-
   const posBudgetPlan = league
     ? Object.entries(league.rosterSlots).map(([pos, count]) => {
         const entriesAtSlot = myTeamEntries.filter((e) => e.rosterSlot === pos);
@@ -929,6 +924,45 @@ function RightPanel({
   const maxBid = my?.maxBid;
   const budgetLeft = my?.remaining;
   const dollarsPerSpot = my?.ppSpot;
+  const teamOneEntries = rosterEntries.filter((e) => e.teamId === "team_1");
+  const teamMakeupEntries = (teamOneEntries.length > 0 ? teamOneEntries : myTeamEntries)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
+        new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
+    );
+  const teamEntriesBySlot = new Map<string, RosterEntry[]>();
+  teamMakeupEntries.forEach((entry) => {
+    const slotKey = entry.rosterSlot || "BN";
+    const curr = teamEntriesBySlot.get(slotKey) ?? [];
+    curr.push(entry);
+    teamEntriesBySlot.set(slotKey, curr);
+  });
+  const teamMakeupRows = league
+    ? Object.entries(league.rosterSlots).flatMap(([slot, count]) => {
+        const entriesForSlot = teamEntriesBySlot.get(slot) ?? [];
+        const totalTargetForSlot =
+          savedPositionTargets[slot] ??
+          Math.round((count / totalSlots) * (league.budget ?? 260));
+        const perSlotTarget =
+          count > 0 && Number.isFinite(totalTargetForSlot)
+            ? Math.round(totalTargetForSlot / count)
+            : null;
+        return Array.from({ length: count }, (_, idx) => {
+          const entry = entriesForSlot[idx];
+          return {
+            key: `${slot}-${idx}`,
+            slot,
+            playerName: entry?.playerName ?? "— empty —",
+            target: perSlotTarget,
+            price: entry?.price ?? null,
+          };
+        });
+      })
+    : [];
+  const fmtDollar = (n: number | null | undefined) =>
+    n != null && Number.isFinite(n) ? `$${Math.round(n)}` : "—";
 
   return (
     <div className="cc-right">
@@ -953,38 +987,6 @@ function RightPanel({
             <div className="bc-label">$/Spot</div>
             <div className="bc-val">{dollarsPerSpot != null ? `$${dollarsPerSpot}` : "—"}</div>
           </div>
-        </div>
-      </section>
-
-      <section className="cc-surface-card cc-surface-card--right">
-        <div className="rp-section-label">ROSTER CONTEXT</div>
-        <div className="budget-grid">
-          <div className="budget-card">
-            <div className="bc-label">FILLED SLOTS</div>
-            <div className="bc-val">
-              {my ? `${my.filled}/${totalSlots}` : `0/${totalSlots}`}
-            </div>
-          </div>
-          <div className="budget-card">
-            <div className="bc-label">OPEN SPOTS</div>
-            <div className="bc-val">{openSpots}</div>
-          </div>
-          <div className="budget-card">
-            <div className="bc-label">TOP NEED</div>
-            <div className="bc-val">{topNeed ? `${topNeed.pos} (${topNeed.open})` : "—"}</div>
-          </div>
-          <div className="budget-card">
-            <div className="bc-label">HIT / PIT</div>
-            <div className="bc-val">
-              {hitterCount} / {pitcherCount}
-            </div>
-          </div>
-        </div>
-        <div className="budget-progress-row">
-          <span className="bp-text">${budgetSpent} spent</span>
-          <span className="bp-text">
-            {avgSpentPerFilled != null ? `$${avgSpentPerFilled} avg / filled` : "— avg / filled"}
-          </span>
         </div>
       </section>
 
@@ -1025,56 +1027,79 @@ function RightPanel({
         ) : (
           <div className="engine-market-empty">Engine market snapshot unavailable.</div>
         )}
+      </section>
 
-        <table className="pos-budget-table">
-          <thead>
-            <tr>
-              <th>POS</th>
-              <th>OPEN</th>
-              <th>TARGET</th>
-              <th>SPENT</th>
-              <th>Δ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posBudgetPlan.map(({ pos, open, target, spent, delta }) => {
-              const pct = target > 0 ? spent / target : 0;
-              const spentClass =
-                pct > 1
-                  ? "red"
-                  : pct >= 0.8
-                    ? "yellow"
-                    : spent > 0
-                      ? "green"
-                      : "";
-              const filled = open === 0;
-              return (
-                <tr key={pos} className={filled ? "dim" : ""}>
-                  <td className="pb-pos">{pos}</td>
-                  <td className={open === 0 ? "dim" : ""}>
-                    {open === 0 ? "✓" : open}
-                  </td>
-                  <td>${target}</td>
-                  <td className={spentClass}>${spent}</td>
-                  <td className={delta >= 0 ? "green" : "red"}>
-                    {delta >= 0 ? `+${delta}` : delta}
-                  </td>
-                </tr>
-              );
-            })}
-            {posBudgetPlan.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="dim"
-                  style={{ textAlign: "center", padding: "0.5rem 0" }}
-                >
-                  —
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <section className="cc-surface-card cc-surface-card--right">
+        <div className="rp-section-label">ROSTER CONTEXT</div>
+        <div className="budget-grid">
+          <div className="budget-card">
+            <div className="bc-label">FILLED SLOTS</div>
+            <div className="bc-val">
+              {my ? `${my.filled}/${totalSlots}` : `0/${totalSlots}`}
+            </div>
+          </div>
+          <div className="budget-card">
+            <div className="bc-label">OPEN SPOTS</div>
+            <div className="bc-val">{openSpots}</div>
+          </div>
+          <div className="budget-card">
+            <div className="bc-label">TOP NEED</div>
+            <div className="bc-val">{topNeed ? `${topNeed.pos} (${topNeed.open})` : "—"}</div>
+          </div>
+          <div className="budget-card">
+            <div className="bc-label">HIT / PIT</div>
+            <div className="bc-val">
+              {hitterCount} / {pitcherCount}
+            </div>
+          </div>
+        </div>
+        <div className="budget-progress-row">
+          <span className="bp-text">${budgetSpent} spent</span>
+          <span className="bp-text">
+            {avgSpentPerFilled != null ? `$${avgSpentPerFilled} avg / filled` : "— avg / filled"}
+          </span>
+        </div>
+      </section>
+
+      <section className="cc-surface-card cc-surface-card--right">
+        <div className="rp-section-label">TEAM MAKEUP</div>
+        <div className="team-makeup-slots">
+          <div className="team-makeup-head-row" aria-hidden>
+            <div className="team-makeup-head-player">Player</div>
+            <div className="team-makeup-head-money">Target</div>
+            <div className="team-makeup-head-money">Paid</div>
+          </div>
+          {teamMakeupRows.map((row) => {
+            const paidClass =
+              row.price == null
+                ? "dim"
+                : row.target == null
+                  ? "dim"
+                  : row.price <= row.target
+                    ? "green"
+                    : "red";
+            return (
+              <div
+                key={row.key}
+                className={
+                  "team-makeup-slot-row" + (row.price == null ? " team-makeup-slot-row--empty" : "")
+                }
+              >
+                <PosBadge pos={row.slot} />
+                <div className="team-makeup-slot-player" title={row.playerName}>
+                  {row.playerName}
+                </div>
+                <div className="team-makeup-slot-money team-makeup-slot-money--target">
+                  {fmtDollar(row.target)}
+                </div>
+                <div className={`team-makeup-slot-money ${paidClass}`}>
+                  {fmtDollar(row.price)}
+                </div>
+              </div>
+            );
+          })}
+          {teamMakeupRows.length === 0 && <div className="dim">No slots available.</div>}
+        </div>
       </section>
     </div>
   );
@@ -1098,6 +1123,10 @@ export default function CommandCenter() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [engineMarket, setEngineMarket] = useState<ValuationResponse | null>(
     null,
+  );
+  const savedPositionTargets = useMemo(
+    () => readPositionTargetsFromStorage(leagueId),
+    [leagueId],
   );
 
   const allPlayers = useMemo(
@@ -1368,6 +1397,7 @@ export default function CommandCenter() {
           rosterEntries={rosterEntries}
           engineMarket={engineMarket}
           selectedPlayer={selectedPlayer}
+          savedPositionTargets={savedPositionTargets}
         />
       </div>
   
