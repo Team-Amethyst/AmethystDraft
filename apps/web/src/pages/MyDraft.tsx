@@ -27,9 +27,11 @@ import type { WatchlistPlayer } from "../api/watchlist";
 import type { Player } from "../types/player";
 import { getValuation } from "../api/engine";
 import AllocationBar from "../components/MyDraft/AllocationBar";
-import PositionTargets, {
+import PositionTargets from "../components/MyDraft/PositionTargets";
+import {
+  POSITION_ALLOCATION_PLAN,
   type PositionPlanRow,
-} from "../components/MyDraft/PositionTargets";
+} from "../constants/positionAllocationPlan";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
 import { hasPitcherEligibility } from "../utils/eligibility";
@@ -49,19 +51,7 @@ import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// TODO(data): Replace with backend-provided roster template + budget targets per position.
-const POSITION_PLAN: PositionPlanRow[] = [
-  { pos: "C",    slots: 1, target: 14 },
-  { pos: "1B",   slots: 1, target: 28 },
-  { pos: "2B",   slots: 1, target: 22 },
-  { pos: "SS",   slots: 1, target: 25 },
-  { pos: "3B",   slots: 1, target: 24 },
-  { pos: "OF",   slots: 3, target: 44 },
-  { pos: "SP",   slots: 2, target: 60 },
-  { pos: "RP",   slots: 2, target: 20 },
-  { pos: "UTIL", slots: 1, target: 15 },
-  { pos: "BN",   slots: 4, target: 8  },
-];
+const POSITION_PLAN = POSITION_ALLOCATION_PLAN;
 
 const POS_COLORS: Record<string, string> = {
   C:    "#f87171",

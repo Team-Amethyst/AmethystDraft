@@ -33,9 +33,10 @@
   font-size: 0.62rem;
   font-weight: 700;
   color: #7c6a99;
-  min-width: 20px;
-  text-align: right;
+  min-width: 1.75rem;
+  text-align: left;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .dl-headshot {

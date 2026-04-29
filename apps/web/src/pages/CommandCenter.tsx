@@ -39,6 +39,7 @@ import {
   rosterValuationFingerprint,
 } from "../utils/valuationDeps";
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
+import { myDraftSlotsForPosition } from "../constants/positionAllocationPlan";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,12 +124,132 @@ function DraftLog({
   );
 }
 
-function LeftPanel({
-  activeTab,
-  setActiveTab,
+function TeamMakeupSection({
   league,
-  teamData,
-  myTeamName,
+  myTeamEntries,
+  rosterEntries,
+  savedPositionTargets,
+  sectionClassName,
+  headingClassName,
+}: {
+  league: League | null;
+  myTeamEntries: RosterEntry[];
+  rosterEntries: RosterEntry[];
+  savedPositionTargets: Record<string, number>;
+  sectionClassName: string;
+  headingClassName: string;
+}) {
+  const totalSlots = league
+    ? Object.values(league.rosterSlots).reduce((a, b) => a + b, 0)
+    : 0;
+  const teamOneEntries = rosterEntries.filter((e) => e.teamId === "team_1");
+  const teamMakeupEntries = (teamOneEntries.length > 0 ? teamOneEntries : myTeamEntries)
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
+        new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
+    );
+  const teamEntriesBySlot = new Map<string, RosterEntry[]>();
+  teamMakeupEntries.forEach((entry) => {
+    const slotKey = entry.rosterSlot || "BN";
+    const curr = teamEntriesBySlot.get(slotKey) ?? [];
+    curr.push(entry);
+    teamEntriesBySlot.set(slotKey, curr);
+  });
+  const teamMakeupRows = league
+    ? Object.entries(league.rosterSlots).flatMap(([slot, count]) => {
+        const entriesForSlot = teamEntriesBySlot.get(slot) ?? [];
+        const totalTargetForPosition =
+          savedPositionTargets[slot] ??
+          Math.round((count / totalSlots) * (league.budget ?? 260));
+        /* My Draft “Per Slot” = total Target $ ÷ plan slots, not league slot count */
+        const slotsForPerSlotDivisor = myDraftSlotsForPosition(slot) ?? count;
+        const perSlotTarget =
+          slotsForPerSlotDivisor > 0 && Number.isFinite(totalTargetForPosition)
+            ? totalTargetForPosition / slotsForPerSlotDivisor
+            : null;
+        return Array.from({ length: count }, (_, idx) => {
+          const entry = entriesForSlot[idx];
+          return {
+            key: `${slot}-${idx}`,
+            slot,
+            playerName: entry?.playerName ?? "— empty —",
+            target: perSlotTarget,
+            price: entry?.price ?? null,
+            filled: !!entry,
+          };
+        });
+      })
+    : [];
+  const fmtDollar = (n: number | null | undefined) =>
+    n != null && Number.isFinite(n) ? `$${Math.round(n)}` : "—";
+  const fmtPerSlotTarget = (n: number | null | undefined) => {
+    if (n == null || !Number.isFinite(n)) return "—";
+    const s = (Math.round(n * 10) / 10).toFixed(1);
+    return `$${s.endsWith(".0") ? s.slice(0, -2) : s}`;
+  };
+
+  return (
+    <section className={sectionClassName}>
+      <div className={headingClassName}>TEAM MAKEUP</div>
+      <div className="team-makeup-slots">
+        <div className="team-makeup-head-row" aria-hidden>
+          <span className="team-makeup-head-badge-spacer" />
+          <div className="team-makeup-head-player">Player</div>
+          <div className="team-makeup-head-money team-makeup-head-money--target-col">
+            Target
+          </div>
+          <div className="team-makeup-head-money team-makeup-head-money--paid-col">
+            Paid
+          </div>
+        </div>
+        {teamMakeupRows.map((row) => {
+          const paidClass =
+            row.price == null
+              ? "dim"
+              : row.target == null
+                ? "dim"
+                : row.price <= row.target
+                  ? "green"
+                  : "red";
+          return (
+            <div
+              key={row.key}
+              className={
+                "team-makeup-slot-row" +
+                (row.filled
+                  ? " team-makeup-slot-row--filled"
+                  : " team-makeup-slot-row--empty")
+              }
+            >
+              <PosBadge pos={row.slot} />
+              <div className="team-makeup-slot-player" title={row.playerName}>
+                {row.playerName}
+              </div>
+              <div
+                className="team-makeup-slot-money team-makeup-slot-money--target"
+                title="Per-slot target $ (same as My Draft Position Allocation → Per Slot)"
+              >
+                {fmtPerSlotTarget(row.target)}
+              </div>
+              <div
+                className={`team-makeup-slot-money team-makeup-slot-money--paid ${paidClass}`}
+                title="Winning bid for this slot"
+              >
+                {fmtDollar(row.price)}
+              </div>
+            </div>
+          );
+        })}
+        {teamMakeupRows.length === 0 && <div className="dim">No slots available.</div>}
+      </div>
+    </section>
+  );
+}
+
+function LeftPanel({
+  league,
   selectedPlayerPositions,
   allPlayers,
   draftedIds,
@@ -136,12 +257,10 @@ function LeftPanel({
   onRemovePick,
   onUpdatePick,
   engineMarket,
+  myTeamEntries,
+  savedPositionTargets,
 }: {
-  activeTab: string;
-  setActiveTab: (t: string) => void;
   league: League | null;
-  teamData: TeamSummary[];
-  myTeamName: string;
   selectedPlayerPositions: string[];
   allPlayers: Player[];
   draftedIds: Set<string>;
@@ -152,6 +271,8 @@ function LeftPanel({
     data: { price?: number; rosterSlot?: string; teamId?: string },
   ) => void;
   engineMarket?: ValuationResponse | null;
+  myTeamEntries: RosterEntry[];
+  savedPositionTargets: Record<string, number>;
 }) {
   const eligibleMarketPositions = useMemo(
     () => [...new Set(selectedPlayerPositions)],
@@ -200,194 +321,9 @@ function LeftPanel({
     [activeMarketPosition, allPlayers, draftedIds, rosterEntries, engineMarket],
   );
 
-  const playerMap = useMemo(
-    () => new Map(allPlayers.map((p) => [p.id, p])),
-    [allPlayers],
-  );
-
-  const FALLBACK_CATS = [
-    { name: "HR", type: "batting" as const },
-    { name: "RBI", type: "batting" as const },
-    { name: "SB", type: "batting" as const },
-    { name: "AVG", type: "batting" as const },
-    { name: "W", type: "pitching" as const },
-    { name: "SV", type: "pitching" as const },
-    { name: "ERA", type: "pitching" as const },
-    { name: "WHIP", type: "pitching" as const },
-  ];
-
-  const scoringCats = (
-    league?.scoringCategories?.length ? league.scoringCategories : FALLBACK_CATS
-  ).map((c) => ({ ...c, name: normalizeCatName(c.name) }));
-
-  const [sortCat, setSortCat] = useState<string>("HR");
-  const [sortAsc, setSortAsc] = useState(false);
-
-  type LiqCol = "name" | "remaining" | "open" | "maxBid" | "ppSpot";
-  const [liqSort, setLiqSort] = useState<{ col: LiqCol; dir: "asc" | "desc" }>({
-    col: "maxBid",
-    dir: "desc",
-  });
-  const toggleLiqSort = (col: LiqCol) =>
-    setLiqSort((prev) =>
-      prev.col === col
-        ? { col, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { col, dir: col === "name" ? "asc" : "desc" },
-    );
-
-  type TeamCol = "name" | "remaining" | "spent" | "open" | "maxBid";
-  const [teamSort, setTeamSort] = useState<{
-    col: TeamCol;
-    dir: "asc" | "desc";
-  }>({ col: "name", dir: "asc" });
-  const toggleTeamSort = (col: TeamCol) =>
-    setTeamSort((prev) =>
-      prev.col === col
-        ? { col, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { col, dir: col === "name" ? "asc" : "desc" },
-    );
-
-  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
-  const toggleTeamExpand = (name: string) =>
-    setExpandedTeams((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
-      return next;
-    });
-
-  const TEAM_SLOT_ORDER = [
-    "C",
-    "1B",
-    "2B",
-    "3B",
-    "SS",
-    "MI",
-    "CI",
-    "OF",
-    "UTIL",
-    "SP",
-    "RP",
-    "P",
-    "BN",
-  ];
-  const teamSlotMap = useMemo(() => {
-    type SlotEntry = {
-      position: string;
-      playerName: string | null;
-      playerTeam: string | null;
-      price: number | null;
-      isKeeper: boolean;
-    };
-    const map = new Map<string, SlotEntry[]>();
-    if (!league) return map;
-    const orderedPositions = [
-      ...TEAM_SLOT_ORDER.filter((p) => league.rosterSlots[p] !== undefined),
-      ...Object.keys(league.rosterSlots).filter(
-        (p) => !TEAM_SLOT_ORDER.includes(p),
-      ),
-    ];
-    league.teamNames.forEach((name, i) => {
-      const teamId = `team_${i + 1}`;
-      const teamEntries = rosterEntries.filter((e) => e.teamId === teamId);
-      const slots: SlotEntry[] = [];
-      const usedIds = new Set<string>();
-      for (const pos of orderedPositions) {
-        const count = league.rosterSlots[pos] ?? 0;
-        const posEntries = teamEntries.filter(
-          (e) => e.rosterSlot === pos && !usedIds.has(e._id),
-        );
-        for (let j = 0; j < count; j++) {
-          const entry = posEntries[j];
-          if (entry) usedIds.add(entry._id);
-          slots.push({
-            position: pos,
-            playerName: entry?.playerName ?? null,
-            playerTeam: entry?.playerTeam ?? null,
-            price: entry?.price ?? null,
-            isKeeper: entry?.isKeeper ?? false,
-          });
-        }
-      }
-      map.set(name, slots);
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [league, rosterEntries]);
-
-  const sortedTeamData = useMemo(() => {
-    const { col, dir } = liqSort;
-    return [...teamData].sort((a, b) => {
-      const av = col === "name" ? a.name : a[col];
-      const bv = col === "name" ? b.name : b[col];
-      const diff =
-        typeof av === "string"
-          ? av.localeCompare(bv as string)
-          : (av as number) - (bv as number);
-      return dir === "asc" ? diff : -diff;
-    });
-  }, [teamData, liqSort]);
-
-  const projectedStandings = useMemo(
-    () =>
-      buildProjectedStandings(
-        league?.teamNames ?? [],
-        rosterEntries,
-        playerMap,
-        scoringCats,
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [league?.teamNames?.join(","), rosterEntries, playerMap, scoringCats],
-  );
-
-  const rankMaps = useMemo(
-    () =>
-      Object.fromEntries(
-        scoringCats.map((c) => [
-          c.name,
-          computeRanks(projectedStandings, c.name),
-        ]),
-      ),
-    [projectedStandings, scoringCats],
-  );
-
-  const sortedProjStandings = useMemo(() => {
-    return [...projectedStandings].sort((a, b) => {
-      const diff = (a.stats[sortCat] ?? 0) - (b.stats[sortCat] ?? 0);
-      const ranked = LOWER_IS_BETTER_CATS.has(sortCat.toUpperCase())
-        ? diff
-        : -diff;
-      return sortAsc ? -ranked : ranked;
-    });
-  }, [projectedStandings, sortCat, sortAsc]);
-
-  const toggleSort = (cat: string) => {
-    if (cat === sortCat) setSortAsc((v) => !v);
-    else {
-      setSortCat(cat);
-      setSortAsc(false);
-    }
-  };
-
   return (
     <div className="cc-left">
-      <div className="cc-tabs">
-        {["Market", "Teams", "Standings"].map((t) => (
-          <button
-            key={t}
-            className={"cc-tab " + (activeTab === t ? "active" : "")}
-            onClick={() => setActiveTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "Market" && (
-        <div className="cc-panel-content">
+      <div className="cc-panel-content cc-panel-content--market-tab cc-panel-content--left-market-only">
           <section className="cc-surface-card cc-surface-card--left">
             <div className="market-section-label">
               {posMarket ? posMarket.position : "—"} MARKET
@@ -495,305 +431,15 @@ function LeftPanel({
             ) : null}
           </section>
 
-          <section className="cc-surface-card cc-surface-card--left">
-            <div className="market-section-label">TEAM LIQUIDITY</div>
-            <div className="liquidity-table-wrap">
-              <table className="liquidity-table">
-                <thead>
-                  <tr>
-                    {(
-                      [
-                        ["name", "TEAM"],
-                        ["remaining", "LEFT"],
-                        ["open", "OPEN"],
-                        ["maxBid", "MAX"],
-                        ["ppSpot", "$/SP"],
-                      ] as [LiqCol, string][]
-                    ).map(([col, label]) => (
-                      <th
-                        key={col}
-                        className="liq-th-sortable"
-                        onClick={() => toggleLiqSort(col)}
-                      >
-                        {label}
-                        {liqSort.col === col ? (
-                          <span className="th-sort-icon th-sort-active">
-                            {liqSort.dir === "asc" ? "▲" : "▼"}
-                          </span>
-                        ) : (
-                          <span className="th-sort-icon th-sort-idle">↕</span>
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTeamData.length > 0 ? (
-                    sortedTeamData.map((t) => {
-                      const ineligible =
-                        selectedPlayerPositions.length > 0 &&
-                        !!league &&
-                        !teamCanBid(
-                          t.name,
-                          selectedPlayerPositions,
-                          league,
-                          rosterEntries,
-                        );
-                      return (
-                        <tr
-                          key={t.name}
-                          className={[
-                            t.name === myTeamName ? "my-team-row" : "",
-                            ineligible ? "liq-ineligible" : "",
-                          ]
-                            .join(" ")
-                            .trim()}
-                        >
-                          <td className="liq-team-name-cell" title={t.name}>
-                            {t.name}
-                          </td>
-                          <td>${t.remaining}</td>
-                          <td>{t.open}</td>
-                          <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
-                          <td>${t.ppSpot}</td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="dim"
-                        style={{ textAlign: "center", padding: "1rem 0" }}
-                      >
-                        {league ? "No picks logged yet" : "No league loaded"}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {activeTab === "Teams" && (
-        <div className="cc-panel-content cc-panel-content--log">
-          <div className="cc-panel-above-log">
-            <table className="teams-table">
-              <thead>
-                <tr>
-                  {(
-                    [
-                      ["name", "TEAM"],
-                      ["remaining", "$ LEFT"],
-                      ["spent", "SPENT"],
-                      ["open", "OPEN"],
-                      ["maxBid", "MAX"],
-                    ] as [TeamCol, string][]
-                  ).map(([col, label]) => (
-                    <th
-                      key={col}
-                      className="liq-th-sortable"
-                      onClick={() => toggleTeamSort(col)}
-                    >
-                      {label}
-                      {teamSort.col === col ? (
-                        <span className="th-sort-icon th-sort-active">
-                          {teamSort.dir === "asc" ? "▲" : "▼"}
-                        </span>
-                      ) : (
-                        <span className="th-sort-icon th-sort-idle">↕</span>
-                      )}
-                    </th>
-                  ))}
-                  <th style={{ width: 24 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {teamData.length > 0 ? (
-                  [...teamData]
-                    .sort((a, b) => {
-                      const { col, dir } = teamSort;
-                      const av = a[col as keyof TeamSummary];
-                      const bv = b[col as keyof TeamSummary];
-                      const diff =
-                        typeof av === "string"
-                          ? (av as string).localeCompare(bv as string)
-                          : (av as number) - (bv as number);
-                      return dir === "asc" ? diff : -diff;
-                    })
-                    .map((t) => {
-                      const expanded = expandedTeams.has(t.name);
-                      const slots = teamSlotMap.get(t.name) ?? [];
-                      return (
-                        <>
-                          <tr
-                            key={t.name}
-                            className={
-                              (t.name === myTeamName ? "my-team-row" : "") +
-                              " teams-table-row"
-                            }
-                            onClick={() => toggleTeamExpand(t.name)}
-                          >
-                            <td className="team-name-cell">{t.name}</td>
-                            <td>${t.remaining}</td>
-                            <td>${t.spent}</td>
-                            <td>{t.open}</td>
-                            <td className="green">${t.maxBid}</td>
-                            <td className="teams-expand-icon">
-                              {expanded ? (
-                                <ChevronUp size={11} />
-                              ) : (
-                                <ChevronDown size={11} />
-                              )}
-                            </td>
-                          </tr>
-                          {expanded && (
-                            <tr
-                              key={t.name + "-slots"}
-                              className="teams-slots-row"
-                            >
-                              <td colSpan={6} className="teams-slots-cell">
-                                <div className="teams-slots-list">
-                                  {slots.map((slot, i) => (
-                                    <div
-                                      key={`${slot.position}-${i}`}
-                                      className={
-                                        "lo-slot-row" +
-                                        (slot.playerName
-                                          ? " lo-slot-filled"
-                                          : "") +
-                                        (slot.isKeeper ? " lo-slot-keeper" : "")
-                                      }
-                                    >
-                                      <PosBadge pos={slot.position} />
-                                      {slot.playerName ? (
-                                        <span className="lo-slot-player">
-                                          {slot.playerName}
-                                          {slot.playerTeam && (
-                                            <span className="lo-slot-team">
-                                              {" "}
-                                              · {slot.playerTeam}
-                                            </span>
-                                          )}
-                                        </span>
-                                      ) : (
-                                        <span className="lo-slot-empty">
-                                          — empty —
-                                        </span>
-                                      )}
-                                      {slot.price !== null && (
-                                        <span className="lo-slot-price">
-                                          ${slot.price}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      );
-                    })
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="dim"
-                      style={{ textAlign: "center", padding: "1rem 0" }}
-                    >
-                      {league ? "No teams yet" : "No league loaded"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="cc-draft-log-section">
-            <DraftLog
-              rosterEntries={rosterEntries}
-              league={league}
-              allPlayers={allPlayers}
-              onRemovePick={onRemovePick}
-              onUpdatePick={onUpdatePick}
-            />
-          </div>
-        </div>
-      )}
-
-      {activeTab === "Standings" && (
-        <div className="cc-panel-content cc-panel-content--log">
-          <div className="cc-panel-above-log">
-            <div className="cc-standings-scroll">
-              <table className="lo-standings-table">
-                <thead>
-                  <tr>
-                    <th className="lo-th-team">TEAM</th>
-                    {scoringCats.map((c) => (
-                      <th
-                        key={c.name}
-                        className={
-                          "lo-th-stat" +
-                          (sortCat === c.name ? " lo-th-active" : "")
-                        }
-                        onClick={() => toggleSort(c.name)}
-                      >
-                        {c.name}
-                        {sortCat === c.name ? (
-                          sortAsc ? (
-                            <ChevronUp size={10} />
-                          ) : (
-                            <ChevronDown size={10} />
-                          )
-                        ) : null}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedProjStandings.map((row, idx) => (
-                    <tr
-                      key={row.teamName}
-                      className={idx % 2 === 0 ? "lo-tr-even" : ""}
-                    >
-                      <td className="lo-td-team">{row.teamName}</td>
-                      {scoringCats.map((c) => {
-                        const rank = rankMaps[c.name]?.get(row.teamName) ?? 1;
-                        const colorClass = rankColor(
-                          rank,
-                          sortedProjStandings.length,
-                        );
-                        const val = row.stats[c.name] ?? 0;
-                        return (
-                          <td
-                            key={c.name}
-                            className={`lo-td-stat ${colorClass}`}
-                          >
-                            {formatStatCell(c.name, val)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="cc-draft-log-section">
-            <DraftLog
-              rosterEntries={rosterEntries}
-              league={league}
-              allPlayers={allPlayers}
-              onRemovePick={onRemovePick}
-              onUpdatePick={onUpdatePick}
-            />
-          </div>
-        </div>
-      )}
+          <TeamMakeupSection
+            league={league}
+            myTeamEntries={myTeamEntries}
+            rosterEntries={rosterEntries}
+            savedPositionTargets={savedPositionTargets}
+            sectionClassName="cc-surface-card cc-surface-card--left cc-team-makeup-card"
+            headingClassName="market-section-label"
+          />
+      </div>
     </div>
   );
 }
@@ -835,30 +481,133 @@ function RightPanel({
   league,
   teamData,
   myTeamName,
-  myTeamEntries,
   rosterEntries,
   engineMarket,
   selectedPlayer,
-  savedPositionTargets,
+  selectedPlayerPositions,
+  allPlayers,
+  onRemovePick,
+  onUpdatePick,
 }: {
   league: League | null;
   teamData: TeamSummary[];
   myTeamName: string;
-  myTeamEntries: RosterEntry[];
   rosterEntries: RosterEntry[];
   engineMarket: ValuationResponse | null;
   selectedPlayer: Player | null;
-  savedPositionTargets: Record<string, number>;
+  selectedPlayerPositions: string[];
+  allPlayers: Player[];
+  onRemovePick: (id: string) => void;
+  onUpdatePick: (
+    id: string,
+    data: { price?: number; rosterSlot?: string; teamId?: string },
+  ) => void;
 }) {
-  const my = teamData.find((t) => t.name === myTeamName);
-  const totalSlots = league
-    ? Object.values(league.rosterSlots).reduce((a, b) => a + b, 0)
-    : 0;
+  type LiqCol = "name" | "remaining" | "open" | "maxBid" | "ppSpot";
+  const [liqSort, setLiqSort] = useState<{ col: LiqCol; dir: "asc" | "desc" }>({
+    col: "maxBid",
+    dir: "desc",
+  });
+  const toggleLiqSort = (col: LiqCol) =>
+    setLiqSort((prev) =>
+      prev.col === col
+        ? { col, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { col, dir: col === "name" ? "asc" : "desc" },
+    );
 
-  const budgetSpent = my?.spent ?? 0;
-  const openSpots = my?.open ?? totalSlots;
-  const avgSpentPerFilled =
-    my != null && my.filled > 0 ? Math.round((my.spent / my.filled) * 10) / 10 : null;
+  const sortedTeamData = useMemo(() => {
+    const { col, dir } = liqSort;
+    return [...teamData].sort((a, b) => {
+      const av = col === "name" ? a.name : a[col];
+      const bv = col === "name" ? b.name : b[col];
+      const diff =
+        typeof av === "string"
+          ? av.localeCompare(bv as string)
+          : (av as number) - (bv as number);
+      return dir === "asc" ? diff : -diff;
+    });
+  }, [teamData, liqSort]);
+
+  const [rightRosterPane, setRightRosterPane] = useState<
+    "liquidity" | "standings"
+  >("liquidity");
+
+  const playerMap = useMemo(
+    () => new Map(allPlayers.map((p) => [p.id, p])),
+    [allPlayers],
+  );
+
+  const FALLBACK_CATS = useMemo(
+    () =>
+      [
+        { name: "HR", type: "batting" as const },
+        { name: "RBI", type: "batting" as const },
+        { name: "SB", type: "batting" as const },
+        { name: "AVG", type: "batting" as const },
+        { name: "W", type: "pitching" as const },
+        { name: "SV", type: "pitching" as const },
+        { name: "ERA", type: "pitching" as const },
+        { name: "WHIP", type: "pitching" as const },
+      ] as const,
+    [],
+  );
+
+  const scoringCats = useMemo(
+    () =>
+      (league?.scoringCategories?.length
+        ? league.scoringCategories
+        : FALLBACK_CATS
+      ).map((c) => ({ ...c, name: normalizeCatName(c.name) })),
+    [league?.scoringCategories, FALLBACK_CATS],
+  );
+
+  const [sortCat, setSortCat] = useState<string>("HR");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const projectedStandings = useMemo(
+    () =>
+      buildProjectedStandings(
+        league?.teamNames ?? [],
+        rosterEntries,
+        playerMap,
+        scoringCats,
+      ),
+    [league?.teamNames, rosterEntries, playerMap, scoringCats],
+  );
+
+  const rankMaps = useMemo(
+    () =>
+      Object.fromEntries(
+        scoringCats.map((c) => [
+          c.name,
+          computeRanks(projectedStandings, c.name),
+        ]),
+      ),
+    [projectedStandings, scoringCats],
+  );
+
+  const sortedProjStandings = useMemo(() => {
+    return [...projectedStandings].sort((a, b) => {
+      const diff = (a.stats[sortCat] ?? 0) - (b.stats[sortCat] ?? 0);
+      const ranked = LOWER_IS_BETTER_CATS.has(sortCat.toUpperCase())
+        ? diff
+        : -diff;
+      return sortAsc ? -ranked : ranked;
+    });
+  }, [projectedStandings, sortCat, sortAsc]);
+
+  const toggleStandingsSort = (cat: string) => {
+    if (cat === sortCat) setSortAsc((v) => !v);
+    else {
+      setSortCat(cat);
+      setSortAsc(false);
+    }
+  };
+
+  const my = teamData.find((t) => t.name === myTeamName);
+  const teamOneName = (league?.teamNames?.[0] ?? "").trim();
+  const isTeamOne = (name: string) =>
+    teamOneName !== "" && name.trim() === teamOneName;
   const inflationFactor =
     engineMarket?.context_v2?.market_summary.inflation_factor ??
     engineMarket?.inflation_factor;
@@ -886,26 +635,6 @@ function RightPanel({
           : inflationFactor <= 0.9
             ? "cool"
             : "neutral";
-  const posBudgetPlan = league
-    ? Object.entries(league.rosterSlots).map(([pos, count]) => {
-        const entriesAtSlot = myTeamEntries.filter((e) => e.rosterSlot === pos);
-        const spent = entriesAtSlot.reduce((s, e) => s + e.price, 0);
-        const filled = entriesAtSlot.length;
-        const open = Math.max(0, count - filled);
-        const target =
-          savedPositionTargets[pos] ??
-          Math.round((count / totalSlots) * (league.budget ?? 260));
-        const delta = target - spent;
-        return { pos, open, target, spent, delta };
-      })
-    : [];
-  const topNeed = posBudgetPlan
-    .filter((x) => x.open > 0)
-    .sort((a, b) => b.open - a.open || b.delta - a.delta)[0];
-  const pitcherCount = myTeamEntries.filter((e) =>
-    /(^|[^A-Z])P([^A-Z]|$)|^SP$|^RP$/i.test(e.rosterSlot ?? ""),
-  ).length;
-  const hitterCount = Math.max(0, myTeamEntries.length - pitcherCount);
   const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
   const selectedValuationRow =
     selectedNormId && engineMarket
@@ -924,45 +653,6 @@ function RightPanel({
   const maxBid = my?.maxBid;
   const budgetLeft = my?.remaining;
   const dollarsPerSpot = my?.ppSpot;
-  const teamOneEntries = rosterEntries.filter((e) => e.teamId === "team_1");
-  const teamMakeupEntries = (teamOneEntries.length > 0 ? teamOneEntries : myTeamEntries)
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
-        new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
-    );
-  const teamEntriesBySlot = new Map<string, RosterEntry[]>();
-  teamMakeupEntries.forEach((entry) => {
-    const slotKey = entry.rosterSlot || "BN";
-    const curr = teamEntriesBySlot.get(slotKey) ?? [];
-    curr.push(entry);
-    teamEntriesBySlot.set(slotKey, curr);
-  });
-  const teamMakeupRows = league
-    ? Object.entries(league.rosterSlots).flatMap(([slot, count]) => {
-        const entriesForSlot = teamEntriesBySlot.get(slot) ?? [];
-        const totalTargetForSlot =
-          savedPositionTargets[slot] ??
-          Math.round((count / totalSlots) * (league.budget ?? 260));
-        const perSlotTarget =
-          count > 0 && Number.isFinite(totalTargetForSlot)
-            ? Math.round(totalTargetForSlot / count)
-            : null;
-        return Array.from({ length: count }, (_, idx) => {
-          const entry = entriesForSlot[idx];
-          return {
-            key: `${slot}-${idx}`,
-            slot,
-            playerName: entry?.playerName ?? "— empty —",
-            target: perSlotTarget,
-            price: entry?.price ?? null,
-          };
-        });
-      })
-    : [];
-  const fmtDollar = (n: number | null | undefined) =>
-    n != null && Number.isFinite(n) ? `$${Math.round(n)}` : "—";
 
   return (
     <div className="cc-right">
@@ -1029,77 +719,201 @@ function RightPanel({
         )}
       </section>
 
-      <section className="cc-surface-card cc-surface-card--right">
-        <div className="rp-section-label">ROSTER CONTEXT</div>
-        <div className="budget-grid">
-          <div className="budget-card">
-            <div className="bc-label">FILLED SLOTS</div>
-            <div className="bc-val">
-              {my ? `${my.filled}/${totalSlots}` : `0/${totalSlots}`}
-            </div>
-          </div>
-          <div className="budget-card">
-            <div className="bc-label">OPEN SPOTS</div>
-            <div className="bc-val">{openSpots}</div>
-          </div>
-          <div className="budget-card">
-            <div className="bc-label">TOP NEED</div>
-            <div className="bc-val">{topNeed ? `${topNeed.pos} (${topNeed.open})` : "—"}</div>
-          </div>
-          <div className="budget-card">
-            <div className="bc-label">HIT / PIT</div>
-            <div className="bc-val">
-              {hitterCount} / {pitcherCount}
-            </div>
-          </div>
+      <section className="cc-surface-card cc-surface-card--right cc-right-roster-pane">
+        <div
+          className="rp-roster-toggle"
+          role="tablist"
+          aria-label="Team liquidity or projected standings"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={rightRosterPane === "liquidity"}
+            className={
+              "rp-roster-toggle-btn " +
+              (rightRosterPane === "liquidity"
+                ? "rp-roster-toggle-btn--active"
+                : "")
+            }
+            onClick={() => setRightRosterPane("liquidity")}
+          >
+            Liquidity
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={rightRosterPane === "standings"}
+            className={
+              "rp-roster-toggle-btn " +
+              (rightRosterPane === "standings"
+                ? "rp-roster-toggle-btn--active"
+                : "")
+            }
+            onClick={() => setRightRosterPane("standings")}
+          >
+            Standings
+          </button>
         </div>
-        <div className="budget-progress-row">
-          <span className="bp-text">${budgetSpent} spent</span>
-          <span className="bp-text">
-            {avgSpentPerFilled != null ? `$${avgSpentPerFilled} avg / filled` : "— avg / filled"}
-          </span>
-        </div>
+
+        {rightRosterPane === "liquidity" ? (
+          <>
+            <div className="rp-section-label">TEAM LIQUIDITY</div>
+            <div className="liquidity-table-wrap">
+              <table className="liquidity-table">
+                <thead>
+                  <tr>
+                    {(
+                      [
+                        ["name", "TEAM"],
+                        ["remaining", "LEFT"],
+                        ["open", "OPEN"],
+                        ["maxBid", "MAX"],
+                        ["ppSpot", "$/SP"],
+                      ] as [LiqCol, string][]
+                    ).map(([col, label]) => (
+                      <th
+                        key={col}
+                        className="liq-th-sortable"
+                        onClick={() => toggleLiqSort(col)}
+                      >
+                        <span className="liq-th-inner">
+                          <span className="liq-th-label">{label}</span>
+                          {liqSort.col === col ? (
+                            <span className="th-sort-icon th-sort-active">
+                              {liqSort.dir === "asc" ? "▲" : "▼"}
+                            </span>
+                          ) : (
+                            <span className="th-sort-icon th-sort-idle">↕</span>
+                          )}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedTeamData.length > 0 ? (
+                    sortedTeamData.map((t) => {
+                      const ineligible =
+                        selectedPlayerPositions.length > 0 &&
+                        !!league &&
+                        !teamCanBid(
+                          t.name,
+                          selectedPlayerPositions,
+                          league,
+                          rosterEntries,
+                        );
+                      return (
+                        <tr
+                          key={t.name}
+                          className={[
+                            t.name === myTeamName ? "my-team-row" : "",
+                            isTeamOne(t.name) ? "cc-team-one-row" : "",
+                            ineligible ? "liq-ineligible" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          <td className="liq-team-name-cell" title={t.name}>
+                            {t.name}
+                          </td>
+                          <td>${t.remaining}</td>
+                          <td>{t.open}</td>
+                          <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
+                          <td>${t.ppSpot}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="dim"
+                        style={{ textAlign: "center", padding: "1rem 0" }}
+                      >
+                        {league ? "No picks logged yet" : "No league loaded"}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="rp-section-label">PROJECTED STANDINGS</div>
+            <div className="liquidity-table-wrap lo-standings-wrap--right">
+              <div className="cc-standings-scroll">
+                <table className="lo-standings-table">
+                  <thead>
+                    <tr>
+                      <th className="lo-th-team">TEAM</th>
+                      {scoringCats.map((c) => (
+                        <th
+                          key={c.name}
+                          className={
+                            "lo-th-stat" +
+                            (sortCat === c.name ? " lo-th-active" : "")
+                          }
+                          onClick={() => toggleStandingsSort(c.name)}
+                        >
+                          {c.name}
+                          {sortCat === c.name ? (
+                            sortAsc ? (
+                              <ChevronUp size={10} />
+                            ) : (
+                              <ChevronDown size={10} />
+                            )
+                          ) : null}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedProjStandings.map((row, idx) => (
+                      <tr
+                        key={row.teamName}
+                        className={[
+                          idx % 2 === 0 ? "lo-tr-even" : "",
+                          isTeamOne(row.teamName) ? "cc-team-one-row" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        <td className="lo-td-team">{row.teamName}</td>
+                        {scoringCats.map((c) => {
+                          const rank = rankMaps[c.name]?.get(row.teamName) ?? 1;
+                          const colorClass = rankColor(
+                            rank,
+                            sortedProjStandings.length,
+                          );
+                          const val = row.stats[c.name] ?? 0;
+                          return (
+                            <td
+                              key={c.name}
+                              className={`lo-td-stat ${colorClass}`}
+                            >
+                              {formatStatCell(c.name, val)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
-      <section className="cc-surface-card cc-surface-card--right">
-        <div className="rp-section-label">TEAM MAKEUP</div>
-        <div className="team-makeup-slots">
-          <div className="team-makeup-head-row" aria-hidden>
-            <div className="team-makeup-head-player">Player</div>
-            <div className="team-makeup-head-money">Target</div>
-            <div className="team-makeup-head-money">Paid</div>
-          </div>
-          {teamMakeupRows.map((row) => {
-            const paidClass =
-              row.price == null
-                ? "dim"
-                : row.target == null
-                  ? "dim"
-                  : row.price <= row.target
-                    ? "green"
-                    : "red";
-            return (
-              <div
-                key={row.key}
-                className={
-                  "team-makeup-slot-row" + (row.price == null ? " team-makeup-slot-row--empty" : "")
-                }
-              >
-                <PosBadge pos={row.slot} />
-                <div className="team-makeup-slot-player" title={row.playerName}>
-                  {row.playerName}
-                </div>
-                <div className="team-makeup-slot-money team-makeup-slot-money--target">
-                  {fmtDollar(row.target)}
-                </div>
-                <div className={`team-makeup-slot-money ${paidClass}`}>
-                  {fmtDollar(row.price)}
-                </div>
-              </div>
-            );
-          })}
-          {teamMakeupRows.length === 0 && <div className="dim">No slots available.</div>}
-        </div>
+      <section className="cc-surface-card cc-surface-card--right cc-right-draft-log">
+        <DraftLog
+          rosterEntries={rosterEntries}
+          league={league}
+          allPlayers={allPlayers}
+          onRemovePick={onRemovePick}
+          onUpdatePick={onUpdatePick}
+        />
       </section>
     </div>
   );
@@ -1114,7 +928,6 @@ export default function CommandCenter() {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState("Market");
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   // const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [mlbPlayers, setMlbPlayers] = useState<Player[]>([]);
@@ -1162,20 +975,6 @@ export default function CommandCenter() {
   /** DEV only: focus board-valuation logs on the selected Draftroom player. */
   const valuationBoardLogPlayerId =
     import.meta.env.DEV ? selectedPlayer?.id : undefined;
-
-  // 1/2/3 → switch tabs (Market / Teams / Standings)
-  useEffect(() => {
-    const TABS = ["Market", "Teams", "Standings"];
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (document.activeElement as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
-      const n = parseInt(e.key, 10);
-      if (n >= 1 && n <= TABS.length) setActiveTab(TABS[n - 1]);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
 
   const refreshRoster = () => {
     if (!leagueId || !token) return;
@@ -1356,11 +1155,7 @@ export default function CommandCenter() {
     <div className="cc-page">
       <div className="cc-layout">
         <LeftPanel
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
           league={league}
-          teamData={teamData}
-          myTeamName={myTeamName}
           selectedPlayerPositions={
             selectedPlayer
               ? selectedPlayer.positions?.length
@@ -1374,6 +1169,8 @@ export default function CommandCenter() {
           onRemovePick={handleRemovePick}
           onUpdatePick={handleUpdatePick}
           engineMarket={engineMarket}
+          myTeamEntries={myTeamEntries}
+          savedPositionTargets={savedPositionTargets}
         />
         <AuctionCenter
           rosterEntries={rosterEntries}
@@ -1393,11 +1190,19 @@ export default function CommandCenter() {
           league={league}
           teamData={teamData}
           myTeamName={myTeamName}
-          myTeamEntries={myTeamEntries}
           rosterEntries={rosterEntries}
           engineMarket={engineMarket}
           selectedPlayer={selectedPlayer}
-          savedPositionTargets={savedPositionTargets}
+          selectedPlayerPositions={
+            selectedPlayer
+              ? selectedPlayer.positions?.length
+                ? selectedPlayer.positions
+                : [selectedPlayer.position]
+              : []
+          }
+          allPlayers={allPlayers}
+          onRemovePick={handleRemovePick}
+          onUpdatePick={handleUpdatePick}
         />
       </div>
   

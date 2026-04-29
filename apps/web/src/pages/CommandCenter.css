@@ -42,6 +42,9 @@
   --cc-space-24: 24px;
   --cc-space-32: 32px;
 
+  /* Bottom inset: team makeup (left), draft notes (center), draft log (right) align */
+  --cc-rail-bottom-gap: var(--cc-space-12);
+
   /* Valuation card (BDC) — typography */
   --cc-bdc-bid-fs: 30px;
   --cc-bdc-bid-fw: 700;
@@ -165,17 +168,41 @@
     font-size: 1.1rem;
   }
 
+  .team-makeup-head-row,
   .team-makeup-slot-row {
-    padding: 0.1rem 0.2rem;
-    min-height: 18px;
+    grid-template-columns:
+      minmax(1.85rem, 2.35rem)
+      minmax(0, 1fr)
+      minmax(2.05rem, 2.55rem)
+      minmax(2.05rem, 2.55rem);
+    column-gap: 0.22rem;
+  }
+
+  .team-makeup-head-row {
+    padding: 0.12rem 0.18rem 0.28rem;
+  }
+
+  .team-makeup-head-player,
+  .team-makeup-head-money {
+    font-size: 0.52rem;
+  }
+
+  .team-makeup-head-money {
+    padding: 0 0 0.14rem;
+  }
+
+  .team-makeup-slot-row {
+    padding: 0.1rem 0.18rem;
+    min-height: 21px;
   }
 
   .team-makeup-slot-player {
-    font-size: 0.54rem;
+    font-size: clamp(0.6rem, 0.46rem + 0.38vw, 0.7rem);
   }
 
   .team-makeup-slot-money {
-    font-size: 0.49rem;
+    font-size: clamp(0.56rem, 0.44rem + 0.34vw, 0.66rem);
+    padding: 0.1rem 0.06rem;
   }
 
   .rp-bid-context-grid,
@@ -214,8 +241,56 @@
     --cc-pad-x: 0.48rem;
   }
 
+  .cc-left .cc-team-makeup-card.cc-surface-card--left {
+    padding: 5px 6px;
+  }
+
+  .team-makeup-slots {
+    gap: 0.06rem;
+  }
+
+  .team-makeup-head-row,
+  .team-makeup-slot-row {
+    grid-template-columns:
+      minmax(1.65rem, 2.05rem)
+      minmax(0, 1fr)
+      minmax(1.85rem, 2.35rem)
+      minmax(1.85rem, 2.35rem);
+    column-gap: 0.18rem;
+  }
+
+  .team-makeup-head-row {
+    padding: 0.1rem 0.12rem 0.24rem;
+    margin-bottom: 0.06rem;
+  }
+
+  .team-makeup-head-badge-spacer {
+    width: 100%;
+    max-width: 2.05rem;
+  }
+
+  .team-makeup-head-player,
+  .team-makeup-head-money {
+    font-size: 0.48rem;
+    letter-spacing: 0.07em;
+  }
+
+  .team-makeup-slot-row {
+    padding: 0.08rem 0.12rem;
+    min-height: 20px;
+  }
+
+  .team-makeup-slot-player {
+    font-size: clamp(0.56rem, 2.5vw, 0.66rem);
+  }
+
+  .team-makeup-slot-money {
+    font-size: clamp(0.52rem, 2.2vw, 0.62rem);
+    padding: 0.08rem 0.04rem;
+  }
+
   .cc-right {
-    padding: 0.24rem 0.32rem;
+    padding: 0.24rem 0.32rem var(--cc-rail-bottom-gap);
   }
 
   .budget-progress-row {
@@ -243,7 +318,7 @@
   scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
 }
 
-/* Left panel is a flex column so the draft log can fill remaining height */
+/* Left panel: market + team makeup (scroll inside makeup card) */
 .cc-left {
   display: flex;
   flex-direction: column;
@@ -269,8 +344,9 @@
 .cc-right {
   border-right: none;
   border-left: 1px solid rgba(139, 92, 246, 0.1);
-  overflow-y: auto;
-  padding: 0.3rem 0.45rem;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: 0.3rem var(--cc-pad-x) var(--cc-rail-bottom-gap);
   background: #0a0714;
   display: flex;
   flex-direction: column;
@@ -278,6 +354,17 @@
   min-height: 0;
   width: 100%;
   max-width: none;
+}
+
+/* Upper cards keep natural height; draft log flexes and scrolls internally */
+.cc-right > .cc-surface-card:not(.cc-right-draft-log) {
+  flex-shrink: 0;
+}
+
+/* Team liquidity: scroll inside card so the rail never grows past the viewport */
+.cc-right .liquidity-table-wrap {
+  max-height: min(42vh, 22rem);
+  overflow-y: auto;
 }
 
 .cc-right .cc-surface-card {
@@ -297,7 +384,7 @@
 }
 
 .cc-panel-content {
-  padding: 0 var(--cc-pad-x) 1rem;
+  padding: 0 var(--cc-pad-x) var(--cc-rail-bottom-gap);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -308,6 +395,45 @@
 
 .cc-left .cc-panel-content > .cc-surface-card:first-child {
   margin-top: var(--cc-space-8);
+}
+
+/* Market tab: position card stays put; team makeup fills height and scrolls inside card */
+.cc-left .cc-panel-content--market-tab {
+  overflow-y: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cc-left .cc-team-makeup-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cc-left .cc-team-makeup-card > .market-section-label {
+  flex-shrink: 0;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.75);
+  padding-right: 0.15rem;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar {
+  width: 5px;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 4px;
 }
 
 /* Panel variant for tabs that contain a draft log — flex column, no own scroll */
@@ -348,7 +474,7 @@
 .cc-panel-above-log::-webkit-scrollbar-track { background: rgba(15, 10, 25, 0.8); }
 .cc-panel-above-log::-webkit-scrollbar-thumb { background: #9070b8; border-radius: 3px; }
 
-/* Draft log section fills all remaining height */
+/* Draft log section fills all remaining height (legacy / left-only layouts) */
 .cc-draft-log-section {
   flex: 1;
   display: flex;
@@ -357,6 +483,39 @@
   overflow: hidden;
   padding: 0 var(--cc-pad-x);
   border-top: 1px solid rgba(139, 92, 246, 0.08);
+}
+
+/* Draft log at bottom of right rail — fills remaining height; list scrolls inside */
+.cc-right-draft-log {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Drop .market-section-label--spaced top gap here (heading sits flush under liquidity) */
+.cc-right-draft-log .market-section-label--spaced {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+.cc-right-draft-log .draft-log-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.75);
+}
+
+.cc-right-draft-log .draft-log-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.cc-right-draft-log .draft-log-list::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 4px;
 }
 
 /* ─── Tabs ─────────────────────────────────────────────────────────────────── */
@@ -635,17 +794,44 @@
 }
 
 .liquidity-table {
-  font-size: 0.68rem;
-  table-layout: auto;
-  min-width: 360px;
+  font-size: 0.64rem;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
 }
 
 .liquidity-table-wrap {
   max-height: none;
   overflow-y: visible;
-  overflow-x: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
+}
+
+/* Fit TEAM LIQUIDITY inside the side rail without horizontal scroll */
+.liquidity-table th:nth-child(1),
+.liquidity-table td:nth-child(1) {
+  width: 26%;
+}
+
+.liquidity-table th:nth-child(2),
+.liquidity-table td:nth-child(2) {
+  width: 18.5%;
+}
+
+.liquidity-table th:nth-child(3),
+.liquidity-table td:nth-child(3) {
+  width: 18.5%;
+}
+
+.liquidity-table th:nth-child(4),
+.liquidity-table td:nth-child(4) {
+  width: 18.5%;
+}
+
+.liquidity-table th:nth-child(5),
+.liquidity-table td:nth-child(5) {
+  width: 18.5%;
 }
 
 .liquidity-table-wrap::-webkit-scrollbar { width: 4px; }
@@ -718,6 +904,38 @@
   border-bottom: 1px solid rgba(255,255,255,0.02);
 }
 
+.liquidity-table .liq-th-sortable {
+  padding: 0.24rem 0.1rem;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.liquidity-table .liq-th-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.15em;
+  width: 100%;
+  min-width: 0;
+}
+
+.liquidity-table .liq-th-sortable:not(:first-child) .liq-th-inner {
+  justify-content: flex-end;
+}
+
+.liquidity-table .liq-th-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.liquidity-table .liq-th-inner .th-sort-icon {
+  flex-shrink: 0;
+}
+
+.liquidity-table tbody td {
+  padding: 0.24rem 0.12rem;
+}
+
 .my-team-row td { color: #e2d9f3; font-weight: 600; }
 .team-name-cell { color: #d4c8e8; }
 .rank-cell { color: #6b4fa0; font-weight: 700; }
@@ -732,52 +950,97 @@
   background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 0.12rem;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+/* Badge col + player + Target / Paid — room for “Target” / “Paid” labels + values */
+.team-makeup-head-row,
+.team-makeup-slot-row {
+  display: grid;
+  grid-template-columns:
+    minmax(2rem, 2.45rem)
+    minmax(0, 1fr)
+    minmax(2.35rem, 2.85rem)
+    minmax(2.35rem, 2.85rem);
+  column-gap: clamp(0.2rem, 0.55vw, 0.38rem);
+  align-items: center;
+  min-width: 0;
 }
 
 .team-makeup-head-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  column-gap: 4px;
-  align-items: center;
-  padding: 0 0.3rem;
-  margin-bottom: 0;
+  padding: 0.14rem clamp(0.18rem, 1.2vw, 0.3rem) 0.34rem;
+  margin-bottom: 0.08rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+}
+
+.team-makeup-head-badge-spacer {
+  width: 100%;
+  max-width: 2.45rem;
+  height: 1px;
 }
 
 .team-makeup-head-player,
 .team-makeup-head-money {
-  font-size: 0.52rem;
+  font-size: clamp(0.52rem, 0.44rem + 0.2vw, 0.58rem);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #4a3a60;
+}
+
+.team-makeup-head-player {
+  color: #7a6a94;
+  text-align: left;
 }
 
 .team-makeup-head-money {
-  text-align: right;
+  text-align: left;
+  justify-self: start;
+  min-width: 0;
+  padding: 0 0 0.18rem;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: #7a6a94;
+  background: none;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .team-makeup-slot-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0.14rem 0.26rem;
-  border-radius: var(--cc-card-radius);
-  border: var(--cc-card-border);
-  background: var(--cc-card-bg);
-  min-height: 20px;
+  padding: 0.12rem clamp(0.16rem, 1vw, 0.28rem);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  min-height: 24px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
 }
 
-.team-makeup-slot-row:not(.team-makeup-slot-row--empty) {
-  border-color: rgba(139, 92, 246, 0.2);
+.team-makeup-slot-row:last-child {
+  border-bottom: none;
+}
+
+.team-makeup-slot-row--filled {
+  background: rgba(139, 92, 246, 0.07);
+  border-radius: 5px;
+}
+
+.team-makeup-slot-row .pos-badge {
+  justify-self: center;
+  width: min(2.4rem, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: clamp(0.52rem, 0.44rem + 0.18vw, 0.6rem);
 }
 
 .team-makeup-slot-player {
-  flex: 1;
   min-width: 0;
-  font-size: 0.58rem;
+  font-size: clamp(0.65rem, 0.5rem + 0.28vw, 0.76rem);
   font-weight: 600;
-  color: #d8caf0;
+  line-height: 1.22;
+  color: #e8e0f5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -789,18 +1052,40 @@
 }
 
 .team-makeup-slot-money {
-  flex-shrink: 0;
   min-width: 0;
-  text-align: right;
-  font-size: 0.52rem;
+  text-align: left;
+  justify-self: start;
+  font-size: clamp(0.61rem, 0.47rem + 0.26vw, 0.72rem);
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  padding: 0.12rem 0.1rem 0.12rem 0;
+  line-height: 1.2;
+  background: transparent;
+  border: none;
 }
 
 .team-makeup-slot-money--target {
-  color: #7c5cbf;
+  /* Match .liquidity-table td (non–team-name cells) */
+  color: #b0a0cc;
+}
+
+.team-makeup-slot-money--paid {
+  color: #d4c8e8;
+}
+
+.team-makeup-slot-money--paid.green {
+  color: #86efac;
+}
+
+.team-makeup-slot-money--paid.red {
+  color: #fca5a5;
+}
+
+.team-makeup-slot-money--paid.dim {
+  color: #5c4d78;
+  font-weight: 600;
 }
 
 .teams-slots-row td { padding: 0; border-bottom: 1px solid rgba(139, 92, 246, 0.08); }
@@ -2145,15 +2430,17 @@ textarea.pac-notes.pac-notes--always:focus {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--cc-rail-bottom-gap);
   z-index: 8;
   max-height: 100%;
-  padding: var(--cc-space-8) var(--cc-space-12) var(--cc-space-12);
+  /* No horizontal padding so top borders (dock + resizer) span full rail width */
+  padding: 0 0 var(--cc-space-12);
   border-top: 1px solid rgba(139, 92, 246, 0.1);
   background: #0a0714;
   display: flex;
   flex-direction: column;
-  gap: var(--cc-space-8);
+  gap: 0;
+  box-sizing: border-box;
 }
 
 .pac-notes-dock-resizer {
@@ -2179,10 +2466,12 @@ textarea.pac-notes.pac-notes--always:focus {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cc-heading-color);
+  margin: 0 var(--cc-space-12) var(--cc-space-8);
 }
 
 .pac-notes.pac-notes--dock-only {
-  width: 100%;
+  align-self: stretch;
+  width: auto;
   min-height: 96px;
   height: auto;
   flex: 1;
@@ -2190,7 +2479,7 @@ textarea.pac-notes.pac-notes--always:focus {
   max-height: none;
   resize: none;
   overflow-y: auto;
-  margin: 0;
+  margin: 0 var(--cc-space-12);
   border-radius: 8px;
   border: 1px solid rgba(139, 92, 246, 0.18);
   background: rgba(17, 12, 26, 1);
@@ -2653,6 +2942,51 @@ textarea.pac-notes.pac-notes--compact {
   margin: 0 0 var(--cc-heading-mb);
 }
 
+/* Liquidity ↔ projected standings (right rail) */
+.rp-roster-toggle {
+  display: flex;
+  gap: 0.18rem;
+  padding: 3px;
+  margin: 0 0 0.42rem;
+  border-radius: 8px;
+  background: rgba(15, 10, 25, 0.9);
+  border: 1px solid rgba(139, 92, 246, 0.14);
+}
+
+.rp-roster-toggle-btn {
+  flex: 1;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.24rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b4fa0;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rp-roster-toggle-btn:hover {
+  color: #a78bfa;
+}
+
+.rp-roster-toggle-btn--active {
+  background: rgba(139, 92, 246, 0.18);
+  color: #e2d9f3;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.32);
+}
+
+.rp-roster-toggle-btn:focus-visible {
+  outline: 2px solid #a78bfa;
+  outline-offset: 2px;
+}
+
 .cc-right > .rp-section-label:first-of-type {
   margin: 0 0 var(--cc-heading-mb);
 }
@@ -3097,7 +3431,7 @@ textarea.pac-notes.pac-notes--compact {
   cursor: default;
 }
 
-/* ─── Draft log (Teams tab) ──────────────────────────────────────────────── */
+/* ─── Draft log (Command Center right rail) ───────────────────────────── */
 
 .draft-log-list {
   display: flex;
@@ -3152,6 +3486,208 @@ textarea.pac-notes.pac-notes--compact {
 
 .cc-standings-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.6);
+}
+
+/* ─── Right roster pane: liquidity + standings (shared card chrome) ────────── */
+
+.cc-right-roster-pane .liquidity-table-wrap {
+  margin-top: 0;
+  border-radius: var(--cc-card-radius);
+  background: var(--cc-card-bg);
+  /* Inset edge like engine-market-card, without doubling the outer card border */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.1);
+}
+
+.cc-right-roster-pane .liquidity-table {
+  margin-top: 0;
+  font-size: 0.64rem;
+}
+
+.cc-right-roster-pane .liquidity-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(12, 9, 22, 0.97);
+  color: var(--cc-heading-color);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.36rem 0.2rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  vertical-align: middle;
+}
+
+.cc-right-roster-pane .liquidity-table .liq-th-sortable {
+  padding: 0.36rem 0.16rem;
+}
+
+.cc-right-roster-pane .liquidity-table .liq-th-sortable:hover {
+  color: #c4b5fd;
+}
+
+.cc-right-roster-pane .liquidity-table tbody td {
+  padding: 0.34rem 0.18rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
+  color: #b0a0cc;
+}
+
+.cc-right-roster-pane .liquidity-table tbody tr:hover:not(.cc-team-one-row) td {
+  background: rgba(139, 92, 246, 0.055);
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.64rem;
+  margin: 0;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(12, 9, 22, 0.97);
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-team {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  text-align: left;
+  padding: 0.36rem 0.2rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cc-heading-color);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  background: rgba(12, 9, 22, 0.97);
+  box-shadow:
+    4px 0 8px -2px rgba(0, 0, 0, 0.45),
+    inset -1px 0 0 rgba(139, 92, 246, 0.22);
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-stat {
+  padding: 0.36rem 0.18rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cc-heading-color);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  background: rgba(12, 9, 22, 0.97);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-stat.lo-th-active {
+  color: #c4b5fd;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-stat:hover {
+  color: #c4b5fd;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-team {
+  padding: 0.34rem 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: #d4c8e8;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
+  background: rgba(12, 9, 22, 0.94) !important;
+  box-shadow:
+    4px 0 8px -2px rgba(0, 0, 0, 0.45),
+    inset -1px 0 0 rgba(139, 92, 246, 0.22);
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat {
+  padding: 0.34rem 0.18rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-align: right;
+  color: #b0a0cc;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
+  background: transparent;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr.lo-tr-even .lo-td-stat {
+  background: transparent;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr.lo-tr-even .lo-td-team {
+  background: rgba(12, 9, 22, 0.94) !important;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr:hover:not(.cc-team-one-row) td {
+  background: rgba(139, 92, 246, 0.055);
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr:hover:not(.cc-team-one-row) .lo-td-team {
+  background: rgba(12, 9, 22, 0.9) !important;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat.lo-rank-good {
+  color: #4ade80;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat.lo-rank-mid {
+  color: #facc15;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat.lo-rank-bad {
+  color: #f87171;
+}
+
+/* League team 1 row — same glass + violet edge language as .cc-surface-card */
+.cc-right-roster-pane .liquidity-table tbody tr.cc-team-one-row td {
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.032) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    ),
+    rgba(139, 92, 246, 0.085);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14) !important;
+}
+
+.cc-standings-scroll .lo-standings-table tbody tr.cc-team-one-row td {
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.032) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    ),
+    rgba(139, 92, 246, 0.085);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12) !important;
+}
+
+.cc-standings-scroll .lo-standings-table tbody tr.cc-team-one-row.lo-tr-even td {
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.032) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    ),
+    rgba(139, 92, 246, 0.085);
+}
+
+.cc-standings-scroll .lo-standings-table tbody tr.cc-team-one-row .lo-td-team {
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.032) 0%,
+      rgba(255, 255, 255, 0.01) 100%
+    ),
+    rgba(139, 92, 246, 0.085) !important;
+  box-shadow:
+    4px 0 8px -2px rgba(0, 0, 0, 0.45),
+    inset -1px 0 0 rgba(139, 92, 246, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .asd-no-results {
