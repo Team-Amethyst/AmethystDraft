@@ -147,25 +147,50 @@
     font-size: 0.88rem;
   }
 
+  /* Market pressure: same compact row rhythm as BID CONTEXT (budget-card--row) */
   .engine-market-card {
-    padding: 0.32rem 0.34rem;
+    padding: 0.22rem 0.2rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 
   .engine-market-main {
-    gap: 0.22rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: stretch;
   }
 
   .engine-market-kpi {
-    padding: 0.2rem 0.18rem 0.22rem;
-    gap: 0.15rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    padding: 0.28rem 0.3rem;
+    background: var(--cc-card-bg);
+    border: var(--cc-card-border);
+    border-radius: var(--cc-card-radius);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
-  .em-label {
-    font-size: 0.48rem;
+  .engine-market-kpi .em-label {
+    text-align: left;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.5rem;
+    line-height: 1.15;
   }
 
-  .em-value {
-    font-size: 1.1rem;
+  .engine-market-kpi .em-label--inflation {
+    white-space: normal;
+  }
+
+  .engine-market-kpi .em-value {
+    text-align: right;
+    flex-shrink: 0;
+    font-size: 0.88rem;
+    line-height: 1.05;
   }
 
   .team-makeup-head-row,
@@ -206,8 +231,7 @@
   }
 
   .rp-bid-context-grid,
-  .budget-grid,
-  .engine-market-main {
+  .budget-grid {
     grid-template-columns: 1fr;
   }
 
@@ -217,18 +241,6 @@
 
   .budget-grid {
     gap: 0.2rem;
-  }
-
-  .engine-market-main {
-    gap: 0.16rem;
-  }
-
-  .engine-market-kpi {
-    padding: 0.16rem 0.14rem 0.18rem;
-  }
-
-  .em-value {
-    font-size: 1.02rem;
   }
 
   .bc-val {
@@ -293,6 +305,18 @@
     padding: 0.24rem 0.32rem var(--cc-rail-bottom-gap);
   }
 
+  .engine-market-kpi {
+    padding: 0.24rem 0.26rem;
+  }
+
+  .engine-market-kpi .em-value {
+    font-size: 0.82rem;
+  }
+
+  .engine-market-kpi .em-label {
+    font-size: 0.48rem;
+  }
+
   .budget-progress-row {
     flex-direction: column;
     gap: 0.12rem;
@@ -315,14 +339,15 @@
   min-height: 0;
   border-right: 1px solid rgba(139, 92, 246, 0.1);
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
-/* Left panel: market + team makeup (scroll inside makeup card) */
+/* Left rail: no outer scroll — only team makeup list scrolls inside its card */
 .cc-left {
   display: flex;
   flex-direction: column;
-  overflow-y: hidden;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .cc-left::-webkit-scrollbar,
@@ -331,7 +356,15 @@
 
 .cc-left::-webkit-scrollbar-track,
 .cc-center::-webkit-scrollbar-track,
-.cc-right::-webkit-scrollbar-track { background: rgba(15, 10, 25, 0.8); }
+.cc-right::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 5px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.14)
+  );
+}
 
 .cc-left::-webkit-scrollbar-thumb,
 .cc-center::-webkit-scrollbar-thumb,
@@ -361,10 +394,16 @@
   flex-shrink: 0;
 }
 
-/* Team liquidity: scroll inside card so the rail never grows past the viewport */
+/* Roster tables: natural height (no inner scroll when content is short) */
 .cc-right .liquidity-table-wrap {
-  max-height: min(42vh, 22rem);
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: hidden;
+}
+
+/* Standings: horizontal scroll lives in .cc-standings-scroll; do not clip it */
+.cc-right .liquidity-table-wrap.lo-standings-wrap--right {
+  overflow-x: visible;
 }
 
 .cc-right .cc-surface-card {
@@ -397,11 +436,15 @@
   margin-top: var(--cc-space-8);
 }
 
-/* Market tab: position card stays put; team makeup fills height and scrolls inside card */
+/* Market tab: flex stack; overflow only inside team makeup slot list */
 .cc-left .cc-panel-content--market-tab {
-  overflow-y: hidden;
+  overflow: hidden;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.cc-left .cc-panel-content--market-tab > section:not(.cc-team-makeup-card) {
+  flex-shrink: 0;
 }
 
 .cc-left .cc-team-makeup-card {
@@ -413,27 +456,92 @@
   overflow: hidden;
 }
 
-.cc-left .cc-team-makeup-card > .market-section-label {
+.cc-team-makeup-card > .cc-team-makeup-head.pac-snapshot-header {
+  margin-top: 0;
+  margin-bottom: var(--cc-heading-mb);
+  gap: 0.35rem;
+}
+
+.cc-team-makeup-head .market-section-label {
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-team-makeup-select {
   flex-shrink: 0;
+  max-width: min(11rem, 46vw);
+  min-width: 0;
+  padding: 0.22rem 1.75rem 0.22rem 0.45rem;
+  border-radius: 7px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d4c8e8;
+  font-size: 0.64rem;
+  font-weight: 600;
+  font-family: "DM Sans", sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.38rem center;
+  background-size: 10px 10px;
+}
+
+.cc-team-makeup-select:hover {
+  border-color: rgba(167, 139, 250, 0.45);
+  color: #ebe4f5;
+}
+
+.cc-team-makeup-select:focus-visible {
+  border-color: rgba(167, 139, 250, 0.65);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+}
+
+.cc-team-makeup-select option {
+  background: #120b1f;
+  color: #e2d9f3;
 }
 
 .cc-left .cc-team-makeup-card .team-makeup-slots {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  padding-right: 0;
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.75);
-  padding-right: 0.15rem;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
 .cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar {
   width: 5px;
 }
 
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 4px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+
 .cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-thumb {
   background: #9070b8;
   border-radius: 4px;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
 }
 
 /* Panel variant for tabs that contain a draft log — flex column, no own scroll */
@@ -468,11 +576,24 @@
   min-height: 0;
   padding: 0 var(--cc-pad-x);
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
-.cc-panel-above-log::-webkit-scrollbar { width: 4px; }
-.cc-panel-above-log::-webkit-scrollbar-track { background: rgba(15, 10, 25, 0.8); }
-.cc-panel-above-log::-webkit-scrollbar-thumb { background: #9070b8; border-radius: 3px; }
+.cc-panel-above-log::-webkit-scrollbar {
+  width: 4px;
+}
+.cc-panel-above-log::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.cc-panel-above-log::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
 
 /* Draft log section fills all remaining height (legacy / left-only layouts) */
 .cc-draft-log-section {
@@ -506,11 +627,21 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.75);
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
 .cc-right-draft-log .draft-log-list::-webkit-scrollbar {
   width: 5px;
+}
+
+.cc-right-draft-log .draft-log-list::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 4px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
 }
 
 .cc-right-draft-log .draft-log-list::-webkit-scrollbar-thumb {
@@ -601,6 +732,170 @@
   color: #e9ddff;
 }
 
+/* Left rail: your team projected stats (same toggle as player impact) */
+.cc-my-standings-card {
+  flex-shrink: 0;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: my-standings;
+}
+
+.cc-my-standings-head,
+.cc-roster-pane-head {
+  margin-top: 0;
+  margin-bottom: var(--cc-gap-md);
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
+.cc-my-standings-head .market-section-label,
+.cc-roster-pane-head .market-section-label {
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-my-standings-head .stat-view-toggle,
+.cc-roster-pane-head .stat-view-toggle {
+  flex-shrink: 0;
+}
+
+.cc-my-standings-head .svt-btn,
+.cc-roster-pane-head .svt-btn {
+  padding: 0.22rem 0.5rem;
+  font-size: 0.64rem;
+}
+
+.cc-my-standings-empty {
+  font-size: 0.64rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Five category tiles per row; additional categories wrap to row 2, 3, … */
+.cc-my-standings-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  gap: 0.28rem;
+  max-height: min(38vh, 18rem);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  padding: 0.05rem 0.1rem 0.15rem 0;
+}
+
+/* Only when the card is extremely narrow: keep 5×1 via horizontal scroll instead of reflowing */
+@container my-standings (max-width: 154px) {
+  .cc-my-standings-grid {
+    grid-template-columns: repeat(5, minmax(2.05rem, 2.05rem));
+    justify-content: start;
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+}
+
+.cc-my-standings-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cc-my-standings-grid::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+
+.cc-my-standings-grid::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+
+.cc-my-standings-cell {
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  padding: 0.32rem 0.22rem 0.36rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  gap: 0.18rem;
+  min-width: 0;
+  min-height: 4.25rem;
+}
+
+.cc-my-standings-cell-cat {
+  font-size: 0.54rem;
+  font-weight: 700;
+  color: var(--cc-heading-color);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.cc-my-standings-cell-val {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.02rem;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.cc-my-standings-cell-num {
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  color: #ffffff;
+}
+
+.cc-my-standings-cell-rank {
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--cc-value-muted) 75%, white);
+  vertical-align: baseline;
+}
+
+.cc-my-standings-cell-val.lo-rank-good .cc-my-standings-cell-rank {
+  color: #4ade80;
+}
+
+.cc-my-standings-cell-val.lo-rank-mid .cc-my-standings-cell-rank {
+  color: #facc15;
+}
+
+.cc-my-standings-cell-val.lo-rank-bad .cc-my-standings-cell-rank {
+  color: #f87171;
+}
+
+.cc-my-standings-cell-val--empty .cc-my-standings-cell-num {
+  font-weight: 600;
+  color: rgba(157, 140, 196, 0.58);
+}
+
+.cc-my-standings-cell-val--empty .cc-my-standings-cell-rank {
+  color: rgba(122, 106, 148, 0.55);
+}
+
 .pos-chip { display: none; }
 
 .market-stat-row {
@@ -683,25 +978,90 @@
   padding: 0.1rem 0 0.25rem;
 }
 
-.msr-tier-row {
-  padding-top: 0.28rem;
-  padding-bottom: 0.28rem;
+.msr-tier-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.08rem;
 }
 
-.msr-tier-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.msr-tier-header-row .msr-tier-section-label {
+  margin: 0;
 }
 
 .msr-tier-legend {
-  margin-top: 6px;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(157, 140, 196, 0.95);
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.msr-tier-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  margin-top: 0.08rem;
+}
+
+.msr-tier-table--5col {
+  table-layout: fixed;
+}
+
+.msr-tier-table--5col thead th {
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cc-heading-color);
+  padding: 0.28rem 0.08rem 0.3rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  text-align: center;
+  vertical-align: middle;
+  width: 20%;
+}
+
+.msr-tier-table--5col thead th .msr-tier-chip {
+  margin: 0 auto;
+}
+
+.msr-tier-table--5col tbody td {
+  padding: 0.38rem 0.1rem 0.34rem;
+  border-bottom: none;
+  vertical-align: middle;
+  color: #d4c8e8;
+  text-align: center;
+}
+
+.msr-tier-cell-stack {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 0.58rem;
-  color: rgba(157, 140, 196, 0.9);
-  line-height: 1.25;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  padding-top: 0.04rem;
+}
+
+.msr-tier-cell-rem {
+  font-weight: 800;
+  font-size: clamp(0.74rem, 0.66rem + 0.25vw, 0.84rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: #f5f3ff;
+  line-height: 1.15;
+}
+
+.msr-tier-cell-avg {
+  font-size: clamp(0.64rem, 0.58rem + 0.2vw, 0.72rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #ddd6fe;
+  line-height: 1.2;
 }
 
 .msr-compare-wrap {
@@ -730,20 +1090,14 @@
   margin-bottom: 0.12rem;
 }
 
-.msr-tier-label-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
 .msr-tier-chip {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.56rem;
+  font-size: 0.58rem;
   font-weight: 800;
   color: #fff;
   flex-shrink: 0;
@@ -754,10 +1108,6 @@
 .msr-tier-chip--3 { background: #22c55e; }
 .msr-tier-chip--4 { background: #f59e0b; }
 .msr-tier-chip--5 { background: #6b7280; }
-
-.msr-tier-row .msr-value {
-  font-variant-numeric: tabular-nums;
-}
 
 .msr-engine-monos {
   display: flex;
@@ -770,13 +1120,6 @@
   font-size: 0.62rem;
   line-height: 1.25;
   color: rgba(251, 191, 36, 0.95);
-}
-
-.msr-count-rank-footnote {
-  font-size: 0.62rem;
-  line-height: 1.3;
-  color: rgba(139, 120, 180, 0.85);
-  padding: 0.35rem 0 0.15rem;
 }
 
 /* ─── Liquidity / Teams / Standings tables ─────────────────────────────────── */
@@ -805,10 +1148,10 @@
   overflow-y: visible;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
-/* Fit TEAM LIQUIDITY inside the side rail without horizontal scroll */
+/* Fit liquidity table inside the side rail without horizontal scroll */
 .liquidity-table th:nth-child(1),
 .liquidity-table td:nth-child(1) {
   width: 26%;
@@ -834,10 +1177,25 @@
   width: 18.5%;
 }
 
-.liquidity-table-wrap::-webkit-scrollbar { width: 4px; }
-.liquidity-table-wrap::-webkit-scrollbar:horizontal { height: 4px; }
-.liquidity-table-wrap::-webkit-scrollbar-track { background: rgba(15, 10, 25, 0.8); }
-.liquidity-table-wrap::-webkit-scrollbar-thumb { background: #9070b8; border-radius: 3px; }
+.liquidity-table-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+.liquidity-table-wrap::-webkit-scrollbar:horizontal {
+  height: 4px;
+}
+.liquidity-table-wrap::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.liquidity-table-wrap::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
 
 .liquidity-table th,
 .supply-table th,
@@ -865,12 +1223,12 @@
 .liq-th-sortable:hover { color: #9d7cc7; }
 
 .liq-th-sortable:not(:first-child) {
-  text-align: right;
+  text-align: left;
   white-space: nowrap;
 }
 
 .liquidity-table td:not(:first-child) {
-  text-align: right;
+  text-align: left;
 }
 
 .liq-team-name-cell {
@@ -889,9 +1247,10 @@
 .th-sort-idle  { color: #3a2a50; }
 .th-sort-active { color: #a78bda; }
 
+/* Dimmed when team cannot bid on selected player — must stay readable on any row bg */
 .liq-ineligible td {
-  color: #3a2a50 !important;
-  font-weight: 400;
+  color: rgba(200, 186, 228, 0.78) !important;
+  font-weight: 500;
 }
 
 .liquidity-table td,
@@ -919,7 +1278,7 @@
 }
 
 .liquidity-table .liq-th-sortable:not(:first-child) .liq-th-inner {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .liquidity-table .liq-th-label {
@@ -1170,12 +1529,27 @@
   flex-direction: column;
   position: relative;
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 rgba(15, 10, 25, 0.8);
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
-.cc-content-scroll::-webkit-scrollbar { width: 6px; }
-.cc-content-scroll::-webkit-scrollbar-track { background: rgba(15, 10, 25, 0.8); }
-.cc-content-scroll::-webkit-scrollbar-thumb { background: #9070b8; border-radius: 3px; }
-.cc-content-scroll::-webkit-scrollbar-thumb:hover { background: #a855f7; }
+.cc-content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.cc-content-scroll::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.cc-content-scroll::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+.cc-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}
 
 .cc-draft-footer {
   flex-shrink: 0;
@@ -2385,6 +2759,12 @@ textarea.pac-notes.pac-notes--always:focus {
   margin-bottom: var(--cc-gap-sm);
 }
 
+/* Reuses pac-snapshot-header layout but sits first in a surface card — no top gap */
+.cc-my-standings-card > .cc-my-standings-head.pac-snapshot-header,
+.cc-right-roster-pane > .cc-roster-pane-head.pac-snapshot-header {
+  margin-top: 0;
+}
+
 .pac-section-label {
   font-size: 0.62rem;
   font-weight: 800;
@@ -2942,51 +3322,6 @@ textarea.pac-notes.pac-notes--compact {
   margin: 0 0 var(--cc-heading-mb);
 }
 
-/* Liquidity ↔ projected standings (right rail) */
-.rp-roster-toggle {
-  display: flex;
-  gap: 0.18rem;
-  padding: 3px;
-  margin: 0 0 0.42rem;
-  border-radius: 8px;
-  background: rgba(15, 10, 25, 0.9);
-  border: 1px solid rgba(139, 92, 246, 0.14);
-}
-
-.rp-roster-toggle-btn {
-  flex: 1;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  padding: 0.3rem 0.24rem;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #6b4fa0;
-  cursor: pointer;
-  font-family: inherit;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.rp-roster-toggle-btn:hover {
-  color: #a78bfa;
-}
-
-.rp-roster-toggle-btn--active {
-  background: rgba(139, 92, 246, 0.18);
-  color: #e2d9f3;
-  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.32);
-}
-
-.rp-roster-toggle-btn:focus-visible {
-  outline: 2px solid #a78bfa;
-  outline-offset: 2px;
-}
-
 .cc-right > .rp-section-label:first-of-type {
   margin: 0 0 var(--cc-heading-mb);
 }
@@ -3195,11 +3530,24 @@ textarea.pac-notes.pac-notes--compact {
   overflow-x: auto;
   padding-bottom: 0.25rem;
   scrollbar-width: thin;
-  scrollbar-color: #4a3a60 transparent;
+  scrollbar-color: #4a3a60 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
-.cat-pace-row::-webkit-scrollbar { height: 3px; }
-.cat-pace-row::-webkit-scrollbar-track { background: transparent; }
-.cat-pace-row::-webkit-scrollbar-thumb { background: #4a3a60; border-radius: 2px; }
+.cat-pace-row::-webkit-scrollbar {
+  height: 3px;
+}
+.cat-pace-row::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 2px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 3px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.1)
+  );
+}
+.cat-pace-row::-webkit-scrollbar-thumb {
+  background: #4a3a60;
+  border-radius: 2px;
+}
 
 .cat-pace-item {
   display: flex;
@@ -3440,6 +3788,9 @@ textarea.pac-notes.pac-notes--compact {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.55)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
 .dl-empty {
@@ -3448,246 +3799,453 @@ textarea.pac-notes.pac-notes--compact {
   padding: 0.45rem 0.2rem;
 }
 
-.draft-log-list::-webkit-scrollbar { width: 4px; }
-.draft-log-list::-webkit-scrollbar-track { background: transparent; }
-.draft-log-list::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 2px; }
+.draft-log-list::-webkit-scrollbar {
+  width: 4px;
+}
+.draft-log-list::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 2px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.draft-log-list::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.45);
+  border-radius: 2px;
+}
 
+/* Standings: fixed narrow team column + stats area (horizontal bar only under stats) */
 .cc-standings-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.cc-standings-split {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Match liquidity table first column (26% of full table width) */
+.cc-standings-team-pane {
+  flex: 0 0 26%;
+  width: 26%;
+  max-width: none;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid rgba(139, 92, 246, 0.12);
+  background: transparent;
+  box-shadow: none;
+  z-index: 1;
+}
+
+/* Offset team rows below the stats header row (no team thead — avoids empty corner cell) */
+.cc-right-roster-pane .cc-standings-team-pane {
+  padding-left: 0;
+  padding-top: calc(1.65rem + 1px);
+  box-sizing: border-box;
+}
+
+/* Stats pane scrolls horizontally when categories exceed rail width */
+.cc-standings-stats-scroll {
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: thin;
-  scrollbar-color: rgba(139, 92, 246, 0.35) transparent;
+  scrollbar-color: rgba(167, 139, 250, 0.55)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
-.cc-standings-scroll .lo-standings-table .lo-th-team,
-.cc-standings-scroll .lo-standings-table .lo-td-team {
-  position: sticky;
-  left: 0;
-  background: #0a0714;
-  z-index: 2;
-  box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.6), inset -1px 0 0 rgba(139, 92, 246, 0.25);
-}
-
-.cc-standings-scroll .lo-standings-table .lo-th-team {
-  z-index: 3;
-}
-
-.cc-standings-scroll::-webkit-scrollbar {
+.cc-standings-stats-scroll::-webkit-scrollbar {
   height: 4px;
 }
 
-.cc-standings-scroll::-webkit-scrollbar-track {
-  background: transparent;
+.cc-standings-stats-scroll::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 2px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
 }
 
-.cc-standings-scroll::-webkit-scrollbar-thumb {
+.cc-standings-stats-scroll::-webkit-scrollbar-thumb {
   background: rgba(139, 92, 246, 0.35);
   border-radius: 2px;
 }
 
-.cc-standings-scroll::-webkit-scrollbar-thumb:hover {
+.cc-standings-stats-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.6);
 }
 
-/* ─── Right roster pane: liquidity + standings (shared card chrome) ────────── */
+/* ─── Right roster pane: liquidity + standings (flush with surface card) ───── */
 
 .cc-right-roster-pane .liquidity-table-wrap {
   margin-top: 0;
-  border-radius: var(--cc-card-radius);
-  background: var(--cc-card-bg);
-  /* Inset edge like engine-market-card, without doubling the outer card border */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 0 0 1px rgba(139, 92, 246, 0.1);
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: hidden;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.cc-right-roster-pane .liquidity-table {
-  margin-top: 0;
-  font-size: 0.64rem;
+/* Same vertical band as standings’ horizontal scrollbar (~4px bar + track) so tab switch doesn’t jump */
+.cc-right-roster-pane .liquidity-table-wrap:not(.lo-standings-wrap--right) {
+  padding-bottom: 10px;
 }
 
-.cc-right-roster-pane .liquidity-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: rgba(12, 9, 22, 0.97);
-  color: var(--cc-heading-color);
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.36rem 0.2rem;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
-  vertical-align: middle;
+.cc-right-roster-pane .liquidity-table-wrap.lo-standings-wrap--right {
+  overflow-x: visible;
 }
 
-.cc-right-roster-pane .liquidity-table .liq-th-sortable {
-  padding: 0.36rem 0.16rem;
-}
-
-.cc-right-roster-pane .liquidity-table .liq-th-sortable:hover {
-  color: #c4b5fd;
-}
-
-.cc-right-roster-pane .liquidity-table tbody td {
-  padding: 0.34rem 0.18rem;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
-  color: #b0a0cc;
-}
-
-.cc-right-roster-pane .liquidity-table tbody tr:hover:not(.cc-team-one-row) td {
-  background: rgba(139, 92, 246, 0.055);
-}
-
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table {
-  width: 100%;
+/* Liquidity + standings in the right roster pane share one table skin */
+.cc-right-roster-pane .cc-roster-data-table {
   border-collapse: collapse;
   font-size: 0.64rem;
   margin: 0;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead {
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table {
+  margin-top: 0;
+}
+
+/* Narrow rail: avoid "MAX" → "M…" and cramped money cols (wider MAX / $·SP, tighter TEAM) */
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table th:nth-child(1),
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table td:nth-child(1) {
+  width: 26%;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table th:nth-child(2),
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table td:nth-child(2) {
+  width: 14%;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table th:nth-child(3),
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table td:nth-child(3) {
+  width: 14%;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table th:nth-child(4),
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table td:nth-child(4) {
+  width: 22%;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table th:nth-child(5),
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table td:nth-child(5) {
+  width: 24%;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table thead th {
+  letter-spacing: 0.05em;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table .liq-th-label {
+  flex-shrink: 0;
+  min-width: min-content;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.cc-right-roster-pane .liquidity-table.cc-roster-data-table .liq-th-sortable {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.cc-right-roster-pane .cc-roster-data-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgba(12, 9, 22, 0.97);
-}
-
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-team {
-  position: sticky;
-  left: 0;
-  z-index: 4;
+  background: transparent;
+  color: var(--cc-heading-color);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-align: left;
-  padding: 0.36rem 0.2rem;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--cc-heading-color);
+  padding: 0.22rem 0.32rem 0.22rem 0.42rem;
   border-bottom: 1px solid rgba(139, 92, 246, 0.14);
-  background: rgba(12, 9, 22, 0.97);
-  box-shadow:
-    4px 0 8px -2px rgba(0, 0, 0, 0.45),
-    inset -1px 0 0 rgba(139, 92, 246, 0.22);
+  vertical-align: middle;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-stat {
-  padding: 0.36rem 0.18rem;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--cc-heading-color);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
-  background: rgba(12, 9, 22, 0.97);
-  text-align: right;
-  white-space: nowrap;
+.cc-right-roster-pane .cc-roster-data-table .liq-th-sortable {
+  padding: 0.22rem 0.28rem 0.22rem 0.42rem;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-stat.lo-th-active {
+.cc-right-roster-pane .cc-roster-data-table .liq-th-sortable:hover {
   color: #c4b5fd;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table thead th.lo-th-stat:hover {
+.cc-right-roster-pane
+  .cc-roster-data-table
+  thead
+  th.liq-th-sortable.liq-th-active {
   color: #c4b5fd;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-team {
-  padding: 0.34rem 0.2rem;
+.cc-right-roster-pane .cc-roster-data-table .liq-th-inner {
+  justify-content: flex-start;
+}
+
+/* Lucide chevrons — same size/weight as standings stat headers */
+.cc-right-roster-pane .lo-th-sort-chevron {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.12em;
+  color: inherit;
+  opacity: 0.92;
+}
+
+.cc-right-roster-pane .cc-roster-data-table tbody td {
+  text-align: left;
+  padding: 0.2rem 0.32rem 0.2rem 0.42rem;
   font-size: 0.64rem;
   font-weight: 600;
-  color: #d4c8e8;
   border-bottom: 1px solid rgba(139, 92, 246, 0.07);
-  background: rgba(12, 9, 22, 0.94) !important;
-  box-shadow:
-    4px 0 8px -2px rgba(0, 0, 0, 0.45),
-    inset -1px 0 0 rgba(139, 92, 246, 0.22);
-}
-
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat {
-  padding: 0.34rem 0.18rem;
-  font-size: 0.64rem;
-  font-weight: 600;
-  text-align: right;
   color: #b0a0cc;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
+  vertical-align: middle;
+}
+
+.cc-right-roster-pane .cc-roster-data-table tbody tr.my-team-row td {
+  color: #e8e2f4;
+  font-weight: 600;
+}
+
+/* Match standings `.lo-td-team` (shared roster pane team column) */
+.cc-right-roster-pane .cc-roster-data-table .liq-team-name-cell {
+  text-align: left;
+  color: #d4c8e8;
   background: transparent;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr.lo-tr-even .lo-td-stat {
-  background: transparent;
+.cc-right-roster-pane .cc-roster-data-table thead tr,
+.cc-right-roster-pane .cc-roster-data-table tbody tr {
+  height: 1.65rem;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr.lo-tr-even .lo-td-team {
-  background: rgba(12, 9, 22, 0.94) !important;
-}
-
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr:hover:not(.cc-team-one-row) td {
+.cc-right-roster-pane .cc-roster-data-table tbody tr:hover:not(.cc-team-one-row) td {
   background: rgba(139, 92, 246, 0.055);
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table tbody tr:hover:not(.cc-team-one-row) .lo-td-team {
-  background: rgba(12, 9, 22, 0.9) !important;
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table--team-only {
+  width: 100%;
+  table-layout: fixed;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat.lo-rank-good {
+/* Natural column widths + horizontal scroll — avoids squeezing stat values */
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table--stats-only {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.cc-right-roster-pane .cc-standings-scroll .lo-standings-table--stats-only thead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: transparent;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--team-only
+  .lo-td-team {
+  text-align: left;
+  color: #d4c8e8;
+  background: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Stats table: sticky row is thead; cells are not individually sticky */
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  thead
+  th.lo-th-stat {
+  position: relative;
+  top: auto;
+  z-index: auto;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  min-width: 3.35rem;
+  padding-left: 0.38rem;
+  padding-right: 0.38rem;
+  overflow: visible;
+  text-align: center;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  thead
+  th.lo-th-stat.lo-th-active {
+  color: #c4b5fd;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  thead
+  th.lo-th-stat:hover {
+  color: #c4b5fd;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  .lo-td-stat {
+  background: transparent;
+  min-width: 3.35rem;
+  padding-left: 0.38rem;
+  padding-right: 0.38rem;
+  overflow: visible;
+  white-space: nowrap;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* No projected value yet — same tone as other muted table text, not rank traffic lights */
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  .lo-td-stat.lo-td-stat--empty {
+  color: rgba(148, 132, 178, 0.62);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  tbody
+  tr.lo-tr-even
+  .lo-td-stat {
+  background: rgba(139, 92, 246, 0.04);
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--team-only
+  tbody
+  tr.lo-tr-even
+  .lo-td-team {
+  background: rgba(139, 92, 246, 0.04);
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  .lo-td-stat.lo-rank-good {
   color: #4ade80;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat.lo-rank-mid {
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  .lo-td-stat.lo-rank-mid {
   color: #facc15;
 }
 
-.cc-right-roster-pane .cc-standings-scroll .lo-standings-table .lo-td-stat.lo-rank-bad {
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .lo-standings-table--stats-only
+  .lo-td-stat.lo-rank-bad {
   color: #f87171;
 }
 
-/* League team 1 row — same glass + violet edge language as .cc-surface-card */
-.cc-right-roster-pane .liquidity-table tbody tr.cc-team-one-row td {
+/* League team 1 — stronger violet band + readable type (liquidity + standings) */
+.cc-right-roster-pane .cc-roster-data-table tbody tr.cc-team-one-row td {
   background:
     linear-gradient(
       160deg,
-      rgba(255, 255, 255, 0.032) 0%,
-      rgba(255, 255, 255, 0.01) 100%
+      rgba(255, 255, 255, 0.045) 0%,
+      rgba(255, 255, 255, 0.018) 100%
     ),
-    rgba(139, 92, 246, 0.085);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.14) !important;
+    rgba(139, 92, 246, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(167, 139, 250, 0.22) !important;
+  color: #faf8ff;
 }
 
-.cc-standings-scroll .lo-standings-table tbody tr.cc-team-one-row td {
-  background:
-    linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.032) 0%,
-      rgba(255, 255, 255, 0.01) 100%
-    ),
-    rgba(139, 92, 246, 0.085);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.12) !important;
+/* Ineligible + highlight row: global .liq-ineligible is muted but must not wash out */
+.cc-right-roster-pane
+  .cc-roster-data-table
+  tbody
+  tr.cc-team-one-row.liq-ineligible
+  td,
+.cc-right-roster-pane
+  .cc-roster-data-table
+  tbody
+  tr.my-team-row.liq-ineligible
+  td {
+  color: #f7f4ff !important;
+  font-weight: 600;
 }
 
-.cc-standings-scroll .lo-standings-table tbody tr.cc-team-one-row.lo-tr-even td {
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .cc-roster-data-table
+  tbody
+  tr.cc-team-one-row
+  .lo-td-team {
   background:
     linear-gradient(
       160deg,
-      rgba(255, 255, 255, 0.032) 0%,
-      rgba(255, 255, 255, 0.01) 100%
+      rgba(255, 255, 255, 0.045) 0%,
+      rgba(255, 255, 255, 0.018) 100%
     ),
-    rgba(139, 92, 246, 0.085);
+    rgba(139, 92, 246, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  color: #f5f3ff;
 }
 
-.cc-standings-scroll .lo-standings-table tbody tr.cc-team-one-row .lo-td-team {
-  background:
-    linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.032) 0%,
-      rgba(255, 255, 255, 0.01) 100%
-    ),
-    rgba(139, 92, 246, 0.085) !important;
-  box-shadow:
-    4px 0 8px -2px rgba(0, 0, 0, 0.45),
-    inset -1px 0 0 rgba(139, 92, 246, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .cc-roster-data-table
+  tbody
+  tr.cc-team-one-row
+  .lo-td-stat.lo-rank-good {
+  color: #bbf7d0;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .cc-roster-data-table
+  tbody
+  tr.cc-team-one-row
+  .lo-td-stat.lo-rank-mid {
+  color: #fef08a;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .cc-roster-data-table
+  tbody
+  tr.cc-team-one-row
+  .lo-td-stat.lo-rank-bad {
+  color: #fecaca;
+}
+
+.cc-right-roster-pane
+  .cc-standings-scroll
+  .cc-roster-data-table
+  tbody
+  tr.cc-team-one-row
+  .lo-td-stat.lo-td-stat--empty {
+  color: rgba(245, 243, 255, 0.42);
+  letter-spacing: 0.08em;
 }
 
 .asd-no-results {
@@ -3732,8 +4290,7 @@ textarea.pac-notes.pac-notes--compact {
    it wins over later base grid declarations. */
 @media (max-width: 1500px) {
   .rp-bid-context-grid,
-  .budget-grid,
-  .engine-market-main {
+  .budget-grid {
     grid-template-columns: 1fr;
   }
 }

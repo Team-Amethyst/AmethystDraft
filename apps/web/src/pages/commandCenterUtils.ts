@@ -4,6 +4,12 @@ import type { League } from "../contexts/LeagueContext";
 import { getEligibleSlotsForPositions, getEligibleSlotsForPosition } from "../utils/eligibility";
 import { getEffectiveTierValue, type TierValueOverride } from "../utils/effectiveTierValue";
 
+/** Extracts the abbreviation from labels like "Walks + Hits per IP (WHIP)" → "WHIP" */
+export function normalizeCatName(name: string): string {
+  const m = name.match(/\(([^)]+)\)$/);
+  return m ? m[1] : name;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,9 +29,6 @@ export interface PositionMarket {
   avgWinPrice: number;
   avgProjValue: number;
   inflation: number;
-  remainingCount: number;
-  scarcityRankNum: number;
-  scarcityRankOf: number;
   supply: Array<{ tier: number; count: number; avgVal: number | null }>;
 }
 
@@ -38,7 +41,7 @@ export function getStatByCategory(
   catName: string,
   catType: "batting" | "pitching",
 ): number {
-  const name = catName.toUpperCase();
+  const name = normalizeCatName(catName).trim().toUpperCase();
   if (catType === "batting") {
     const b = player.stats?.batting;
     if (!b) return 0;
@@ -56,7 +59,12 @@ export function getStatByCategory(
     if (name === "W" || name === "WINS") return p.wins;
     if (name === "K" || name === "SO") return p.strikeouts;
     if (name === "ERA") return parseFloat(p.era) || 0;
-    if (name === "WHIP" || name === "WALKS + HITS PER IP")
+    if (
+      name === "WHIP" ||
+      name === "WALKS + HITS PER IP" ||
+      name === "W+H/IP" ||
+      (name.includes("WHIP") && name.includes("IP"))
+    )
       return parseFloat(p.whip) || 0;
     if (name === "SV" || name === "SAVES") return p.saves;
     if (name === "IP") return parseFloat(p.innings) || 0;
@@ -153,21 +161,6 @@ export function computePositionMarket(
       ? Math.round((avgWinPrice / avgProjValue - 1) * 100)
       : 0;
 
-  const allPositions = [...new Set(allPlayers.map((p) => p.position))];
-  const remainingByPos = allPositions
-    .map((pos) => ({
-      pos,
-      count: allPlayers.filter(
-        (p) =>
-          (p.position === pos || p.positions?.includes(pos)) &&
-          !draftedIds.has(p.id),
-      ).length,
-    }))
-    .sort((a, b) => a.count - b.count);
-  const scarcityRankNum =
-    remainingByPos.findIndex((r) => r.pos === position) + 1;
-  const scarcityRankOf = remainingByPos.length;
-
   const allTiers = [
     ...new Set(
       remaining.map(
@@ -203,9 +196,6 @@ export function computePositionMarket(
     avgWinPrice,
     avgProjValue,
     inflation,
-    remainingCount: remaining.length,
-    scarcityRankNum,
-    scarcityRankOf,
     supply: allTiers.map((tier) => {
       const arr = remaining.filter(
         (p) =>
@@ -259,6 +249,7 @@ export const LOWER_IS_BETTER_CATS = new Set([
   "ERA",
   "WHIP",
   "WALKS + HITS PER IP",
+  "W+H/IP",
 ]);
 
 export interface ProjectedStandingsRow {
@@ -266,12 +257,12 @@ export interface ProjectedStandingsRow {
   stats: Record<string, number>;
 }
 
-function getProjStat(
+export function getProjStat(
   player: Player,
   catName: string,
   catType: "batting" | "pitching",
 ): number {
-  const n = catName.toUpperCase();
+  const n = normalizeCatName(catName).trim().toUpperCase();
   if (catType === "batting") {
     const b = player.projection?.batting ?? player.stats?.batting;
     if (!b) return 0;
@@ -291,16 +282,81 @@ function getProjStat(
     if (n === "W" || n === "WINS") return p.wins;
     if (n === "K" || n === "SO") return p.strikeouts;
     if (n === "ERA") return parseFloat(String(p.era)) || 0;
-    if (n === "WHIP" || n === "WALKS + HITS PER IP")
+    if (
+      n === "WHIP" ||
+      n === "WALKS + HITS PER IP" ||
+      n === "W+H/IP" ||
+      (n.includes("WHIP") && n.includes("IP"))
+    )
       return parseFloat(String(p.whip)) || 0;
     if (n === "SV" || n === "SAVES") return p.saves;
     return 0;
   }
 }
 
-// Rate stats that need averaging rather than summing
-const RATE_BATTING = new Set(["AVG", "OBP", "SLG"]);
-const RATE_PITCHING = new Set(["ERA", "WHIP", "WALKS + HITS PER IP", "W+H/IP"]);
+/** Batting rate categories aggregated as a weighted average (matches projected standings). */
+export const ROTO_RATE_BATTING_CATEGORIES = new Set(["AVG", "OBP", "SLG"]);
+
+export function teamBattingRatePaceForCategory(
+  teamPlayers: Player[],
+  catName: string,
+): number {
+  const batters = teamPlayers.filter(
+    (p) => !!(p.projection?.batting ?? p.stats?.batting),
+  );
+  const weights = batters.map((p) => {
+    const b = p.projection?.batting ?? p.stats?.batting;
+    return (b?.hr ?? 0) + 1;
+  });
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  if (totalWeight <= 0) return 0;
+  const weighted = batters.reduce(
+    (sum, p, idx) => sum + getProjStat(p, catName, "batting") * weights[idx],
+    0,
+  );
+  return weighted / totalWeight;
+}
+
+/** IP-weighted ERA/WHIP-style pace for a roster (same basis as projected standings). */
+export function teamPitchingRatePaceForCategory(
+  teamPlayers: Player[],
+  catName: string,
+): number {
+  const pitchers = teamPlayers.filter(
+    (p) => !!(p.projection?.pitching ?? p.stats?.pitching),
+  );
+  let weightedSum = 0;
+  let totalIP = 0;
+  for (const p of pitchers) {
+    const rate = getProjStat(p, catName, "pitching");
+    const ip =
+      p.projection?.pitching?.innings ??
+      parseFloat(String(p.stats?.pitching?.innings ?? "0"));
+    if (rate > 0 && ip > 0) {
+      weightedSum += rate * ip;
+      totalIP += ip;
+    }
+  }
+  if (totalIP > 0) return weightedSum / totalIP;
+  const vals = pitchers
+    .map((p) => getProjStat(p, catName, "pitching"))
+    .filter((v) => v > 0);
+  return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+}
+
+export function rotoCategoryAggregation(
+  catName: string,
+  catType: "batting" | "pitching",
+): "lower" | "higher" | "sum" {
+  const key = normalizeCatName(catName).trim().toUpperCase();
+  if (catType === "pitching") {
+    return LOWER_IS_BETTER_CATS.has(key) ? "lower" : "sum";
+  }
+  if (catType === "batting") {
+    return ROTO_RATE_BATTING_CATEGORIES.has(key) ? "higher" : "sum";
+  }
+  return "sum";
+}
 
 export function buildProjectedStandings(
   teamNames: string[],
@@ -318,55 +374,15 @@ export function buildProjectedStandings(
     const stats: Record<string, number> = {};
 
     for (const cat of scoringCategories) {
-      const n = cat.name.toUpperCase();
+      const n = normalizeCatName(cat.name).trim().toUpperCase();
 
-      if (cat.type === "batting" && RATE_BATTING.has(n)) {
-        // Weighted average by projected HR+1 as AB proxy
-        const batters = teamPlayers.filter(
-          (p) => !!(p.projection?.batting ?? p.stats?.batting),
+      if (cat.type === "batting" && ROTO_RATE_BATTING_CATEGORIES.has(n)) {
+        stats[cat.name] = teamBattingRatePaceForCategory(teamPlayers, cat.name);
+      } else if (cat.type === "pitching" && LOWER_IS_BETTER_CATS.has(n)) {
+        stats[cat.name] = teamPitchingRatePaceForCategory(
+          teamPlayers,
+          cat.name,
         );
-        const weights = batters.map((p) => {
-          const b = p.projection?.batting ?? p.stats?.batting;
-          return (b?.hr ?? 0) + 1;
-        });
-        const totalWeight = weights.reduce((a, b) => a + b, 0);
-        const weighted = batters.reduce(
-          (sum, p, idx) =>
-            sum + getProjStat(p, cat.name, "batting") * weights[idx],
-          0,
-        );
-        stats[cat.name] = totalWeight > 0 ? weighted / totalWeight : 0;
-      } else if (cat.type === "pitching" && RATE_PITCHING.has(n)) {
-        // IP-weighted average: ERA = Σ(ERA_i * IP_i) / Σ(IP_i)
-        // WHIP = Σ(WHIP_i * IP_i) / Σ(IP_i)
-        // This correctly weights high-IP starters over low-IP arms.
-        const pitchers = teamPlayers.filter(
-          (p) => !!(p.projection?.pitching ?? p.stats?.pitching),
-        );
-        let weightedSum = 0;
-        let totalIP = 0;
-        for (const p of pitchers) {
-          const rate = getProjStat(p, cat.name, "pitching");
-          const ip =
-            p.projection?.pitching?.innings ??
-            parseFloat(String(p.stats?.pitching?.innings ?? "0"));
-          if (rate > 0 && ip > 0) {
-            weightedSum += rate * ip;
-            totalIP += ip;
-          }
-        }
-        // Fall back to simple mean if no IP data is available
-        if (totalIP > 0) {
-          stats[cat.name] = weightedSum / totalIP;
-        } else {
-          const vals = pitchers
-            .map((p) => getProjStat(p, cat.name, "pitching"))
-            .filter((v) => v > 0);
-          stats[cat.name] =
-            vals.length > 0
-              ? vals.reduce((a, b) => a + b, 0) / vals.length
-              : 0;
-        }
       } else {
         stats[cat.name] = teamPlayers.reduce(
           (sum, p) => sum + getProjStat(p, cat.name, cat.type),
@@ -381,15 +397,14 @@ export function buildProjectedStandings(
 
 // ─── Standings display helpers ────────────────────────────────────────────────
 
-/** Extracts the abbreviation from labels like "Walks + Hits per IP (WHIP)" → "WHIP" */
-export function normalizeCatName(name: string): string {
-  const m = name.match(/\(([^)]+)\)$/);
-  return m ? m[1] : name;
+/** True when `formatStatCell` shows an em dash (no projected stat yet). */
+export function isStatCellEmpty(value: number): boolean {
+  return value === 0;
 }
 
 export function formatStatCell(catName: string, value: number): string {
   if (value === 0) return "\u2014";
-  const n = catName.toUpperCase();
+  const n = normalizeCatName(catName).trim().toUpperCase();
   if (n === "AVG" || n === "OBP" || n === "SLG") return value.toFixed(3);
   if (n === "ERA" || n === "WHIP") return value.toFixed(2);
   return String(Math.round(value));
@@ -406,7 +421,9 @@ export function computeRanks(
   rows: ProjectedStandingsRow[],
   cat: string,
 ): Map<string, number> {
-  const isLower = LOWER_IS_BETTER_CATS.has(cat.toUpperCase());
+  const isLower = LOWER_IS_BETTER_CATS.has(
+    normalizeCatName(cat).trim().toUpperCase(),
+  );
   const sorted = [...rows].sort((a, b) => {
     const av = a.stats[cat] ?? 0;
     const bv = b.stats[cat] ?? 0;

@@ -13,6 +13,7 @@ import {
   buildProjectedStandings,
   LOWER_IS_BETTER_CATS,
   formatStatCell,
+  isStatCellEmpty,
   rankColor,
   computeRanks,
   normalizeCatName,
@@ -428,10 +429,23 @@ export default function LeagueOverview() {
                     <td className="lo-td-team">{row.teamName}</td>
                     {allCatNames.map((cat) => {
                       const rank = rankMaps[cat]?.get(row.teamName) ?? 1;
-                      const colorClass = rankColor(rank, teamNames.length);
                       const val = row.stats[cat] ?? 0;
+                      const empty = isStatCellEmpty(val);
+                      const colorClass = empty
+                        ? ""
+                        : rankColor(rank, teamNames.length);
                       return (
-                        <td key={cat} className={`lo-td-stat ${colorClass}`}>
+                        <td
+                          key={cat}
+                          className={
+                            "lo-td-stat" +
+                            (empty
+                              ? " lo-td-stat--empty"
+                              : colorClass
+                                ? ` ${colorClass}`
+                                : "")
+                          }
+                        >
                           {formatStatCell(cat, val)}
                         </td>
                       );
@@ -478,7 +492,6 @@ export default function LeagueOverview() {
                         pickNum={i + 1}
                         teamName={teamName}
                         headshot={player?.headshot}
-                        mlbTeam={player?.team || entry.playerTeam}
                         slotOptions={slotOptions}
                         teamOptions={teamOptions}
                         allRosterEntries={entries}

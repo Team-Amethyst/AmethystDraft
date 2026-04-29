@@ -55,7 +55,6 @@ type TeamProjectionRow = {
   categoryPoints: Record<string, number>;
 };
 
-const LOCAL_POSITIONS = ["C", "1B", "2B", "SS", "3B", "OF", "SP", "RP"];
 const LOWER_IS_BETTER = new Set(["ERA", "WHIP"]);
 
 function playerMatchesPosition(player: Player, position: string): boolean {
@@ -534,25 +533,11 @@ export default function CommandCenterScreen({ route }: Props) {
     const avgPaid = average(draftedAtPos.map((entry) => entry.price));
     const delta = avgPaid - avgCatalogValue;
 
-    const rankedCounts = LOCAL_POSITIONS.map((position) => ({
-      position,
-      count: players.filter(
-        (player) =>
-          !draftedIds.has(player.id) && playerMatchesPosition(player, position),
-      ).length,
-    })).sort((a, b) => b.count - a.count);
-
-    const supplyRankNum =
-      rankedCounts.findIndex((item) => item.position === primaryPosition) + 1;
-
     return {
       position: primaryPosition,
-      remainingCount: undraftedAtPos.length,
       avgCatalogValue,
       avgPaid,
       delta,
-      supplyRankNum: supplyRankNum > 0 ? supplyRankNum : rankedCounts.length,
-      supplyRankOf: rankedCounts.length,
     };
   }, [draftedIds, players, primaryPosition, roster]);
 
@@ -1345,11 +1330,6 @@ export default function CommandCenterScreen({ route }: Props) {
                 <Text>
                   SPEND VS CATALOG: {localPositionMarket.delta >= 0 ? "+" : ""}
                   {localPositionMarket.delta.toFixed(1)}
-                </Text>
-                <Text>REMAINING COUNT: {localPositionMarket.remainingCount}</Text>
-                <Text style={{ color: "#6b7280", marginTop: 6 }}>
-                  Count rank (catalog): {localPositionMarket.supplyRankNum} /{" "}
-                  {localPositionMarket.supplyRankOf}
                 </Text>
               </AppCard>
             ) : null}

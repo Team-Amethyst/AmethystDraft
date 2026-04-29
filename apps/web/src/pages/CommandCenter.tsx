@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -23,6 +23,7 @@ import {
   computeRanks,
   rankColor,
   formatStatCell,
+  isStatCellEmpty,
   teamCanBid,
   normalizeCatName,
   leagueWideAuctionSlotsRemaining,
@@ -41,6 +42,20 @@ import {
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
 import { myDraftSlotsForPosition } from "../constants/positionAllocationPlan";
 
+/** Default 5×5-style cats when league has no custom scoring list (same as right-rail standings). */
+const COMMAND_CENTER_FALLBACK_SCORING_CATS: {
+  name: string;
+  type: "batting" | "pitching";
+}[] = [
+  { name: "HR", type: "batting" },
+  { name: "RBI", type: "batting" },
+  { name: "SB", type: "batting" },
+  { name: "AVG", type: "batting" },
+  { name: "W", type: "pitching" },
+  { name: "SV", type: "pitching" },
+  { name: "ERA", type: "pitching" },
+  { name: "WHIP", type: "pitching" },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -78,19 +93,37 @@ function DraftLog({
       })),
     [league],
   );
-  const sorted = [...rosterEntries]
-    .filter((e) => !e.isKeeper)
-    .sort(
-      (a, b) =>
-        new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
-        new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
-    );
+  const sorted = useMemo(
+    () =>
+      [...rosterEntries]
+        .filter((e) => !e.isKeeper)
+        .sort(
+          (a, b) =>
+            new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
+            new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
+        ),
+    [rosterEntries],
+  );
+  const listRef = useRef<HTMLDivElement>(null);
+  const prevPickCountRef = useRef(0);
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el || sorted.length === 0) {
+      prevPickCountRef.current = sorted.length;
+      return;
+    }
+    if (sorted.length > prevPickCountRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+    prevPickCountRef.current = sorted.length;
+  }, [sorted.length]);
+
   return (
     <>
       <div className="market-section-label market-section-label--spaced">
         DRAFT LOG
       </div>
-      <div className="draft-log-list">
+      <div ref={listRef} className="draft-log-list">
         {sorted.length === 0 && <div className="dl-empty">No picks yet.</div>}
         {sorted.map((entry, i) => {
           const teamIdx = entry.teamId
@@ -108,7 +141,6 @@ function DraftLog({
               pickNum={i + 1}
               teamName={teamName}
               headshot={player?.headshot}
-              mlbTeam={player?.team || entry.playerTeam}
               slotOptions={slotOptions}
               teamOptions={teamOptions}
               allRosterEntries={rosterEntries}
@@ -126,30 +158,45 @@ function DraftLog({
 
 function TeamMakeupSection({
   league,
-  myTeamEntries,
   rosterEntries,
   savedPositionTargets,
+  myTeamId,
   sectionClassName,
-  headingClassName,
 }: {
   league: League | null;
-  myTeamEntries: RosterEntry[];
   rosterEntries: RosterEntry[];
   savedPositionTargets: Record<string, number>;
+  myTeamId: string | null;
   sectionClassName: string;
-  headingClassName: string;
 }) {
+  const [makeupTeamId, setMakeupTeamId] = useState(() => myTeamId ?? "team_1");
+
+  useEffect(() => {
+    const fallback = myTeamId ?? "team_1";
+    if (!league?.teamNames.length) return;
+    setMakeupTeamId((prev) => {
+      const n = parseInt(String(prev).replace(/^team_/i, ""), 10);
+      const valid =
+        Number.isFinite(n) && n >= 1 && n <= league.teamNames.length;
+      return valid ? `team_${n}` : fallback;
+    });
+  }, [myTeamId, league?.teamNames]);
+
   const totalSlots = league
     ? Object.values(league.rosterSlots).reduce((a, b) => a + b, 0)
     : 0;
-  const teamOneEntries = rosterEntries.filter((e) => e.teamId === "team_1");
-  const teamMakeupEntries = (teamOneEntries.length > 0 ? teamOneEntries : myTeamEntries)
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
-        new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
-    );
+  const viewingOwnTargets =
+    myTeamId != null && makeupTeamId !== "" && makeupTeamId === myTeamId;
+  const teamMakeupEntries = makeupTeamId
+    ? rosterEntries
+        .filter((e) => e.teamId === makeupTeamId)
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
+            new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
+        )
+    : [];
   const teamEntriesBySlot = new Map<string, RosterEntry[]>();
   teamMakeupEntries.forEach((entry) => {
     const slotKey = entry.rosterSlot || "BN";
@@ -160,11 +207,14 @@ function TeamMakeupSection({
   const teamMakeupRows = league
     ? Object.entries(league.rosterSlots).flatMap(([slot, count]) => {
         const entriesForSlot = teamEntriesBySlot.get(slot) ?? [];
-        const totalTargetForPosition =
-          savedPositionTargets[slot] ??
-          Math.round((count / totalSlots) * (league.budget ?? 260));
-        /* My Draft “Per Slot” = total Target $ ÷ plan slots, not league slot count */
-        const slotsForPerSlotDivisor = myDraftSlotsForPosition(slot) ?? count;
+        const totalTargetForPosition = viewingOwnTargets
+          ? (savedPositionTargets[slot] ??
+            Math.round((count / totalSlots) * (league.budget ?? 260)))
+          : Math.round((count / totalSlots) * (league.budget ?? 260));
+        /* My Draft “Per Slot” only for your team; other teams use even slot share of budget */
+        const slotsForPerSlotDivisor = viewingOwnTargets
+          ? (myDraftSlotsForPosition(slot) ?? count)
+          : count;
         const perSlotTarget =
           slotsForPerSlotDivisor > 0 && Number.isFinite(totalTargetForPosition)
             ? totalTargetForPosition / slotsForPerSlotDivisor
@@ -192,7 +242,23 @@ function TeamMakeupSection({
 
   return (
     <section className={sectionClassName}>
-      <div className={headingClassName}>TEAM MAKEUP</div>
+      <div className="pac-snapshot-header cc-team-makeup-head">
+        <span className="market-section-label">TEAM MAKEUP</span>
+        {league && league.teamNames.length > 0 ? (
+          <select
+            className="cc-team-makeup-select"
+            aria-label="Roster to display"
+            value={makeupTeamId}
+            onChange={(e) => setMakeupTeamId(e.target.value)}
+          >
+            {league.teamNames.map((name, idx) => (
+              <option key={`team_${idx + 1}`} value={`team_${idx + 1}`}>
+                {name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
       <div className="team-makeup-slots">
         <div className="team-makeup-head-row" aria-hidden>
           <span className="team-makeup-head-badge-spacer" />
@@ -229,7 +295,11 @@ function TeamMakeupSection({
               </div>
               <div
                 className="team-makeup-slot-money team-makeup-slot-money--target"
-                title="Per-slot target $ (same as My Draft Position Allocation → Per Slot)"
+                title={
+                  viewingOwnTargets
+                    ? "Per-slot target $ (same as My Draft Position Allocation → Per Slot)"
+                    : "Even slot share of league budget (not another team’s private targets)"
+                }
               >
                 {fmtPerSlotTarget(row.target)}
               </div>
@@ -248,6 +318,157 @@ function TeamMakeupSection({
   );
 }
 
+function MyTeamStandingsSection({
+  league,
+  rosterEntries,
+  allPlayers,
+  myTeamName,
+}: {
+  league: League | null;
+  rosterEntries: RosterEntry[];
+  allPlayers: Player[];
+  myTeamName: string;
+}) {
+  const [standingsSide, setStandingsSide] = useState<"hitting" | "pitching">(
+    "hitting",
+  );
+
+  const playerMap = useMemo(
+    () => new Map(allPlayers.map((p) => [p.id, p])),
+    [allPlayers],
+  );
+
+  const scoringCats = useMemo(
+    () =>
+      (league?.scoringCategories?.length
+        ? league.scoringCategories
+        : COMMAND_CENTER_FALLBACK_SCORING_CATS
+      ).map((c) => ({ ...c, name: normalizeCatName(c.name) })),
+    [league?.scoringCategories],
+  );
+
+  const projectedStandings = useMemo(
+    () =>
+      buildProjectedStandings(
+        league?.teamNames ?? [],
+        rosterEntries,
+        playerMap,
+        scoringCats,
+      ),
+    [league?.teamNames, rosterEntries, playerMap, scoringCats],
+  );
+
+  const rankMaps = useMemo(
+    () =>
+      Object.fromEntries(
+        scoringCats.map((c) => [
+          c.name,
+          computeRanks(projectedStandings, c.name),
+        ]),
+      ),
+    [projectedStandings, scoringCats],
+  );
+
+  const myRow = useMemo(
+    () => projectedStandings.find((r) => r.teamName === myTeamName),
+    [projectedStandings, myTeamName],
+  );
+
+  const nTeams = projectedStandings.length;
+
+  const catsForSide = useMemo(
+    () =>
+      scoringCats.filter((c) =>
+        standingsSide === "hitting"
+          ? c.type === "batting"
+          : c.type === "pitching",
+      ),
+    [scoringCats, standingsSide],
+  );
+
+  if (!league) return null;
+
+  return (
+    <section
+      className="cc-surface-card cc-surface-card--left cc-my-standings-card"
+      aria-label="Your projected category values and league ranks"
+    >
+      <div className="pac-snapshot-header cc-my-standings-head">
+        <span className="market-section-label">YOUR STANDINGS</span>
+        <div
+          className="stat-view-toggle"
+          role="tablist"
+          aria-label="Hitting or pitching categories"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={standingsSide === "hitting"}
+            className={"svt-btn " + (standingsSide === "hitting" ? "active" : "")}
+            onClick={() => setStandingsSide("hitting")}
+          >
+            Hitting
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={standingsSide === "pitching"}
+            className={
+              "svt-btn " + (standingsSide === "pitching" ? "active" : "")
+            }
+            onClick={() => setStandingsSide("pitching")}
+          >
+            Pitching
+          </button>
+        </div>
+      </div>
+      {!myTeamName ? (
+        <p className="cc-my-standings-empty dim">
+          {`Open this league while signed in as a member to see your team's ranks here.`}
+        </p>
+      ) : !myRow ? (
+        <p className="cc-my-standings-empty dim">
+          Could not match your team to projected standings (check team name and
+          roster picks).
+        </p>
+      ) : catsForSide.length === 0 ? (
+        <p className="cc-my-standings-empty dim">
+          {`No ${
+            standingsSide === "hitting" ? "hitting" : "pitching"
+          } categories in this league's scoring.`}
+        </p>
+      ) : (
+        <div className="cc-my-standings-grid">
+          {catsForSide.map((c) => {
+            const val = myRow.stats[c.name] ?? 0;
+            const rank =
+              rankMaps[c.name]?.get(myTeamName) ?? (nTeams > 0 ? nTeams : 1);
+            const empty = isStatCellEmpty(val);
+            const rk = empty ? "" : rankColor(rank, Math.max(nTeams, 1));
+            return (
+              <div key={c.name} className="cc-my-standings-cell">
+                <div className="cc-my-standings-cell-cat">{c.name}</div>
+                <div
+                  className={
+                    "cc-my-standings-cell-val " +
+                    rk +
+                    (empty ? " cc-my-standings-cell-val--empty" : "")
+                  }
+                >
+                  <span className="cc-my-standings-cell-num">
+                    {formatStatCell(c.name, val)}
+                  </span>
+                  <sub className="cc-my-standings-cell-rank">#{rank}</sub>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function LeftPanel({
   league,
   selectedPlayerPositions,
@@ -257,8 +478,9 @@ function LeftPanel({
   onRemovePick,
   onUpdatePick,
   engineMarket,
-  myTeamEntries,
   savedPositionTargets,
+  myTeamName,
+  myTeamId,
 }: {
   league: League | null;
   selectedPlayerPositions: string[];
@@ -271,8 +493,9 @@ function LeftPanel({
     data: { price?: number; rosterSlot?: string; teamId?: string },
   ) => void;
   engineMarket?: ValuationResponse | null;
-  myTeamEntries: RosterEntry[];
   savedPositionTargets: Record<string, number>;
+  myTeamName: string;
+  myTeamId: string | null;
 }) {
   const eligibleMarketPositions = useMemo(
     () => [...new Set(selectedPlayerPositions)],
@@ -384,60 +607,82 @@ function LeftPanel({
                   : "—"}
               </span>
             </div>
-            <div className="market-stat-row">
-              <span className="msr-label">REMAINING AT POS</span>
-              <span className="msr-value">
-                {posMarket ? posMarket.remainingCount : "—"}
-              </span>
-            </div>
-            {posMarket ? (
-              <div
-                className="msr-count-rank-footnote"
-                title="Draftroom rank by undrafted player count across positions (descriptive only)"
-              >
-                Draftroom count rank: {posMarket.scarcityRankNum} /{" "}
-                {posMarket.scarcityRankOf}
-              </div>
-            ) : null}
             {posMarket?.supply?.length ? (
               <>
                 <div className="cc-divider" />
-                <div className="market-section-label">POSITION TIERS</div>
-                <div className="msr-tier-list">
-                  {posMarket.supply.map((tierRow) => (
-                    <div
-                      key={`tier-${tierRow.tier}`}
-                      className="market-stat-row msr-tier-row"
-                      title="Remaining undrafted players in this tier"
-                    >
-                      <span className="msr-label msr-tier-label-wrap">
-                        <span className={`msr-tier-chip msr-tier-chip--${tierRow.tier}`}>
-                          {tierRow.tier}
-                        </span>
-                        Tier {tierRow.tier}
-                      </span>
-                      <span className="msr-value">
-                        {tierRow.count}
-                        {tierRow.avgVal != null ? ` · $${tierRow.avgVal}` : ""}
-                      </span>
-                    </div>
-                  ))}
+                <div className="msr-tier-header-row">
+                  <span className="market-section-label msr-tier-section-label">
+                    POSITION TIERS
+                  </span>
+                  <span
+                    className="msr-tier-legend"
+                    title="Per tier: undrafted count at this position, then average Draftroom catalog $"
+                  >
+                    Remaining / Avg $
+                  </span>
                 </div>
-                <div className="msr-tier-legend">
-                  <span>Count = undrafted players remaining in tier.</span>
-                  <span>Dollar value = avg Draftroom $ for that tier.</span>
-                </div>
+                <table className="msr-tier-table msr-tier-table--5col">
+                  <thead>
+                    <tr>
+                      {([1, 2, 3, 4, 5] as const).map((tier) => (
+                        <th key={tier} scope="col">
+                          <span
+                            className={`msr-tier-chip msr-tier-chip--${tier}`}
+                            title={`Tier ${tier}`}
+                          >
+                            {tier}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {([1, 2, 3, 4, 5] as const).map((tier) => {
+                        const tierRow = posMarket.supply.find(
+                          (r) => r.tier === tier,
+                        );
+                        const count = tierRow?.count ?? 0;
+                        const avgVal = tierRow?.avgVal;
+                        return (
+                          <td key={tier}>
+                            <div className="msr-tier-cell-stack">
+                              <span
+                                className="msr-tier-cell-rem"
+                                title="Undrafted players remaining in this tier"
+                              >
+                                {count}
+                              </span>
+                              <span
+                                className="msr-tier-cell-avg"
+                                title="Average Draftroom $ for players in this tier"
+                              >
+                                {avgVal != null ? `$${avgVal}` : "—"}
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
               </>
             ) : null}
           </section>
 
+          <MyTeamStandingsSection
+            league={league}
+            rosterEntries={rosterEntries}
+            allPlayers={allPlayers}
+            myTeamName={myTeamName}
+          />
+
           <TeamMakeupSection
             league={league}
-            myTeamEntries={myTeamEntries}
             rosterEntries={rosterEntries}
             savedPositionTargets={savedPositionTargets}
+            myTeamId={myTeamId}
             sectionClassName="cc-surface-card cc-surface-card--left cc-team-makeup-card"
-            headingClassName="market-section-label"
           />
       </div>
     </div>
@@ -503,6 +748,10 @@ function RightPanel({
     data: { price?: number; rosterSlot?: string; teamId?: string },
   ) => void;
 }) {
+  const [rightRosterPane, setRightRosterPane] = useState<
+    "liquidity" | "standings"
+  >("liquidity");
+
   type LiqCol = "name" | "remaining" | "open" | "maxBid" | "ppSpot";
   const [liqSort, setLiqSort] = useState<{ col: LiqCol; dir: "asc" | "desc" }>({
     col: "maxBid",
@@ -528,37 +777,18 @@ function RightPanel({
     });
   }, [teamData, liqSort]);
 
-  const [rightRosterPane, setRightRosterPane] = useState<
-    "liquidity" | "standings"
-  >("liquidity");
-
   const playerMap = useMemo(
     () => new Map(allPlayers.map((p) => [p.id, p])),
     [allPlayers],
-  );
-
-  const FALLBACK_CATS = useMemo(
-    () =>
-      [
-        { name: "HR", type: "batting" as const },
-        { name: "RBI", type: "batting" as const },
-        { name: "SB", type: "batting" as const },
-        { name: "AVG", type: "batting" as const },
-        { name: "W", type: "pitching" as const },
-        { name: "SV", type: "pitching" as const },
-        { name: "ERA", type: "pitching" as const },
-        { name: "WHIP", type: "pitching" as const },
-      ] as const,
-    [],
   );
 
   const scoringCats = useMemo(
     () =>
       (league?.scoringCategories?.length
         ? league.scoringCategories
-        : FALLBACK_CATS
+        : COMMAND_CENTER_FALLBACK_SCORING_CATS
       ).map((c) => ({ ...c, name: normalizeCatName(c.name) })),
-    [league?.scoringCategories, FALLBACK_CATS],
+    [league?.scoringCategories],
   );
 
   const [sortCat, setSortCat] = useState<string>("HR");
@@ -720,51 +950,48 @@ function RightPanel({
       </section>
 
       <section className="cc-surface-card cc-surface-card--right cc-right-roster-pane">
-        <div
-          className="rp-roster-toggle"
-          role="tablist"
-          aria-label="Team liquidity or projected standings"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={rightRosterPane === "liquidity"}
-            className={
-              "rp-roster-toggle-btn " +
-              (rightRosterPane === "liquidity"
-                ? "rp-roster-toggle-btn--active"
-                : "")
-            }
-            onClick={() => setRightRosterPane("liquidity")}
+        <div className="pac-snapshot-header cc-roster-pane-head" role="presentation">
+          <span className="market-section-label">
+            {rightRosterPane === "liquidity" ? "LIQUIDITY" : "STANDINGS"}
+          </span>
+          <div
+            className="stat-view-toggle"
+            role="tablist"
+            aria-label="Team liquidity or standings"
           >
-            Liquidity
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={rightRosterPane === "standings"}
-            className={
-              "rp-roster-toggle-btn " +
-              (rightRosterPane === "standings"
-                ? "rp-roster-toggle-btn--active"
-                : "")
-            }
-            onClick={() => setRightRosterPane("standings")}
-          >
-            Standings
-          </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={rightRosterPane === "liquidity"}
+              className={
+                "svt-btn " + (rightRosterPane === "liquidity" ? "active" : "")
+              }
+              onClick={() => setRightRosterPane("liquidity")}
+            >
+              Liquidity
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={rightRosterPane === "standings"}
+              className={
+                "svt-btn " + (rightRosterPane === "standings" ? "active" : "")
+              }
+              onClick={() => setRightRosterPane("standings")}
+            >
+              Standings
+            </button>
+          </div>
         </div>
-
         {rightRosterPane === "liquidity" ? (
           <>
-            <div className="rp-section-label">TEAM LIQUIDITY</div>
             <div className="liquidity-table-wrap">
-              <table className="liquidity-table">
+              <table className="liquidity-table cc-roster-data-table">
                 <thead>
                   <tr>
                     {(
                       [
-                        ["name", "TEAM"],
+                        ["name", ""],
                         ["remaining", "LEFT"],
                         ["open", "OPEN"],
                         ["maxBid", "MAX"],
@@ -773,18 +1000,31 @@ function RightPanel({
                     ).map(([col, label]) => (
                       <th
                         key={col}
-                        className="liq-th-sortable"
+                        className={
+                          "liq-th-sortable" +
+                          (liqSort.col === col ? " liq-th-active" : "")
+                        }
+                        scope="col"
+                        aria-label={col === "name" ? "Team" : undefined}
                         onClick={() => toggleLiqSort(col)}
                       >
                         <span className="liq-th-inner">
                           <span className="liq-th-label">{label}</span>
                           {liqSort.col === col ? (
-                            <span className="th-sort-icon th-sort-active">
-                              {liqSort.dir === "asc" ? "▲" : "▼"}
-                            </span>
-                          ) : (
-                            <span className="th-sort-icon th-sort-idle">↕</span>
-                          )}
+                            liqSort.dir === "asc" ? (
+                              <ChevronUp
+                                size={10}
+                                className="lo-th-sort-chevron"
+                                aria-hidden
+                              />
+                            ) : (
+                              <ChevronDown
+                                size={10}
+                                className="lo-th-sort-chevron"
+                                aria-hidden
+                              />
+                            )
+                          ) : null}
                         </span>
                       </th>
                     ))}
@@ -818,7 +1058,7 @@ function RightPanel({
                           </td>
                           <td>${t.remaining}</td>
                           <td>{t.open}</td>
-                          <td className={ineligible ? "" : "green"}>${t.maxBid}</td>
+                          <td>${t.maxBid}</td>
                           <td>${t.ppSpot}</td>
                         </tr>
                       );
@@ -840,66 +1080,110 @@ function RightPanel({
           </>
         ) : (
           <>
-            <div className="rp-section-label">PROJECTED STANDINGS</div>
             <div className="liquidity-table-wrap lo-standings-wrap--right">
               <div className="cc-standings-scroll">
-                <table className="lo-standings-table">
-                  <thead>
-                    <tr>
-                      <th className="lo-th-team">TEAM</th>
-                      {scoringCats.map((c) => (
-                        <th
-                          key={c.name}
-                          className={
-                            "lo-th-stat" +
-                            (sortCat === c.name ? " lo-th-active" : "")
-                          }
-                          onClick={() => toggleStandingsSort(c.name)}
-                        >
-                          {c.name}
-                          {sortCat === c.name ? (
-                            sortAsc ? (
-                              <ChevronUp size={10} />
-                            ) : (
-                              <ChevronDown size={10} />
-                            )
-                          ) : null}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedProjStandings.map((row, idx) => (
-                      <tr
-                        key={row.teamName}
-                        className={[
-                          idx % 2 === 0 ? "lo-tr-even" : "",
-                          isTeamOne(row.teamName) ? "cc-team-one-row" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      >
-                        <td className="lo-td-team">{row.teamName}</td>
-                        {scoringCats.map((c) => {
-                          const rank = rankMaps[c.name]?.get(row.teamName) ?? 1;
-                          const colorClass = rankColor(
-                            rank,
-                            sortedProjStandings.length,
-                          );
-                          const val = row.stats[c.name] ?? 0;
-                          return (
-                            <td
-                              key={c.name}
-                              className={`lo-td-stat ${colorClass}`}
-                            >
-                              {formatStatCell(c.name, val)}
+                <div className="cc-standings-split">
+                  <div className="cc-standings-team-pane">
+                    <table
+                      className="lo-standings-table lo-standings-table--team-only cc-roster-data-table"
+                      aria-label="Teams"
+                    >
+                      <tbody>
+                        {sortedProjStandings.map((row, idx) => (
+                          <tr
+                            key={row.teamName}
+                            className={[
+                              idx % 2 === 0 ? "lo-tr-even" : "",
+                              isTeamOne(row.teamName) ? "cc-team-one-row" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            <td className="lo-td-team" title={row.teamName}>
+                              {row.teamName}
                             </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="cc-standings-stats-scroll">
+                    <table className="lo-standings-table lo-standings-table--stats-only cc-roster-data-table">
+                      <thead>
+                        <tr>
+                          {scoringCats.map((c) => (
+                            <th
+                              key={c.name}
+                              className={
+                                "lo-th-stat" +
+                                (sortCat === c.name ? " lo-th-active" : "")
+                              }
+                              onClick={() => toggleStandingsSort(c.name)}
+                            >
+                              {c.name}
+                              {sortCat === c.name ? (
+                                sortAsc ? (
+                                  <ChevronUp
+                                    size={10}
+                                    className="lo-th-sort-chevron"
+                                    aria-hidden
+                                  />
+                                ) : (
+                                  <ChevronDown
+                                    size={10}
+                                    className="lo-th-sort-chevron"
+                                    aria-hidden
+                                  />
+                                )
+                              ) : null}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedProjStandings.map((row, idx) => (
+                          <tr
+                            key={row.teamName}
+                            className={[
+                              idx % 2 === 0 ? "lo-tr-even" : "",
+                              isTeamOne(row.teamName) ? "cc-team-one-row" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            {scoringCats.map((c) => {
+                              const rank =
+                                rankMaps[c.name]?.get(row.teamName) ?? 1;
+                              const val = row.stats[c.name] ?? 0;
+                              const empty = isStatCellEmpty(val);
+                              const colorClass = empty
+                                ? ""
+                                : rankColor(
+                                    rank,
+                                    sortedProjStandings.length,
+                                  );
+                              return (
+                                <td
+                                  key={c.name}
+                                  className={
+                                    "lo-td-stat" +
+                                    (empty
+                                      ? " lo-td-stat--empty"
+                                      : colorClass
+                                        ? ` ${colorClass}`
+                                        : "")
+                                  }
+                                >
+                                  {formatStatCell(c.name, val)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </>
@@ -1156,6 +1440,8 @@ export default function CommandCenter() {
       <div className="cc-layout">
         <LeftPanel
           league={league}
+          myTeamName={myTeamName}
+          myTeamId={myTeamId}
           selectedPlayerPositions={
             selectedPlayer
               ? selectedPlayer.positions?.length
@@ -1169,7 +1455,6 @@ export default function CommandCenter() {
           onRemovePick={handleRemovePick}
           onUpdatePick={handleUpdatePick}
           engineMarket={engineMarket}
-          myTeamEntries={myTeamEntries}
           savedPositionTargets={savedPositionTargets}
         />
         <AuctionCenter

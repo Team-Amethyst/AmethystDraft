@@ -1,7 +1,7 @@
 .draft-log-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
   padding: 0.5rem 0.4rem;
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
@@ -33,10 +33,14 @@
   font-size: 0.62rem;
   font-weight: 700;
   color: #7c6a99;
-  min-width: 1.75rem;
-  text-align: left;
+  flex: 0 0 auto;
+  /* Tight column: "#" + up to 3-digit pick at this font size */
+  width: 4.25ch;
+  min-width: 0;
+  text-align: center;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .dl-headshot {
@@ -73,13 +77,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 1;
-}
-
-.dl-mlb-team {
-  color: #5a4870;
-  font-size: 0.62rem;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .dl-fantasy-team {
@@ -207,11 +204,6 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: #d4c8e8;
-}
-
-.dl-modal-player-team {
-  font-size: 0.65rem;
-  color: #5a4870;
 }
 
 .dl-modal-fields {

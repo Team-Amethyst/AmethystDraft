@@ -9,7 +9,6 @@ interface DraftLogRowProps {
   pickNum: number;
   teamName: string;
   headshot?: string;
-  mlbTeam?: string;
   slotOptions: string[];
   teamOptions: { id: string; name: string }[];
   allRosterEntries?: RosterEntry[];
@@ -27,7 +26,6 @@ export function DraftLogRow({
   pickNum,
   teamName,
   headshot,
-  mlbTeam,
   slotOptions,
   teamOptions,
   allRosterEntries,
@@ -145,9 +143,6 @@ export function DraftLogRow({
         <div className="dl-body">
           <div className="dl-row-top">
             <span className="dl-name">{entry.playerName}</span>
-            <span className="dl-mlb-team">
-              {mlbTeam || entry.playerTeam || "—"}
-            </span>
           </div>
           <div className="dl-row-bottom">
             <span className="dl-fantasy-team">{teamName}</span>
@@ -194,9 +189,6 @@ export function DraftLogRow({
               )}
               <div>
                 <div className="dl-modal-player-name">{entry.playerName}</div>
-                <div className="dl-modal-player-team">
-                  {mlbTeam || entry.playerTeam}
-                </div>
               </div>
             </div>
             <div className="dl-modal-fields">
