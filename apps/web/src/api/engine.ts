@@ -354,10 +354,17 @@ export async function getMockPick(
 
 // ─── /api/engine/signals/news ─────────────────────────────────────────────────
 
+export type NewsSignalType =
+  | "injury"
+  | "role_change"
+  | "trade"
+  | "demotion"
+  | "promotion";
+
 export interface NewsSignal {
   player_id?: string; // present when matched to a DB player
   player_name: string;
-  signal_type: string;
+  signal_type: NewsSignalType;
   severity: "low" | "medium" | "high";
   description: string;
   effective_date: string;
@@ -371,7 +378,7 @@ export interface NewsSignalsResponse {
 
 export async function getNewsSignals(
   token: string,
-  options?: { days?: number; signal_type?: string },
+  options?: { days?: number; signal_type?: NewsSignalType },
 ): Promise<NewsSignalsResponse> {
   const params = new URLSearchParams();
   if (options?.days) params.set("days", String(options.days));
