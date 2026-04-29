@@ -42,6 +42,15 @@ import {
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
 import { myDraftSlotsForPosition } from "../constants/positionAllocationPlan";
 
+function finiteMetric(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
 /** Default 5×5-style cats when league has no custom scoring list (same as right-rail standings). */
 const COMMAND_CENTER_FALLBACK_SCORING_CATS: {
   name: string;
@@ -838,12 +847,72 @@ function RightPanel({
   const teamOneName = (league?.teamNames?.[0] ?? "").trim();
   const isTeamOne = (name: string) =>
     teamOneName !== "" && name.trim() === teamOneName;
-  const inflationFactor =
+  const firstRowInflationModel = engineMarket?.valuations?.[0]?.inflation_model;
+  const inflationModel =
+    engineMarket?.inflation_model ?? firstRowInflationModel;
+  /** Engine may omit `inflation_model` on the envelope while still sending v2 `context_v2`. */
+  const isReplacementSlotsV2 =
+    inflationModel === "replacement_slots_v2" ||
+    Boolean(engineMarket?.context_v2);
+
+  const allocatorFactor =
     engineMarket?.context_v2?.market_summary.inflation_factor ??
     engineMarket?.inflation_factor;
-  const inflationPct =
-    engineMarket?.context_v2?.market_summary.inflation_percent_vs_neutral ??
-    (inflationFactor != null ? Math.round((inflationFactor - 1) * 100) : null);
+  const allocatorFinite = finiteMetric(allocatorFactor);
+
+  const indexVsOpen =
+    finiteMetric(engineMarket?.inflation_index_vs_opening_auction) ??
+    finiteMetric(
+      engineMarket?.context_v2?.market_summary
+        .inflation_index_vs_opening_auction,
+    );
+
+  const useAuctionOpenIndex = isReplacementSlotsV2 && indexVsOpen != null;
+
+  const inflationGaugeValue = useAuctionOpenIndex
+    ? indexVsOpen
+    : !isReplacementSlotsV2
+      ? finiteMetric(allocatorFactor)
+      : undefined;
+
+  const pctVsAuctionOpen = finiteMetric(
+    engineMarket?.context_v2?.market_summary.inflation_percent_vs_auction_open,
+  );
+  const pctVsNeutralFromSummary = finiteMetric(
+    engineMarket?.context_v2?.market_summary.inflation_percent_vs_neutral,
+  );
+
+  const inflationPctNeutral =
+    pctVsNeutralFromSummary ??
+    (allocatorFinite != null ? Math.round((allocatorFinite - 1) * 100) : null);
+
+  const inflationTooltipPct =
+    useAuctionOpenIndex && pctVsAuctionOpen != null
+      ? Math.round(pctVsAuctionOpen)
+      : useAuctionOpenIndex && indexVsOpen != null
+        ? Math.round((indexVsOpen - 1) * 100)
+        : inflationPctNeutral;
+
+  const auctionOpenTitleBody =
+    inflationTooltipPct != null
+      ? `Vs auction open: ${inflationTooltipPct >= 0 ? "+" : ""}${inflationTooltipPct}%`
+      : "Vs auction open";
+  const devAllocatorHint =
+    import.meta.env.DEV && allocatorFinite != null
+      ? ` · Model factor (debug): ${allocatorFinite.toFixed(2)}×`
+      : "";
+
+  const inflationKpiTitle =
+    inflationGaugeValue == null
+      ? isReplacementSlotsV2
+        ? "Auction-open index unavailable for this payload. Raw model factor is hidden here (not comparable to 1.0× at open)."
+        : undefined
+      : useAuctionOpenIndex
+        ? `${auctionOpenTitleBody}${devAllocatorHint}`
+        : inflationTooltipPct != null
+          ? `Vs neutral: ${inflationTooltipPct >= 0 ? "+" : ""}${inflationTooltipPct}%`
+          : undefined;
+
   const leagueWideSpotsLeft =
     league != null
       ? leagueWideAuctionSlotsRemaining(league, rosterEntries)
@@ -856,13 +925,13 @@ function RightPanel({
       )
     : null;
   const marketClass =
-    inflationFactor == null
+    inflationGaugeValue == null
       ? ""
-      : inflationFactor >= 1.35
+      : inflationGaugeValue >= 1.35
         ? "hot"
-        : inflationFactor >= 1.15
+        : inflationGaugeValue >= 1.15
           ? "warm"
-          : inflationFactor <= 0.9
+          : inflationGaugeValue <= 0.9
             ? "cool"
             : "neutral";
   const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
@@ -917,17 +986,17 @@ function RightPanel({
             <div className="engine-market-main">
               <div
                 className="engine-market-kpi"
-                title={
-                  inflationPct != null
-                    ? `Vs neutral: ${inflationPct >= 0 ? "+" : ""}${inflationPct}%`
-                    : undefined
-                }
+                title={inflationKpiTitle}
               >
                 <div className="em-label em-label--inflation">
                   Inflation Index
                 </div>
                 <div className="em-value em-value--inflation">
-                  {inflationFactor != null ? `${inflationFactor.toFixed(2)}x` : "—"}
+                  {inflationGaugeValue != null
+                    ? `${inflationGaugeValue.toFixed(2)}×`
+                    : isReplacementSlotsV2
+                      ? "N/A"
+                      : "—"}
                 </div>
               </div>
               <div className="engine-market-kpi">
