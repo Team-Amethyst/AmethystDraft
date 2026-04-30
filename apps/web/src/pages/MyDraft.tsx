@@ -30,7 +30,6 @@ import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets from "../components/MyDraft/PositionTargets";
 import {
   POSITION_ALLOCATION_PLAN,
-  type PositionPlanRow,
 } from "../constants/positionAllocationPlan";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";

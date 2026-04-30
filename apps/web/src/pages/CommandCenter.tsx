@@ -484,8 +484,6 @@ function LeftPanel({
   allPlayers,
   draftedIds,
   rosterEntries,
-  onRemovePick,
-  onUpdatePick,
   engineMarket,
   savedPositionTargets,
   myTeamName,
@@ -496,11 +494,6 @@ function LeftPanel({
   allPlayers: Player[];
   draftedIds: Set<string>;
   rosterEntries: RosterEntry[];
-  onRemovePick: (id: string) => void;
-  onUpdatePick: (
-    id: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
-  ) => void;
   engineMarket?: ValuationResponse | null;
   savedPositionTargets: Record<string, number>;
   myTeamName: string;
@@ -1521,8 +1514,6 @@ export default function CommandCenter() {
           allPlayers={allPlayers}
           draftedIds={draftedIds}
           rosterEntries={rosterEntries}
-          onRemovePick={handleRemovePick}
-          onUpdatePick={handleUpdatePick}
           engineMarket={engineMarket}
           savedPositionTargets={savedPositionTargets}
         />

@@ -17,7 +17,6 @@ import type { Player } from "../types/player";
 import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import {
-  getProjStat,
   getStatByCategory,
   rotoCategoryAggregation,
   teamBattingRatePaceForCategory,
