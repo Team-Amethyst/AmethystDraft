@@ -29,6 +29,20 @@
   opacity: 0.8;
 }
 
+.logo-icon {
+  color: var(--app-accent);
+  display: block;
+  transform: translateY(-1px);
+}
+
+.logo-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.15em;
+  color: var(--app-text);
+  line-height: 1;
+}
+
 .auth-navbar-center {
   display: flex;
   align-items: stretch;

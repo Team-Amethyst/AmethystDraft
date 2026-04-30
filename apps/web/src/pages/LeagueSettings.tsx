@@ -70,7 +70,7 @@ export default function LeagueSettings() {
   const { league, loading } = useLeague();
   if (loading && !league)
     return (
-      <div className="ls-page">
+      <div className="ls-page theme-page-gradient">
         <div
           className="ls-container"
           style={{ padding: "40px 0", color: "var(--text-muted)" }}
@@ -311,7 +311,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
   };
 
   return (
-    <div className="ls-page">
+    <div className="ls-page theme-page-gradient">
       <div className="ls-container">
         <button className="ls-back" onClick={() => navigate(backPath)}>
           <ArrowLeft size={16} />
@@ -328,7 +328,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
 
         <div className="ls-layout">
           {/* Sidebar nav */}
-          <nav className="ls-nav">
+          <nav className="ls-nav theme-surface">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -345,7 +345,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
           </nav>
 
           {/* Content panel */}
-          <div className="ls-panel">
+          <div className="ls-panel theme-surface">
             {activeSection === "setup" && (
               <div className="ls-section">
                 <div className="ls-section-heading">League Setup</div>

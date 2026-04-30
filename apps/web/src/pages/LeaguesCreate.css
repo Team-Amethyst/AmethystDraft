@@ -1,34 +1,7 @@
 .league-create-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top center, rgba(157, 78, 221, 0.12), transparent 30%),
-    linear-gradient(180deg, #04020b 0%, #060210 100%);
-  color: #f4ecff;
+  color: var(--app-text);
   font-family: var(--app-font-family);
-}
-
-.league-create-topbar {
-  height: 58px;
-  border-bottom: 1px solid rgba(181, 111, 255, 0.15);
-  background: rgba(22, 10, 35, 0.92);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 22px;
-}
-
-.league-create-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
-}
-
-.league-create-brand-icon {
-  color: #c56cff;
-  font-size: 1rem;
 }
 
 .league-create-profile {

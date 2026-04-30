@@ -279,7 +279,8 @@
 /* Draft log at bottom of right rail — fills remaining height; list scrolls inside */
 .cc-right-draft-log {
   flex: 1 1 0%;
-  min-height: 0;
+  /* Keep a visible log pane even when upper cards expand. */
+  min-height: clamp(140px, 18vh, 220px);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -294,7 +295,7 @@
 
 .cc-right-draft-log .draft-log-list {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 88px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));

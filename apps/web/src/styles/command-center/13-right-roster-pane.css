@@ -1,9 +1,23 @@
 /* ─── Right roster pane: liquidity + standings (flush with surface card) ───── */
 
+.cc-right-roster-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cc-right-roster-pane .cc-roster-pane-head {
+  flex-shrink: 0;
+}
+
 .cc-right-roster-pane .liquidity-table-wrap {
   margin-top: 0;
-  max-height: none;
-  overflow-y: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
   border-radius: 0;
@@ -18,6 +32,7 @@
 
 .cc-right-roster-pane .liquidity-table-wrap.lo-standings-wrap--right {
   overflow-x: visible;
+  overflow-y: auto;
 }
 
 /* Liquidity + standings in the right roster pane share one table skin */

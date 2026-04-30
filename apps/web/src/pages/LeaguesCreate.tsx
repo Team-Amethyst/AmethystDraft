@@ -15,7 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { getPlayers, getPlayersCached } from "../api/players";
 import type { Player as ApiPlayer } from "../types/player";
-import "../components/AuthNavbar.css";
+import AuthNavbar from "../components/AuthNavbar";
 import "./LeaguesCreate.css";
 
 type Step = 1 | 2 | 3 | 4;
@@ -30,7 +30,7 @@ const stepLabels: Record<Step, string> = {
 export default function LeagueCreate() {
   usePageTitle("Create League");
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const { refreshLeagues } = useLeague();
 
   const [step, setStep] = useState<Step>(1);
@@ -211,20 +211,8 @@ export default function LeagueCreate() {
   };
 
   return (
-    <div className="league-create-page">
-      <header className="league-create-topbar">
-        <div className="league-create-brand">
-          <span className="league-create-brand-icon">⚡</span>
-          <span>DRAFTROOM</span>
-        </div>
-        <button
-          className="user-avatar-btn"
-          onClick={() => navigate("/account")}
-          title={user?.displayName}
-        >
-          {user?.displayName?.[0]?.toUpperCase() ?? "?"}
-        </button>
-      </header>
+    <div className="league-create-page theme-page-gradient">
+      <AuthNavbar />
 
       <div className="league-create-main">
         <button className="league-create-back" onClick={goBack}>

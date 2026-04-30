@@ -61,3 +61,44 @@
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
+
+/* Command Center-inspired primitives for incremental page migration. */
+.theme-page-gradient,
+.app-vibe-page {
+  background:
+    radial-gradient(circle at top center, rgba(157, 78, 221, 0.1), transparent 34%),
+    linear-gradient(180deg, var(--app-bg) 0%, #060210 100%);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
+}
+
+.theme-surface,
+.app-vibe-surface {
+  background: color-mix(in srgb, var(--app-bg-elevated) 92%, black 8%);
+  border: 1px solid var(--app-accent-border-faint);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.theme-kicker,
+.app-vibe-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--app-text-dim);
+  text-transform: uppercase;
+}
+
+.theme-input,
+.app-vibe-input {
+  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--app-bg-alt) 88%, black 12%);
+  color: var(--app-text);
+  border-radius: 10px;
+}
+
+.theme-input:focus,
+.app-vibe-input:focus {
+  border-color: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 16%, transparent);
+}

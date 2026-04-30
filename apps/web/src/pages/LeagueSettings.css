@@ -1,16 +1,19 @@
 .ls-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top center, rgba(157, 78, 221, 0.12), transparent 30%),
-    linear-gradient(180deg, #04020b 0%, #060210 100%);
-  color: #f4ecff;
+  color: var(--app-text);
   font-family: var(--app-font-family);
+  --ls-text-soft: color-mix(in srgb, var(--app-text) 62%, transparent);
+  --ls-text-dim: color-mix(in srgb, var(--app-text-dim) 82%, white 18%);
+  --ls-card-bg: color-mix(in srgb, var(--app-bg-alt) 84%, black 16%);
+  --ls-card-border: color-mix(in srgb, var(--app-accent) 24%, transparent);
+  --ls-row-border: color-mix(in srgb, white 5%, transparent);
+  --ls-row-bg: color-mix(in srgb, white 3%, transparent);
 }
 
 .ls-container {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 84px 48px 64px;
+  padding: 84px 40px 64px;
 }
 
 .ls-back {
@@ -38,13 +41,13 @@
   margin: 0 0 6px;
   font-size: 2rem;
   font-weight: 700;
-  color: #f1e8ff;
+  color: var(--app-text);
 }
 
 .ls-header p {
   margin: 0;
   font-size: 0.9rem;
-  color: #9491a7;
+  color: var(--app-text-muted);
 }
 
 /* ── Two-column layout ───────────────────────────────────── */
@@ -62,6 +65,7 @@
   gap: 4px;
   position: sticky;
   top: 80px;
+  padding: 6px;
 }
 
 .ls-nav-item {
@@ -70,7 +74,7 @@
   align-items: flex-start;
   gap: 3px;
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--app-accent-hairline);
   border-radius: 10px;
   padding: 12px 14px;
   cursor: pointer;
@@ -80,43 +84,43 @@
 }
 
 .ls-nav-item:hover {
-  background: rgba(139, 60, 247, 0.1);
-  border-color: rgba(138, 43, 226, 0.2);
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
+  border-color: var(--app-accent-border);
 }
 
 .ls-nav-item-active {
-  background: rgba(139, 60, 247, 0.18);
-  border-color: rgba(138, 43, 226, 0.4);
+  background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+  border-color: var(--app-accent-border-strong);
 }
 
 .ls-nav-label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #e2d9f3;
+  color: var(--app-text);
 }
 
 .ls-nav-item-active .ls-nav-label {
-  color: #c4b5fd;
+  color: color-mix(in srgb, var(--app-accent-soft) 68%, white 32%);
 }
 
 .ls-nav-desc {
   font-size: 0.75rem;
-  color: #7a7290;
+  color: var(--app-text-dim);
 }
 
 /* ── Content panel ───────────────────────────────────────── */
 .ls-panel {
-  background: rgba(23, 10, 34, 0.96);
-  border: 1px solid rgba(190, 108, 255, 0.14);
   border-radius: 16px;
   padding: 28px 28px 24px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .ls-section-heading {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #f1e8ff;
+  color: var(--app-text);
   margin-bottom: 22px;
 }
 
@@ -125,7 +129,7 @@
 }
 
 .ls-copy {
-  color: #9491a7;
+  color: var(--app-text-muted);
   font-size: 0.875rem;
   margin: -12px 0 18px;
 }
@@ -135,14 +139,14 @@
   font-size: 0.72rem;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: #9f96ad;
+  color: var(--app-text-dim);
 }
 
 .ls-sublabel {
   font-size: 0.72rem;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: #9f96ad;
+  color: var(--app-text-dim);
   margin-bottom: 10px;
 }
 
@@ -156,16 +160,16 @@
   font-size: 0.72rem;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: #9f96ad;
+  color: var(--app-text-dim);
 }
 
 .ls-field input,
 .ls-keeper-select {
   height: 42px;
   border-radius: 10px;
-  border: 1px solid rgba(187, 108, 255, 0.18);
-  background: rgba(12, 7, 20, 0.95);
-  color: #f4ecff;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--app-bg-alt) 88%, black 12%);
+  color: var(--app-text);
   padding: 0 13px;
   outline: none;
   font: inherit;
@@ -175,8 +179,8 @@
 
 .ls-field input:focus,
 .ls-keeper-select:focus {
-  border-color: #c46dff;
-  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.14);
+  border-color: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 16%, transparent);
 }
 
 .ls-form-grid {
@@ -193,7 +197,7 @@
 /* ── Roster table ────────────────────────────────────────── */
 .ls-roster-table {
   margin-top: 10px;
-  border: 1px solid rgba(190, 108, 255, 0.12);
+  border: 1px solid var(--app-accent-border-faint);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -207,15 +211,15 @@
 }
 
 .ls-roster-header {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ls-row-bg);
   font-size: 0.72rem;
-  color: #92889f;
+  color: var(--ls-text-dim);
   font-weight: 700;
 }
 
 .ls-roster-row {
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
-  color: #ece3fb;
+  border-top: 1px solid var(--ls-row-border);
+  color: var(--app-text);
 }
 
 .ls-roster-controls {
@@ -238,7 +242,7 @@
 
 .ls-total {
   margin-top: 10px;
-  color: #8f869f;
+  color: var(--ls-text-dim);
   font-size: 0.85rem;
 }
 
@@ -254,10 +258,10 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  background: rgba(15, 9, 25, 0.9);
-  border: 1px solid rgba(188, 108, 255, 0.25);
+  background: var(--ls-card-bg);
+  border: 1px solid var(--ls-card-border);
   border-radius: 10px;
-  color: #f3eaff;
+  color: var(--app-text);
   padding: 13px;
   text-align: left;
   cursor: pointer;
@@ -266,7 +270,7 @@
 }
 
 .ls-pool-card span {
-  color: #9c90ad;
+  color: var(--ls-text-soft);
   font-size: 0.78rem;
 }
 
@@ -283,10 +287,10 @@
 }
 
 .ls-stats-col {
-  border: 1px solid rgba(190, 108, 255, 0.12);
+  border: 1px solid var(--app-accent-border-faint);
   border-radius: 12px;
   padding: 14px;
-  background: rgba(12, 7, 20, 0.4);
+  background: color-mix(in srgb, var(--app-bg-alt) 76%, transparent);
 }
 
 .ls-check-grid {
@@ -301,9 +305,9 @@
   gap: 9px;
   padding: 9px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: #ece3fb;
+  background: var(--ls-row-bg);
+  border: 1px solid var(--ls-row-border);
+  color: var(--app-text);
   font-size: 0.82rem;
   cursor: pointer;
 }
@@ -332,8 +336,8 @@
 }
 
 .ls-keeper-panel {
-  background: rgba(16, 16, 18, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--ls-card-bg);
+  border: 1px solid var(--ls-row-border);
   border-radius: 10px;
   padding: 14px;
 }
