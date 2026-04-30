@@ -2,9 +2,11 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   type RosterSlot,
   type Player,
+  type TeamKeeper,
   type TeamKeepersMap,
   rosterDefaults,
   getEligibleSlots,
+  getEligibleSlotsForKeeperAssignment,
 } from "../types/league";
 
 interface UseLeagueFormOptions {
@@ -35,6 +37,17 @@ export function useLeagueForm({
   initialPosEligibilityThreshold,
   externalPlayers,
 }: UseLeagueFormOptions = {}) {
+  const initialRosterSlotsState = useMemo(
+    () =>
+      initialRosterSlots
+        ? rosterDefaults.map((s) => ({
+            ...s,
+            count: initialRosterSlots[s.position] ?? s.count,
+          }))
+        : rosterDefaults,
+    [initialRosterSlots],
+  );
+
   const [leagueName, setLeagueName] = useState(initialName);
   const [teams, setTeams] = useState(initialTeams);
   const [budget, setBudget] = useState(initialBudget);
@@ -42,12 +55,7 @@ export function useLeagueForm({
     initialPosEligibilityThreshold ?? 20,
   );
   const [rosterSlots, setRosterSlots] = useState<RosterSlot[]>(
-    initialRosterSlots
-      ? rosterDefaults.map((s) => ({
-          ...s,
-          count: initialRosterSlots[s.position] ?? s.count,
-        }))
-      : rosterDefaults,
+    initialRosterSlotsState,
   );
 
   const [playerPool, setPlayerPool] = useState<
@@ -141,6 +149,18 @@ export function useLeagueForm({
       ),
     );
 
+  const setRosterCount = (position: string, count: number) =>
+    setRosterSlots((prev) =>
+      prev.map((s) =>
+        s.position === position
+          ? { ...s, count: Math.max(0, Math.round(count)) }
+          : s,
+      ),
+    );
+
+  const resetRosterSlots = () =>
+    setRosterSlots(initialRosterSlotsState.map((slot) => ({ ...slot })));
+
   const updateTeamName = (index: number, value: string) => {
     const next = [...teamNames];
     const prev = next[index];
@@ -150,7 +170,12 @@ export function useLeagueForm({
       setActiveKeeperTeam(value || `Team ${index + 1}`);
   };
 
-  const addKeeper = (player: Player, slot: string, cost?: number) => {
+  const addKeeper = (
+    player: Player,
+    slot: string,
+    cost?: number,
+    contractType?: string,
+  ) => {
     const current = teamKeepers[activeKeeperTeam] ?? [];
     const resolvedCost =
       cost ?? player.value ?? Math.floor(player.adp * 2 + 10);
@@ -163,6 +188,7 @@ export function useLeagueForm({
           playerName: player.name,
           team: player.team,
           cost: Math.max(1, Math.round(resolvedCost)),
+          contractType: contractType?.trim() || undefined,
           playerId: String(player.id),
               positions: player.positions,
         },
@@ -174,6 +200,17 @@ export function useLeagueForm({
     const current = teamKeepers[activeKeeperTeam] ?? [];
     const updated = current.map((k, i) =>
       i === index ? { ...k, cost: Math.max(1, Math.round(cost)) } : k,
+    );
+    setTeamKeepers({ ...teamKeepers, [activeKeeperTeam]: updated });
+  };
+
+  const updateKeeperContract = (index: number, contractType: string) => {
+    const current = teamKeepers[activeKeeperTeam] ?? [];
+    const normalized = contractType.trim();
+    const updated = current.map((k, i) =>
+      i === index
+        ? { ...k, contractType: normalized === "" ? undefined : normalized }
+        : k,
     );
     setTeamKeepers({ ...teamKeepers, [activeKeeperTeam]: updated });
   };
@@ -191,6 +228,44 @@ export function useLeagueForm({
       ...teamKeepers,
       [activeKeeperTeam]: current.filter((_, i) => i !== index),
     });
+  };
+
+  const teamKeeperToPlayer = (k: TeamKeeper): Player => {
+    const positions =
+      k.positions && k.positions.length > 0 ? k.positions : [k.slot];
+    const primary = positions[0] ?? k.slot;
+    return {
+      id: Number.parseInt(String(k.playerId), 10) || 0,
+      name: k.playerName,
+      team: k.team,
+      pos: primary,
+      adp: 99,
+      positions,
+    };
+  };
+
+  const getEligibleSlotsForKeeperAtIndex = (index: number): string[] => {
+    const current = teamKeepers[activeKeeperTeam] ?? [];
+    const keeper = current[index];
+    if (!keeper) return [];
+    const fromPool = externalPlayers?.find(
+      (p) => String(p.id) === keeper.playerId,
+    );
+    const player = fromPool ?? teamKeeperToPlayer(keeper);
+    return getEligibleSlotsForKeeperAssignment(
+      player,
+      rosterSlots,
+      current,
+      index,
+    );
+  };
+
+  const updateKeeperSlot = (index: number, newSlot: string) => {
+    const current = teamKeepers[activeKeeperTeam] ?? [];
+    const updated = current.map((k, i) =>
+      i === index ? { ...k, slot: newSlot } : k,
+    );
+    setTeamKeepers({ ...teamKeepers, [activeKeeperTeam]: updated });
   };
 
   return {
@@ -223,11 +298,16 @@ export function useLeagueForm({
     filteredPlayers,
     toggleStat,
     updateRosterCount,
+    setRosterCount,
+    resetRosterSlots,
     updateTeamName,
     addKeeper,
     removeKeeper,
     updateKeeperCost,
+    updateKeeperContract,
+    updateKeeperSlot,
     getEligibleSlotsForPlayer,
+    getEligibleSlotsForKeeperAtIndex,
     keeperOwnerMap,
   };
 }

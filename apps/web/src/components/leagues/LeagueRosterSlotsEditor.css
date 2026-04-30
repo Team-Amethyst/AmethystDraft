@@ -1,0 +1,129 @@
+.league-roster-editor {
+  margin-top: 10px;
+  border: 1px solid var(--app-accent-border-faint);
+  border-radius: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  max-height: min(42vh, 380px);
+}
+
+.league-roster-editor--static {
+  max-height: none;
+  overflow: visible;
+}
+
+.league-roster-editor--static .league-roster-editor-header {
+  position: static;
+}
+
+.league-roster-editor-header,
+.league-roster-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  align-items: center;
+  padding: 6px 12px;
+}
+
+.league-roster-editor-header {
+  background: color-mix(in srgb, var(--app-bg-alt) 92%, black 8%);
+  font-size: 0.64rem;
+  color: color-mix(in srgb, var(--app-text-dim) 82%, white 18%);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.league-roster-editor-header-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.league-roster-editor-reset-btn {
+  border: 1px solid rgba(139, 92, 246, 0.24);
+  background: rgba(255, 255, 255, 0.03);
+  color: #9f90bd;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.league-roster-editor-reset-btn:hover {
+  color: #d6c9ef;
+  border-color: rgba(139, 92, 246, 0.42);
+  background: rgba(139, 92, 246, 0.14);
+}
+
+.league-roster-editor-row {
+  border-top: 1px solid color-mix(in srgb, white 5%, transparent);
+  color: var(--app-text);
+}
+
+.league-roster-editor-position {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.league-roster-editor-position-name {
+  color: var(--app-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.league-roster-editor-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+}
+
+.league-roster-editor-count-input {
+  width: 54px;
+  height: 28px;
+  border: 1px solid rgba(139, 92, 246, 0.24);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d9d0ea;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  outline: none;
+  font-family: inherit;
+  padding: 0 4px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.league-roster-editor-count-input:focus {
+  border-color: color-mix(in srgb, var(--app-accent) 74%, white 26%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 16%, transparent);
+}
+
+.league-roster-editor-count-input::-webkit-outer-spin-button,
+.league-roster-editor-count-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.league-roster-editor-total {
+  margin: 10px 12px;
+  color: var(--app-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: right;
+}
