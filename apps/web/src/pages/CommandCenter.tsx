@@ -18,20 +18,18 @@ import {
   type TeamSummary,
   computeTeamData,
   computePositionMarket,
-  buildProjectedStandings,
   LOWER_IS_BETTER_CATS,
-  computeRanks,
   rankColor,
   formatStatCell,
   isStatCellEmpty,
   teamCanBid,
-  normalizeCatName,
   leagueWideAuctionSlotsRemaining,
 } from "./commandCenterUtils";
 import {
   buildInflationKpi,
   enginePlayersKpiCopy,
 } from "./commandCenterMarket";
+import { useProjectedStandings } from "./useProjectedStandings";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
@@ -337,41 +335,13 @@ function MyTeamStandingsSection({
     "hitting",
   );
 
-  const playerMap = useMemo(
-    () => new Map(allPlayers.map((p) => [p.id, p])),
-    [allPlayers],
-  );
-
-  const scoringCats = useMemo(
-    () =>
-      (league?.scoringCategories?.length
-        ? league.scoringCategories
-        : COMMAND_CENTER_FALLBACK_SCORING_CATS
-      ).map((c) => ({ ...c, name: normalizeCatName(c.name) })),
-    [league?.scoringCategories],
-  );
-
-  const projectedStandings = useMemo(
-    () =>
-      buildProjectedStandings(
-        league?.teamNames ?? [],
-        rosterEntries,
-        playerMap,
-        scoringCats,
-      ),
-    [league?.teamNames, rosterEntries, playerMap, scoringCats],
-  );
-
-  const rankMaps = useMemo(
-    () =>
-      Object.fromEntries(
-        scoringCats.map((c) => [
-          c.name,
-          computeRanks(projectedStandings, c.name),
-        ]),
-      ),
-    [projectedStandings, scoringCats],
-  );
+  const { scoringCats, projectedStandings, rankMaps } = useProjectedStandings({
+    leagueTeamNames: league?.teamNames,
+    leagueScoringCategories: league?.scoringCategories,
+    fallbackScoringCategories: COMMAND_CENTER_FALLBACK_SCORING_CATS,
+    rosterEntries,
+    allPlayers,
+  });
 
   const myRow = useMemo(
     () => projectedStandings.find((r) => r.teamName === myTeamName),
@@ -741,44 +711,16 @@ function RightPanel({
     });
   }, [teamData, liqSort]);
 
-  const playerMap = useMemo(
-    () => new Map(allPlayers.map((p) => [p.id, p])),
-    [allPlayers],
-  );
-
-  const scoringCats = useMemo(
-    () =>
-      (league?.scoringCategories?.length
-        ? league.scoringCategories
-        : COMMAND_CENTER_FALLBACK_SCORING_CATS
-      ).map((c) => ({ ...c, name: normalizeCatName(c.name) })),
-    [league?.scoringCategories],
-  );
+  const { scoringCats, projectedStandings, rankMaps } = useProjectedStandings({
+    leagueTeamNames: league?.teamNames,
+    leagueScoringCategories: league?.scoringCategories,
+    fallbackScoringCategories: COMMAND_CENTER_FALLBACK_SCORING_CATS,
+    rosterEntries,
+    allPlayers,
+  });
 
   const [sortCat, setSortCat] = useState<string>("HR");
   const [sortAsc, setSortAsc] = useState(false);
-
-  const projectedStandings = useMemo(
-    () =>
-      buildProjectedStandings(
-        league?.teamNames ?? [],
-        rosterEntries,
-        playerMap,
-        scoringCats,
-      ),
-    [league?.teamNames, rosterEntries, playerMap, scoringCats],
-  );
-
-  const rankMaps = useMemo(
-    () =>
-      Object.fromEntries(
-        scoringCats.map((c) => [
-          c.name,
-          computeRanks(projectedStandings, c.name),
-        ]),
-      ),
-    [projectedStandings, scoringCats],
-  );
 
   const sortedProjStandings = useMemo(() => {
     return [...projectedStandings].sort((a, b) => {
