@@ -54,7 +54,6 @@ export default function CommandCenter() {
     [league?.id, league?.memberIds?.join(","), user?.id],
   );
 
-  /** DEV only: focus board-valuation logs on the selected Draftroom player. */
   const valuationBoardLogPlayerId =
     import.meta.env.DEV ? selectedPlayer?.id : undefined;
 
@@ -181,8 +180,6 @@ export default function CommandCenter() {
           draftedIds={draftedIds}
           myTeamEntries={myTeamEntries}
           showToast={showToast}
-          // Pass the modal trigger down so AuctionCenter can open it
-          // when a searched player is not found
           onAddMissingPlayer={() => setShowAddModal(true)}
           engineMarket={engineMarket}
         />
@@ -205,14 +202,12 @@ export default function CommandCenter() {
         <div className={`cc-toast cc-toast-${toast.type}`}>{toast.message}</div>
       )}
   
-      {/* Add Missing Player modal */}
       <AddPlayerModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSave={(player) => {
           addCustomPlayer(player);
           setSelectedPlayer(player);
-          // onClose handles setShowAddModal(false) automatically
         }}
       />
     </div>
