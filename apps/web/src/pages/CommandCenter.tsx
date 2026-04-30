@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
 import { useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
@@ -15,16 +14,14 @@ import { AuctionCenter } from "../components/AuctionCenter";
 import PosBadge from "../components/PosBadge";
 import { CommandCenterDraftLog } from "../components/command-center/CommandCenterDraftLog";
 import { CommandCenterMyTeamStandingsSection } from "../components/command-center/CommandCenterMyTeamStandingsSection";
+import { CommandCenterRightLiquidityTable } from "../components/command-center/CommandCenterRightLiquidityTable";
+import { CommandCenterRightStandingsTable } from "../components/command-center/CommandCenterRightStandingsTable";
 import { CommandCenterTeamMakeupSection } from "../components/command-center/CommandCenterTeamMakeupSection";
 import {
   type TeamSummary,
   computeTeamData,
   computePositionMarket,
   LOWER_IS_BETTER_CATS,
-  rankColor,
-  formatStatCell,
-  isStatCellEmpty,
-  teamCanBid,
   leagueWideAuctionSlotsRemaining,
 } from "./commandCenterUtils";
 import {
@@ -495,207 +492,28 @@ function RightPanel({
         </div>
         {rightRosterPane === "liquidity" ? (
           <>
-            <div className="liquidity-table-wrap">
-              <table className="liquidity-table cc-roster-data-table">
-                <thead>
-                  <tr>
-                    {(
-                      [
-                        ["name", ""],
-                        ["remaining", "LEFT"],
-                        ["open", "OPEN"],
-                        ["maxBid", "MAX"],
-                        ["ppSpot", "$/SP"],
-                      ] as [LiqCol, string][]
-                    ).map(([col, label]) => (
-                      <th
-                        key={col}
-                        className={
-                          "liq-th-sortable" +
-                          (liqSort.col === col ? " liq-th-active" : "")
-                        }
-                        scope="col"
-                        aria-label={col === "name" ? "Team" : undefined}
-                        onClick={() => toggleLiqSort(col)}
-                      >
-                        <span className="liq-th-inner">
-                          <span className="liq-th-label">{label}</span>
-                          {liqSort.col === col ? (
-                            liqSort.dir === "asc" ? (
-                              <ChevronUp
-                                size={10}
-                                className="lo-th-sort-chevron"
-                                aria-hidden
-                              />
-                            ) : (
-                              <ChevronDown
-                                size={10}
-                                className="lo-th-sort-chevron"
-                                aria-hidden
-                              />
-                            )
-                          ) : null}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTeamData.length > 0 ? (
-                    sortedTeamData.map((t) => {
-                      const ineligible =
-                        selectedPlayerPositions.length > 0 &&
-                        !!league &&
-                        !teamCanBid(
-                          t.name,
-                          selectedPlayerPositions,
-                          league,
-                          rosterEntries,
-                        );
-                      return (
-                        <tr
-                          key={t.name}
-                          className={[
-                            t.name === myTeamName ? "my-team-row" : "",
-                            isTeamOne(t.name) ? "cc-team-one-row" : "",
-                            ineligible ? "liq-ineligible" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          <td className="liq-team-name-cell" title={t.name}>
-                            {t.name}
-                          </td>
-                          <td>${t.remaining}</td>
-                          <td>{t.open}</td>
-                          <td>${t.maxBid}</td>
-                          <td>${t.ppSpot}</td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="dim"
-                        style={{ textAlign: "center", padding: "1rem 0" }}
-                      >
-                        {league ? "No picks logged yet" : "No league loaded"}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <CommandCenterRightLiquidityTable
+              sortedTeamData={sortedTeamData}
+              liqSort={liqSort}
+              onToggleLiqSort={toggleLiqSort}
+              selectedPlayerPositions={selectedPlayerPositions}
+              league={league}
+              rosterEntries={rosterEntries}
+              myTeamName={myTeamName}
+              isTeamOne={isTeamOne}
+            />
           </>
         ) : (
           <>
-            <div className="liquidity-table-wrap lo-standings-wrap--right">
-              <div className="cc-standings-scroll">
-                <div className="cc-standings-split">
-                  <div className="cc-standings-team-pane">
-                    <table
-                      className="lo-standings-table lo-standings-table--team-only cc-roster-data-table"
-                      aria-label="Teams"
-                    >
-                      <tbody>
-                        {sortedProjStandings.map((row, idx) => (
-                          <tr
-                            key={row.teamName}
-                            className={[
-                              idx % 2 === 0 ? "lo-tr-even" : "",
-                              isTeamOne(row.teamName) ? "cc-team-one-row" : "",
-                            ]
-                              .filter(Boolean)
-                              .join(" ")}
-                          >
-                            <td className="lo-td-team" title={row.teamName}>
-                              {row.teamName}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="cc-standings-stats-scroll">
-                    <table className="lo-standings-table lo-standings-table--stats-only cc-roster-data-table">
-                      <thead>
-                        <tr>
-                          {scoringCats.map((c) => (
-                            <th
-                              key={c.name}
-                              className={
-                                "lo-th-stat" +
-                                (sortCat === c.name ? " lo-th-active" : "")
-                              }
-                              onClick={() => toggleStandingsSort(c.name)}
-                            >
-                              {c.name}
-                              {sortCat === c.name ? (
-                                sortAsc ? (
-                                  <ChevronUp
-                                    size={10}
-                                    className="lo-th-sort-chevron"
-                                    aria-hidden
-                                  />
-                                ) : (
-                                  <ChevronDown
-                                    size={10}
-                                    className="lo-th-sort-chevron"
-                                    aria-hidden
-                                  />
-                                )
-                              ) : null}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedProjStandings.map((row, idx) => (
-                          <tr
-                            key={row.teamName}
-                            className={[
-                              idx % 2 === 0 ? "lo-tr-even" : "",
-                              isTeamOne(row.teamName) ? "cc-team-one-row" : "",
-                            ]
-                              .filter(Boolean)
-                              .join(" ")}
-                          >
-                            {scoringCats.map((c) => {
-                              const rank =
-                                rankMaps[c.name]?.get(row.teamName) ?? 1;
-                              const val = row.stats[c.name] ?? 0;
-                              const empty = isStatCellEmpty(val);
-                              const colorClass = empty
-                                ? ""
-                                : rankColor(
-                                    rank,
-                                    sortedProjStandings.length,
-                                  );
-                              return (
-                                <td
-                                  key={c.name}
-                                  className={
-                                    "lo-td-stat" +
-                                    (empty
-                                      ? " lo-td-stat--empty"
-                                      : colorClass
-                                        ? ` ${colorClass}`
-                                        : "")
-                                  }
-                                >
-                                  {formatStatCell(c.name, val)}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CommandCenterRightStandingsTable
+              scoringCats={scoringCats}
+              sortedProjStandings={sortedProjStandings}
+              rankMaps={rankMaps}
+              sortCat={sortCat}
+              sortAsc={sortAsc}
+              onToggleStandingsSort={toggleStandingsSort}
+              isTeamOne={isTeamOne}
+            />
           </>
         )}
       </section>
