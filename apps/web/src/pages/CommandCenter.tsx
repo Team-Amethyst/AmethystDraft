@@ -1212,6 +1212,15 @@ export default function CommandCenter() {
     () => new Set(rosterEntries.map((e) => e.externalPlayerId)),
     [rosterEntries],
   );
+  const selectedPlayerPositions = useMemo(
+    () =>
+      selectedPlayer
+        ? selectedPlayer.positions?.length
+          ? selectedPlayer.positions
+          : [selectedPlayer.position]
+        : [],
+    [selectedPlayer],
+  );
 
   const teamData = useMemo(
     () => (league ? computeTeamData(league, rosterEntries) : []),
@@ -1280,53 +1289,6 @@ export default function CommandCenter() {
     }
   };
 
-  // return (
-  //   <div className="cc-page">
-  //     <div className="cc-layout">
-  //       <LeftPanel
-  //         activeTab={activeTab}
-  //         setActiveTab={setActiveTab}
-  //         league={league}
-  //         teamData={teamData}
-  //         myTeamName={myTeamName}
-  //         selectedPlayerPositions={
-  //           selectedPlayer
-  //             ? selectedPlayer.positions?.length
-  //               ? selectedPlayer.positions
-  //               : [selectedPlayer.position]
-  //             : []
-  //         }
-  //         allPlayers={allPlayers}
-  //         draftedIds={draftedIds}
-  //         rosterEntries={rosterEntries}
-  //         onRemovePick={handleRemovePick}
-  //         onUpdatePick={handleUpdatePick}
-  //       />
-  //       <AuctionCenter
-  //         rosterEntries={rosterEntries}
-  //         refreshRoster={refreshRoster}
-  //         allPlayers={allPlayers}
-  //         selectedPlayer={selectedPlayer}
-  //         setSelectedPlayer={setSelectedPlayer}
-  //         draftedIds={draftedIds}
-  //         myTeamEntries={myTeamEntries}
-  //         showToast={showToast}
-  //       />
-  //       <RightPanel
-  //         league={league}
-  //         teamData={teamData}
-  //         myTeamName={myTeamName}
-  //         myTeamEntries={myTeamEntries}
-  //         allPlayers={allPlayers}
-  //         rosterEntries={rosterEntries}
-  //       />
-  //     </div>
-  //     {toast && (
-  //       <div className={`cc-toast cc-toast-${toast.type}`}>{toast.message}</div>
-  //     )}
-  //   </div>
-  // );
-
   return (
     <div className="cc-page">
       <div className="cc-layout">
@@ -1334,13 +1296,7 @@ export default function CommandCenter() {
           league={league}
           myTeamName={myTeamName}
           myTeamId={myTeamId}
-          selectedPlayerPositions={
-            selectedPlayer
-              ? selectedPlayer.positions?.length
-                ? selectedPlayer.positions
-                : [selectedPlayer.position]
-              : []
-          }
+          selectedPlayerPositions={selectedPlayerPositions}
           allPlayers={allPlayers}
           draftedIds={draftedIds}
           rosterEntries={rosterEntries}
@@ -1368,13 +1324,7 @@ export default function CommandCenter() {
           rosterEntries={rosterEntries}
           engineMarket={engineMarket}
           selectedPlayer={selectedPlayer}
-          selectedPlayerPositions={
-            selectedPlayer
-              ? selectedPlayer.positions?.length
-                ? selectedPlayer.positions
-                : [selectedPlayer.position]
-              : []
-          }
+          selectedPlayerPositions={selectedPlayerPositions}
           allPlayers={allPlayers}
           onRemovePick={handleRemovePick}
           onUpdatePick={handleUpdatePick}
