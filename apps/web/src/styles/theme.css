@@ -13,6 +13,10 @@
   --app-accent-soft: #c084fc;
   --app-accent-border: rgba(139, 92, 246, 0.25);
   --app-accent-border-strong: rgba(139, 92, 246, 0.4);
+  /** Column / rail dividers (common in Command Center grid). */
+  --app-accent-hairline: rgba(139, 92, 246, 0.1);
+  /** Soft card / inset strokes. */
+  --app-accent-border-faint: rgba(139, 92, 246, 0.12);
 
   --app-panel-border: rgba(88, 66, 138, 0.45);
   --app-panel-border-soft: rgba(88, 66, 138, 0.35);

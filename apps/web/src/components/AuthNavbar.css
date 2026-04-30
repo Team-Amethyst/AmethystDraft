@@ -141,7 +141,7 @@
   font-size: 0.55rem;
   font-weight: 700;
   color: #6b4fa0;
-  background: rgba(139, 92, 246, 0.12);
+  background: var(--app-accent-border-faint);
   border: 1px solid rgba(139, 92, 246, 0.25);
   border-radius: 3px;
   padding: 0.05rem 0.28rem;
@@ -391,7 +391,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  background: rgba(139, 92, 246, 0.1);
+  background: var(--app-accent-hairline);
   border: 1px solid rgba(138, 43, 226, 0.3);
   border-radius: 8px;
   color: #a78bfa;
@@ -583,7 +583,7 @@
 .nb-alerts-loading {
   color: #a78bfa;
   background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.12);
+  border: 1px solid var(--app-accent-border-faint);
 }
 
 .nb-alerts-spinner {
@@ -607,7 +607,7 @@
   padding: 0.65rem 0.75rem;
   border-radius: 7px;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(139, 92, 246, 0.1);
+  border: 1px solid var(--app-accent-hairline);
 }
 
 .nb-alert-item.alert-injury    { border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.04); }

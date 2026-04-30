@@ -24,7 +24,7 @@
   margin-top: var(--cc-gap-lg);
   margin-bottom: var(--cc-heading-mb);
   padding-top: var(--cc-gap-md);
-  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  border-top: 1px solid var(--app-accent-hairline);
 }
 
 .pac-section-label--inline {
@@ -54,7 +54,7 @@
   max-height: 100%;
   /* No horizontal padding so top borders (dock + resizer) span full rail width */
   padding: 0 0 var(--cc-space-12);
-  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  border-top: 1px solid var(--app-accent-hairline);
   background: var(--app-bg-alt);
   display: flex;
   flex-direction: column;

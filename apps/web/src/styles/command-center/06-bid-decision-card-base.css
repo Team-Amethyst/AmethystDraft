@@ -508,7 +508,7 @@ textarea.pac-notes.pac-notes--always:focus {
 .pac-log-action-bar {
   margin-top: 0.15rem;
   padding-top: 0.35rem;
-  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  border-top: 1px solid var(--app-accent-hairline);
 }
 
 .pac-log-action-label {
@@ -729,9 +729,9 @@ textarea.pac-notes.pac-notes--always:focus {
   border-radius: 4px;
   background: linear-gradient(
     90deg,
-    rgba(139, 92, 246, 0.12) 0%,
+    var(--app-accent-border-faint) 0%,
     rgba(139, 92, 246, 0.22) 50%,
-    rgba(139, 92, 246, 0.12) 100%
+    var(--app-accent-border-faint) 100%
   );
   background-size: 200% 100%;
   animation: pac-val-skeleton-shimmer 1.1s ease-in-out infinite;

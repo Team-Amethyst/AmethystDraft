@@ -126,7 +126,7 @@
   border-radius: 7px;
 }
 .add-player-btn:hover {
-  background: rgba(139, 92, 246, 0.12);
+  background: var(--app-accent-border-faint);
 }
 
 .depth-chart-wrapper {
@@ -244,7 +244,7 @@
   border: 1px solid rgba(139, 92, 246, 0.35);
   border-radius: 999px;
   padding: 0.15rem 0.45rem;
-  background: rgba(139, 92, 246, 0.12);
+  background: var(--app-accent-border-faint);
 }
 
 .position-group__body {

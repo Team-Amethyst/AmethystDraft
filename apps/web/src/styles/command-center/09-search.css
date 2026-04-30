@@ -41,7 +41,7 @@
 }
 
 .cc-dropdown-item:last-child { border-bottom: none; }
-.cc-dropdown-item:hover { background: rgba(139, 92, 246, 0.12); }
+.cc-dropdown-item:hover { background: var(--app-accent-border-faint); }
 
 .cc-dd-name {
   flex: 1;

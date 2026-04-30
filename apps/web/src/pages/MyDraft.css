@@ -227,7 +227,7 @@
   box-shadow: var(
     --app-scrollbar-track-groove,
     inset 0 1px 4px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+    inset 0 0 0 1px var(--app-accent-border-faint)
   );
 }
 .alloc-table-scroll::-webkit-scrollbar-thumb {
@@ -324,7 +324,7 @@
   box-shadow: var(
     --app-scrollbar-track-groove,
     inset 0 1px 4px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+    inset 0 0 0 1px var(--app-accent-border-faint)
   );
 }
 .watchlist-scroll::-webkit-scrollbar-thumb {
@@ -599,7 +599,7 @@
   box-shadow: var(
     --app-scrollbar-track-groove,
     inset 0 1px 4px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+    inset 0 0 0 1px var(--app-accent-border-faint)
   );
 }
 .notes-strip textarea::-webkit-scrollbar-thumb {

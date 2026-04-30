@@ -30,7 +30,7 @@
   --cc-value-muted: #9d8cc4;
   --cc-card-radius: 8px;
   --cc-card-bg: rgba(255, 255, 255, 0.03);
-  --cc-card-border: 1px solid rgba(139, 92, 246, 0.12);
+  --cc-card-border: 1px solid var(--app-accent-border-faint);
   --cc-card-pad: 0.5rem 0.45rem;
 
   /* Spacing scale (Command Center — 4 / 8 / 12 / 16 / 24 only) */

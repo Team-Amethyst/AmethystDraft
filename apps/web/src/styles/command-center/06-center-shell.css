@@ -28,7 +28,7 @@
   box-shadow: var(
     --app-scrollbar-track-groove,
     inset 0 1px 4px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+    inset 0 0 0 1px var(--app-accent-border-faint)
   );
 }
 .cc-content-scroll::-webkit-scrollbar-thumb {
@@ -51,7 +51,7 @@
   align-items: center;
   gap: 0.6rem;
   padding: var(--cc-gap-md) var(--cc-pad-x);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+  border-bottom: 1px solid var(--app-accent-hairline);
   background: #0d0a1a;
 }
 

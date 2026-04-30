@@ -55,7 +55,7 @@
   font-size: 0.68rem;
   color: #7a6a9a;
   padding: 0.2rem 0 0;
-  border-top: 1px solid rgba(139, 92, 246, 0.1);
+  border-top: 1px solid var(--app-accent-hairline);
 }
 
 .pac-strength-detail-label {
