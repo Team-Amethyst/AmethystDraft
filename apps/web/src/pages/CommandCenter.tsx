@@ -28,6 +28,10 @@ import {
   normalizeCatName,
   leagueWideAuctionSlotsRemaining,
 } from "./commandCenterUtils";
+import {
+  buildInflationKpi,
+  enginePlayersKpiCopy,
+} from "./commandCenterMarket";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
@@ -41,15 +45,6 @@ import {
 } from "../utils/valuationDeps";
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
 import { myDraftSlotsForPosition } from "../constants/positionAllocationPlan";
-
-function finiteMetric(v: unknown): number | undefined {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() !== "") {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;
-  }
-  return undefined;
-}
 
 /** Default 5×5-style cats when league has no custom scoring list (same as right-rail standings). */
 const COMMAND_CENTER_FALLBACK_SCORING_CATS: {
@@ -691,39 +686,6 @@ function LeftPanel({
   );
 }
 
-function enginePlayersKpiCopy(
-  playersRemaining: number,
-  valuationsLen: number,
-  leagueWideSlots: number | null,
-): { label: string; title: string } {
-  if (
-    leagueWideSlots != null &&
-    valuationsLen > 0 &&
-    playersRemaining === valuationsLen
-  ) {
-    return {
-      label: "Player pool",
-      title:
-        "Count matches the valuation rows returned for this request (engine player subset), not full league roster slots.",
-    };
-  }
-  if (
-    leagueWideSlots != null &&
-    Math.abs(playersRemaining - leagueWideSlots) <= 2
-  ) {
-    return {
-      label: "Slots remaining",
-      title:
-        "Auction roster spots still empty across all teams (from your league template and draft board).",
-    };
-  }
-  return {
-    label: "Player pool",
-    title:
-      "From the valuation engine; may differ from roster template when the engine uses a player subset or another market-depth definition.",
-  };
-}
-
 function RightPanel({
   league,
   teamData,
@@ -840,71 +802,7 @@ function RightPanel({
   const teamOneName = (league?.teamNames?.[0] ?? "").trim();
   const isTeamOne = (name: string) =>
     teamOneName !== "" && name.trim() === teamOneName;
-  const firstRowInflationModel = engineMarket?.valuations?.[0]?.inflation_model;
-  const inflationModel =
-    engineMarket?.inflation_model ?? firstRowInflationModel;
-  /** Engine may omit `inflation_model` on the envelope while still sending v2 `context_v2`. */
-  const isReplacementSlotsV2 =
-    inflationModel === "replacement_slots_v2" ||
-    Boolean(engineMarket?.context_v2);
-
-  const allocatorFactor =
-    engineMarket?.context_v2?.market_summary.inflation_factor ??
-    engineMarket?.inflation_factor;
-  const allocatorFinite = finiteMetric(allocatorFactor);
-
-  const indexVsOpen =
-    finiteMetric(engineMarket?.inflation_index_vs_opening_auction) ??
-    finiteMetric(
-      engineMarket?.context_v2?.market_summary
-        .inflation_index_vs_opening_auction,
-    );
-
-  const useAuctionOpenIndex = isReplacementSlotsV2 && indexVsOpen != null;
-
-  const inflationGaugeValue = useAuctionOpenIndex
-    ? indexVsOpen
-    : !isReplacementSlotsV2
-      ? finiteMetric(allocatorFactor)
-      : undefined;
-
-  const pctVsAuctionOpen = finiteMetric(
-    engineMarket?.context_v2?.market_summary.inflation_percent_vs_auction_open,
-  );
-  const pctVsNeutralFromSummary = finiteMetric(
-    engineMarket?.context_v2?.market_summary.inflation_percent_vs_neutral,
-  );
-
-  const inflationPctNeutral =
-    pctVsNeutralFromSummary ??
-    (allocatorFinite != null ? Math.round((allocatorFinite - 1) * 100) : null);
-
-  const inflationTooltipPct =
-    useAuctionOpenIndex && pctVsAuctionOpen != null
-      ? Math.round(pctVsAuctionOpen)
-      : useAuctionOpenIndex && indexVsOpen != null
-        ? Math.round((indexVsOpen - 1) * 100)
-        : inflationPctNeutral;
-
-  const auctionOpenTitleBody =
-    inflationTooltipPct != null
-      ? `Vs auction open: ${inflationTooltipPct >= 0 ? "+" : ""}${inflationTooltipPct}%`
-      : "Vs auction open";
-  const devAllocatorHint =
-    import.meta.env.DEV && allocatorFinite != null
-      ? ` · Model factor (debug): ${allocatorFinite.toFixed(2)}×`
-      : "";
-
-  const inflationKpiTitle =
-    inflationGaugeValue == null
-      ? isReplacementSlotsV2
-        ? "Auction-open index unavailable for this payload. Raw model factor is hidden here (not comparable to 1.0× at open)."
-        : undefined
-      : useAuctionOpenIndex
-        ? `${auctionOpenTitleBody}${devAllocatorHint}`
-        : inflationTooltipPct != null
-          ? `Vs neutral: ${inflationTooltipPct >= 0 ? "+" : ""}${inflationTooltipPct}%`
-          : undefined;
+  const inflationKpi = buildInflationKpi(engineMarket, import.meta.env.DEV);
 
   const leagueWideSpotsLeft =
     league != null
@@ -918,15 +816,7 @@ function RightPanel({
       )
     : null;
   const marketClass =
-    inflationGaugeValue == null
-      ? ""
-      : inflationGaugeValue >= 1.35
-        ? "hot"
-        : inflationGaugeValue >= 1.15
-          ? "warm"
-          : inflationGaugeValue <= 0.9
-            ? "cool"
-            : "neutral";
+    inflationKpi.marketClass;
   const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
   const selectedValuationRow =
     selectedNormId && engineMarket
@@ -979,15 +869,15 @@ function RightPanel({
             <div className="engine-market-main">
               <div
                 className="engine-market-kpi"
-                title={inflationKpiTitle}
+                title={inflationKpi.title}
               >
                 <div className="em-label em-label--inflation">
                   Inflation Index
                 </div>
                 <div className="em-value em-value--inflation">
-                  {inflationGaugeValue != null
-                    ? `${inflationGaugeValue.toFixed(2)}×`
-                    : isReplacementSlotsV2
+                  {inflationKpi.gaugeValue != null
+                    ? `${inflationKpi.gaugeValue.toFixed(2)}×`
+                    : inflationKpi.isReplacementSlotsV2
                       ? "N/A"
                       : "—"}
                 </div>
@@ -998,9 +888,7 @@ function RightPanel({
               </div>
               <div className="engine-market-kpi">
                 <div className="em-label" title={enginePlayersKpi?.title}>
-                  {enginePlayersKpi?.label === "Slots remaining"
-                    ? "Open Slots"
-                    : "Players Remaining"}
+                  {enginePlayersKpi?.label ?? "Players Remaining"}
                 </div>
                 <div className="em-value">{engineMarket.players_remaining}</div>
               </div>
