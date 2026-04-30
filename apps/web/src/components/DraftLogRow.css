@@ -100,6 +100,17 @@
   flex-shrink: 0;
 }
 
+.dl-override-chip {
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+
 .dl-edit {
   display: flex;
   align-items: center;
@@ -244,6 +255,41 @@
 }
 
 .dl-modal-select:focus { border-color: rgba(139, 92, 246, 0.45); }
+
+.dl-modal-override-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-top: -0.2rem;
+}
+
+.dl-modal-override-toggle {
+  border: 1px solid rgba(139, 92, 246, 0.24);
+  background: rgba(139, 92, 246, 0.07);
+  color: #a78bfa;
+  font-size: 0.66rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.dl-modal-override-toggle:hover {
+  background: rgba(139, 92, 246, 0.16);
+}
+
+.dl-modal-override-toggle.active {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.14);
+  color: #facc15;
+}
+
+.dl-modal-override-note {
+  font-size: 0.62rem;
+  color: #fbbf24;
+}
 
 .dl-modal-price-wrap {
   display: flex;

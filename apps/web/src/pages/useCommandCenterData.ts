@@ -102,7 +102,12 @@ export function useCommandCenterData({
 
   const updatePick = async (
     entryId: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ): Promise<RosterEntry | undefined> => {
     if (!leagueId || !token) return undefined;
     const prev = rosterEntries.find((e) => e._id === entryId);

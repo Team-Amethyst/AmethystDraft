@@ -17,7 +17,12 @@ export function CommandCenterDraftLog({
   onRemovePick?: (id: string) => void;
   onUpdatePick?: (
     id: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => void;
 }) {
   const playerMap = useMemo(

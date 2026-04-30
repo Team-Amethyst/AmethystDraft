@@ -116,6 +116,41 @@
   width: 100%;
 }
 
+.log-override-toggle {
+  margin-top: 0.28rem;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.08);
+  color: #a78bfa;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.18rem 0.55rem;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.log-override-toggle:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.log-override-toggle.active {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.15);
+  color: #facc15;
+}
+
+.log-override-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.log-override-note {
+  margin-top: 0.2rem;
+  font-size: 0.61rem;
+  color: #fbbf24;
+}
+
 .log-result-btn:hover {
   background: rgba(139, 92, 246, 0.4);
   color: #ede9fe;

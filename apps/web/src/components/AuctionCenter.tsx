@@ -580,6 +580,7 @@ export function AuctionCenter({
   const bidPriceTouchedRef = useRef(false);
   const [draftNotesHeight, setDraftNotesHeight] = useState(180);
   const [draftedToSlot, setDraftedToSlot] = useState("");
+  const [manualSlotOverride, setManualSlotOverride] = useState(false);
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
@@ -1421,7 +1422,11 @@ export function AuctionCenter({
       )
     : allSlotOptions;
   const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
-  const slotOptions = eligible.filter((s) => available.has(s));
+  const eligibleSlotOptions = eligible.filter((s) => available.has(s));
+  const overrideSlotOptions = allSlotOptions.filter((s) => available.has(s));
+  const slotOptions = manualSlotOverride ? overrideSlotOptions : eligibleSlotOptions;
+  const isDraftSlotManuallyOverridden =
+    draftedToSlot !== "" && !eligible.includes(draftedToSlot);
 
   const hittingCats = (league?.scoringCategories ?? []).filter(
     (c) => c.type === "batting",
@@ -1437,6 +1442,16 @@ export function AuctionCenter({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayer?.id, wonBy]);
+
+  useEffect(() => {
+    if (!selectedPlayer) {
+      setManualSlotOverride(false);
+      return;
+    }
+    if (draftedToSlot && eligible.includes(draftedToSlot)) {
+      setManualSlotOverride(false);
+    }
+  }, [selectedPlayer?.id, draftedToSlot, eligible]);
 
   const playerImpactSection = selectedPlayer ? (
     <div className="pac-impact-wrap">
@@ -1838,6 +1853,26 @@ export function AuctionCenter({
                     <option key={s}>{s}</option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  className={
+                    "log-override-toggle" + (manualSlotOverride ? " active" : "")
+                  }
+                  onClick={() => setManualSlotOverride((prev) => !prev)}
+                  disabled={!selectedPlayer}
+                  title={
+                    manualSlotOverride
+                      ? "Using manual slot override"
+                      : "Allow non-eligible slot assignment"
+                  }
+                >
+                  Manual override
+                </button>
+                {isDraftSlotManuallyOverridden && (
+                  <div className="log-override-note">
+                    Drafting outside listed eligibility
+                  </div>
+                )}
               </div>
               <button
                 className="log-result-btn log-result-btn--inline"

@@ -331,7 +331,12 @@ export default function LeagueOverview() {
 
   const handleUpdateEntry = async (
     entryId: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => {
     if (!league || !token) return;
     const prev = entries.find((e) => e._id === entryId);

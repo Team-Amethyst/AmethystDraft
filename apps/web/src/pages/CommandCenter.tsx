@@ -135,7 +135,12 @@ export default function CommandCenter() {
 
   const handleUpdatePick = async (
     entryId: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => {
     try {
       const prev = await updatePick(entryId, data);

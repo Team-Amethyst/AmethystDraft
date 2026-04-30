@@ -16,7 +16,12 @@ interface DraftLogRowProps {
   leagueBudget?: number;
   onUpdate?: (
     id: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => void;
   onRemove?: (id: string) => void;
 }
@@ -71,8 +76,17 @@ export function DraftLogRow({
   const [editSlot, setEditSlot] = useState(entry.rosterSlot);
   const [editPrice, setEditPrice] = useState(String(entry.price));
   const [editTeamId, setEditTeamId] = useState(entry.teamId);
+  const [manualSlotOverride, setManualSlotOverride] = useState(false);
+  const [editKeeperContract, setEditKeeperContract] = useState(
+    entry.keeperContract ?? "",
+  );
 
+  const eligibleSlots = getEligibleSlotsForPositions(entry.positions, slotOptions);
+  const allOpenSlotsForTeam = Array.from(openSlots(editTeamId, slotOptions));
   const currentValidSlots = validSlotsFor(editTeamId);
+  const currentSlotOptions = manualSlotOverride ? allOpenSlotsForTeam : currentValidSlots;
+  const isCurrentSlotOverridden = !eligibleSlots.includes(entry.rosterSlot);
+  const isEditedSlotOverridden = !eligibleSlots.includes(editSlot);
   const initials = entry.playerName
     .split(" ")
     .map((w) => w[0])
@@ -84,12 +98,16 @@ export function DraftLogRow({
     setEditSlot(entry.rosterSlot);
     setEditPrice(String(entry.price));
     setEditTeamId(entry.teamId);
+    setEditKeeperContract(entry.keeperContract ?? "");
+    setManualSlotOverride(!eligibleSlots.includes(entry.rosterSlot));
     setEditing(true);
   }
 
   function handleTeamChange(newTeamId: string) {
     setEditTeamId(newTeamId);
-    const slots = validSlotsFor(newTeamId);
+    const slots = manualSlotOverride
+      ? Array.from(openSlots(newTeamId, slotOptions))
+      : validSlotsFor(newTeamId);
     if (!slots.includes(editSlot)) setEditSlot(slots[0] ?? editSlot);
   }
 
@@ -123,10 +141,18 @@ export function DraftLogRow({
       }
     }
 
-    const data: { price?: number; rosterSlot?: string; teamId?: string } = {};
+    const data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    } = {};
     if (editSlot !== entry.rosterSlot) data.rosterSlot = editSlot;
     if (newPrice !== entry.price) data.price = newPrice;
     if (editTeamId !== entry.teamId) data.teamId = editTeamId;
+    if (editKeeperContract.trim() !== (entry.keeperContract ?? "")) {
+      data.keeperContract = editKeeperContract.trim();
+    }
     if (Object.keys(data).length > 0) onUpdate(entry._id, data);
     setEditing(false);
   }
@@ -147,7 +173,17 @@ export function DraftLogRow({
           <div className="dl-row-bottom">
             <span className="dl-fantasy-team">{teamName}</span>
             <span className="dl-slot">{entry.rosterSlot}</span>
+            {isCurrentSlotOverridden ? (
+              <span className="dl-override-chip" title="Manual position override">
+                OVR
+              </span>
+            ) : null}
             <span className="dl-price">${entry.price}</span>
+            {entry.keeperContract ? (
+              <span className="dl-slot" title="Keeper contract">
+                {entry.keeperContract}
+              </span>
+            ) : null}
           </div>
         </div>
         {onUpdate && (
@@ -215,13 +251,38 @@ export function DraftLogRow({
                   value={editSlot}
                   onChange={(e) => setEditSlot(e.target.value)}
                 >
-                  {currentValidSlots.map((s) => (
+                  {currentSlotOptions.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
                 </select>
               </label>
+              <div className="dl-modal-override-row">
+                <button
+                  type="button"
+                  className={
+                    "dl-modal-override-toggle" + (manualSlotOverride ? " active" : "")
+                  }
+                  onClick={() => {
+                    const next = !manualSlotOverride;
+                    setManualSlotOverride(next);
+                    const nextSlots = next
+                      ? Array.from(openSlots(editTeamId, slotOptions))
+                      : validSlotsFor(editTeamId);
+                    if (!nextSlots.includes(editSlot)) {
+                      setEditSlot(nextSlots[0] ?? editSlot);
+                    }
+                  }}
+                >
+                  Manual slot override
+                </button>
+                {isEditedSlotOverridden ? (
+                  <span className="dl-modal-override-note">
+                    Outside listed eligibility
+                  </span>
+                ) : null}
+              </div>
               <label className="dl-modal-field">
                 <span className="dl-modal-label">Price Paid</span>
                 <div className="dl-modal-price-wrap">
@@ -237,6 +298,19 @@ export function DraftLogRow({
                     }}
                   />
                 </div>
+              </label>
+              <label className="dl-modal-field">
+                <span className="dl-modal-label">Contract</span>
+                <input
+                  className="dl-modal-price-input"
+                  type="text"
+                  value={editKeeperContract}
+                  onChange={(e) => setEditKeeperContract(e.target.value)}
+                  placeholder="Arb / 3Y"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSave();
+                  }}
+                />
               </label>
             </div>
             <div className="dl-modal-actions">

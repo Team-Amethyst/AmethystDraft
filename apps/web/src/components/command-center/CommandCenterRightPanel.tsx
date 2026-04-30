@@ -43,7 +43,12 @@ export function CommandCenterRightPanel({
   onRemovePick: (id: string) => void;
   onUpdatePick: (
     id: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => void;
   fallbackScoringCategories: ScoringCategory[];
 }) {
