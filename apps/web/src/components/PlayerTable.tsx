@@ -1,5 +1,15 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { Search, Star, RotateCcw, Tag } from "lucide-react";
+import type { StatBasis } from "@repo/player-stat-basis";
+import {
+  getCategoryTags,
+  getDisplayStatValue,
+  playerIsPitcher,
+  resolveDisplayStats,
+  statBasisAllValues,
+  statBasisFooterDescription,
+  statBasisPillLabel,
+} from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
@@ -7,13 +17,11 @@ import "./PlayerTable.css";
 import {
   formatCurrencyWhole,
   formatMaybeDelta,
+  playerValuationEdgeOrDiff,
   valuationSortLabel,
   type ValuationSortField,
 } from "../utils/valuation";
 import CustomPlayerHeadshot from "./CustomPlayerHeadshot";
-
-
-type StatBasis = "projections" | "last-year" | "3-year-avg";
 
 interface PlayerTableProps {
   players: Player[];
@@ -38,24 +46,6 @@ interface PlayerTableProps {
   >;
   defaultValuationSortField?: ValuationSortField;
 }
-
-type DisplayBatting = {
-  avg: string;
-  hr: number;
-  rbi: number;
-  runs: number;
-  sb: number;
-};
-
-type DisplayPitching = {
-  era: string;
-  whip: string;
-  wins: number;
-  saves: number;
-  holds: number;
-  strikeouts: number;
-  completeGames: number;
-};
 
 const POSITIONS = ["all", "OF", "SS", "1B", "2B", "3B", "C", "DH", "P"];
 const HITTER_POSITIONS = ["OF", "SS", "1B", "2B", "3B", "C", "DH"];
@@ -112,149 +102,6 @@ function PlayerHeadshot({
     />
   );
 }
-// NOTE: Dummy transformations below to simulate stat basis changes, replace with real data from backend when available.
-function clampNonNegative(value: number): number {
-  return Math.max(0, Math.round(value));
-}
-
-function formatRate(value: number): string {
-  return value.toFixed(3);
-}
-
-function toDisplayBatting(
-  batting?: Player["projection"]["batting"] | Player["stats"]["batting"],
-): DisplayBatting | undefined {
-  if (!batting) return undefined;
-  return {
-    avg: String(batting.avg ?? "0.000"),
-    hr: Number(batting.hr ?? 0),
-    rbi: Number(batting.rbi ?? 0),
-    runs: Number(batting.runs ?? 0),
-    sb: Number(batting.sb ?? 0),
-  };
-}
-
-function toDisplayPitching(
-  pitching?: Player["projection"]["pitching"] | Player["stats"]["pitching"],
-): DisplayPitching | undefined {
-  if (!pitching) return undefined;
-  return {
-    era: String(pitching.era ?? "0.000"),
-    whip: String(pitching.whip ?? "0.000"),
-    wins: Number(pitching.wins ?? 0),
-    saves: Number(pitching.saves ?? 0),
-    holds: Number(pitching.holds ?? 0),
-    strikeouts: Number(pitching.strikeouts ?? 0),
-    completeGames: Number(pitching.completeGames ?? 0),
-  };
-}
-
-function applyDummyAdjustments(
-  bat: DisplayBatting | undefined,
-  pit: DisplayPitching | undefined,
-  statBasis: StatBasis,
-): { bat?: DisplayBatting; pit?: DisplayPitching } {
-  if (statBasis === "projections") {
-    return { bat, pit };
-  }
-
-  // TODO(data): Replace this dummy basis transformation with real 2024 and 3-year datasets from backend.
-  if (statBasis === "last-year") {
-    return {
-      bat: bat
-        ? {
-            avg: formatRate(parseFloat(bat.avg) * 0.985),
-            hr: clampNonNegative(bat.hr * 1.08),
-            rbi: clampNonNegative(bat.rbi * 1.04),
-            runs: clampNonNegative(bat.runs * 0.97),
-            sb: clampNonNegative(bat.sb * 0.94),
-          }
-        : undefined,
-      pit: pit
-        ? {
-            era: formatRate(parseFloat(pit.era) * 1.06),
-            whip: formatRate(parseFloat(pit.whip) * 1.04),
-            wins: clampNonNegative(pit.wins * 0.96),
-            saves: clampNonNegative(pit.saves * 1.03),
-            holds: clampNonNegative(pit.holds * 1.03),
-            strikeouts: clampNonNegative(pit.strikeouts * 1.02),
-            completeGames: clampNonNegative(pit.completeGames * 0.96),
-          }
-        : undefined,
-    };
-  }
-
-  return {
-    bat: bat
-      ? {
-          avg: formatRate(parseFloat(bat.avg) * 0.995),
-          hr: clampNonNegative(bat.hr * 0.95),
-          rbi: clampNonNegative(bat.rbi * 0.96),
-          runs: clampNonNegative(bat.runs * 0.96),
-          sb: clampNonNegative(bat.sb * 0.92),
-        }
-      : undefined,
-    pit: pit
-      ? {
-          era: formatRate(parseFloat(pit.era) * 1.02),
-          whip: formatRate(parseFloat(pit.whip) * 1.01),
-          wins: clampNonNegative(pit.wins * 0.94),
-          saves: clampNonNegative(pit.saves * 0.95),
-          holds: clampNonNegative(pit.holds * 0.95),
-          strikeouts: clampNonNegative(pit.strikeouts * 0.95),
-          completeGames: clampNonNegative(pit.completeGames * 0.94),
-        }
-      : undefined,
-  };
-}
-
-function resolveDisplayStats(
-  player: Player,
-  statBasis: StatBasis,
-): { bat?: DisplayBatting; pit?: DisplayPitching } {
-  const preferredBat =
-    statBasis === "projections"
-      ? player.projection?.batting
-      : player.stats?.batting;
-  const fallbackBat =
-    statBasis === "projections"
-      ? player.stats?.batting
-      : player.projection?.batting;
-  const preferredPit =
-    statBasis === "projections"
-      ? player.projection?.pitching
-      : player.stats?.pitching;
-  const fallbackPit =
-    statBasis === "projections"
-      ? player.stats?.pitching
-      : player.projection?.pitching;
-
-  const bat = toDisplayBatting(preferredBat ?? fallbackBat);
-  const pit = toDisplayPitching(preferredPit ?? fallbackPit);
-
-  return applyDummyAdjustments(bat, pit, statBasis);
-}
-
-function getCategoryTags(
-  bat: DisplayBatting | undefined,
-  pit: DisplayPitching | undefined,
-): string[] {
-  const tags: string[] = [];
-
-  if (bat) {
-    if (bat.hr >= 25) tags.push("HR+");
-    if (bat.sb >= 15) tags.push("SB+");
-    if (parseFloat(bat.avg) >= 0.285) tags.push("AVG+");
-    if (bat.runs >= 85) tags.push("R+");
-    if (bat.rbi >= 85) tags.push("RBI+");
-  }
-  if (pit) {
-    if (pit.strikeouts >= 175) tags.push("K+");
-    if (pit.wins >= 10) tags.push("W+");
-    if (pit.saves >= 20) tags.push("SV+");
-  }
-  return tags;
-}
 
 function NoteCell({
   playerId,
@@ -296,88 +143,8 @@ function asFinite(n: unknown): number | undefined {
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
-function getValDiff(player: Player): number | undefined {
-  const edge = asFinite(player.edge);
-  if (edge !== undefined) return edge;
-  const likelyBid = asFinite(player.recommended_bid);
-  const yourValue = asFinite(player.team_adjusted_value);
-  if (likelyBid !== undefined && yourValue !== undefined) {
-    return yourValue - likelyBid;
-  }
-  return undefined;
-}
-
 const DEFAULT_BAT_COLS = ["AVG", "HR", "RBI", "R", "SB"];
 const DEFAULT_PIT_COLS = ["ERA", "K", "W", "SV", "WHIP"];
-
-const PITCHER_POSITIONS = new Set(["SP", "RP", "P"]);
-function playerIsPitcher(p: Player): boolean {
-  const hasPit = !!(p.projection?.pitching ?? p.stats?.pitching);
-  const hasBat = !!(p.projection?.batting ?? p.stats?.batting);
-  if (hasPit && !hasBat) return true;
-  if (hasBat && !hasPit) return false;
-  return PITCHER_POSITIONS.has(p.position.toUpperCase());
-}
-
-function getDisplayStatValue(
-  catName: string,
-  catType: "batting" | "pitching",
-  bat: DisplayBatting | undefined,
-  pit: DisplayPitching | undefined,
-  player: Player,
-): string {
-  const n = catName.toUpperCase();
-  if (catType === "batting") {
-    if (!bat && !player.stats?.batting) return "-";
-    switch (n) {
-      case "HR":
-        return String(bat?.hr ?? "-");
-      case "RBI":
-        return String(bat?.rbi ?? "-");
-      case "R":
-      case "RUNS":
-        return String(bat?.runs ?? "-");
-      case "SB":
-        return String(bat?.sb ?? "-");
-      case "AVG":
-        return bat?.avg ?? "-";
-      case "OBP":
-        return player.stats?.batting?.obp ?? "-";
-      case "SLG":
-        return player.stats?.batting?.slg ?? "-";
-      default:
-        return "-";
-    }
-  } else {
-    if (!pit && !player.stats?.pitching) return "-";
-    switch (n) {
-      case "W":
-      case "WINS":
-        return String(pit?.wins ?? "-");
-      case "K":
-      case "SO":
-        return String(pit?.strikeouts ?? "-");
-      case "ERA":
-        return pit?.era ?? "-";
-      case "WHIP":
-      case "WALKS + HITS PER IP":
-        return pit?.whip ?? "-";
-      case "SV":
-      case "SAVES":
-        return String(pit?.saves ?? "-");
-      case "HLD":
-      case "HOLDS":
-        return String(pit?.holds ?? "-");
-      case "CG":
-      case "COMPLETE GAMES":
-        return String(pit?.completeGames ?? "-");
-      case "IP":
-        return player.stats?.pitching?.innings ?? "-";
-      default:
-        return "-";
-    }
-  }
-}
 
 function SortArrow({
   col,
@@ -624,12 +391,7 @@ export default function PlayerTable({
     else addToWatchlist(player);
   };
 
-  const statBasisLabel =
-    statBasis === "projections"
-      ? "PROJ"
-      : statBasis === "last-year"
-        ? "2025"
-        : "3YR";
+  const statBasisFooterLine = statBasisFooterDescription(statBasis);
 
   // Determine pitcher by stats presence (same heuristic as isBatter below),
   // falling back to position string so list works even with sparse data.
@@ -669,7 +431,7 @@ export default function PlayerTable({
           pit,
           isBatter: !!bat || !pit,
           tags: getCategoryTags(bat, pit),
-          valDiff: getValDiff(player),
+          valDiff: playerValuationEdgeOrDiff(player),
         };
       }),
     [displayed, statBasis],
@@ -901,17 +663,13 @@ export default function PlayerTable({
         </div>
         {onStatBasisChange && (
           <div className="pt-basis-pills">
-            {(["projections", "last-year", "3-year-avg"] as const).map((b) => (
+            {statBasisAllValues().map((b) => (
               <button
                 key={b}
                 className={"pt-pill " + (statBasis === b ? "active" : "")}
                 onClick={() => onStatBasisChange(b)}
               >
-                {b === "projections"
-                  ? "PROJ"
-                  : b === "last-year"
-                    ? "2025"
-                    : "3YR"}
+                {statBasisPillLabel(b)}
               </button>
             ))}
           </div>
@@ -1196,7 +954,7 @@ export default function PlayerTable({
       </div>
 
       <div className="pt-footer">
-        Showing {displayed.length} players · {statBasisLabel} stats · Data via
+        Showing {displayed.length} players · {statBasisFooterLine} · Data via
         MLB Stats API
       </div>
     </div>

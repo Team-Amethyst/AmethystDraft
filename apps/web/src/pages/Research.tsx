@@ -33,6 +33,11 @@ import {
   type ValuationShape,
 } from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
+import {
+  type StatBasis,
+  parseStatBasis,
+  RESEARCH_STAT_BASIS_STORAGE_KEY_WEB,
+} from "@repo/player-stat-basis";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
@@ -115,15 +120,11 @@ export default function Research() {
       return "all";
     }
   });
-  const [statBasis, setStatBasis] = useState<
-    "projections" | "last-year" | "3-year-avg"
-  >(() => {
+  const [statBasis, setStatBasis] = useState<StatBasis>(() => {
     try {
-      return (
-        (localStorage.getItem("amethyst-research-statbasis") as
-          | "projections"
-          | "last-year"
-          | "3-year-avg") ?? "last-year"
+      return parseStatBasis(
+        localStorage.getItem(RESEARCH_STAT_BASIS_STORAGE_KEY_WEB),
+        "last-year",
       );
     } catch {
       return "last-year";
@@ -200,7 +201,7 @@ export default function Research() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-research-statbasis", statBasis);
+      localStorage.setItem(RESEARCH_STAT_BASIS_STORAGE_KEY_WEB, statBasis);
     } catch { /* noop */ }
   }, [statBasis]);
 
@@ -678,6 +679,7 @@ export default function Research() {
       <PlayerDetailModal
         isOpen={selectedModalPlayer !== null}
         player={selectedModalPlayer}
+        statBasis={statBasis}
         draftedByTeam={
           selectedModalPlayer
             ? draftedByTeam.get(selectedModalPlayer.id)

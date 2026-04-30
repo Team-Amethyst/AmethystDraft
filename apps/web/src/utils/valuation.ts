@@ -34,6 +34,25 @@ function coerceNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/**
+ * Val Diff for tables: prefer engine `edge` when present; otherwise TA minus likely bid.
+ * Matches prior PlayerTable behavior in one place for reuse.
+ */
+export function playerValuationEdgeOrDiff(player: {
+  edge?: number | null;
+  recommended_bid?: number | null;
+  team_adjusted_value?: number | null;
+}): number | undefined {
+  const edge = coerceNumber(player.edge);
+  if (edge !== undefined) return edge;
+  const likelyBid = coerceNumber(player.recommended_bid);
+  const yourValue = coerceNumber(player.team_adjusted_value);
+  if (likelyBid !== undefined && yourValue !== undefined) {
+    return yourValue - likelyBid;
+  }
+  return undefined;
+}
+
 export function formatCurrencyWhole(value: number | null | undefined): string {
   const n = coerceNumber(value);
   if (n === undefined) return "—";

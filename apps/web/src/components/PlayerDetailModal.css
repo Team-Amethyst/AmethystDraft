@@ -164,6 +164,14 @@
   margin-top: 0.3rem;
 }
 
+.pdm-basis-foot {
+  margin: 0;
+  padding: 0 1.15rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #8f79af;
+}
+
 .pdm-actions {
   padding: 1rem 1.15rem;
   border-top: 1px solid rgba(168, 85, 247, 0.2);

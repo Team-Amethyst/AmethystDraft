@@ -1,3 +1,7 @@
+import {
+  type StatBasis,
+  statBasisFooterDescription,
+} from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import { formatCurrencyWhole, formatMaybeDelta } from "../utils/valuation";
 import PosBadge from "./PosBadge";
@@ -6,6 +10,8 @@ import "./PlayerDetailModal.css";
 interface PlayerDetailModalProps {
   isOpen: boolean;
   player: Player | null;
+  /** Active research table stat lens (footer copy aligns with PlayerTable). */
+  statBasis?: StatBasis;
   draftedByTeam?: string;
   draftedContract?: string;
   note?: string;
@@ -22,6 +28,7 @@ function valueOrDash(value: unknown): string {
 export default function PlayerDetailModal({
   isOpen,
   player,
+  statBasis = "projections",
   draftedByTeam,
   draftedContract,
   note,
@@ -99,7 +106,7 @@ export default function PlayerDetailModal({
           </section>
 
           <section className="pdm-card">
-            <h3>Stats</h3>
+            <h3>Last completed season (API)</h3>
             {batting ? (
               <div className="pdm-stat-group">
                 <h4>Batting</h4>
@@ -121,7 +128,7 @@ export default function PlayerDetailModal({
           </section>
 
           <section className="pdm-card">
-            <h3>Projections</h3>
+            <h3>Blended outlook (5/3/2 year weights)</h3>
             {projectionBat ? (
               <p>Batting: AVG {projectionBat.avg} | HR {projectionBat.hr} | RBI {projectionBat.rbi} | R {projectionBat.runs} | SB {projectionBat.sb}</p>
             ) : (
@@ -166,6 +173,8 @@ export default function PlayerDetailModal({
             </section>
           )}
         </div>
+
+        <p className="pdm-basis-foot">{statBasisFooterDescription(statBasis)}</p>
 
         <div className="pdm-actions">
           <button type="button" className="pdm-btn pdm-btn--secondary" onClick={onClose}>
