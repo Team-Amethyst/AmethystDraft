@@ -26,6 +26,7 @@ import {
 } from "../utils/eligibility";
 import "./Research.css";
 import AddPlayerModal from "../components/AddPlayerModal";
+import PlayerDetailModal from "../components/PlayerDetailModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
   mergeCatalogPlayersWithValuations,
@@ -87,6 +88,7 @@ export default function Research() {
 
   const { customPlayers, addCustomPlayer, isCustomPlayer } = useCustomPlayers();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedModalPlayer, setSelectedModalPlayer] = useState<Player | null>(null);
 
   const { id: leagueId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -160,6 +162,16 @@ export default function Research() {
     }
     return map;
   }, [rosterEntries, league?.teamNames]);
+
+  const draftedContractByPlayerId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of rosterEntries) {
+      if (e.keeperContract && e.keeperContract.trim() !== "") {
+        map.set(e.externalPlayerId, e.keeperContract.trim());
+      }
+    }
+    return map;
+  }, [rosterEntries]);
 
   const depthTotalSlots = DEPTH_POSITIONS.length * 3;
   const depthAssignedCount = useMemo(() => {
@@ -307,7 +319,12 @@ export default function Research() {
   );
 
   const handlePlayerClick = (player: Player) => {
+    setSelectedModalPlayer(player);
+  };
+
+  const handleMoveToCommandCenter = (player: Player) => {
     setSelectedPlayer(player);
+    setSelectedModalPlayer(null);
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
@@ -441,6 +458,7 @@ export default function Research() {
                   onNoteChange={setNote}
                   draftedIds={draftedIds}
                   draftedByTeam={draftedByTeam}
+                  draftedContractByPlayerId={draftedContractByPlayerId}
                   isCustomPlayer={isCustomPlayer}
                 />
               )}
@@ -656,6 +674,26 @@ export default function Research() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSave={addCustomPlayer}
+      />
+      <PlayerDetailModal
+        isOpen={selectedModalPlayer !== null}
+        player={selectedModalPlayer}
+        draftedByTeam={
+          selectedModalPlayer
+            ? draftedByTeam.get(selectedModalPlayer.id)
+            : undefined
+        }
+        draftedContract={
+          selectedModalPlayer
+            ? draftedContractByPlayerId.get(selectedModalPlayer.id)
+            : undefined
+        }
+        note={selectedModalPlayer ? getNote(selectedModalPlayer.id) : ""}
+        isCustomPlayer={
+          selectedModalPlayer ? isCustomPlayer(selectedModalPlayer.id) : false
+        }
+        onClose={() => setSelectedModalPlayer(null)}
+        onMoveToCommandCenter={handleMoveToCommandCenter}
       />
     </div>
   );

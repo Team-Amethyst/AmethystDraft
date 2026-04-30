@@ -29,6 +29,7 @@ interface PlayerTableProps {
   onNoteChange?: (playerId: string, note: string) => void;
   draftedIds?: Set<string>;
   draftedByTeam?: Map<string, string>;
+  draftedContractByPlayerId?: Map<string, string>;
   isCustomPlayer?: (id: string) => boolean;
   /** League-scoped Engine catalog batch (e.g. Research); optional second line under Proj $. */
   engineCatalogByPlayerId?: ReadonlyMap<
@@ -408,6 +409,7 @@ export default function PlayerTable({
   onNoteChange,
   draftedIds,
   draftedByTeam,
+  draftedContractByPlayerId,
   isCustomPlayer,
   engineCatalogByPlayerId,
   defaultValuationSortField = "recommended_bid",
@@ -1001,14 +1003,10 @@ export default function PlayerTable({
                       "pt-row" +
                       (isStarred ? " pt-row--starred" : "") +
                       (draftedIds?.has(player.id) ? " pt-row--drafted" : "") +
-                      (onPlayerClick && !draftedIds?.has(player.id)
-                        ? " pt-row--clickable"
-                        : "")
+                      (onPlayerClick ? " pt-row--clickable" : "")
                     }
                     onClick={
-                      onPlayerClick && !draftedIds?.has(player.id)
-                        ? () => onPlayerClick(player)
-                        : undefined
+                      onPlayerClick ? () => onPlayerClick(player) : undefined
                     }
                   >
                     <td className="td-rank">{index + 1}</td>
@@ -1053,7 +1051,8 @@ export default function PlayerTable({
                             <span className="custom-badge">Custom</span>
                           )}
                           {(tags.length > 0 ||
-                            draftedByTeam?.has(player.id)) && (
+                            draftedByTeam?.has(player.id) ||
+                            draftedContractByPlayerId?.has(player.id)) && (
                             <div className="tag-list">
                               {tags.map((t) => (
                                 <span key={t} className="tag">
@@ -1063,6 +1062,11 @@ export default function PlayerTable({
                               {draftedByTeam?.get(player.id) && (
                                 <span className="tag pt-drafted-tag">
                                   ▶ {draftedByTeam.get(player.id)}
+                                </span>
+                              )}
+                              {draftedContractByPlayerId?.get(player.id) && (
+                                <span className="tag pt-drafted-contract-tag">
+                                  {draftedContractByPlayerId.get(player.id)}
                                 </span>
                               )}
                             </div>

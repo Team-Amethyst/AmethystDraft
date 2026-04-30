@@ -1,0 +1,192 @@
+.pdm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(7, 5, 14, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.pdm-modal {
+  width: min(960px, 100%);
+  max-height: min(90vh, 920px);
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: #120c20;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.pdm-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.pdm-title {
+  margin: 0;
+  color: #f5edff;
+}
+
+.pdm-subtitle {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: #b8a3d8;
+  font-size: 0.82rem;
+}
+
+.pdm-chip {
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(139, 92, 246, 0.12);
+  color: #cfbaf2;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+}
+
+.pdm-chip--inj {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.12);
+  color: #f9b5b5;
+}
+
+.pdm-chip--drafted {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.12);
+  color: #8be4a9;
+}
+
+.pdm-close {
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: transparent;
+  color: #cbb7ea;
+  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.pdm-grid {
+  padding: 1rem 1.15rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.8rem;
+}
+
+.pdm-card {
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  border-radius: 10px;
+  background: rgba(21, 13, 33, 0.78);
+  padding: 0.75rem 0.8rem;
+}
+
+.pdm-card h3 {
+  margin: 0 0 0.55rem;
+  color: #eadfff;
+  font-size: 0.9rem;
+}
+
+.pdm-card h4 {
+  margin: 0 0 0.3rem;
+  color: #dac7f8;
+  font-size: 0.77rem;
+}
+
+.pdm-card dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.6rem;
+}
+
+.pdm-card dt {
+  color: #9f86bf;
+  font-size: 0.76rem;
+}
+
+.pdm-card dd {
+  margin: 0;
+  color: #ebdefe;
+  font-size: 0.8rem;
+}
+
+.pdm-positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.55rem;
+}
+
+.pdm-stat-group + .pdm-stat-group {
+  margin-top: 0.55rem;
+}
+
+.pdm-stat-group p {
+  margin: 0.2rem 0;
+  color: #ceb8ee;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.pdm-empty {
+  margin: 0.2rem 0;
+  color: #8f79af;
+  font-size: 0.78rem;
+}
+
+.pdm-card--wide {
+  grid-column: 1 / -1;
+}
+
+.pdm-note-block + .pdm-note-block {
+  margin-top: 0.6rem;
+}
+
+.pdm-note-block p {
+  margin: 0;
+  color: #dbc9f6;
+  font-size: 0.8rem;
+}
+
+.pdm-note-block ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: #dbc9f6;
+  font-size: 0.8rem;
+}
+
+.pdm-note-block li + li {
+  margin-top: 0.3rem;
+}
+
+.pdm-actions {
+  padding: 1rem 1.15rem;
+  border-top: 1px solid rgba(168, 85, 247, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.pdm-btn {
+  border-radius: 8px;
+  padding: 0.48rem 0.8rem;
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.pdm-btn--secondary {
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: transparent;
+  color: #cbb7ea;
+}
+
+.pdm-btn--primary {
+  border: 1px solid rgba(168, 85, 247, 0.55);
+  background: rgba(168, 85, 247, 0.22);
+  color: #f5ecff;
+}
