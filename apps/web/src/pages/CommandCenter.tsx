@@ -6,8 +6,6 @@ import type { League } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { Player } from "../types/player";
-import { getPlayers } from "../api/players";
-import { getRoster, removeRosterEntry, updateRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import "./CommandCenter.css";
 import { AuctionCenter } from "../components/AuctionCenter";
@@ -32,15 +30,11 @@ import { useProjectedStandings } from "./useProjectedStandings";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
-  getValuation,
   type ValuationResponse,
 } from "../api/engine";
 import { resolveUserTeamId } from "../utils/team";
-import {
-  leagueValuationConfigKey,
-  rosterValuationFingerprint,
-} from "../utils/valuationDeps";
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
+import { useCommandCenterData } from "./useCommandCenterData";
 
 /** Default 5×5-style cats when league has no custom scoring list (same as right-rail standings). */
 const COMMAND_CENTER_FALLBACK_SCORING_CATS: {
@@ -540,43 +534,12 @@ export default function CommandCenter() {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
   const { token, user } = useAuth();
-  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
-  // const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [mlbPlayers, setMlbPlayers] = useState<Player[]>([]);
   const { selectedPlayer, setSelectedPlayer } = useSelectedPlayer();
   const { customPlayers, addCustomPlayer } = useCustomPlayers();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [engineMarket, setEngineMarket] = useState<ValuationResponse | null>(
-    null,
-  );
   const savedPositionTargets = useMemo(
     () => readPositionTargetsFromStorage(leagueId),
     [leagueId],
-  );
-
-  const allPlayers = useMemo(
-    () => [...customPlayers, ...mlbPlayers],
-    [customPlayers, mlbPlayers],
-  );
-
-  const rosterValuationKey = useMemo(
-    () => rosterValuationFingerprint(rosterEntries),
-    [rosterEntries],
-  );
-
-  const leagueValuationKey = useMemo(
-    () => leagueValuationConfigKey(league ?? null),
-    [
-      league?.id,
-      league?.teams,
-      league?.budget,
-      league ? JSON.stringify(league.rosterSlots) : "",
-      league ? JSON.stringify(league.scoringCategories) : "",
-      league?.memberIds?.join(","),
-      league?.posEligibilityThreshold,
-      league?.playerPool,
-      league?.teamNames?.join("\u0001"),
-    ],
   );
 
   const userTeamIdForValuation = useMemo(
@@ -588,53 +551,25 @@ export default function CommandCenter() {
   const valuationBoardLogPlayerId =
     import.meta.env.DEV ? selectedPlayer?.id : undefined;
 
-  const refreshRoster = () => {
-    if (!leagueId || !token) return;
-    void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
-  };
-
-  useEffect(() => {
-    if (!leagueId || !token) return;
-    void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
-  }, [leagueId, token]);
-
-  useEffect(() => {
-    if (!leagueId || !token) return;
-    let cancelled = false;
-    void getValuation(
-      leagueId,
-      token,
-      userTeamIdForValuation,
-      valuationBoardLogPlayerId ?? null,
-    )
-      .then((res) => {
-        if (!cancelled) setEngineMarket(res);
-      })
-      .catch(() => {
-        if (!cancelled) setEngineMarket(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  const {
+    rosterEntries,
+    mlbPlayers,
+    engineMarket,
+    refreshRoster,
+    removePick,
+    updatePick,
+  } = useCommandCenterData({
     leagueId,
     token,
+    league: league ?? null,
     userTeamIdForValuation,
-    rosterValuationKey,
-    leagueValuationKey,
     valuationBoardLogPlayerId,
-  ]);
+  });
 
-  // useEffect(() => {
-  //   void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
-  //     .then(setAllPlayers)
-  //     .catch(console.error);
-  // }, [league?.posEligibilityThreshold, league?.playerPool]);
-  useEffect(() => {
-  void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
-    .then(setMlbPlayers)
-    .catch(console.error);
-}, [league?.posEligibilityThreshold, league?.playerPool]);
+  const allPlayers = useMemo(
+    () => [...customPlayers, ...mlbPlayers],
+    [customPlayers, mlbPlayers],
+  );
 
   // If selectedPlayer was set from the watchlist (stub with mlbId 0 / no real data),
   // replace it with the full player once allPlayers is loaded.
@@ -684,14 +619,10 @@ export default function CommandCenter() {
   };
 
   const handleRemovePick = async (entryId: string) => {
-    if (!leagueId || !token) return;
-    const entry = rosterEntries.find((e) => e._id === entryId);
-    setRosterEntries((prev) => prev.filter((e) => e._id !== entryId));
     try {
-      await removeRosterEntry(leagueId, entryId, token);
+      const entry = await removePick(entryId);
       showToast(`✕ Removed ${entry?.playerName ?? "pick"}`, "info");
     } catch (err) {
-      refreshRoster();
       showToast(err instanceof Error ? err.message : "Remove failed", "error");
     }
   };
@@ -700,13 +631,8 @@ export default function CommandCenter() {
     entryId: string,
     data: { price?: number; rosterSlot?: string; teamId?: string },
   ) => {
-    if (!leagueId || !token) return;
-    const prev = rosterEntries.find((e) => e._id === entryId);
-    setRosterEntries((entries) =>
-      entries.map((e) => (e._id === entryId ? { ...e, ...data } : e)),
-    );
     try {
-      await updateRosterEntry(leagueId, entryId, data, token);
+      const prev = await updatePick(entryId, data);
       const parts: string[] = [];
       if (data.teamId && league) {
         const idx = parseInt(data.teamId.replace("team_", ""), 10) - 1;
@@ -720,7 +646,6 @@ export default function CommandCenter() {
         "success",
       );
     } catch (err) {
-      refreshRoster();
       showToast(err instanceof Error ? err.message : "Update failed", "error");
     }
   };
