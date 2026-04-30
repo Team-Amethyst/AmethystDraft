@@ -484,6 +484,7 @@ export default function PlayerTable({
               a.bat,
               a.pit,
               a.player,
+              statBasis,
             )
           : "-";
         const bRaw = bStat
@@ -493,6 +494,7 @@ export default function PlayerTable({
               b.bat,
               b.pit,
               b.player,
+              statBasis,
             )
           : "-";
         const aP = parseFloat(aRaw);
@@ -503,7 +505,14 @@ export default function PlayerTable({
       }
       return 0;
     });
-  }, [filteredRowData, clientSort, batCols, pitCols, valuationSortField]);
+  }, [
+    filteredRowData,
+    clientSort,
+    batCols,
+    pitCols,
+    valuationSortField,
+    statBasis,
+  ]);
 
   const rowData = useMemo(
     () =>
@@ -904,6 +913,7 @@ export default function PlayerTable({
                               bat,
                               pit,
                               player,
+                              statBasis,
                             )}
                           </td>
                         ))
@@ -917,6 +927,7 @@ export default function PlayerTable({
                                     bat,
                                     pit,
                                     player,
+                                    statBasis,
                                   )
                                 : "-"
                               : pitCols[i]
@@ -926,6 +937,7 @@ export default function PlayerTable({
                                     bat,
                                     pit,
                                     player,
+                                    statBasis,
                                   )
                                 : "-"}
                           </td>

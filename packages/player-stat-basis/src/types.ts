@@ -65,4 +65,9 @@ export type PlayerStatSnapshot = {
     batting?: BattingCountLine;
     pitching?: PitchingCountLine;
   };
+  /** Equal-weight 3-season blend from API (`stats3yr`); optional on stale clients. */
+  stats3yr?: {
+    batting?: BattingCountLine;
+    pitching?: PitchingCountLine;
+  };
 };

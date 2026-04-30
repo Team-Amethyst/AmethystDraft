@@ -103,13 +103,31 @@ export function calcPitcherValue(stat: StatRecord): number {
   return Math.round(Math.max(1, score * SCORING_COEFFICIENTS.PITCHER_VALUE_SCALE + SCORING_COEFFICIENTS.PITCHER_VALUE_OFFSET));
 }
 
-export function projectBatting(
+/** Recent season weighted more heavily (used for `projection` on catalog players). */
+export const SEASON_BLEND_WEIGHTS_RECENT: readonly [number, number, number] = [
+  5, 3, 2,
+];
+
+/** Equal weight across three seasons (used for `stats3yr` display line). */
+export const SEASON_BLEND_WEIGHTS_EQUAL: readonly [number, number, number] = [
+  1, 1, 1,
+];
+
+export type BlendedBattingLine = {
+  avg: string;
+  hr: number;
+  rbi: number;
+  runs: number;
+  sb: number;
+};
+
+export function blendBattingSeasons(
   yr1: StatRecord,
-  yr2?: StatRecord | null,
-  yr3?: StatRecord | null,
-): { avg: string; hr: number; rbi: number; runs: number; sb: number } {
-  const years = [yr1, yr2, yr3];
-  const W = [5, 3, 2];
+  yr2: StatRecord | null | undefined,
+  yr3: StatRecord | null | undefined,
+  weights: readonly [number, number, number],
+): BlendedBattingLine {
+  const years = [yr1, yr2, yr3] as const;
   let wTotal = 0,
     wH = 0,
     wAB = 0,
@@ -122,7 +140,7 @@ export function projectBatting(
     if (!s) continue;
     const ab = Number(s.atBats ?? 0);
     if (ab < 50) continue;
-    const w = W[i] ?? 1;
+    const w = weights[i] ?? 1;
     wTotal += w;
     wAB += ab * w;
     wH += Number(s.hits ?? 0) * w;
@@ -149,11 +167,60 @@ export function projectBatting(
   };
 }
 
-export function projectPitching(
+/** Mean OBP/SLG across seasons that qualify for the batting blend (AB ≥ 50). */
+function meanBattingRates(
+  yr1: StatRecord,
+  yr2: StatRecord | null | undefined,
+  yr3: StatRecord | null | undefined,
+): { obp: string; slg: string } | undefined {
+  const years = [yr1, yr2, yr3];
+  const obps: number[] = [];
+  const slgs: number[] = [];
+  for (const s of years) {
+    if (!s || Number(s.atBats ?? 0) < 50) continue;
+    const o = parseFloat(String(s.obp ?? "0"));
+    const g = parseFloat(String(s.slg ?? "0"));
+    if (Number.isFinite(o)) obps.push(o);
+    if (Number.isFinite(g)) slgs.push(g);
+  }
+  if (obps.length === 0 && slgs.length === 0) return undefined;
+  return {
+    obp:
+      obps.length > 0
+        ? (obps.reduce((a, b) => a + b, 0) / obps.length).toFixed(3)
+        : ".000",
+    slg:
+      slgs.length > 0
+        ? (slgs.reduce((a, b) => a + b, 0) / slgs.length).toFixed(3)
+        : ".000",
+  };
+}
+
+/** 5/3/2-weighted multi-year batting line (catalog `projection.batting`). */
+export function projectBatting(
   yr1: StatRecord,
   yr2?: StatRecord | null,
   yr3?: StatRecord | null,
-): {
+): BlendedBattingLine {
+  return blendBattingSeasons(yr1, yr2, yr3, SEASON_BLEND_WEIGHTS_RECENT);
+}
+
+/** Equal-weight three-year batting line plus mean OBP/SLG for display (`stats3yr`). */
+export function equalWeightThreeYearBatting(
+  yr1: StatRecord,
+  yr2?: StatRecord | null,
+  yr3?: StatRecord | null,
+): BlendedBattingLine & { obp: string; slg: string } {
+  const base = blendBattingSeasons(yr1, yr2, yr3, SEASON_BLEND_WEIGHTS_EQUAL);
+  const rates = meanBattingRates(yr1, yr2, yr3);
+  return {
+    ...base,
+    obp: rates?.obp ?? ".000",
+    slg: rates?.slg ?? ".000",
+  };
+}
+
+export type BlendedPitchingLine = {
   era: string;
   whip: string;
   wins: number;
@@ -162,9 +229,15 @@ export function projectPitching(
   strikeouts: number;
   completeGames: number;
   innings: number;
-} {
-  const years = [yr1, yr2, yr3];
-  const W = [5, 3, 2];
+};
+
+export function blendPitchingSeasons(
+  yr1: StatRecord,
+  yr2: StatRecord | null | undefined,
+  yr3: StatRecord | null | undefined,
+  weights: readonly [number, number, number],
+): BlendedPitchingLine {
+  const years = [yr1, yr2, yr3] as const;
   let wTotal = 0,
     wIP = 0,
     wER = 0,
@@ -180,7 +253,7 @@ export function projectPitching(
     const ip = parseFloat(String(s.inningsPitched ?? "0"));
     const sv = Number(s.saves ?? 0);
     if (ip < 15 && sv < 3) continue;
-    const w = W[i] ?? 1;
+    const w = weights[i] ?? 1;
     wTotal += w;
     wIP += ip * w;
     wER += Number(s.earnedRuns ?? 0) * w;
@@ -214,4 +287,22 @@ export function projectPitching(
     completeGames: Math.round(wCG / wTotal),
     innings: Math.round(wIP / wTotal),
   };
+}
+
+/** 5/3/2-weighted multi-year pitching line (catalog `projection.pitching`). */
+export function projectPitching(
+  yr1: StatRecord,
+  yr2?: StatRecord | null,
+  yr3?: StatRecord | null,
+): BlendedPitchingLine {
+  return blendPitchingSeasons(yr1, yr2, yr3, SEASON_BLEND_WEIGHTS_RECENT);
+}
+
+/** Equal-weight three-year pitching line for display (`stats3yr`). */
+export function equalWeightThreeYearPitching(
+  yr1: StatRecord,
+  yr2?: StatRecord | null,
+  yr3?: StatRecord | null,
+): BlendedPitchingLine {
+  return blendPitchingSeasons(yr1, yr2, yr3, SEASON_BLEND_WEIGHTS_EQUAL);
 }

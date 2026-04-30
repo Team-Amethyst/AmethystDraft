@@ -22,15 +22,15 @@ export function statBasisPillLabel(basis: StatBasis): string {
   return "3Y";
 }
 
-/** Footer / helper copy aligned with API: `projection` = weighted blend; `stats` = last completed MLB season. */
+/** Footer / helper copy aligned with catalog API fields. */
 export function statBasisFooterDescription(basis: StatBasis): string {
   if (basis === "projections") {
-    return "PROJ · weighted multi-year projection (5/3/2)";
+    return "PROJ · API projection (5/3/2 season weights)";
   }
   if (basis === "last-year") {
-    return "1Y · last completed season + display-only smoothing (see code)";
+    return "1Y · API last completed season (`stats`)";
   }
-  return "3Y · display-only smoothing (not a true 3-year line yet)";
+  return "3Y · API equal-weight 3-season blend (`stats3yr`)";
 }
 
 export function statBasisAllValues(): readonly StatBasis[] {

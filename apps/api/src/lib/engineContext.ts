@@ -335,6 +335,11 @@ export function logEngineValuationResponseIfEnabled(data: unknown): void {
 
 /**
  * Builds the full context object for /valuation/calculate and /analysis/scarcity.
+ *
+ * Player stat lines (`stats`, `stats3yr`, `projection` on catalog) are for the
+ * Amethyst MLB catalog and research UI only. The upstream engine ingests its own
+ * player features from the ids and league rules in this payload; keep catalog
+ * season definitions aligned with engine release notes when changing MLB season math.
  */
 export function buildValuationContext(
   league: ILeague,

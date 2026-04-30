@@ -43,6 +43,8 @@ export default function PlayerDetailModal({
   const pitching = player.stats.pitching;
   const projectionBat = player.projection.batting;
   const projectionPit = player.projection.pitching;
+  const stats3yrBat = player.stats3yr?.batting;
+  const stats3yrPit = player.stats3yr?.pitching;
 
   return (
     <div className="pdm-overlay" onClick={onClose}>
@@ -140,6 +142,24 @@ export default function PlayerDetailModal({
               <p className="pdm-empty">No pitching projection available.</p>
             )}
           </section>
+
+          {(stats3yrBat || stats3yrPit) && (
+            <section className="pdm-card">
+              <h3>3-year blend (equal weights, API)</h3>
+              {stats3yrBat ? (
+                <p>
+                  Batting: AVG {stats3yrBat.avg} | HR {stats3yrBat.hr} | RBI {stats3yrBat.rbi} | R{" "}
+                  {stats3yrBat.runs} | SB {stats3yrBat.sb} | OBP {stats3yrBat.obp} | SLG {stats3yrBat.slg}
+                </p>
+              ) : null}
+              {stats3yrPit ? (
+                <p>
+                  Pitching: ERA {stats3yrPit.era} | WHIP {stats3yrPit.whip} | W {stats3yrPit.wins} | SV{" "}
+                  {stats3yrPit.saves} | K {stats3yrPit.strikeouts} | IP {stats3yrPit.innings}
+                </p>
+              ) : null}
+            </section>
+          )}
 
           {(player.why?.length || player.market_notes?.length || note) && (
             <section className="pdm-card pdm-card--wide">

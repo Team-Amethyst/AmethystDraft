@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   assignTier,
+  blendBattingSeasons,
   calcBatterValue,
   calcPitcherValue,
+  equalWeightThreeYearBatting,
   projectBatting,
   projectPitching,
+  SEASON_BLEND_WEIGHTS_EQUAL,
+  SEASON_BLEND_WEIGHTS_RECENT,
 } from "./playerScoring";
 
 describe("assignTier", () => {
@@ -95,5 +99,44 @@ describe("projection helpers", () => {
     expect(projected.innings).toBeGreaterThan(100);
     expect(projected.era).toMatch(/^\d+\.\d{2}$/);
     expect(projected.whip).toMatch(/^\d+\.\d{2}$/);
+  });
+
+  it("equal-weight blend differs from recent-heavy for skewed seasons", () => {
+    const y1 = {
+      atBats: 500,
+      hits: 150,
+      homeRuns: 40,
+      rbi: 100,
+      runs: 100,
+      stolenBases: 10,
+      obp: ".380",
+      slg: ".550",
+    };
+    const y2 = {
+      atBats: 500,
+      hits: 130,
+      homeRuns: 20,
+      rbi: 70,
+      runs: 70,
+      stolenBases: 8,
+      obp: ".340",
+      slg: ".450",
+    };
+    const y3 = {
+      atBats: 500,
+      hits: 120,
+      homeRuns: 15,
+      rbi: 60,
+      runs: 60,
+      stolenBases: 5,
+      obp: ".320",
+      slg: ".400",
+    };
+    const recent = blendBattingSeasons(y1, y2, y3, SEASON_BLEND_WEIGHTS_RECENT);
+    const equal = blendBattingSeasons(y1, y2, y3, SEASON_BLEND_WEIGHTS_EQUAL);
+    expect(recent.hr).toBeGreaterThan(equal.hr);
+    const withRates = equalWeightThreeYearBatting(y1, y2, y3);
+    expect(withRates.obp).toMatch(/^\d\.\d{3}$/);
+    expect(withRates.slg).toMatch(/^\d\.\d{3}$/);
   });
 });

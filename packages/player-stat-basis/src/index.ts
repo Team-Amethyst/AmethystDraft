@@ -18,10 +18,8 @@ export {
   statBasisFooterDescription,
   statBasisPillLabel,
 } from "./statBasis";
-export {
-  formatResearchStatSummaryLine,
-  getCategoryTags,
-  getDisplayStatValue,
-  playerIsPitcher,
-  resolveDisplayStats,
-} from "./displayStats";
+export { resolveDisplayStats } from "./resolveDisplayStats";
+export { getCategoryTags } from "./categoryTags";
+export { playerIsPitcher } from "./playerIsPitcher";
+export { getDisplayStatValue } from "./displayStatCells";
+export { formatResearchStatSummaryLine } from "./formatResearchStatSummaryLine";
