@@ -1,5 +1,6 @@
 .home-page {
   min-height: 100vh;
-  background: #0a0514;
-  color: #fff;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
 }

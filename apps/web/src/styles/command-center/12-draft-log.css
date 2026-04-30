@@ -1,0 +1,105 @@
+/* ─── Draft log (Command Center right rail) ───────────────────────────── */
+
+.draft-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.55)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.dl-empty {
+  color: #6b4fa0;
+  font-size: 0.7rem;
+  padding: 0.45rem 0.2rem;
+}
+
+.draft-log-list::-webkit-scrollbar {
+  width: 4px;
+}
+.draft-log-list::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 2px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.draft-log-list::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.45);
+  border-radius: 2px;
+}
+
+/* Standings: fixed narrow team column + stats area (horizontal bar only under stats) */
+.cc-standings-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.cc-standings-split {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Match liquidity table first column (26% of full table width) */
+.cc-standings-team-pane {
+  flex: 0 0 26%;
+  width: 26%;
+  max-width: none;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid rgba(139, 92, 246, 0.12);
+  background: transparent;
+  box-shadow: none;
+  z-index: 1;
+}
+
+/* Offset team rows below the stats header row (no team thead — avoids empty corner cell) */
+.cc-right-roster-pane .cc-standings-team-pane {
+  padding-left: 0;
+  padding-top: calc(1.65rem + 1px);
+  box-sizing: border-box;
+}
+
+/* Stats pane scrolls horizontally when categories exceed rail width */
+.cc-standings-stats-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.55)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.cc-standings-stats-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.cc-standings-stats-scroll::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 2px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+
+.cc-standings-stats-scroll::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.35);
+  border-radius: 2px;
+}
+
+.cc-standings-stats-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.6);
+}
+

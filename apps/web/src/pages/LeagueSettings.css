@@ -4,7 +4,7 @@
     radial-gradient(circle at top center, rgba(157, 78, 221, 0.12), transparent 30%),
     linear-gradient(180deg, #04020b 0%, #060210 100%);
   color: #f4ecff;
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--app-font-family);
 }
 
 .ls-container {

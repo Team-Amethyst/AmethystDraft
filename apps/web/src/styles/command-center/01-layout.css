@@ -1,0 +1,330 @@
+/* ─── Page layout ─────────────────────────────────────────────────────────── */
+
+.cc-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--app-bg);
+  overflow: hidden;
+  font-family: var(--app-font-family);
+}
+
+.cc-layout {
+  display: grid;
+  grid-template-columns:
+    clamp(180px, 22vw, 300px)
+    minmax(0, 1fr)
+    clamp(180px, 22vw, 300px);
+  margin-top: 56px; /* matches fixed navbar height */
+  height: calc(100vh - 56px);
+  overflow: hidden;
+  min-height: 0;
+  /* Shared rhythm (inherited by left / center / right) */
+  --cc-pad-x: 0.75rem;
+  --cc-heading-mb: 0.4rem;
+  --cc-gap-sm: 0.35rem;
+  --cc-gap-md: 0.55rem;
+  --cc-gap-lg: 0.85rem;
+  --cc-heading-color: #6b4fa0;
+  --cc-value-green: #22c55e;
+  --cc-value-muted: #9d8cc4;
+  --cc-card-radius: 8px;
+  --cc-card-bg: rgba(255, 255, 255, 0.03);
+  --cc-card-border: 1px solid rgba(139, 92, 246, 0.12);
+  --cc-card-pad: 0.5rem 0.45rem;
+
+  /* Spacing scale (Command Center — 4 / 8 / 12 / 16 / 24 only) */
+  --cc-space-4: 4px;
+  --cc-space-8: 8px;
+  --cc-space-12: 12px;
+  --cc-space-16: 16px;
+  --cc-space-20: 20px;
+  --cc-space-24: 24px;
+  --cc-space-32: 32px;
+
+  /* Bottom inset: team makeup (left), draft notes (center), draft log (right) align */
+  --cc-rail-bottom-gap: var(--cc-space-12);
+
+  /* Valuation card (BDC) — typography */
+  --cc-bdc-bid-fs: 30px;
+  --cc-bdc-bid-fw: 700;
+  --cc-bdc-bid-filter: brightness(0.93);
+  --cc-bdc-value-fs: 14px;
+  --cc-bdc-value-fw: 550;
+  --cc-bdc-value-tracking: 0.003em;
+  --cc-bdc-value-fg: color-mix(in srgb, white 97%, transparent);
+  --cc-bdc-edge-fs: 14px;
+  --cc-bdc-edge-fw: 550;
+  --cc-bdc-metric-value-fs: 14px;
+  --cc-bdc-metric-value-fw: 550;
+  --cc-bdc-label-fs: 12px;
+  --cc-bdc-label-fw: 500;
+  --cc-bdc-delta-fs: 13px;
+  --cc-bdc-label-tracking: 0.08em;
+  --cc-bdc-label-fg: color-mix(in srgb, white 78%, transparent);
+  --cc-bdc-metric-value-fg: color-mix(in srgb, white 92%, transparent);
+  --cc-bdc-sublabel-fs: 10px;
+  --cc-bdc-sublabel-fw: 700;
+  --cc-bdc-sublabel-tracking: 0.07em;
+  --cc-bdc-sublabel-fg: color-mix(in srgb, var(--cc-value-muted) 92%, white);
+
+  /* Valuation card — surfaces & borders (derived from existing palette) */
+  --cc-bdc-card-border: 1px solid color-mix(in srgb, var(--cc-heading-color) 40%, transparent);
+  --cc-bdc-card-bg: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--cc-heading-color) 14%, transparent) 0%,
+    color-mix(in srgb, white 4%, transparent) 42%,
+    color-mix(in srgb, white 2%, transparent) 100%
+  );
+  --cc-bdc-card-shadow: 0 var(--cc-space-4) 0 color-mix(in srgb, black 20%, transparent);
+  --cc-bdc-card-pad-y: var(--cc-space-12);
+  --cc-bdc-card-pad-x: var(--cc-space-12);
+  --cc-bdc-metric-bg: transparent;
+  --cc-bdc-metric-border: 1px solid color-mix(in srgb, white 8%, transparent);
+  --cc-bdc-metric-row-pad-y: var(--cc-space-8);
+  --cc-bdc-metric-row-pad-x: var(--cc-space-12);
+  --cc-bdc-metric-divider: 1px solid color-mix(in srgb, var(--cc-heading-color) 16%, transparent);
+  --cc-bdc-strip-bg: color-mix(in srgb, black 18%, transparent);
+  --cc-bdc-strip-border: 1px solid color-mix(in srgb, var(--cc-heading-color) 18%, transparent);
+  --cc-bdc-constraints-bg: color-mix(in srgb, black 12%, transparent);
+  --cc-bdc-constraints-border: 1px solid color-mix(in srgb, var(--cc-heading-color) 14%, transparent);
+  --cc-bdc-constraints-label-fg: color-mix(in srgb, var(--cc-value-muted) 88%, white);
+  --cc-bdc-constraints-value-fg: color-mix(in srgb, white 72%, var(--cc-value-muted));
+  --cc-bdc-constraints-label-fs: 11px;
+  --cc-bdc-constraints-value-fs: 12px;
+  --cc-bdc-constraints-row-opacity: 1;
+  --cc-bdc-edge-pos: color-mix(in srgb, var(--cc-value-green) 82%, white);
+  --cc-bdc-edge-neg: #f87171;
+  --cc-bdc-edge-muted: color-mix(in srgb, white 62%, var(--cc-value-muted));
+  --cc-bdc-danger-fg: #fca5a5;
+  --cc-bdc-fair-fg: #e9ddff;
+  --cc-bdc-success-fg: #86efac;
+  --cc-bdc-success-glow: color-mix(in srgb, var(--cc-bdc-success-fg) 18%, transparent);
+}
+
+@media (max-width: 1500px) {
+  .cc-layout {
+    --cc-pad-x: 0.58rem;
+  }
+
+  .cc-surface-card--left,
+  .cc-surface-card--right {
+    padding: 6px;
+  }
+
+  .market-section-label,
+  .rp-section-label {
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+  }
+
+  .liquidity-table,
+  .supply-table,
+  .teams-table,
+  .standings-table {
+    font-size: 0.64rem;
+  }
+
+  .liquidity-table th,
+  .supply-table th,
+  .teams-table th,
+  .standings-table th {
+    font-size: 0.56rem;
+    padding: 0.24rem 0.2rem;
+  }
+
+  .budget-card {
+    padding: 0.28rem 0.24rem;
+    gap: 0.3rem;
+  }
+
+  .bc-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  .bc-val {
+    font-size: 0.88rem;
+  }
+
+  /* Market pressure: same compact row rhythm as BID CONTEXT (budget-card--row) */
+  .engine-market-card {
+    padding: 0.22rem 0.2rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .engine-market-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: stretch;
+  }
+
+  .engine-market-kpi {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    padding: 0.28rem 0.3rem;
+    background: var(--cc-card-bg);
+    border: var(--cc-card-border);
+    border-radius: var(--cc-card-radius);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .engine-market-kpi .em-label {
+    text-align: left;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.5rem;
+    line-height: 1.15;
+  }
+
+  .engine-market-kpi .em-label--inflation {
+    white-space: normal;
+  }
+
+  .engine-market-kpi .em-value {
+    text-align: right;
+    flex-shrink: 0;
+    font-size: 0.88rem;
+    line-height: 1.05;
+  }
+
+  .team-makeup-head-row,
+  .team-makeup-slot-row {
+    grid-template-columns:
+      minmax(1.85rem, 2.35rem)
+      minmax(0, 1fr)
+      minmax(2.05rem, 2.55rem)
+      minmax(2.05rem, 2.55rem);
+    column-gap: 0.22rem;
+  }
+
+  .team-makeup-head-row {
+    padding: 0.12rem 0.18rem 0.28rem;
+  }
+
+  .team-makeup-head-player,
+  .team-makeup-head-money {
+    font-size: 0.52rem;
+  }
+
+  .team-makeup-head-money {
+    padding: 0 0 0.14rem;
+  }
+
+  .team-makeup-slot-row {
+    padding: 0.1rem 0.18rem;
+    min-height: 21px;
+  }
+
+  .team-makeup-slot-player {
+    font-size: clamp(0.6rem, 0.46rem + 0.38vw, 0.7rem);
+  }
+
+  .team-makeup-slot-money {
+    font-size: clamp(0.56rem, 0.44rem + 0.34vw, 0.66rem);
+    padding: 0.1rem 0.06rem;
+  }
+
+  .rp-bid-context-grid,
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rp-bid-context-grid {
+    gap: 0.2rem;
+  }
+
+  .budget-grid {
+    gap: 0.2rem;
+  }
+
+  .bc-val {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 1120px) {
+  .cc-layout {
+    --cc-pad-x: 0.48rem;
+  }
+
+  .cc-left .cc-team-makeup-card.cc-surface-card--left {
+    padding: 5px 6px;
+  }
+
+  .team-makeup-slots {
+    gap: 0.06rem;
+  }
+
+  .team-makeup-head-row,
+  .team-makeup-slot-row {
+    grid-template-columns:
+      minmax(1.65rem, 2.05rem)
+      minmax(0, 1fr)
+      minmax(1.85rem, 2.35rem)
+      minmax(1.85rem, 2.35rem);
+    column-gap: 0.18rem;
+  }
+
+  .team-makeup-head-row {
+    padding: 0.1rem 0.12rem 0.24rem;
+    margin-bottom: 0.06rem;
+  }
+
+  .team-makeup-head-badge-spacer {
+    width: 100%;
+    max-width: 2.05rem;
+  }
+
+  .team-makeup-head-player,
+  .team-makeup-head-money {
+    font-size: 0.48rem;
+    letter-spacing: 0.07em;
+  }
+
+  .team-makeup-slot-row {
+    padding: 0.08rem 0.12rem;
+    min-height: 20px;
+  }
+
+  .team-makeup-slot-player {
+    font-size: clamp(0.56rem, 2.5vw, 0.66rem);
+  }
+
+  .team-makeup-slot-money {
+    font-size: clamp(0.52rem, 2.2vw, 0.62rem);
+    padding: 0.08rem 0.04rem;
+  }
+
+  .cc-right {
+    padding: 0.24rem 0.32rem var(--cc-rail-bottom-gap);
+  }
+
+  .engine-market-kpi {
+    padding: 0.24rem 0.26rem;
+  }
+
+  .engine-market-kpi .em-value {
+    font-size: 0.82rem;
+  }
+
+  .engine-market-kpi .em-label {
+    font-size: 0.48rem;
+  }
+
+  .budget-progress-row {
+    flex-direction: column;
+    gap: 0.12rem;
+    align-items: flex-start;
+  }
+
+  .liquidity-table-wrap {
+    max-height: none;
+  }
+}
+

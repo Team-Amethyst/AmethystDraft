@@ -1,0 +1,388 @@
+/* ─── Liquidity / Teams / Standings tables ─────────────────────────────────── */
+
+.liquidity-table,
+.supply-table,
+.teams-table,
+.standings-table,
+.team-makeup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  margin-top: 0.25rem;
+  table-layout: fixed;
+}
+
+.liquidity-table {
+  font-size: 0.64rem;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+.liquidity-table-wrap {
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+/* Fit liquidity table inside the side rail without horizontal scroll */
+.liquidity-table th:nth-child(1),
+.liquidity-table td:nth-child(1) {
+  width: 26%;
+}
+
+.liquidity-table th:nth-child(2),
+.liquidity-table td:nth-child(2) {
+  width: 18.5%;
+}
+
+.liquidity-table th:nth-child(3),
+.liquidity-table td:nth-child(3) {
+  width: 18.5%;
+}
+
+.liquidity-table th:nth-child(4),
+.liquidity-table td:nth-child(4) {
+  width: 18.5%;
+}
+
+.liquidity-table th:nth-child(5),
+.liquidity-table td:nth-child(5) {
+  width: 18.5%;
+}
+
+.liquidity-table-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+.liquidity-table-wrap::-webkit-scrollbar:horizontal {
+  height: 4px;
+}
+.liquidity-table-wrap::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.liquidity-table-wrap::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+
+.liquidity-table th,
+.supply-table th,
+.teams-table th,
+.standings-table th,
+.team-makeup-table th {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: #4a3a60;
+  text-transform: uppercase;
+  padding: 0.3rem 0.25rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.liq-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.3rem 0.2rem;
+}
+.liq-th-sortable:hover { color: #9d7cc7; }
+
+.liq-th-sortable:not(:first-child) {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.liquidity-table td:not(:first-child) {
+  text-align: left;
+}
+
+.liq-team-name-cell {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d4c8e8;
+}
+
+.th-sort-icon {
+  margin-left: 0.2em;
+  font-size: 0.55rem;
+  vertical-align: middle;
+}
+.th-sort-idle  { color: #3a2a50; }
+.th-sort-active { color: #a78bda; }
+
+/* Dimmed when team cannot bid on selected player — must stay readable on any row bg */
+.liq-ineligible td {
+  color: rgba(200, 186, 228, 0.78) !important;
+  font-weight: 500;
+}
+
+.liquidity-table td,
+.supply-table td,
+.teams-table td,
+.standings-table td,
+.team-makeup-table td {
+  padding: 0.3rem 0.25rem;
+  color: #b0a0cc;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.liquidity-table .liq-th-sortable {
+  padding: 0.24rem 0.1rem;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.liquidity-table .liq-th-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.15em;
+  width: 100%;
+  min-width: 0;
+}
+
+.liquidity-table .liq-th-sortable:not(:first-child) .liq-th-inner {
+  justify-content: flex-start;
+}
+
+.liquidity-table .liq-th-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.liquidity-table .liq-th-inner .th-sort-icon {
+  flex-shrink: 0;
+}
+
+.liquidity-table tbody td {
+  padding: 0.24rem 0.12rem;
+}
+
+.my-team-row td { color: #e2d9f3; font-weight: 600; }
+.team-name-cell { color: #d4c8e8; }
+.rank-cell { color: #6b4fa0; font-weight: 700; }
+.gb-cell { color: #6b4fa0; }
+
+.teams-table-row { cursor: pointer; }
+.teams-table-row:hover td { background: rgba(139, 92, 246, 0.05); }
+.teams-expand-icon { color: #4a3a60; text-align: right; width: 20px; }
+
+.team-makeup-slots {
+  padding: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+/* Badge col + player + Target / Paid — room for “Target” / “Paid” labels + values */
+.team-makeup-head-row,
+.team-makeup-slot-row {
+  display: grid;
+  grid-template-columns:
+    minmax(2rem, 2.45rem)
+    minmax(0, 1fr)
+    minmax(2.35rem, 2.85rem)
+    minmax(2.35rem, 2.85rem);
+  column-gap: clamp(0.2rem, 0.55vw, 0.38rem);
+  align-items: center;
+  min-width: 0;
+}
+
+.team-makeup-head-row {
+  padding: 0.14rem clamp(0.18rem, 1.2vw, 0.3rem) 0.34rem;
+  margin-bottom: 0.08rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+}
+
+.team-makeup-head-badge-spacer {
+  width: 100%;
+  max-width: 2.45rem;
+  height: 1px;
+}
+
+.team-makeup-head-player,
+.team-makeup-head-money {
+  font-size: clamp(0.52rem, 0.44rem + 0.2vw, 0.58rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.team-makeup-head-player {
+  color: #7a6a94;
+  text-align: left;
+}
+
+.team-makeup-head-money {
+  text-align: left;
+  justify-self: start;
+  min-width: 0;
+  padding: 0 0 0.18rem;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: #7a6a94;
+  background: none;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-makeup-slot-row {
+  padding: 0.12rem clamp(0.16rem, 1vw, 0.28rem);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  min-height: 24px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.07);
+}
+
+.team-makeup-slot-row:last-child {
+  border-bottom: none;
+}
+
+.team-makeup-slot-row--filled {
+  background: rgba(139, 92, 246, 0.07);
+  border-radius: 5px;
+}
+
+.team-makeup-slot-row .pos-badge {
+  justify-self: center;
+  width: min(2.4rem, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: clamp(0.52rem, 0.44rem + 0.18vw, 0.6rem);
+}
+
+.team-makeup-slot-player {
+  min-width: 0;
+  font-size: clamp(0.65rem, 0.5rem + 0.28vw, 0.76rem);
+  font-weight: 600;
+  line-height: 1.22;
+  color: #e8e0f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-makeup-slot-row--empty .team-makeup-slot-player {
+  color: #4a3a60;
+  font-style: italic;
+}
+
+.team-makeup-slot-money {
+  min-width: 0;
+  text-align: left;
+  justify-self: start;
+  font-size: clamp(0.61rem, 0.47rem + 0.26vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0.12rem 0.1rem 0.12rem 0;
+  line-height: 1.2;
+  background: transparent;
+  border: none;
+}
+
+.team-makeup-slot-money--target {
+  /* Match .liquidity-table td (non–team-name cells) */
+  color: #b0a0cc;
+}
+
+.team-makeup-slot-money--paid {
+  color: #d4c8e8;
+}
+
+.team-makeup-slot-money--paid.green {
+  color: #86efac;
+}
+
+.team-makeup-slot-money--paid.red {
+  color: #fca5a5;
+}
+
+.team-makeup-slot-money--paid.dim {
+  color: #5c4d78;
+  font-weight: 600;
+}
+
+.teams-slots-row td { padding: 0; border-bottom: 1px solid rgba(139, 92, 246, 0.08); }
+.teams-slots-cell { padding: 0 !important; }
+.teams-slots-list {
+  padding: 0.4rem 0.5rem 0.5rem 0.5rem;
+  background: rgba(20, 10, 35, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+/* Slot rows reused from LeagueOverview inside the CC teams dropdown */
+.teams-slots-list .lo-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px dashed rgba(139, 92, 246, 0.15);
+  min-height: 24px;
+}
+.teams-slots-list .lo-slot-row.lo-slot-filled {
+  border-style: solid;
+  border-color: rgba(139, 92, 246, 0.22);
+  background: rgba(139, 92, 246, 0.05);
+}
+.teams-slots-list .lo-slot-row.lo-slot-keeper {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.04);
+}
+.teams-slots-list .lo-slot-player {
+  flex: 1;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #d8caf0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.teams-slots-list .lo-slot-team {
+  font-weight: 400;
+  color: #7c5cbf;
+  font-size: 0.62rem;
+}
+.teams-slots-list .lo-slot-empty {
+  flex: 1;
+  font-size: 0.62rem;
+  color: rgba(139, 92, 246, 0.28);
+  font-style: italic;
+}
+.teams-slots-list .lo-slot-price {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #7c5cbf;
+  flex-shrink: 0;
+}
+
+.tier-cell { text-align: left; vertical-align: middle; }
+
+.green { color: var(--cc-value-green); }
+.dim   { color: #4a3a60; }
+.red   { color: #f87171; }
+.yellow { color: #f59e0b; }
+

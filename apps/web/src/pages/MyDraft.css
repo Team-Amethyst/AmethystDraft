@@ -3,9 +3,9 @@
   height: 100vh;
   overflow: hidden;
   padding-top: 56px;
-  background: #0a0514;
+  background: var(--app-bg);
   color: #d3c8ec;
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--app-font-family);
 }
 
 .mydraft-shell {
@@ -13,13 +13,13 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  border-top: 1px solid rgba(138, 95, 211, 0.2);
+  border-top: 1px solid var(--app-accent-border);
 }
 
 /* Shared card and section-label styles used across the page */
 .panel-card {
-  background: rgba(16, 10, 30, 0.96);
-  border: 1px solid rgba(88, 66, 138, 0.4);
+  background: var(--app-bg-elevated);
+  border: 1px solid var(--app-panel-border);
 }
 
 .card-label {
@@ -47,7 +47,7 @@
 }
 
 .top-budget {
-  border-right: 1px solid rgba(88, 66, 138, 0.45);
+  border-right: 1px solid var(--app-panel-border);
 }
 
 .budget-value {
@@ -59,7 +59,7 @@
 }
 
 .top-split {
-  border-right: 1px solid rgba(88, 66, 138, 0.45);
+  border-right: 1px solid var(--app-panel-border);
 }
 
 .split-label {
@@ -186,7 +186,7 @@
   border-left: 0;
   border-top: 0;
   border-bottom: 0;
-  border-right: 1px solid rgba(88, 66, 138, 0.5);
+  border-right: 1px solid var(--app-panel-border);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -199,11 +199,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  border-bottom: 1px solid rgba(88, 66, 138, 0.35);
+  border-bottom: 1px solid var(--app-panel-border-soft);
 }
 
 .ghost-btn {
-  border: 1px solid rgba(111, 85, 171, 0.55);
+  border: 1px solid var(--app-accent-border-strong);
   background: transparent;
   color: #b6a7d6;
   font-size: 0.63rem;
@@ -216,7 +216,7 @@
   overflow-y: auto;
   min-height: 0;
   scrollbar-width: thin;
-  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  scrollbar-color: var(--app-text-dim) var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 .alloc-table-scroll::-webkit-scrollbar {
   width: 6px;

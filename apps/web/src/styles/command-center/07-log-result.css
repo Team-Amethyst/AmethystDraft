@@ -1,0 +1,223 @@
+/* ─── Log result ────────────────────────────────────────────────────────── */
+
+/* Log result */
+
+.log-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--cc-gap-sm);
+  margin-top: var(--cc-gap-sm);
+  align-items: end;
+}
+
+.log-result-grid--inline {
+  grid-template-columns: minmax(0, 1.5fr) 92px minmax(0, 0.8fr) 90px;
+  gap: var(--cc-gap-sm);
+  align-items: stretch;
+  margin-top: 0;
+}
+
+.log-slot-field { margin-top: 0.5rem; }
+
+.log-field { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.log-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: #4a3a60;
+  text-transform: uppercase;
+}
+
+.log-select {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: var(--cc-card-radius);
+  padding: 0 0.5rem;
+  min-height: 2.35rem;
+  font-size: 0.76rem;
+  color: #c4b5d4;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.log-select.full { width: 100%; box-sizing: border-box; }
+.log-select--warn {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
+
+.log-price-input-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: var(--cc-card-radius);
+  padding: 0 0.45rem;
+  min-height: 2.35rem;
+  box-sizing: border-box;
+}
+
+.log-dollar { color: #6b4fa0; font-weight: 700; font-size: 0.9rem; }
+
+.log-price-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0 0.35rem;
+  min-height: 0;
+  font-size: 0.76rem;
+  color: #c4b5d4;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.log-result-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(139, 92, 246, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 10px;
+  color: #c4b5fd;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.log-result-btn--inline {
+  width: 100%;
+  margin-top: 0;
+  padding: 0 0.45rem;
+  min-height: 2.35rem;
+  border-radius: var(--cc-card-radius);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.log-result-grid--inline .log-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.log-result-grid--inline .log-field .log-select,
+.log-result-grid--inline .log-field .log-price-input-wrap {
+  width: 100%;
+}
+
+.log-result-btn:hover {
+  background: rgba(139, 92, 246, 0.4);
+  color: #ede9fe;
+}
+
+@media (max-width: 1280px) {
+  .log-result-grid--inline {
+    grid-template-columns: minmax(0, 1.35fr) 84px minmax(0, 0.75fr) 78px;
+    gap: 0.28rem;
+  }
+
+  .log-select,
+  .log-price-input-wrap,
+  .log-result-btn--inline {
+    min-height: 2.15rem;
+  }
+
+  .log-select,
+  .log-price-input {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 1120px) {
+  .log-result-grid--inline {
+    grid-template-columns: minmax(0, 1.35fr) 92px minmax(0, 0.8fr);
+    grid-template-areas:
+      "team price slot"
+      "log log log";
+    row-gap: 0.38rem;
+    column-gap: 0.3rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) {
+    grid-area: team;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) {
+    grid-area: price;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(3) {
+    grid-area: slot;
+  }
+
+  .log-result-btn--inline {
+    grid-area: log;
+    width: 100%;
+    min-height: 2.2rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) .log-select {
+    font-size: 0.8rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) .log-price-input,
+  .log-result-grid--inline .log-field:nth-child(3) .log-select {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 860px) {
+  .log-result-grid--inline {
+    grid-template-columns: minmax(0, 1.4fr) 82px minmax(0, 0.75fr);
+    grid-template-areas:
+      "team price slot"
+      "log log log";
+    row-gap: 0.3rem;
+    column-gap: 0.28rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) {
+    grid-area: team;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) {
+    grid-area: price;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(3) {
+    grid-area: slot;
+  }
+
+  .log-result-btn--inline {
+    grid-area: log;
+    width: 100%;
+    min-height: 2.1rem;
+    padding: 0 0.4rem;
+  }
+
+  .log-select,
+  .log-price-input-wrap {
+    min-height: 2.1rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(1) .log-select {
+    font-size: 0.78rem;
+  }
+
+  .log-result-grid--inline .log-field:nth-child(2) .log-price-input,
+  .log-result-grid--inline .log-field:nth-child(3) .log-select {
+    font-size: 0.7rem;
+  }
+}
+

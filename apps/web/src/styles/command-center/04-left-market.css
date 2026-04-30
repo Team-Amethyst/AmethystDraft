@@ -1,0 +1,438 @@
+/* ─── Left panel: market stats ─────────────────────────────────────────────── */
+
+.market-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--cc-heading-color);
+  text-transform: uppercase;
+  padding: 0 0 var(--cc-heading-mb);
+  margin-top: 0;
+}
+
+.market-section-label--spaced {
+  margin-top: var(--cc-gap-lg);
+}
+
+.cc-panel-content > .market-section-label:first-child {
+  padding-top: 0;
+}
+
+.market-pos-tabs {
+  display: flex;
+  gap: var(--cc-gap-sm);
+  margin: 0 0 var(--cc-gap-md);
+}
+
+.market-pos-tab {
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: rgba(139, 92, 246, 0.08);
+  color: #a78bfa;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+  padding: 0.2rem 0.42rem;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.market-pos-tab.active {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(139, 92, 246, 0.55);
+  color: #e9ddff;
+}
+
+/* Left rail: your team projected stats (same toggle as player impact) */
+.cc-my-standings-card {
+  flex-shrink: 0;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: my-standings;
+}
+
+.cc-my-standings-head,
+.cc-roster-pane-head {
+  margin-top: 0;
+  margin-bottom: var(--cc-gap-md);
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
+.cc-my-standings-head .market-section-label,
+.cc-roster-pane-head .market-section-label {
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-my-standings-head .stat-view-toggle,
+.cc-roster-pane-head .stat-view-toggle {
+  flex-shrink: 0;
+}
+
+.cc-my-standings-head .svt-btn,
+.cc-roster-pane-head .svt-btn {
+  padding: 0.22rem 0.5rem;
+  font-size: 0.64rem;
+}
+
+.cc-my-standings-empty {
+  font-size: 0.64rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Five category tiles per row; additional categories wrap to row 2, 3, … */
+.cc-my-standings-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  gap: 0.28rem;
+  max-height: min(38vh, 18rem);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  padding: 0.05rem 0.1rem 0.15rem 0;
+}
+
+/* Only when the card is extremely narrow: keep 5×1 via horizontal scroll instead of reflowing */
+@container my-standings (max-width: 154px) {
+  .cc-my-standings-grid {
+    grid-template-columns: repeat(5, minmax(2.05rem, 2.05rem));
+    justify-content: start;
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+}
+
+.cc-my-standings-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cc-my-standings-grid::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+
+.cc-my-standings-grid::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+
+.cc-my-standings-cell {
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  padding: 0.32rem 0.22rem 0.36rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  gap: 0.18rem;
+  min-width: 0;
+  min-height: 4.25rem;
+}
+
+.cc-my-standings-cell-cat {
+  font-size: 0.54rem;
+  font-weight: 700;
+  color: var(--cc-heading-color);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.cc-my-standings-cell-val {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.02rem;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.cc-my-standings-cell-num {
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  color: #ffffff;
+}
+
+.cc-my-standings-cell-rank {
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--cc-value-muted) 75%, white);
+  vertical-align: baseline;
+}
+
+.cc-my-standings-cell-val.lo-rank-good .cc-my-standings-cell-rank {
+  color: #4ade80;
+}
+
+.cc-my-standings-cell-val.lo-rank-mid .cc-my-standings-cell-rank {
+  color: #facc15;
+}
+
+.cc-my-standings-cell-val.lo-rank-bad .cc-my-standings-cell-rank {
+  color: #f87171;
+}
+
+.cc-my-standings-cell-val--empty .cc-my-standings-cell-num {
+  font-weight: 600;
+  color: rgba(157, 140, 196, 0.58);
+}
+
+.cc-my-standings-cell-val--empty .cc-my-standings-cell-rank {
+  color: rgba(122, 106, 148, 0.55);
+}
+
+.pos-chip { display: none; }
+
+.market-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.msr-label {
+  font-size: 0.68rem;
+  color: #6b4fa0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.msr-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e2d9f3;
+}
+
+.msr-value.green { color: var(--cc-value-green); }
+.msr-value.yellow { color: #f59e0b; }
+.msr-sub { font-size: 0.7rem; color: #6b4fa0; font-weight: 400; }
+
+.msr-source-note {
+  font-size: 0.64rem;
+  line-height: 1.25;
+  color: rgba(157, 140, 196, 0.92);
+  margin: -0.08rem 0 0.3rem;
+}
+
+.msr-engine-alert {
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: rgba(226, 232, 240, 0.85);
+  padding: 0.35rem 0 0.15rem;
+}
+
+.msr-engine-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 0.2rem 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.msr-engine-severity--critical {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.msr-engine-severity--high {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.2);
+}
+
+.msr-engine-severity--medium {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.msr-engine-severity--low {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.msr-engine-action {
+  font-size: 0.64rem;
+  line-height: 1.3;
+  color: rgba(167, 139, 250, 0.95);
+  padding: 0.1rem 0 0.25rem;
+}
+
+.msr-tier-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.08rem;
+}
+
+.msr-tier-header-row .msr-tier-section-label {
+  margin: 0;
+}
+
+.msr-tier-legend {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(157, 140, 196, 0.95);
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.msr-tier-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  margin-top: 0.08rem;
+}
+
+.msr-tier-table--5col {
+  table-layout: fixed;
+}
+
+.msr-tier-table--5col thead th {
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cc-heading-color);
+  padding: 0.28rem 0.08rem 0.3rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  text-align: center;
+  vertical-align: middle;
+  width: 20%;
+}
+
+.msr-tier-table--5col thead th .msr-tier-chip {
+  margin: 0 auto;
+}
+
+.msr-tier-table--5col tbody td {
+  padding: 0.38rem 0.1rem 0.34rem;
+  border-bottom: none;
+  vertical-align: middle;
+  color: #d4c8e8;
+  text-align: center;
+}
+
+.msr-tier-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  padding-top: 0.04rem;
+}
+
+.msr-tier-cell-rem {
+  font-weight: 800;
+  font-size: clamp(0.74rem, 0.66rem + 0.25vw, 0.84rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: #f5f3ff;
+  line-height: 1.15;
+}
+
+.msr-tier-cell-avg {
+  font-size: clamp(0.64rem, 0.58rem + 0.2vw, 0.72rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #ddd6fe;
+  line-height: 1.2;
+}
+
+.msr-compare-wrap {
+  margin-top: 0.5rem;
+}
+
+.msr-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.msr-compare-card {
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.35rem 0.45rem 0.25rem;
+}
+
+.msr-compare-card-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c4b5fd;
+  text-transform: uppercase;
+  margin-bottom: 0.12rem;
+}
+
+.msr-tier-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.msr-tier-chip--1 { background: #a855f7; }
+.msr-tier-chip--2 { background: #6366f1; }
+.msr-tier-chip--3 { background: #22c55e; }
+.msr-tier-chip--4 { background: #f59e0b; }
+.msr-tier-chip--5 { background: #6b7280; }
+
+.msr-engine-monos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0 0.35rem;
+}
+
+.msr-engine-mono {
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: rgba(251, 191, 36, 0.95);
+}
+

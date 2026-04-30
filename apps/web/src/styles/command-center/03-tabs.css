@@ -1,0 +1,35 @@
+/* ─── Tabs ─────────────────────────────────────────────────────────────────── */
+
+.cc-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  padding: 0 var(--cc-pad-x);
+  gap: 0;
+  position: sticky;
+  top: 0;
+  background: var(--app-bg-alt);
+  z-index: 2;
+}
+
+.cc-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.7rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b4fa0;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: all 0.2s;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.cc-tab.active {
+  color: #c4b5fd;
+  border-bottom-color: #a78bfa;
+}
+
+.cc-tab:hover:not(.active) { color: #9d8cc4; }
+

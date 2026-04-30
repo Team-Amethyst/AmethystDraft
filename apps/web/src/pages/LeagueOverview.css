@@ -4,9 +4,9 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #0a0514;
+  background: var(--app-bg);
   overflow: hidden;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--app-font-family);
   padding-top: 56px;
 }
 
@@ -25,10 +25,10 @@
   align-items: baseline;
   gap: 10px;
   padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  border-bottom: 1px solid var(--app-accent-border);
   position: sticky;
   top: 0;
-  background: #0a0714;
+  background: var(--app-bg);
   z-index: 2;
 }
 
@@ -36,20 +36,20 @@
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: #c4b5fd;
+  color: var(--app-text);
   text-transform: uppercase;
 }
 
 .lo-section-meta {
   font-size: 0.68rem;
-  color: #6b4fa0;
+  color: var(--app-text-dim);
   letter-spacing: 0.02em;
 }
 
 /* ─── Left panel: Team Comparison ─────────────────────────────────────────── */
 
 .lo-left {
-  border-right: 1px solid rgba(139, 92, 246, 0.1);
+  border-right: 1px solid var(--app-accent-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -90,7 +90,7 @@
 
 .lo-loading {
   padding: 32px 16px;
-  color: #6b4fa0;
+  color: var(--app-text-dim);
   font-size: 0.8rem;
   letter-spacing: 0.05em;
 }
@@ -299,7 +299,7 @@
 .lo-standings-table thead {
   position: sticky;
   top: 0;
-  background: #0a0714;
+  background: var(--app-bg-alt);
   z-index: 1;
 }
 
@@ -315,7 +315,7 @@
   position: sticky;
   left: 0;
   z-index: 2;
-  background: #0a0714;
+  background: var(--app-bg-alt);
 }
 
 .lo-th-stat {
@@ -360,7 +360,7 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  background: #0a0714;
+  background: var(--app-bg-alt);
 }
 
 .lo-tr-even .lo-td-team {

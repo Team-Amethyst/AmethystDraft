@@ -1,0 +1,321 @@
+/* ─── Shared panel styles ──────────────────────────────────────────────────── */
+
+.cc-left,
+.cc-center,
+.cc-right {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid rgba(139, 92, 246, 0.1);
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+/* Left rail: no outer scroll — only team makeup list scrolls inside its card */
+.cc-left {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cc-left::-webkit-scrollbar,
+.cc-center::-webkit-scrollbar,
+.cc-right::-webkit-scrollbar { width: 6px; }
+
+.cc-left::-webkit-scrollbar-track,
+.cc-center::-webkit-scrollbar-track,
+.cc-right::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 5px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.14)
+  );
+}
+
+.cc-left::-webkit-scrollbar-thumb,
+.cc-center::-webkit-scrollbar-thumb,
+.cc-right::-webkit-scrollbar-thumb { background: #9070b8; border-radius: 3px; }
+
+.cc-left::-webkit-scrollbar-thumb:hover,
+.cc-center::-webkit-scrollbar-thumb:hover,
+.cc-right::-webkit-scrollbar-thumb:hover { background: #a855f7; }
+
+.cc-right {
+  border-right: none;
+  border-left: 1px solid rgba(139, 92, 246, 0.1);
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: 0.3rem var(--cc-pad-x) var(--cc-rail-bottom-gap);
+  background: var(--app-bg-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.24rem;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+}
+
+/* Upper cards keep natural height; draft log flexes and scrolls internally */
+.cc-right > .cc-surface-card:not(.cc-right-draft-log) {
+  flex-shrink: 0;
+}
+
+/* Roster tables: natural height (no inner scroll when content is short) */
+.cc-right .liquidity-table-wrap {
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: hidden;
+}
+
+/* Standings: horizontal scroll lives in .cc-standings-scroll; do not clip it */
+.cc-right .liquidity-table-wrap.lo-standings-wrap--right {
+  overflow-x: visible;
+}
+
+.cc-right .cc-surface-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cc-right .cc-surface-card + .cc-surface-card {
+  margin-top: var(--cc-space-8);
+}
+
+.cc-divider {
+  height: 1px;
+  background: rgba(139, 92, 246, 0.08);
+  margin: var(--cc-gap-md) 0;
+}
+
+.cc-panel-content {
+  padding: 0 var(--cc-pad-x) var(--cc-rail-bottom-gap);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-12);
+}
+
+.cc-left .cc-panel-content > .cc-surface-card:first-child {
+  margin-top: var(--cc-space-8);
+}
+
+/* Market tab: flex stack; overflow only inside team makeup slot list */
+.cc-left .cc-panel-content--market-tab {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cc-left .cc-panel-content--market-tab > section:not(.cc-team-makeup-card) {
+  flex-shrink: 0;
+}
+
+.cc-left .cc-team-makeup-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cc-team-makeup-card > .cc-team-makeup-head.pac-snapshot-header {
+  margin-top: 0;
+  margin-bottom: var(--cc-heading-mb);
+  gap: 0.35rem;
+}
+
+.cc-team-makeup-head .market-section-label {
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-team-makeup-select {
+  flex-shrink: 0;
+  max-width: min(11rem, 46vw);
+  min-width: 0;
+  padding: 0.22rem 1.75rem 0.22rem 0.45rem;
+  border-radius: 7px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d4c8e8;
+  font-size: 0.64rem;
+  font-weight: 600;
+  font-family: "DM Sans", sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.38rem center;
+  background-size: 10px 10px;
+}
+
+.cc-team-makeup-select:hover {
+  border-color: rgba(167, 139, 250, 0.45);
+  color: #ebe4f5;
+}
+
+.cc-team-makeup-select:focus-visible {
+  border-color: rgba(167, 139, 250, 0.65);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+}
+
+.cc-team-makeup-select option {
+  background: #120b1f;
+  color: #e2d9f3;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar {
+  width: 5px;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 4px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 4px;
+}
+
+.cc-left .cc-team-makeup-card .team-makeup-slots::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}
+
+/* Panel variant for tabs that contain a draft log — flex column, no own scroll */
+.cc-panel-content--log {
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+  padding: 0;
+}
+
+.cc-surface-card {
+  border: 1px solid rgba(139, 92, 246, 0.16);
+  border-radius: 10px;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.032) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.cc-surface-card--left,
+.cc-surface-card--right {
+  padding: var(--cc-space-8);
+}
+
+/* Scrollable area above the draft log (teams table, standings) */
+.cc-panel-above-log {
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex-shrink: 1;
+  min-height: 0;
+  padding: 0 var(--cc-pad-x);
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+.cc-panel-above-log::-webkit-scrollbar {
+  width: 4px;
+}
+.cc-panel-above-log::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+.cc-panel-above-log::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+
+/* Draft log section fills all remaining height (legacy / left-only layouts) */
+.cc-draft-log-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 var(--cc-pad-x);
+  border-top: 1px solid rgba(139, 92, 246, 0.08);
+}
+
+/* Draft log at bottom of right rail — fills remaining height; list scrolls inside */
+.cc-right-draft-log {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Drop .market-section-label--spaced top gap here (heading sits flush under liquidity) */
+.cc-right-draft-log .market-section-label--spaced {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+.cc-right-draft-log .draft-log-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.cc-right-draft-log .draft-log-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.cc-right-draft-log .draft-log-list::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 4px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(139, 92, 246, 0.12)
+  );
+}
+
+.cc-right-draft-log .draft-log-list::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 4px;
+}
+

@@ -1,7 +1,8 @@
 .account-page {
   min-height: 100vh;
-  background: #0a0514;
-  color: #fff;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
 }
 
 .account-nav {
@@ -14,9 +15,9 @@
   align-items: center;
   padding: 0 2rem;
   height: 56px;
-  background: rgba(10, 5, 20, 0.85);
+  background: var(--app-nav-bg-solid);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(138, 43, 226, 0.2);
+  border-bottom: 1px solid var(--app-nav-border-strong);
 }
 
 .account-nav-logo {
