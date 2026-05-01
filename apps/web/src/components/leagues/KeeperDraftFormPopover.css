@@ -150,9 +150,11 @@
   background: transparent;
   color: #a79db5;
   border-radius: 7px;
-  padding: 0.32rem 0.55rem;
-  font-size: 0.64rem;
+  padding: 0.2rem 0.48rem;
+  min-height: 1.45rem;
+  font-size: 0.59rem;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
   font-family: inherit;
 }
@@ -165,11 +167,13 @@
 .keeper-draft-popover-submit {
   border: none;
   border-radius: 7px;
-  padding: 0.32rem 0.72rem;
-  font-size: 0.64rem;
+  padding: 0.2rem 0.58rem;
+  min-height: 1.45rem;
+  font-size: 0.59rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  line-height: 1;
   cursor: pointer;
   font-family: inherit;
   color: #141414;
