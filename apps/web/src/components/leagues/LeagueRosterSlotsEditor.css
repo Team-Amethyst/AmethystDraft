@@ -8,7 +8,11 @@
   max-height: min(42vh, 380px);
 }
 
+/* When embedded in league setup / create cards, avoid nested rounded frames. */
 .league-roster-editor--static {
+  margin-top: 0;
+  border: none;
+  border-radius: 0;
   max-height: none;
   overflow: visible;
 }
@@ -20,14 +24,15 @@
 .league-roster-editor-header,
 .league-roster-editor-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  column-gap: 0.75rem;
   align-items: center;
-  padding: 6px 12px;
+  padding: 0.45rem 0.35rem;
 }
 
 .league-roster-editor-header {
   background: color-mix(in srgb, var(--app-bg-alt) 92%, black 8%);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   color: color-mix(in srgb, var(--app-text-dim) 82%, white 18%);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -35,6 +40,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
+  border-bottom: 1px solid var(--app-accent-hairline);
 }
 
 .league-roster-editor-header-right {
@@ -66,22 +72,29 @@
 }
 
 .league-roster-editor-row {
-  border-top: 1px solid color-mix(in srgb, white 5%, transparent);
+  border-bottom: 1px solid var(--app-accent-hairline);
   color: var(--app-text);
+}
+
+.league-roster-editor-row:last-of-type {
+  border-bottom: none;
 }
 
 .league-roster-editor-position {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.45rem;
   min-width: 0;
 }
 
 .league-roster-editor-position-name {
   color: var(--app-text);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -93,14 +106,16 @@
 }
 
 .league-roster-editor-count-input {
-  width: 54px;
-  height: 28px;
-  border: 1px solid rgba(139, 92, 246, 0.24);
-  border-radius: 6px;
+  width: 100%;
+  max-width: 4.25rem;
+  height: 2rem;
+  box-sizing: border-box;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: 7px;
   background: rgba(255, 255, 255, 0.04);
   color: #d9d0ea;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 700;
   outline: none;
   font-family: inherit;
@@ -121,9 +136,11 @@
 }
 
 .league-roster-editor-total {
-  margin: 10px 12px;
-  color: var(--app-text);
-  font-size: 0.8rem;
+  margin: 0.65rem 0.35rem 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--app-accent-hairline);
+  color: color-mix(in srgb, var(--app-text) 78%, transparent);
+  font-size: 0.74rem;
   font-weight: 600;
   text-align: right;
 }
