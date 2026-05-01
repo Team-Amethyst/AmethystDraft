@@ -17,8 +17,7 @@ export function CommandCenterRightRosterPane({
   selectedPlayerPositions,
   league,
   rosterEntries,
-  myTeamName,
-  isTeamOne,
+  isMyTeam,
   scoringCats,
   sortedProjStandings,
   rankMaps,
@@ -34,8 +33,7 @@ export function CommandCenterRightRosterPane({
   selectedPlayerPositions: string[];
   league: League | null;
   rosterEntries: RosterEntry[];
-  myTeamName: string;
-  isTeamOne: (name: string) => boolean;
+  isMyTeam: (name: string) => boolean;
   scoringCats: ScoringCategory[];
   sortedProjStandings: ProjectedStandingRow[];
   rankMaps: Record<string, Map<string, number>>;
@@ -78,8 +76,7 @@ export function CommandCenterRightRosterPane({
           selectedPlayerPositions={selectedPlayerPositions}
           league={league}
           rosterEntries={rosterEntries}
-          myTeamName={myTeamName}
-          isTeamOne={isTeamOne}
+          isMyTeam={isMyTeam}
         />
       ) : (
         <CommandCenterRightStandingsTable
@@ -89,7 +86,7 @@ export function CommandCenterRightRosterPane({
           sortCat={sortCat}
           sortAsc={sortAsc}
           onToggleStandingsSort={onToggleStandingsSort}
-          isTeamOne={isTeamOne}
+          isMyTeam={isMyTeam}
         />
       )}
     </section>

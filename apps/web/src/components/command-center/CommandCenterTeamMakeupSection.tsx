@@ -98,11 +98,16 @@ export function CommandCenterTeamMakeupSection({
             value={makeupTeamId}
             onChange={(e) => setMakeupTeamId(e.target.value)}
           >
-            {league.teamNames.map((name, idx) => (
-              <option key={`team_${idx + 1}`} value={`team_${idx + 1}`}>
-                {name}
-              </option>
-            ))}
+            {league.teamNames.map((name, idx) => {
+              const tid = `team_${idx + 1}`;
+              const you = myTeamId != null && tid === myTeamId ? " (You)" : "";
+              return (
+                <option key={tid} value={tid}>
+                  {name}
+                  {you}
+                </option>
+              );
+            })}
           </select>
         ) : null}
       </div>

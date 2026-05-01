@@ -1,0 +1,115 @@
+.lc-keeper-draft-inline {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.55rem 0.4rem 0.58rem;
+  background: rgba(8, 5, 18, 0.62);
+  border-top: 1px solid rgba(139, 92, 246, 0.14);
+  border-left: 2px solid rgba(167, 139, 250, 0.4);
+  border-radius: 0 0 6px 6px;
+}
+
+.lc-keeper-draft-inline-fields {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 6.25rem) minmax(4.25rem, 5.25rem) minmax(
+      0,
+      1fr
+    );
+  gap: 0.45rem 0.55rem;
+  align-items: end;
+  margin-bottom: 0.52rem;
+}
+
+.lc-keeper-draft-inline-fields > .keeper-slot-override-root {
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .lc-keeper-draft-inline-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lc-keeper-inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.lc-keeper-inline-field > span {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b5d88;
+}
+
+.lc-keeper-inline-field--narrow {
+  max-width: 6rem;
+}
+
+.lc-keeper-inline-field--grow {
+  min-width: 0;
+}
+
+.lc-keeper-inline-select,
+.lc-keeper-inline-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.34);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8e0f5;
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  padding: 0.34rem 0.42rem;
+}
+
+.lc-keeper-inline-select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 1.65rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.38rem center;
+  background-size: 10px 10px;
+}
+
+.lc-keeper-inline-select option {
+  background: #120b1f;
+  color: #e2d9f3;
+}
+
+.lc-keeper-inline-select:focus-visible,
+.lc-keeper-inline-input:focus-visible {
+  border-color: rgba(167, 139, 250, 0.65);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.22);
+}
+
+.lc-keeper-inline-input::placeholder {
+  color: #5c4d78;
+  font-weight: 500;
+}
+
+.lc-keeper-draft-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.lc-keeper-inline-cancel {
+  padding: 0.38rem 0.72rem;
+  font-size: 0.72rem;
+  min-width: 0;
+}
+
+.lc-keeper-inline-draft {
+  padding: 0.38rem 0.95rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  min-width: 5.5rem;
+  letter-spacing: 0.03em;
+}

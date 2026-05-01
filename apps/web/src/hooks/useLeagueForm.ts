@@ -7,6 +7,8 @@ import {
   rosterDefaults,
   getEligibleSlots,
   getEligibleSlotsForKeeperAssignment,
+  getOpenRosterSlotPositions,
+  getOpenRosterSlotPositionsForReassign,
 } from "../types/league";
 
 interface UseLeagueFormOptions {
@@ -111,12 +113,6 @@ export function useLeagueForm({
   );
 
   const currentKeepers = teamKeepers[activeKeeperTeam] ?? [];
-  const keeperBudgetUsed = currentKeepers.reduce((sum, k) => sum + k.cost, 0);
-  const remainingBudget = budget - keeperBudgetUsed;
-  const completionPercent =
-    totalRosterSpots > 0
-      ? Math.round((currentKeepers.length / totalRosterSpots) * 100)
-      : 0;
 
   /** Maps playerId → teamName for every keeper across all teams */
   const keeperOwnerMap = useMemo(() => {
@@ -222,6 +218,11 @@ export function useLeagueForm({
     return getEligibleSlots(player, rosterSlots, currentKeepers);
   };
 
+  const getOpenSlotsForPlayer = (player: Player): string[] => {
+    if (keeperOwnerMap.get(String(player.id))) return [];
+    return getOpenRosterSlotPositions(rosterSlots, currentKeepers);
+  };
+
   const removeKeeper = (index: number) => {
     const current = teamKeepers[activeKeeperTeam] ?? [];
     setTeamKeepers({
@@ -254,6 +255,16 @@ export function useLeagueForm({
     const player = fromPool ?? teamKeeperToPlayer(keeper);
     return getEligibleSlotsForKeeperAssignment(
       player,
+      rosterSlots,
+      current,
+      index,
+    );
+  };
+
+  const getOpenSlotsForKeeperAtIndex = (index: number): string[] => {
+    const current = teamKeepers[activeKeeperTeam] ?? [];
+    if (!current[index]) return [];
+    return getOpenRosterSlotPositionsForReassign(
       rosterSlots,
       current,
       index,
@@ -293,8 +304,6 @@ export function useLeagueForm({
     teamKeepers,
     setTeamKeepers,
     currentKeepers,
-    remainingBudget,
-    completionPercent,
     filteredPlayers,
     toggleStat,
     updateRosterCount,
@@ -307,7 +316,9 @@ export function useLeagueForm({
     updateKeeperContract,
     updateKeeperSlot,
     getEligibleSlotsForPlayer,
+    getOpenSlotsForPlayer,
     getEligibleSlotsForKeeperAtIndex,
+    getOpenSlotsForKeeperAtIndex,
     keeperOwnerMap,
   };
 }

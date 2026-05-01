@@ -13,8 +13,7 @@ export function CommandCenterRightLiquidityTable({
   selectedPlayerPositions,
   league,
   rosterEntries,
-  myTeamName,
-  isTeamOne,
+  isMyTeam,
 }: {
   sortedTeamData: TeamSummary[];
   liqSort: { col: LiqCol; dir: "asc" | "desc" };
@@ -22,8 +21,7 @@ export function CommandCenterRightLiquidityTable({
   selectedPlayerPositions: string[];
   league: League | null;
   rosterEntries: RosterEntry[];
-  myTeamName: string;
-  isTeamOne: (name: string) => boolean;
+  isMyTeam: (name: string) => boolean;
 }) {
   return (
     <div className="liquidity-table-wrap">
@@ -85,15 +83,20 @@ export function CommandCenterRightLiquidityTable({
                 <tr
                   key={t.name}
                   className={[
-                    t.name === myTeamName ? "my-team-row" : "",
-                    isTeamOne(t.name) ? "cc-team-one-row" : "",
+                    isMyTeam(t.name) ? "my-team-row cc-my-team-row" : "",
                     ineligible ? "liq-ineligible" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
                 >
                   <td className="liq-team-name-cell" title={t.name}>
-                    {t.name}
+                    <span className="liq-team-name-text">{t.name}</span>
+                    {isMyTeam(t.name) ? (
+                      <span className="cc-team-you-suffix" aria-label="your team">
+                        {" "}
+                        (You)
+                      </span>
+                    ) : null}
                   </td>
                   <td>${t.remaining}</td>
                   <td>{t.open}</td>

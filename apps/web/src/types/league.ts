@@ -157,3 +157,49 @@ export function getEligibleSlotsForKeeperAssignment(
   }
   return [...new Set(result)];
 }
+
+/** Roster positions with capacity left, ignoring position eligibility (commissioner override). */
+export function getOpenRosterSlotPositions(
+  rosterSlots: RosterSlot[],
+  currentKeepers: TeamKeeper[],
+): string[] {
+  const usedCounts: Record<string, number> = {};
+  for (const k of currentKeepers) {
+    usedCounts[k.slot] = (usedCounts[k.slot] ?? 0) + 1;
+  }
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const rs of rosterSlots) {
+    if (rs.count === 0) continue;
+    const used = usedCounts[rs.position] ?? 0;
+    if (used < rs.count && !seen.has(rs.position)) {
+      seen.add(rs.position);
+      result.push(rs.position);
+    }
+  }
+  return result;
+}
+
+/** Open slots when reassigning a keeper (same capacity rules as eligible edit, no position filter). */
+export function getOpenRosterSlotPositionsForReassign(
+  rosterSlots: RosterSlot[],
+  currentKeepers: TeamKeeper[],
+  excludeIndex: number,
+): string[] {
+  const usedCounts: Record<string, number> = {};
+  for (let i = 0; i < currentKeepers.length; i++) {
+    if (i === excludeIndex) continue;
+    const k = currentKeepers[i];
+    usedCounts[k.slot] = (usedCounts[k.slot] ?? 0) + 1;
+  }
+  const keeper = currentKeepers[excludeIndex];
+  const result: string[] = [];
+  for (const rs of rosterSlots) {
+    if (rs.count === 0) continue;
+    const used = usedCounts[rs.position] ?? 0;
+    if (used < rs.count || keeper?.slot === rs.position) {
+      result.push(rs.position);
+    }
+  }
+  return [...new Set(result)];
+}

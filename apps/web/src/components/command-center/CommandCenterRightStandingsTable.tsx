@@ -18,7 +18,7 @@ export function CommandCenterRightStandingsTable({
   sortCat,
   sortAsc,
   onToggleStandingsSort,
-  isTeamOne,
+  isMyTeam,
 }: {
   scoringCats: ScoringCategory[];
   sortedProjStandings: ProjectedStandingRow[];
@@ -26,7 +26,7 @@ export function CommandCenterRightStandingsTable({
   sortCat: string;
   sortAsc: boolean;
   onToggleStandingsSort: (cat: string) => void;
-  isTeamOne: (name: string) => boolean;
+  isMyTeam: (name: string) => boolean;
 }) {
   return (
     <div className="liquidity-table-wrap lo-standings-wrap--right">
@@ -43,13 +43,19 @@ export function CommandCenterRightStandingsTable({
                     key={row.teamName}
                     className={[
                       idx % 2 === 0 ? "lo-tr-even" : "",
-                      isTeamOne(row.teamName) ? "cc-team-one-row" : "",
+                      isMyTeam(row.teamName) ? "cc-my-team-row" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
                   >
                     <td className="lo-td-team" title={row.teamName}>
-                      {row.teamName}
+                      <span className="lo-team-name-text">{row.teamName}</span>
+                      {isMyTeam(row.teamName) ? (
+                        <span className="cc-team-you-suffix" aria-label="your team">
+                          {" "}
+                          (You)
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -88,7 +94,7 @@ export function CommandCenterRightStandingsTable({
                     key={row.teamName}
                     className={[
                       idx % 2 === 0 ? "lo-tr-even" : "",
-                      isTeamOne(row.teamName) ? "cc-team-one-row" : "",
+                      isMyTeam(row.teamName) ? "cc-my-team-row" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}

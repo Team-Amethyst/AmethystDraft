@@ -155,12 +155,20 @@
   background: transparent;
 }
 
+.cc-right-roster-pane .cc-team-you-suffix {
+  font-weight: 600;
+  font-size: 0.58em;
+  opacity: 0.88;
+  color: #c4b5fd;
+  white-space: nowrap;
+}
+
 .cc-right-roster-pane .cc-roster-data-table thead tr,
 .cc-right-roster-pane .cc-roster-data-table tbody tr {
   height: 1.65rem;
 }
 
-.cc-right-roster-pane .cc-roster-data-table tbody tr:hover:not(.cc-team-one-row) td {
+.cc-right-roster-pane .cc-roster-data-table tbody tr:hover:not(.cc-my-team-row) td {
   background: rgba(139, 92, 246, 0.055);
 }
 
@@ -294,8 +302,8 @@
   color: #f87171;
 }
 
-/* League team 1 — stronger violet band + readable type (liquidity + standings) */
-.cc-right-roster-pane .cc-roster-data-table tbody tr.cc-team-one-row td {
+/* Signed-in user's team — stronger violet band + readable type (liquidity + standings) */
+.cc-right-roster-pane .cc-roster-data-table tbody tr.cc-my-team-row td {
   background:
     linear-gradient(
       160deg,
@@ -312,7 +320,7 @@
 .cc-right-roster-pane
   .cc-roster-data-table
   tbody
-  tr.cc-team-one-row.liq-ineligible
+  tr.cc-my-team-row.liq-ineligible
   td,
 .cc-right-roster-pane
   .cc-roster-data-table
@@ -327,7 +335,7 @@
   .cc-standings-scroll
   .cc-roster-data-table
   tbody
-  tr.cc-team-one-row
+  tr.cc-my-team-row
   .lo-td-team {
   background:
     linear-gradient(
@@ -344,7 +352,7 @@
   .cc-standings-scroll
   .cc-roster-data-table
   tbody
-  tr.cc-team-one-row
+  tr.cc-my-team-row
   .lo-td-stat.lo-rank-good {
   color: #bbf7d0;
 }
@@ -353,7 +361,7 @@
   .cc-standings-scroll
   .cc-roster-data-table
   tbody
-  tr.cc-team-one-row
+  tr.cc-my-team-row
   .lo-td-stat.lo-rank-mid {
   color: #fef08a;
 }
@@ -362,7 +370,7 @@
   .cc-standings-scroll
   .cc-roster-data-table
   tbody
-  tr.cc-team-one-row
+  tr.cc-my-team-row
   .lo-td-stat.lo-rank-bad {
   color: #fecaca;
 }
@@ -371,7 +379,7 @@
   .cc-standings-scroll
   .cc-roster-data-table
   tbody
-  tr.cc-team-one-row
+  tr.cc-my-team-row
   .lo-td-stat.lo-td-stat--empty {
   color: rgba(245, 243, 255, 0.42);
   letter-spacing: 0.08em;

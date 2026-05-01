@@ -23,6 +23,7 @@ export function CommandCenterRightPanel({
   league,
   teamData,
   myTeamName,
+  myTeamId,
   rosterEntries,
   engineMarket,
   selectedPlayer,
@@ -35,6 +36,7 @@ export function CommandCenterRightPanel({
   league: League | null;
   teamData: TeamSummary[];
   myTeamName: string;
+  myTeamId: string | null;
   rosterEntries: RosterEntry[];
   engineMarket: ValuationResponse | null;
   selectedPlayer: Player | null;
@@ -106,8 +108,9 @@ export function CommandCenterRightPanel({
   };
 
   const my = teamData.find((t) => t.name === myTeamName);
-  const teamOneName = (league?.teamNames?.[0] ?? "").trim();
-  const isTeamOne = (name: string) => teamOneName !== "" && name.trim() === teamOneName;
+  const myTeamNameTrim = myTeamName.trim();
+  const isMyTeam = (name: string) =>
+    myTeamNameTrim !== "" && name.trim() === myTeamNameTrim;
   const inflationKpi = buildInflationKpi(engineMarket, import.meta.env.DEV);
 
   const leagueWideSpotsLeft = league != null ? leagueWideAuctionSlotsRemaining(league, rosterEntries) : null;
@@ -163,8 +166,7 @@ export function CommandCenterRightPanel({
         selectedPlayerPositions={selectedPlayerPositions}
         league={league}
         rosterEntries={rosterEntries}
-        myTeamName={myTeamName}
-        isTeamOne={isTeamOne}
+        isMyTeam={isMyTeam}
         scoringCats={scoringCats}
         sortedProjStandings={sortedProjStandings}
         rankMaps={rankMaps}
@@ -178,6 +180,7 @@ export function CommandCenterRightPanel({
           rosterEntries={rosterEntries}
           league={league}
           allPlayers={allPlayers}
+          myTeamId={myTeamId}
           onRemovePick={onRemovePick}
           onUpdatePick={onUpdatePick}
         />
