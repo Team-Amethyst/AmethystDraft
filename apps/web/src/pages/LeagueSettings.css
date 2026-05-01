@@ -457,10 +457,19 @@
 .ls-keepers-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
   width: 100%;
   min-height: min(52vh, 480px);
+  /* Bounded height so available players / roster scroll inside panels */
+  height: clamp(320px, calc(100vh - 15rem), min(76vh, 780px));
+  min-width: 0;
+}
+
+.ls-keepers-layout > .ls-keeper-panel {
+  min-width: 0;
+  min-height: 0;
 }
 
 .ls-keeper-panel {
@@ -552,6 +561,7 @@
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .ls-keeper-panel--available .ls-keeper-title {
@@ -566,6 +576,7 @@
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .ls-keeper-panel--roster .ls-keeper-makeup {
@@ -659,7 +670,7 @@
 }
 
 .ls-player-list--keepers {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -669,6 +680,8 @@
   background: rgba(139, 92, 246, 0.04);
   border: 1px solid rgba(139, 92, 246, 0.12);
   padding: 0.2rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 rgba(12, 8, 22, 0.45);
 }
 
 .ls-player-row {
@@ -1303,6 +1316,11 @@
   .ls-keepers-layout,
   .ls-pool-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ls-keepers-layout {
+    grid-template-rows: minmax(220px, 1fr) minmax(220px, 1fr);
+    height: clamp(520px, calc(100vh - 12rem), min(88vh, 900px));
   }
 
   .ls-player-row {
