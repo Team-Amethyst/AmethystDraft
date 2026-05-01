@@ -124,6 +124,9 @@
   color: var(--app-accent-soft);
   border: 1px solid var(--app-accent-border);
   border-radius: 7px;
+  padding: 0.56rem 0.82rem;
+  font-size: 0.78rem;
+  gap: 0.4rem;
 }
 .add-player-btn:hover {
   background: var(--app-accent-border-faint);

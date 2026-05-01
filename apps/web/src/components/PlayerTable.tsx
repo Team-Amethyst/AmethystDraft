@@ -254,8 +254,7 @@ export default function PlayerTable({
       return { col: "adp", dir: "asc" };
     }
   });
-  const [valuationSortField, setValuationSortField] =
-    useState<ValuationSortField>(defaultValuationSortField);
+  const valuationSortField: ValuationSortField = defaultValuationSortField;
 
   useEffect(() => {
     try {
@@ -609,20 +608,6 @@ export default function PlayerTable({
             <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
             Starred only
           </button>
-          <select
-            className="pt-select"
-            value={valuationSortField}
-            onChange={(e) =>
-              setValuationSortField(e.target.value as ValuationSortField)
-            }
-            title="Sort by valuation field"
-          >
-            <option value="team_adjusted_value">Sort by: Your Value</option>
-            <option value="recommended_bid">Sort by: Likely Bid</option>
-            <option value="adjusted_value">Sort by: Market Value</option>
-            <option value="baseline_value">Sort by: Player Strength</option>
-          </select>
-
           <div className="pt-tag-wrap">
             <button
               className={"pt-toggle " + (selectedTags.size > 0 ? "active" : "")}
