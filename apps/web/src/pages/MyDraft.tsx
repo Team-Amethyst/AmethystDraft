@@ -46,6 +46,11 @@ import {
   writePositionTargetsToStorage,
   clearPositionTargetsStorage,
 } from "../utils/positionTargetsStorage";
+import {
+  loadJsonFromStorage,
+  myDraftLeagueKey,
+  saveJsonToStorage,
+} from "../utils/myDraftStateStorage";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -91,27 +96,6 @@ function watchlistToPlayer(p: WatchlistPlayer): Player {
   };
 }
 
-function loadFromStorage<T>(key: string, fallback: T): T {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? (JSON.parse(saved) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveToStorage(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* ignore storage write errors */
-  }
-}
-
-function myDraftLeagueKey(leagueId: string | undefined, suffix: string): string {
-  return `amethyst-mydraft-${leagueId ?? "global"}-${suffix}`;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MyDraft() {
@@ -152,12 +136,12 @@ export default function MyDraft() {
 
 
   const [targetOverrides, setTargetOverrides] = useState<Record<string, number>>(
-    () => loadFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
+    () => loadJsonFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
   );
 
   const [priorityOverrides, setPriorityOverrides] = useState<
     Record<string, Priority>
-  >(() => loadFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}));
+  >(() => loadJsonFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}));
 
   // Raw string state for controlled inputs — committed on blur
   const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
@@ -167,16 +151,16 @@ export default function MyDraft() {
 
   useEffect(() => {
     setTargetOverrides(
-      loadFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
+      loadJsonFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
     );
     setPriorityOverrides(
-      loadFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}),
+      loadJsonFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}),
     );
     setViewFilter(
-      loadFromStorage<ViewFilter>(myDraftLeagueKey(leagueId, "view-filter"), "all"),
+      loadJsonFromStorage<ViewFilter>(myDraftLeagueKey(leagueId, "view-filter"), "all"),
     );
     setValuationSortField(
-      loadFromStorage<ValuationSortField>(
+      loadJsonFromStorage<ValuationSortField>(
         myDraftLeagueKey(leagueId, "valuation-sort"),
         "team_adjusted_value",
       ),
@@ -184,22 +168,22 @@ export default function MyDraft() {
   }, [leagueId]);
 
   useEffect(() => {
-    saveToStorage(myDraftLeagueKey(leagueId, "target-overrides"), targetOverrides);
+    saveJsonToStorage(myDraftLeagueKey(leagueId, "target-overrides"), targetOverrides);
   }, [leagueId, targetOverrides]);
 
   useEffect(() => {
-    saveToStorage(
+    saveJsonToStorage(
       myDraftLeagueKey(leagueId, "priority-overrides"),
       priorityOverrides,
     );
   }, [leagueId, priorityOverrides]);
 
   useEffect(() => {
-    saveToStorage(myDraftLeagueKey(leagueId, "view-filter"), viewFilter);
+    saveJsonToStorage(myDraftLeagueKey(leagueId, "view-filter"), viewFilter);
   }, [leagueId, viewFilter]);
 
   useEffect(() => {
-    saveToStorage(
+    saveJsonToStorage(
       myDraftLeagueKey(leagueId, "valuation-sort"),
       valuationSortField,
     );
