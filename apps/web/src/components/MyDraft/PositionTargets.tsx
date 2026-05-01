@@ -11,6 +11,7 @@
 import PosBadge from "../PosBadge";
 import { useNavigate, useParams } from "react-router";
 import type { PositionPlanRow } from "../../constants/positionAllocationPlan";
+import "./PositionTargets.css";
 
 export type { PositionPlanRow } from "../../constants/positionAllocationPlan";
 

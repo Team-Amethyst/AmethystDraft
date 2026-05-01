@@ -20,6 +20,7 @@ import {
   valuationTooltip,
   type ValuationSortField,
 } from "../../utils/valuation";
+import "./WatchlistTable.css";
 
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";

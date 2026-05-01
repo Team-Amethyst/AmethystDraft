@@ -1,0 +1,258 @@
+.watchlist-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+.watchlist-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.watchlist-scroll::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px var(--app-accent-border-faint)
+  );
+}
+.watchlist-scroll::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+.watchlist-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}
+
+.watchlist-head {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--app-accent-hairline);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.watchlist-sub {
+  color: var(--md-muted);
+  font-size: 0.7rem;
+}
+
+.watchlist-controls {
+  color: var(--md-muted);
+  font-size: 0.67rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* Shared select style for My Draft (matches command-center control language). */
+.md-select {
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d5caeb;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 1.65rem 0.22rem 0.45rem;
+  font-family: "DM Sans", sans-serif;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.38rem center;
+  background-size: 10px 10px;
+}
+
+.md-select:hover {
+  border-color: rgba(167, 139, 250, 0.45);
+  color: #ebe4f5;
+}
+
+.md-select:focus-visible {
+  border-color: rgba(167, 139, 250, 0.65);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+  outline: none;
+}
+
+.md-select option {
+  background: #1a1330;
+  color: #d4c8e8;
+}
+
+.md-select--compact {
+  min-height: 1.55rem;
+}
+
+.watchlist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.74rem;
+}
+
+.watchlist-table th,
+.watchlist-table td {
+  padding: 0.42rem 0.52rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  text-align: left;
+}
+
+.watchlist-table th {
+  color: var(--md-heading);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  position: sticky;
+  top: 0;
+  background: rgba(12, 8, 22, 0.95);
+  z-index: 1;
+}
+
+.player-main {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.row-star {
+  color: #facc15;
+}
+
+.player-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.player-name {
+  color: #ebe5fb;
+  font-weight: 600;
+}
+
+.player-team {
+  color: var(--md-muted);
+  font-size: 0.63rem;
+}
+
+.money {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.priority-select {
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-width: 78px;
+  text-align: left;
+}
+
+.priority-select.high { color: #f8d046; border-color: rgba(248, 208, 70, 0.3); }
+.priority-select.medium { color: #90b3ff; border-color: rgba(144, 179, 255, 0.3); }
+.priority-select.low { color: #8e7caf; border-color: rgba(142, 124, 175, 0.3); }
+
+.td-note { min-width: 120px; max-width: 200px; }
+
+.target-prefix {
+  color: #8e7caf;
+  font-size: 0.7rem;
+  margin-right: 1px;
+}
+
+.target-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  color: #22c55e;
+  font-size: 0.74rem;
+  font-family: inherit;
+  font-weight: 600;
+  outline: none;
+  width: 3.5rem;
+  padding: 0.05rem 0;
+  -moz-appearance: textfield;
+  transition: border-color 120ms ease;
+}
+.target-input:focus { border-bottom-color: rgba(139, 92, 246, 0.55); }
+.target-input::-webkit-inner-spin-button,
+.target-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.watchlist-note-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  color: #c4b5d4;
+  font-size: 0.7rem;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  padding: 0.1rem 0;
+  transition: border-color 120ms ease;
+}
+.watchlist-note-input:focus { border-bottom-color: rgba(139, 92, 246, 0.55); }
+.watchlist-note-input::placeholder { color: #4a3a60; }
+
+.unstar-btn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.unstar-btn:hover {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(252, 165, 165, 0.65);
+}
+
+.watchlist-empty {
+  text-align: center;
+  color: #8f83ac;
+  padding: 1.25rem;
+}
+
+.watchlist-row--clickable {
+  cursor: pointer;
+}
+.watchlist-row--clickable:hover td {
+  background: rgba(139, 92, 246, 0.06);
+}
+
+/* +/- stepper group on target inputs */
+.target-input-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.target-stepper {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: 3px;
+  background: rgba(139, 92, 246, 0.07);
+  color: #9b87ca;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 0;
+  flex-shrink: 0;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+
+.target-stepper:hover {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(139, 92, 246, 0.6);
+  color: #c4b5f6;
+}
