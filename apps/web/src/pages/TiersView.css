@@ -1,0 +1,336 @@
+/* ── Tiers View ── */
+.tiers-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tiers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.tiers-header h2 {
+  margin: 0 0 0.35rem 0;
+  color: #f0e6ff;
+  font-size: 1.4rem;
+}
+
+.tiers-header p {
+  margin: 0;
+  color: #b8a3d8;
+  font-size: 0.9rem;
+}
+
+.tiers-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tiers-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tiers-control-group label {
+  color: #d4c1ee;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.tiers-control-group select {
+  background: rgba(18, 10, 30, 0.9);
+  color: #f0e6ff;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.tiers-control-group select:hover {
+  border-color: rgba(168, 85, 247, 0.6);
+}
+
+.tiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Tier Group ── */
+.tier-group {
+  border-radius: 12px;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: rgba(16, 9, 27, 0.85);
+  overflow: hidden;
+}
+
+.tier-group__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tier-group__header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.tier-header-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── Tier Badge ── */
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.tier-1 { background: #a855f7; }
+.tier-2 { background: #6366f1; }
+.tier-3 { background: #22c55e; }
+.tier-4 { background: #f59e0b; }
+.tier-5 { background: #6b7280; }
+.tier-unassigned { background: rgba(107, 114, 128, 0.5); }
+
+.tier-available {
+  color: #9f86bf;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tier-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tier-stat {
+  color: #d4c2ed;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.tier-cliff {
+  color: #fbbf24;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.tier-cliff.is-large {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.tier-header-positions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.position-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.14);
+  color: #d4c2ed;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  font-weight: 500;
+}
+
+.position-badge strong {
+  font-weight: 700;
+  color: #f0e6ff;
+}
+
+.tier-toggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--app-accent-soft, #a78bfa);
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.tier-toggle:hover {
+  background: rgba(168, 85, 247, 0.15);
+}
+
+.tier-group__body {
+  padding: 0.55rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Tier Player Row ── */
+.tier-player-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-top: 1px solid rgba(168, 85, 247, 0.12);
+  gap: 0.75rem;
+}
+
+.tier-player-row:first-child {
+  border-top: none;
+}
+
+.tier-player-row.tier-player-row--drafted {
+  opacity: 0.55;
+}
+
+.tier-player-row.tier-player-row--drafted .tier-player-row__name {
+  text-decoration: line-through;
+  color: #8f79af;
+}
+
+.tier-player-row__main {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.tier-player-row__main:hover {
+  opacity: 0.8;
+}
+
+.tier-player-row__name {
+  font-weight: 600;
+  color: #f8f2ff;
+  font-size: 0.9rem;
+}
+
+.tier-player-row__meta {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.14);
+  color: #d4c2ed;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.38rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.tier-player-row__value {
+  flex-shrink: 0;
+}
+
+.value-display {
+  color: #a78bfa;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.tier-player-row__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Star Button (reused from PlayerTable) ── */
+.btn-star {
+  background: transparent;
+  border: none;
+  color: #9070b8;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-star:hover {
+  background: rgba(139, 60, 247, 0.1);
+  color: #fbbf24;
+}
+
+.btn-star.starred {
+  color: #fbbf24;
+}
+
+/* ── Move Button ── */
+.btn-move {
+  background: var(--app-accent, #a855f7);
+  color: #fff;
+  border: none;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-move:hover {
+  background: var(--app-accent-soft, #c084fc);
+}
+
+.btn-move:focus-visible {
+  outline: 2px solid rgba(168, 85, 247, 0.9);
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .tiers-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .tiers-controls {
+    width: 100%;
+  }
+
+  .tier-header-positions {
+    display: none;
+  }
+
+  .tier-group__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -32,6 +32,7 @@ import {
   mergeCatalogPlayersWithValuations,
   type ValuationShape,
 } from "../utils/valuation";
+import TiersView from "./TiersView";
 import { resolveUserTeamId } from "../utils/team";
 import {
   type StatBasis,
@@ -487,10 +488,14 @@ export default function Research() {
             </>
           )}
           {selectedView === "tiers" && (
-            <div className="coming-soon">
-              <h2>Tiers</h2>
-              <p>Coming soon...</p>
-            </div>
+            <TiersView
+              players={mergedPlayers}
+              onPlayerClick={handlePlayerClick}
+              isInWatchlist={isInWatchlist}
+              addToWatchlist={addToWatchlist}
+              removeFromWatchlist={removeFromWatchlist}
+              onMoveToCommandCenter={handleMoveToCommandCenter}
+            />
           )}
           {selectedView === "depth-charts" && (
             <div className="depth-chart-wrapper">
