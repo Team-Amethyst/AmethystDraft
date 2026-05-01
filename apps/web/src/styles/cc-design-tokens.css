@@ -1,0 +1,56 @@
+/*
+ * Command Center design tokens — shared surfaces for gradual adoption site-wide.
+ * Mirrors apps/web/src/styles/command-center/02-shared-panels.css (.cc-surface-card)
+ * and center column chrome (06-center-shell.css) without importing the full CC bundle.
+ *
+ * Use: add class `cc-surface-inset` to cards/panels; use `--cc-center-bg` for modal shells.
+ */
+
+:root {
+  /* Center column (auction / main workspace) — matches .cc-center */
+  --cc-center-bg: #0d0a1a;
+
+  /* Inset card surface — matches .cc-surface-card */
+  --cc-surface-border: rgba(139, 92, 246, 0.16);
+  --cc-surface-radius: 10px;
+  --cc-surface-gradient: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.032) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  --cc-surface-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+
+  /* Hairline divider — matches --app-accent-hairline usage in CC rails */
+  --cc-divider: rgba(139, 92, 246, 0.08);
+}
+
+/**
+ * Primary inset panel (Command Center card DNA).
+ * Safe to combine with layout-specific wrappers (e.g. .pdm-card padding).
+ */
+.cc-surface-inset {
+  border: 1px solid var(--cc-surface-border);
+  border-radius: var(--cc-surface-radius);
+  background: var(--cc-surface-gradient);
+  box-shadow: var(--cc-surface-inset-shadow);
+}
+
+/**
+ * Modal / overlay shell: dark workspace tone + optional glass cap (matches CC center feel).
+ */
+.cc-modal-shell {
+  background: linear-gradient(
+      165deg,
+      color-mix(in srgb, white 3.5%, transparent) 0%,
+      color-mix(in srgb, white 1.2%, transparent) 100%
+    ),
+    var(--cc-center-bg);
+  border: 1px solid var(--app-accent-border-faint);
+  border-radius: var(--app-radius-lg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 28px 80px rgba(0, 0, 0, 0.62);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
+}

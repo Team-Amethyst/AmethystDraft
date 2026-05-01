@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { type StatBasis, statBasisFooterDescription } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
-import { formatCurrencyWhole, formatMaybeDelta } from "../utils/valuation";
+import {
+  formatCurrencyWhole,
+  formatMaybeDelta,
+  playerValuationEdgeOrDiff,
+} from "../utils/valuation";
 import PosBadge from "./PosBadge";
 import "./PlayerDetailModal.css";
 
@@ -49,7 +53,7 @@ export default function PlayerDetailModal({
   const projectionPit = player.projection.pitching;
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
-  const valuationDiff = player.edge ?? player.team_adjusted_value ?? null;
+  const valuationDiff = playerValuationEdgeOrDiff(player);
   const likelyBid = isFiniteNumber(player.recommended_bid) ? player.recommended_bid : null;
   const yourValue = isFiniteNumber(player.team_adjusted_value) ? player.team_adjusted_value : null;
   const marketValue = isFiniteNumber(player.adjusted_value) ? player.adjusted_value : null;
@@ -75,7 +79,7 @@ export default function PlayerDetailModal({
   return (
     <div className="pdm-overlay" onClick={onClose}>
       <div
-        className="pdm-modal"
+        className="pdm-modal cc-modal-shell"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -108,7 +112,7 @@ export default function PlayerDetailModal({
 
         <div className="pdm-body">
         <div className="pdm-grid">
-          <section className="pdm-card pdm-card--hero">
+          <section className="pdm-card cc-surface-inset pdm-card--hero">
             <h3>Player profile</h3>
             <div className="pdm-positions">
               {positions.map((pos) => (
@@ -117,9 +121,17 @@ export default function PlayerDetailModal({
             </div>
             <dl>
               <dt>Age</dt>
-              <dd>{valueOrDash(player.age || "-")}</dd>
+              <dd>
+                {typeof player.age === "number" && Number.isFinite(player.age)
+                  ? String(player.age)
+                  : "—"}
+              </dd>
               <dt>MLB ID</dt>
-              <dd>{valueOrDash(player.mlbId || "-")}</dd>
+              <dd>
+                {typeof player.mlbId === "number" && Number.isFinite(player.mlbId)
+                  ? String(player.mlbId)
+                  : "—"}
+              </dd>
               <dt>Indicator</dt>
               <dd>{valueOrDash(player.indicator)}</dd>
               <dt>Drafted</dt>
@@ -127,7 +139,7 @@ export default function PlayerDetailModal({
             </dl>
           </section>
 
-          <section className="pdm-card pdm-card--decision">
+          <section className="pdm-card cc-surface-inset pdm-card--decision">
             <h3>Bid decision</h3>
             <div className="pdm-decision-signal">{decisionSignal}</div>
             <dl>
@@ -140,25 +152,12 @@ export default function PlayerDetailModal({
               <dt>Value Diff</dt>
               <dd>{formatMaybeDelta(valuationDiff)}</dd>
             </dl>
-            <p className="pdm-outlook">{valueOrDash(player.outlook)}</p>
+            {player.outlook?.trim() ? (
+              <p className="pdm-outlook">{player.outlook.trim()}</p>
+            ) : null}
           </section>
 
-          <section className="pdm-card pdm-card--wide">
-            <h3>Your Player Notes</h3>
-            <p className="pdm-note-help">Notes save automatically as you type.</p>
-            <textarea
-              className="pdm-note-editor"
-              value={noteDraft}
-              placeholder="Capture target bid, fallback options, roster fit, and risk notes..."
-              onChange={(event) => {
-                const next = event.target.value;
-                setNoteDraft(next);
-                onNoteChange?.(player.id, next);
-              }}
-            />
-          </section>
-
-          <section className="pdm-card pdm-card--wide">
+          <section className="pdm-card cc-surface-inset pdm-card--wide">
             <h3>Performance Snapshot</h3>
             {batting || pitching ? (
               <div
@@ -208,8 +207,23 @@ export default function PlayerDetailModal({
             )}
           </section>
 
+          <section className="pdm-card cc-surface-inset pdm-card--wide">
+            <h3>Your Player Notes</h3>
+            <p className="pdm-note-help">Notes save automatically as you type.</p>
+            <textarea
+              className="pdm-note-editor"
+              value={noteDraft}
+              placeholder="Capture target bid, fallback options, roster fit, and risk notes..."
+              onChange={(event) => {
+                const next = event.target.value;
+                setNoteDraft(next);
+                onNoteChange?.(player.id, next);
+              }}
+            />
+          </section>
+
           {(player.why?.length || player.market_notes?.length) && (
-            <section className="pdm-card pdm-card--wide pdm-card--details">
+            <section className="pdm-card cc-surface-inset pdm-card--wide pdm-card--details">
               <details className="pdm-model-details">
                 <summary className="pdm-model-summary">Model notes</summary>
                 {player.why?.length ? (
