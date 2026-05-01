@@ -1,9 +1,5 @@
-import {
-  useEffect,
-  useState,
-  type StatBasis,
-  statBasisFooterDescription,
-} from "@repo/player-stat-basis";
+import { useEffect, useState } from "react";
+import { type StatBasis, statBasisFooterDescription } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import { formatCurrencyWhole, formatMaybeDelta } from "../utils/valuation";
 import PosBadge from "./PosBadge";
@@ -28,6 +24,10 @@ function valueOrDash(value: unknown): string {
   return String(value);
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 export default function PlayerDetailModal({
   isOpen,
   player,
@@ -50,6 +50,22 @@ export default function PlayerDetailModal({
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
   const valuationDiff = player.edge ?? player.team_adjusted_value ?? null;
+  const likelyBid = isFiniteNumber(player.recommended_bid) ? player.recommended_bid : null;
+  const yourValue = isFiniteNumber(player.team_adjusted_value) ? player.team_adjusted_value : null;
+  const marketValue = isFiniteNumber(player.adjusted_value) ? player.adjusted_value : null;
+  const targetBid = likelyBid ?? yourValue ?? marketValue;
+  const decisionSignal =
+    valuationDiff == null
+      ? "Neutral"
+      : valuationDiff >= 7
+        ? "Aggressive target"
+        : valuationDiff >= 2
+          ? "Slight value"
+          : valuationDiff <= -7
+            ? "Likely overpay"
+            : valuationDiff <= -2
+              ? "Price sensitive"
+              : "Neutral";
   const [noteDraft, setNoteDraft] = useState(note ?? "");
 
   useEffect(() => {
@@ -90,6 +106,7 @@ export default function PlayerDetailModal({
           </div>
         </div>
 
+        <div className="pdm-body">
         <div className="pdm-grid">
           <section className="pdm-card pdm-card--hero">
             <h3>Player profile</h3>
@@ -105,41 +122,60 @@ export default function PlayerDetailModal({
               <dd>{valueOrDash(player.mlbId || "-")}</dd>
               <dt>Indicator</dt>
               <dd>{valueOrDash(player.indicator)}</dd>
-              <dt>Outlook</dt>
-              <dd>{valueOrDash(player.outlook)}</dd>
+              <dt>Drafted</dt>
+              <dd>{draftedByTeam ? `Yes - ${draftedByTeam}` : "Available"}</dd>
             </dl>
           </section>
 
-          <section className="pdm-card">
-            <h3>Valuation</h3>
+          <section className="pdm-card pdm-card--decision">
+            <h3>Bid decision</h3>
+            <div className="pdm-decision-signal">{decisionSignal}</div>
             <dl>
-              <dt>Likely Bid</dt>
-              <dd>{formatCurrencyWhole(player.recommended_bid)}</dd>
+              <dt>Target Bid</dt>
+              <dd>{formatCurrencyWhole(targetBid)}</dd>
               <dt>Your Value</dt>
-              <dd>{formatCurrencyWhole(player.team_adjusted_value)}</dd>
-              <dt>Market Value</dt>
-              <dd>{formatCurrencyWhole(player.adjusted_value)}</dd>
-              <dt>Player Strength</dt>
-              <dd>{formatCurrencyWhole(player.baseline_value)}</dd>
-              <dt>Val Diff</dt>
+              <dd>{formatCurrencyWhole(yourValue)}</dd>
+              <dt>Market</dt>
+              <dd>{formatCurrencyWhole(marketValue)}</dd>
+              <dt>Value Diff</dt>
               <dd>{formatMaybeDelta(valuationDiff)}</dd>
             </dl>
+            <p className="pdm-outlook">{valueOrDash(player.outlook)}</p>
           </section>
 
-          <section className="pdm-card">
-            <h3>Last completed season (API)</h3>
+          <section className="pdm-card pdm-card--wide">
+            <h3>Your Player Notes</h3>
+            <p className="pdm-note-help">Notes save automatically as you type.</p>
+            <textarea
+              className="pdm-note-editor"
+              value={noteDraft}
+              placeholder="Capture target bid, fallback options, roster fit, and risk notes..."
+              onChange={(event) => {
+                const next = event.target.value;
+                setNoteDraft(next);
+                onNoteChange?.(player.id, next);
+              }}
+            />
+          </section>
+
+          <section className="pdm-card pdm-card--wide">
+            <h3>Performance Snapshot</h3>
             {batting ? (
               <div className="pdm-stat-group">
                 <h4>Batting</h4>
-                <dl className="pdm-mini-grid">
-                  <dt>AVG</dt><dd>{valueOrDash(batting.avg)}</dd>
-                  <dt>HR</dt><dd>{valueOrDash(batting.hr)}</dd>
-                  <dt>RBI</dt><dd>{valueOrDash(batting.rbi)}</dd>
-                  <dt>R</dt><dd>{valueOrDash(batting.runs)}</dd>
-                  <dt>SB</dt><dd>{valueOrDash(batting.sb)}</dd>
-                  <dt>OBP</dt><dd>{valueOrDash(batting.obp)}</dd>
-                  <dt>SLG</dt><dd>{valueOrDash(batting.slg)}</dd>
-                </dl>
+                <div className="pdm-compare">
+                  <div className="pdm-compare-head">
+                    <span>Metric</span>
+                    <span>Last</span>
+                    <span>Proj</span>
+                    <span>3Y</span>
+                  </div>
+                  <div className="pdm-compare-row"><span>AVG</span><span>{valueOrDash(batting.avg)}</span><span>{valueOrDash(projectionBat?.avg)}</span><span>{valueOrDash(stats3yrBat?.avg)}</span></div>
+                  <div className="pdm-compare-row"><span>HR</span><span>{valueOrDash(batting.hr)}</span><span>{valueOrDash(projectionBat?.hr)}</span><span>{valueOrDash(stats3yrBat?.hr)}</span></div>
+                  <div className="pdm-compare-row"><span>RBI</span><span>{valueOrDash(batting.rbi)}</span><span>{valueOrDash(projectionBat?.rbi)}</span><span>{valueOrDash(stats3yrBat?.rbi)}</span></div>
+                  <div className="pdm-compare-row"><span>R</span><span>{valueOrDash(batting.runs)}</span><span>{valueOrDash(projectionBat?.runs)}</span><span>{valueOrDash(stats3yrBat?.runs)}</span></div>
+                  <div className="pdm-compare-row"><span>SB</span><span>{valueOrDash(batting.sb)}</span><span>{valueOrDash(projectionBat?.sb)}</span><span>{valueOrDash(stats3yrBat?.sb)}</span></div>
+                </div>
               </div>
             ) : (
               <p className="pdm-empty">No batting stats available.</p>
@@ -147,102 +183,23 @@ export default function PlayerDetailModal({
             {pitching ? (
               <div className="pdm-stat-group">
                 <h4>Pitching</h4>
-                <dl className="pdm-mini-grid">
-                  <dt>ERA</dt><dd>{valueOrDash(pitching.era)}</dd>
-                  <dt>WHIP</dt><dd>{valueOrDash(pitching.whip)}</dd>
-                  <dt>W</dt><dd>{valueOrDash(pitching.wins)}</dd>
-                  <dt>SV</dt><dd>{valueOrDash(pitching.saves)}</dd>
-                  <dt>K</dt><dd>{valueOrDash(pitching.strikeouts)}</dd>
-                  <dt>HLD</dt><dd>{valueOrDash(pitching.holds)}</dd>
-                  <dt>CG</dt><dd>{valueOrDash(pitching.completeGames)}</dd>
-                  <dt>IP</dt><dd>{valueOrDash(pitching.innings)}</dd>
-                </dl>
+                <div className="pdm-compare">
+                  <div className="pdm-compare-head">
+                    <span>Metric</span>
+                    <span>Last</span>
+                    <span>Proj</span>
+                    <span>3Y</span>
+                  </div>
+                  <div className="pdm-compare-row"><span>ERA</span><span>{valueOrDash(pitching.era)}</span><span>{valueOrDash(projectionPit?.era)}</span><span>{valueOrDash(stats3yrPit?.era)}</span></div>
+                  <div className="pdm-compare-row"><span>WHIP</span><span>{valueOrDash(pitching.whip)}</span><span>{valueOrDash(projectionPit?.whip)}</span><span>{valueOrDash(stats3yrPit?.whip)}</span></div>
+                  <div className="pdm-compare-row"><span>W</span><span>{valueOrDash(pitching.wins)}</span><span>{valueOrDash(projectionPit?.wins)}</span><span>{valueOrDash(stats3yrPit?.wins)}</span></div>
+                  <div className="pdm-compare-row"><span>SV</span><span>{valueOrDash(pitching.saves)}</span><span>{valueOrDash(projectionPit?.saves)}</span><span>{valueOrDash(stats3yrPit?.saves)}</span></div>
+                  <div className="pdm-compare-row"><span>K</span><span>{valueOrDash(pitching.strikeouts)}</span><span>{valueOrDash(projectionPit?.strikeouts)}</span><span>{valueOrDash(stats3yrPit?.strikeouts)}</span></div>
+                </div>
               </div>
             ) : (
               <p className="pdm-empty">No pitching stats available.</p>
             )}
-          </section>
-
-          <section className="pdm-card">
-            <h3>Blended outlook (5/3/2 year weights)</h3>
-            {projectionBat ? (
-              <div className="pdm-stat-group">
-                <h4>Batting</h4>
-                <dl className="pdm-mini-grid">
-                  <dt>AVG</dt><dd>{valueOrDash(projectionBat.avg)}</dd>
-                  <dt>HR</dt><dd>{valueOrDash(projectionBat.hr)}</dd>
-                  <dt>RBI</dt><dd>{valueOrDash(projectionBat.rbi)}</dd>
-                  <dt>R</dt><dd>{valueOrDash(projectionBat.runs)}</dd>
-                  <dt>SB</dt><dd>{valueOrDash(projectionBat.sb)}</dd>
-                </dl>
-              </div>
-            ) : (
-              <p className="pdm-empty">No batting projection available.</p>
-            )}
-            {projectionPit ? (
-              <div className="pdm-stat-group">
-                <h4>Pitching</h4>
-                <dl className="pdm-mini-grid">
-                  <dt>ERA</dt><dd>{valueOrDash(projectionPit.era)}</dd>
-                  <dt>WHIP</dt><dd>{valueOrDash(projectionPit.whip)}</dd>
-                  <dt>W</dt><dd>{valueOrDash(projectionPit.wins)}</dd>
-                  <dt>SV</dt><dd>{valueOrDash(projectionPit.saves)}</dd>
-                  <dt>K</dt><dd>{valueOrDash(projectionPit.strikeouts)}</dd>
-                  <dt>HLD</dt><dd>{valueOrDash(projectionPit.holds)}</dd>
-                  <dt>CG</dt><dd>{valueOrDash(projectionPit.completeGames)}</dd>
-                  <dt>IP</dt><dd>{valueOrDash(projectionPit.innings)}</dd>
-                </dl>
-              </div>
-            ) : (
-              <p className="pdm-empty">No pitching projection available.</p>
-            )}
-          </section>
-
-          {(stats3yrBat || stats3yrPit) && (
-            <section className="pdm-card">
-              <h3>3-year blend</h3>
-              {stats3yrBat ? (
-                <div className="pdm-stat-group">
-                  <h4>Batting</h4>
-                  <dl className="pdm-mini-grid">
-                    <dt>AVG</dt><dd>{valueOrDash(stats3yrBat.avg)}</dd>
-                    <dt>HR</dt><dd>{valueOrDash(stats3yrBat.hr)}</dd>
-                    <dt>RBI</dt><dd>{valueOrDash(stats3yrBat.rbi)}</dd>
-                    <dt>R</dt><dd>{valueOrDash(stats3yrBat.runs)}</dd>
-                    <dt>SB</dt><dd>{valueOrDash(stats3yrBat.sb)}</dd>
-                    <dt>OBP</dt><dd>{valueOrDash(stats3yrBat.obp)}</dd>
-                    <dt>SLG</dt><dd>{valueOrDash(stats3yrBat.slg)}</dd>
-                  </dl>
-                </div>
-              ) : null}
-              {stats3yrPit ? (
-                <div className="pdm-stat-group">
-                  <h4>Pitching</h4>
-                  <dl className="pdm-mini-grid">
-                    <dt>ERA</dt><dd>{valueOrDash(stats3yrPit.era)}</dd>
-                    <dt>WHIP</dt><dd>{valueOrDash(stats3yrPit.whip)}</dd>
-                    <dt>W</dt><dd>{valueOrDash(stats3yrPit.wins)}</dd>
-                    <dt>SV</dt><dd>{valueOrDash(stats3yrPit.saves)}</dd>
-                    <dt>K</dt><dd>{valueOrDash(stats3yrPit.strikeouts)}</dd>
-                    <dt>IP</dt><dd>{valueOrDash(stats3yrPit.innings)}</dd>
-                  </dl>
-                </div>
-              ) : null}
-            </section>
-          )}
-
-          <section className="pdm-card pdm-card--wide">
-            <h3>Personal Notes</h3>
-            <textarea
-              className="pdm-note-editor"
-              value={noteDraft}
-              placeholder="Add draft thoughts, keeper logic, risk notes, and target price reminders..."
-              onChange={(event) => {
-                const next = event.target.value;
-                setNoteDraft(next);
-                onNoteChange?.(player.id, next);
-              }}
-            />
           </section>
 
           {(player.why?.length || player.market_notes?.length) && (
@@ -271,6 +228,7 @@ export default function PlayerDetailModal({
             </section>
           )}
         </div>
+        </div>
 
         <p className="pdm-basis-foot">{statBasisFooterDescription(statBasis)}</p>
 
@@ -279,7 +237,7 @@ export default function PlayerDetailModal({
             Close
           </button>
           <button type="button" className="pdm-btn pdm-btn--primary" onClick={() => onMoveToCommandCenter(player)}>
-            Move to Command Center
+            Draft in Command Center
           </button>
         </div>
       </div>
