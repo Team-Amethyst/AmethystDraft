@@ -1,8 +1,10 @@
 /* ─── Right roster pane: liquidity + standings (flush with surface card) ───── */
 
 .cc-right-roster-pane {
-  flex: 1 1 auto;
+  /* Let standings/liquidity use natural height instead of consuming full rail. */
+  flex: 0 1 auto;
   min-height: 0;
+  max-height: clamp(210px, 42vh, 390px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
