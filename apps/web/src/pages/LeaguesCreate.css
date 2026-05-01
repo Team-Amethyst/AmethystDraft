@@ -208,10 +208,16 @@
   gap: var(--lc-flow-gap-lg);
   min-width: 0;
   align-self: stretch;
+  height: 100%;
 }
 
 .league-create-setup-panel {
   flex-shrink: 0;
+}
+
+/* Keep Player Pool panel bottom-aligned against roster slots panel. */
+.league-create-setup-left-stack .league-create-setup-panel:last-child {
+  margin-top: auto;
 }
 
 .league-create-setup-panel .league-create-section-title {
