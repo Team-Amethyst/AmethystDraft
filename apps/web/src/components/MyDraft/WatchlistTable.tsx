@@ -82,6 +82,7 @@ export default function WatchlistTable({
         <div className="watchlist-controls">
           <span>View</span>
           <select
+            className="md-select md-select--compact"
             value={viewFilter}
             onChange={(e) => onViewFilterChange(e.target.value as ViewFilter)}
           >
@@ -91,6 +92,7 @@ export default function WatchlistTable({
           </select>
           <span>Sort by</span>
           <select
+            className="md-select md-select--compact"
             value={valuationSortField}
             onChange={(e) =>
               onValuationSortFieldChange(e.target.value as ValuationSortField)
@@ -243,7 +245,7 @@ export default function WatchlistTable({
 
                     <td onClick={(e) => e.stopPropagation()}>
                       <select
-                        className={`priority-select ${priority.toLowerCase()}`}
+                        className={`md-select md-select--priority priority-select ${priority.toLowerCase()}`}
                         value={priority}
                         onChange={(e) =>
                           onPriorityChange(

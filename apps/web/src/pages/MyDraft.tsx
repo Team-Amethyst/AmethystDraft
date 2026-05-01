@@ -101,7 +101,15 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 }
 
 function saveToStorage(key: string, value: unknown) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore storage write errors */
+  }
+}
+
+function myDraftLeagueKey(leagueId: string | undefined, suffix: string): string {
+  return `amethyst-mydraft-${leagueId ?? "global"}-${suffix}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -121,6 +129,8 @@ export default function MyDraft() {
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
+  const [valuationSortField, setValuationSortField] =
+    useState<ValuationSortField>("team_adjusted_value");
 
   // ── Persisted overrides ─────────────────────────────────────────────────────
   const defaultPositionTargets = Object.fromEntries(
@@ -142,20 +152,58 @@ export default function MyDraft() {
 
 
   const [targetOverrides, setTargetOverrides] = useState<Record<string, number>>(
-    () => loadFromStorage("amethyst-target-overrides", {}),
+    () => loadFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
   );
 
-  const [priorityOverrides, setPriorityOverrides] = useState<Record<string, Priority>>(
-    () => loadFromStorage("amethyst-priority-overrides", {}),
-  );
+  const [priorityOverrides, setPriorityOverrides] = useState<
+    Record<string, Priority>
+  >(() => loadFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}));
 
   // Raw string state for controlled inputs — committed on blur
   const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
-  const [valuationSortField, setValuationSortField] =
-    useState<ValuationSortField>("team_adjusted_value");
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationShape>
   >(() => new Map());
+
+  useEffect(() => {
+    setTargetOverrides(
+      loadFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
+    );
+    setPriorityOverrides(
+      loadFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}),
+    );
+    setViewFilter(
+      loadFromStorage<ViewFilter>(myDraftLeagueKey(leagueId, "view-filter"), "all"),
+    );
+    setValuationSortField(
+      loadFromStorage<ValuationSortField>(
+        myDraftLeagueKey(leagueId, "valuation-sort"),
+        "team_adjusted_value",
+      ),
+    );
+  }, [leagueId]);
+
+  useEffect(() => {
+    saveToStorage(myDraftLeagueKey(leagueId, "target-overrides"), targetOverrides);
+  }, [leagueId, targetOverrides]);
+
+  useEffect(() => {
+    saveToStorage(
+      myDraftLeagueKey(leagueId, "priority-overrides"),
+      priorityOverrides,
+    );
+  }, [leagueId, priorityOverrides]);
+
+  useEffect(() => {
+    saveToStorage(myDraftLeagueKey(leagueId, "view-filter"), viewFilter);
+  }, [leagueId, viewFilter]);
+
+  useEffect(() => {
+    saveToStorage(
+      myDraftLeagueKey(leagueId, "valuation-sort"),
+      valuationSortField,
+    );
+  }, [leagueId, valuationSortField]);
   useEffect(() => {
     if (!token || !leagueId || watchlist.length === 0) {
       const clear = window.setTimeout(() => setValuationsByPlayerId(new Map()), 0);
@@ -246,7 +294,6 @@ export default function MyDraft() {
     if (value !== null) {
       setTargetOverrides((prev) => {
         const next = { ...prev, [playerId]: value };
-        saveToStorage("amethyst-target-overrides", next);
         return next;
       });
     }
@@ -257,7 +304,6 @@ export default function MyDraft() {
     const committed = isNaN(v) || v <= 0 ? defaultTarget : v;
     setTargetOverrides((prev) => {
       const next = { ...prev, [playerId]: committed };
-      saveToStorage("amethyst-target-overrides", next);
       return next;
     });
     setTargetRaw((r) => {
@@ -271,7 +317,6 @@ export default function MyDraft() {
     const next = Math.max(1, current + delta);
     setTargetOverrides((prev) => {
       const updated = { ...prev, [playerId]: next };
-      saveToStorage("amethyst-target-overrides", updated);
       return updated;
     });
     setTargetRaw((r) => {
@@ -286,7 +331,6 @@ export default function MyDraft() {
   function handlePriorityChange(playerId: string, priority: Priority) {
     setPriorityOverrides((prev) => {
       const next = { ...prev, [playerId]: priority };
-      saveToStorage("amethyst-priority-overrides", next);
       return next;
     });
   }

@@ -386,7 +386,8 @@
   gap: 0.45rem;
 }
 
-.watchlist-controls select {
+/* Shared select style for My Draft (matches command-center control language). */
+.md-select {
   border: 1px solid rgba(139, 92, 246, 0.28);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.04);
@@ -403,15 +404,24 @@
   background-size: 10px 10px;
 }
 
-.watchlist-controls select:hover {
+.md-select:hover {
   border-color: rgba(167, 139, 250, 0.45);
   color: #ebe4f5;
 }
 
-.watchlist-controls select:focus-visible {
+.md-select:focus-visible {
   border-color: rgba(167, 139, 250, 0.65);
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
   outline: none;
+}
+
+.md-select option {
+  background: #1a1330;
+  color: #d4c8e8;
+}
+
+.md-select--compact {
+  min-height: 1.55rem;
 }
 
 .watchlist-table {
@@ -487,33 +497,13 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  border-radius: 7px;
-  padding: 0.2rem 1.55rem 0.2rem 0.45rem;
-  cursor: pointer;
-  outline: none;
-  font-family: "DM Sans", sans-serif;
-  appearance: none;
-  -webkit-appearance: none;
   min-width: 78px;
   text-align: left;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.38rem center;
-  background-size: 10px 10px;
 }
 
 .priority-select.high   { color: #f8d046; border-color: rgba(248, 208, 70, 0.3); }
 .priority-select.medium { color: #90b3ff; border-color: rgba(144, 179, 255, 0.3); }
 .priority-select.low    { color: #8e7caf; border-color: rgba(142, 124, 175, 0.3); }
-
-.priority-select option {
-  background: #1a1330;
-  color: #d4c8e8;
-  font-weight: 700;
-  text-transform: uppercase;
-}
 
 .td-note { min-width: 120px; max-width: 200px; }
 
