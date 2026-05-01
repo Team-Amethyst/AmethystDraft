@@ -696,6 +696,38 @@
   scrollbar-color: #9070b8 rgba(12, 8, 22, 0.45);
 }
 
+.ls-available-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(10, 6, 20, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.22);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b4fa0;
+}
+
+.ls-available-th {
+  min-width: 0;
+}
+
+.ls-available-th--avatar {
+  width: 28px;
+}
+
+.ls-available-th--pos,
+.ls-available-th--adp,
+.ls-available-th--action {
+  text-align: center;
+}
+
+.ls-available-th--action-spacer {
+  display: block;
+}
+
 .ls-player-row {
   position: relative;
   display: grid;
@@ -711,12 +743,30 @@
   border-radius: 0;
 }
 
-.ls-player-row--keepers:last-child {
+.ls-keeper-player-stack {
+  border-bottom: 1px solid rgba(139, 92, 246, 0.09);
+}
+
+.ls-keeper-player-stack:last-child {
   border-bottom: none;
 }
 
-.ls-player-row--keepers:hover {
+.ls-keeper-player-stack:hover .ls-player-row--keepers {
   background: rgba(139, 92, 246, 0.07);
+}
+
+.ls-player-row--keepers {
+  grid-template-columns:
+    28px
+    minmax(0, 1fr)
+    3.25rem
+    minmax(5.25rem, 1fr)
+    2.35rem
+    2.65rem;
+  gap: 0 8px;
+  padding: 0.2rem 0.4rem;
+  min-width: 0;
+  border-bottom: none;
 }
 
 .ls-avatar {
@@ -743,6 +793,20 @@
   margin-top: 1px;
 }
 
+.ls-player-main--name-only .ls-player-meta {
+  display: none;
+}
+
+.ls-player-team-col {
+  min-width: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #9890a6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ls-badge {
   background: rgba(204, 127, 255, 0.15);
   color: #f0dbff;
@@ -755,14 +819,100 @@
 .ls-pos-badges {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
+  gap: 3px;
 }
 
-.ls-adp {
+.ls-player-adp {
   color: #a79db5;
-  font-size: 0.74rem;
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.ls-player-row--keepers .ls-keeper-headshot,
+.ls-player-row--keepers .ls-avatar {
+  width: 26px;
+  height: 26px;
+}
+
+.ls-player-row--keepers .ls-avatar {
+  font-size: 0.6rem;
+}
+
+.ls-player-row--keepers .ls-player-name {
+  font-size: 0.78rem;
+}
+
+.ls-player-row--keepers .pos-badge {
+  width: 2.05rem;
+  font-size: 0.58rem;
+  padding: 0.06rem 0;
+  border-radius: 3px;
+}
+
+.ls-keeper-draft-trigger-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: stretch;
+  min-width: 0;
+}
+
+.ls-keeper-draft-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.38);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4c8e8;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.ls-keeper-draft-icon-btn:hover {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(139, 92, 246, 0.12);
+  color: #f4edff;
+}
+
+.ls-keeper-draft-icon-btn:focus-visible {
+  border-color: rgba(167, 139, 250, 0.7);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.22);
+}
+
+.ls-keeper-draft-icon-btn[aria-expanded="true"] {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: rgba(192, 132, 252, 0.45);
+}
+
+.ls-keeper-draft-icon-btn[aria-expanded="true"]
+  .ls-keeper-draft-icon-btn-chevron {
+  transform: rotate(180deg);
+}
+
+.ls-keeper-draft-icon-btn-chevron {
+  transition: transform 0.18s ease;
+}
+
+.ls-keeper-row-status {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.ls-keeper-row-status--muted {
+  color: #4a3a60;
+  font-weight: 600;
 }
 
 .ls-kept-badge {

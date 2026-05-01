@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Search, Save, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Search, Save, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import PosBadge from "../components/PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
@@ -528,14 +528,33 @@ function LeagueSettingsForm({ league }: { league: League }) {
                           />
                         </div>
                         <div className="ls-player-list ls-player-list--keepers">
+                          <div
+                            className="ls-available-table-head ls-player-row ls-player-row--keepers"
+                            role="row"
+                            aria-hidden
+                          >
+                            <span className="ls-available-th ls-available-th--avatar" />
+                            <div className="ls-available-th">Player</div>
+                            <div className="ls-available-th">Team</div>
+                            <div className="ls-available-th ls-available-th--pos">
+                              Pos
+                            </div>
+                            <div className="ls-available-th ls-available-th--adp">
+                              ADP
+                            </div>
+                            <span
+                              className="ls-available-th ls-available-th--action ls-available-th--action-spacer"
+                              aria-hidden
+                            />
+                          </div>
                           {keeperAvailablePlayers.map((player) => {
                             const eligible = getEligibleSlotsForPlayer(player);
                             const openSlots = getOpenSlotsForPlayer(player);
+                            const draftOpen =
+                              keeperDraftPlayerId === String(player.id);
                             return (
-                              <div
-                                key={player.id}
-                                className="ls-player-row ls-player-row--keepers"
-                              >
+                              <div key={player.id} className="ls-keeper-player-stack">
+                                <div className="ls-player-row ls-player-row--keepers">
                                 {player.headshot ? (
                                   <img
                                     src={player.headshot}
@@ -551,58 +570,59 @@ function LeagueSettingsForm({ league }: { league: League }) {
                                       .join("")}
                                   </div>
                                 )}
-                                <div className="ls-player-main">
+                                <div className="ls-player-main ls-player-main--name-only">
                                   <div className="ls-player-name">
                                     {player.name}
                                   </div>
-                                  <div className="ls-player-meta">
-                                    {player.team}
-                                  </div>
+                                </div>
+                                <div className="ls-player-team-col">
+                                  {player.team || "—"}
                                 </div>
                                 <div className="ls-pos-badges">
                                   {keeperDisplayPositions(player)
-                                    .slice(0, 4)
+                                    .slice(0, 3)
                                     .map((pos) => (
                                       <PosBadge key={pos} pos={pos} />
                                     ))}
                                 </div>
-                                <div className="ls-adp">ADP {player.adp}</div>
-                                <div className="keeper-draft-popover-anchor">
-                                  <button
-                                    type="button"
-                                    className="keeper-draft-trigger"
-                                    aria-label={`Draft ${player.name} as keeper`}
-                                    aria-expanded={
-                                      keeperDraftPlayerId === String(player.id)
-                                    }
-                                    aria-haspopup="dialog"
-                                    disabled={openSlots.length === 0}
-                                    ref={(el) => {
-                                      if (
-                                        keeperDraftPlayerId === String(player.id)
-                                      ) {
-                                        keeperAnchorRef.current = el;
-                                      }
-                                    }}
-                                    onClick={() => {
-                                      const id = String(player.id);
-                                      setKeeperDraftPlayerId((prev) =>
-                                        prev === id ? null : id,
-                                      );
-                                    }}
-                                  >
-                                    {openSlots.length === 0
-                                      ? "No open slots"
-                                      : "Add keeper"}
-                                    {openSlots.length > 0 ? (
-                                      <span
-                                        className="keeper-draft-trigger-chevron"
+                                <div className="ls-player-adp">
+                                  {player.adp ?? "—"}
+                                </div>
+                                <div className="keeper-draft-popover-anchor ls-keeper-draft-trigger-cell">
+                                  {openSlots.length === 0 ? (
+                                    <span
+                                      className="ls-keeper-row-status ls-keeper-row-status--muted"
+                                      title="No open roster slots"
+                                    >
+                                      —
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="ls-keeper-draft-icon-btn"
+                                      aria-label={`Draft ${player.name} as keeper`}
+                                      aria-expanded={draftOpen}
+                                      aria-haspopup="dialog"
+                                      ref={(el) => {
+                                        if (draftOpen) {
+                                          keeperAnchorRef.current = el;
+                                        }
+                                      }}
+                                      onClick={() => {
+                                        const id = String(player.id);
+                                        setKeeperDraftPlayerId((prev) =>
+                                          prev === id ? null : id,
+                                        );
+                                      }}
+                                    >
+                                      <ChevronDown
+                                        className="ls-keeper-draft-icon-btn-chevron"
                                         aria-hidden
-                                      >
-                                        ▾
-                                      </span>
-                                    ) : null}
-                                  </button>
+                                        size={18}
+                                        strokeWidth={2.25}
+                                      />
+                                    </button>
+                                  )}
                                   {keeperDraftPlayerId === String(player.id) && (
                                     <KeeperDraftFormPopover
                                       key={player.id}
@@ -627,6 +647,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                                       }}
                                     />
                                   )}
+                                </div>
                                 </div>
                               </div>
                             );
