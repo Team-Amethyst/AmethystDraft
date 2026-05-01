@@ -8,12 +8,14 @@ export function CommandCenterDraftLog({
   rosterEntries,
   league,
   allPlayers,
+  myTeamId,
   onRemovePick,
   onUpdatePick,
 }: {
   rosterEntries: RosterEntry[];
   league: League | null;
   allPlayers: Player[];
+  myTeamId: string | null;
   onRemovePick?: (id: string) => void;
   onUpdatePick?: (
     id: string,
@@ -82,12 +84,24 @@ export function CommandCenterDraftLog({
               ? (league?.teamNames[teamIdx] ?? entry.teamId ?? entry.userId)
               : (entry.teamId ?? entry.userId);
           const player = playerMap.get(entry.externalPlayerId);
+          const myIdx =
+            myTeamId != null ? parseInt(myTeamId.replace("team_", ""), 10) - 1 : -1;
+          const isMyTeamPick =
+            myTeamId != null &&
+            (entry.teamId
+              ? entry.teamId === myTeamId
+              : Boolean(
+                  league &&
+                    myIdx >= 0 &&
+                    league.memberIds.indexOf(entry.userId) === myIdx,
+                ));
           return (
             <DraftLogRow
               key={entry._id}
               entry={entry}
               pickNum={i + 1}
               teamName={teamName}
+              isMyTeamPick={Boolean(isMyTeamPick)}
               headshot={player?.headshot}
               slotOptions={slotOptions}
               teamOptions={teamOptions}

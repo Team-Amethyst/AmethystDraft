@@ -9,6 +9,7 @@ import {
 import type { ReactNode, MouseEvent as ReactMouseEvent } from "react";
 import { useParams } from "react-router";
 import PosBadge from "./PosBadge";
+import { RosterSlotPicker } from "./RosterSlotPicker";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
@@ -580,7 +581,6 @@ export function AuctionCenter({
   const bidPriceTouchedRef = useRef(false);
   const [draftNotesHeight, setDraftNotesHeight] = useState(180);
   const [draftedToSlot, setDraftedToSlot] = useState("");
-  const [manualSlotOverride, setManualSlotOverride] = useState(false);
   const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
   const [submitting, setSubmitting] = useState(false);
   const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
@@ -1027,12 +1027,6 @@ export function AuctionCenter({
     setWonBy(league.teamNames[0] ?? "");
   }, [league?.id, league?.teamNames?.join("\u0001"), wonBy]);
 
-  // Seed slot default when league loads
-  useEffect(() => {
-    if (!league?.id || draftedToSlot) return;
-    setDraftedToSlot(Object.keys(league.rosterSlots)[0] ?? "SP");
-  }, [league?.id, league ? JSON.stringify(league.rosterSlots) : "", draftedToSlot]);
-
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1424,10 +1418,6 @@ export function AuctionCenter({
   const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
   const eligibleSlotOptions = eligible.filter((s) => available.has(s));
   const overrideSlotOptions = allSlotOptions.filter((s) => available.has(s));
-  const slotOptions = manualSlotOverride ? overrideSlotOptions : eligibleSlotOptions;
-  const isDraftSlotManuallyOverridden =
-    draftedToSlot !== "" && !eligible.includes(draftedToSlot);
-
   const hittingCats = (league?.scoringCategories ?? []).filter(
     (c) => c.type === "batting",
   );
@@ -1437,21 +1427,16 @@ export function AuctionCenter({
 
   // Auto-correct draftedToSlot when player or team changes
   useEffect(() => {
-    if (slotOptions.length > 0 && !slotOptions.includes(draftedToSlot)) {
-      setDraftedToSlot(slotOptions[0]);
+    if (
+      overrideSlotOptions.length > 0 &&
+      !overrideSlotOptions.includes(draftedToSlot)
+    ) {
+      setDraftedToSlot(
+        eligibleSlotOptions[0] ?? overrideSlotOptions[0],
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayer?.id, wonBy]);
-
-  useEffect(() => {
-    if (!selectedPlayer) {
-      setManualSlotOverride(false);
-      return;
-    }
-    if (draftedToSlot && eligible.includes(draftedToSlot)) {
-      setManualSlotOverride(false);
-    }
-  }, [selectedPlayer?.id, draftedToSlot, eligible]);
 
   const playerImpactSection = selectedPlayer ? (
     <div className="pac-impact-wrap">
@@ -1838,41 +1823,16 @@ export function AuctionCenter({
                 </div>
               </div>
               <div className="log-field">
-                <select
-                  className={
-                    "log-select" +
-                    (slotOptions.length === 0 ? " log-select--warn" : "")
-                  }
+                <RosterSlotPicker
+                  variant="command-center"
                   value={draftedToSlot}
-                  onChange={(e) => setDraftedToSlot(e.target.value)}
-                >
-                  {slotOptions.length === 0 && (
-                    <option value="">— no eligible slots —</option>
-                  )}
-                  {slotOptions.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className={
-                    "log-override-toggle" + (manualSlotOverride ? " active" : "")
-                  }
-                  onClick={() => setManualSlotOverride((prev) => !prev)}
+                  onChange={setDraftedToSlot}
+                  orderedSlots={overrideSlotOptions}
+                  eligibleSlots={eligibleSlotOptions}
                   disabled={!selectedPlayer}
-                  title={
-                    manualSlotOverride
-                      ? "Using manual slot override"
-                      : "Allow non-eligible slot assignment"
-                  }
-                >
-                  Manual override
-                </button>
-                {isDraftSlotManuallyOverridden && (
-                  <div className="log-override-note">
-                    Drafting outside listed eligibility
-                  </div>
-                )}
+                  warn={overrideSlotOptions.length === 0}
+                  emptyLabel="— no open slots —"
+                />
               </div>
               <button
                 className="log-result-btn log-result-btn--inline"
@@ -1881,7 +1841,7 @@ export function AuctionCenter({
                   submitting ||
                   !wonBy ||
                   !finalPrice ||
-                  slotOptions.length === 0 ||
+                  overrideSlotOptions.length === 0 ||
                   !hasBidSignal
                 }
               >

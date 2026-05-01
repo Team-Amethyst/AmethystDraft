@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Pencil, X } from "lucide-react";
 import type { RosterEntry } from "../api/roster";
 import { getEligibleSlotsForPositions } from "../utils/eligibility";
+import { RosterSlotPicker } from "./RosterSlotPicker";
 import "./DraftLogRow.css";
 
 interface DraftLogRowProps {
   entry: RosterEntry;
   pickNum: number;
   teamName: string;
+  /** Highlight when this pick belongs to the signed-in user's team */
+  isMyTeamPick?: boolean;
   headshot?: string;
   slotOptions: string[];
   teamOptions: { id: string; name: string }[];
@@ -30,6 +33,7 @@ export function DraftLogRow({
   entry,
   pickNum,
   teamName,
+  isMyTeamPick = false,
   headshot,
   slotOptions,
   teamOptions,
@@ -57,36 +61,21 @@ export function DraftLogRow({
     );
   }
 
-  /** All eligible slots for a given teamId */
-  function validSlotsFor(teamId: string): string[] {
-    const elig = getEligibleSlotsForPositions(entry.positions, slotOptions);
-    if (elig.length === 0) return slotOptions;
-    // For the current team filter to open slots; for reassignment show all eligible
-    if (teamId === entry.teamId) {
-      const open = openSlots(teamId, slotOptions);
-      const filtered = elig.filter((s) => open.has(s));
-      return filtered.length > 0 ? filtered : elig;
-    }
-    return elig;
-  }
-
   // Show all teams — don't filter by capacity (too aggressive for an edit tool)
   const filteredTeamOptions = teamOptions;
   const [editing, setEditing] = useState(false);
   const [editSlot, setEditSlot] = useState(entry.rosterSlot);
   const [editPrice, setEditPrice] = useState(String(entry.price));
   const [editTeamId, setEditTeamId] = useState(entry.teamId);
-  const [manualSlotOverride, setManualSlotOverride] = useState(false);
   const [editKeeperContract, setEditKeeperContract] = useState(
     entry.keeperContract ?? "",
   );
 
   const eligibleSlots = getEligibleSlotsForPositions(entry.positions, slotOptions);
-  const allOpenSlotsForTeam = Array.from(openSlots(editTeamId, slotOptions));
-  const currentValidSlots = validSlotsFor(editTeamId);
-  const currentSlotOptions = manualSlotOverride ? allOpenSlotsForTeam : currentValidSlots;
+  const openSet = openSlots(editTeamId, slotOptions);
+  const orderedOpenSlots = slotOptions.filter((s) => openSet.has(s));
+  const eligibleOpenSlots = eligibleSlots.filter((s) => openSet.has(s));
   const isCurrentSlotOverridden = !eligibleSlots.includes(entry.rosterSlot);
-  const isEditedSlotOverridden = !eligibleSlots.includes(editSlot);
   const initials = entry.playerName
     .split(" ")
     .map((w) => w[0])
@@ -95,20 +84,27 @@ export function DraftLogRow({
     .toUpperCase();
 
   function openModal() {
-    setEditSlot(entry.rosterSlot);
+    const o = openSlots(entry.teamId, slotOptions);
+    const ord = slotOptions.filter((s) => o.has(s));
+    const eligibleOrd = eligibleSlots.filter((s) => o.has(s));
+    const slot = ord.includes(entry.rosterSlot)
+      ? entry.rosterSlot
+      : (eligibleOrd[0] ?? ord[0] ?? entry.rosterSlot);
+    setEditSlot(slot);
     setEditPrice(String(entry.price));
     setEditTeamId(entry.teamId);
     setEditKeeperContract(entry.keeperContract ?? "");
-    setManualSlotOverride(!eligibleSlots.includes(entry.rosterSlot));
     setEditing(true);
   }
 
   function handleTeamChange(newTeamId: string) {
     setEditTeamId(newTeamId);
-    const slots = manualSlotOverride
-      ? Array.from(openSlots(newTeamId, slotOptions))
-      : validSlotsFor(newTeamId);
-    if (!slots.includes(editSlot)) setEditSlot(slots[0] ?? editSlot);
+    const nextOpen = openSlots(newTeamId, slotOptions);
+    const ordered = slotOptions.filter((s) => nextOpen.has(s));
+    if (!ordered.includes(editSlot)) {
+      const eligibleOrdered = eligibleSlots.filter((s) => nextOpen.has(s));
+      setEditSlot(eligibleOrdered[0] ?? ordered[0] ?? editSlot);
+    }
   }
 
   function handleSave() {
@@ -171,7 +167,15 @@ export function DraftLogRow({
             <span className="dl-name">{entry.playerName}</span>
           </div>
           <div className="dl-row-bottom">
-            <span className="dl-fantasy-team">{teamName}</span>
+            <span className="dl-fantasy-team">
+              {teamName}
+              {isMyTeamPick ? (
+                <span className="dl-you-suffix" aria-label="your team">
+                  {" "}
+                  (You)
+                </span>
+              ) : null}
+            </span>
             <span className="dl-slot">{entry.rosterSlot}</span>
             {isCurrentSlotOverridden ? (
               <span className="dl-override-chip" title="Manual position override">
@@ -244,45 +248,18 @@ export function DraftLogRow({
                   </select>
                 </label>
               )}
-              <label className="dl-modal-field">
-                <span className="dl-modal-label">Position</span>
-                <select
-                  className="dl-modal-select"
+              <label className="dl-modal-field dl-modal-field--stack">
+                <span className="dl-modal-label">Roster slot</span>
+                <RosterSlotPicker
+                  variant="modal"
                   value={editSlot}
-                  onChange={(e) => setEditSlot(e.target.value)}
-                >
-                  {currentSlotOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setEditSlot}
+                  orderedSlots={orderedOpenSlots}
+                  eligibleSlots={eligibleOpenSlots}
+                  warn={orderedOpenSlots.length === 0}
+                  emptyLabel="— no open slots —"
+                />
               </label>
-              <div className="dl-modal-override-row">
-                <button
-                  type="button"
-                  className={
-                    "dl-modal-override-toggle" + (manualSlotOverride ? " active" : "")
-                  }
-                  onClick={() => {
-                    const next = !manualSlotOverride;
-                    setManualSlotOverride(next);
-                    const nextSlots = next
-                      ? Array.from(openSlots(editTeamId, slotOptions))
-                      : validSlotsFor(editTeamId);
-                    if (!nextSlots.includes(editSlot)) {
-                      setEditSlot(nextSlots[0] ?? editSlot);
-                    }
-                  }}
-                >
-                  Manual slot override
-                </button>
-                {isEditedSlotOverridden ? (
-                  <span className="dl-modal-override-note">
-                    Outside listed eligibility
-                  </span>
-                ) : null}
-              </div>
               <label className="dl-modal-field">
                 <span className="dl-modal-label">Price Paid</span>
                 <div className="dl-modal-price-wrap">

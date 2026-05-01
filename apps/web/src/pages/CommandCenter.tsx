@@ -192,6 +192,7 @@ export default function CommandCenter() {
           league={league}
           teamData={teamData}
           myTeamName={myTeamName}
+          myTeamId={myTeamId}
           rosterEntries={rosterEntries}
           engineMarket={engineMarket}
           selectedPlayer={selectedPlayer}

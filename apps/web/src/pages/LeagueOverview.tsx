@@ -188,7 +188,7 @@ function TeamCard({ data }: { data: TeamData }) {
 
 export default function LeagueOverview() {
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   usePageTitle(league ? `${league.name} Overview` : "League Overview");
 
   const [entries, setEntries] = useState<RosterEntry[]>([]);
@@ -234,6 +234,13 @@ export default function LeagueOverview() {
         : [],
     [league],
   );
+
+  const myTeamId = useMemo(() => {
+    if (!league || !user?.id) return null;
+    const idx = league.memberIds.indexOf(user.id);
+    if (idx < 0) return null;
+    return `team_${idx + 1}`;
+  }, [league, user?.id]);
 
   const teamCards = useMemo(
     () =>
@@ -489,6 +496,16 @@ export default function LeagueOverview() {
                           entry.teamId ??
                           entry.userId)
                         : (entry.teamId ?? entry.userId);
+                    const myIdx =
+                      myTeamId != null
+                        ? parseInt(myTeamId.replace("team_", ""), 10) - 1
+                        : -1;
+                    const isMyTeamPick =
+                      myTeamId != null &&
+                      (entry.teamId
+                        ? entry.teamId === myTeamId
+                        : myIdx >= 0 &&
+                          league.memberIds.indexOf(entry.userId) === myIdx);
                     const player = playerMap.get(entry.externalPlayerId);
                     return (
                       <DraftLogRow
@@ -496,6 +513,7 @@ export default function LeagueOverview() {
                         entry={entry}
                         pickNum={i + 1}
                         teamName={teamName}
+                        isMyTeamPick={Boolean(isMyTeamPick)}
                         headshot={player?.headshot}
                         slotOptions={slotOptions}
                         teamOptions={teamOptions}
