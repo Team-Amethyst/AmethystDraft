@@ -473,9 +473,9 @@
   gap: 14px;
   align-items: stretch;
   width: 100%;
-  min-height: min(52vh, 480px);
-  /* Bounded height so available players / roster scroll inside panels */
-  height: clamp(320px, calc(100vh - 15rem), min(76vh, 780px));
+  min-height: 0;
+  /* Keep keepers compact so Save stays visible without page scroll. */
+  height: clamp(300px, calc(100dvh - 20rem), 430px);
   min-width: 0;
 }
 
