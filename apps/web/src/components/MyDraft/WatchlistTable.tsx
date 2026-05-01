@@ -175,7 +175,7 @@ export default function WatchlistTable({
 
                     <td>
                       {player.positions && player.positions.length > 1 ? (
-                        <div style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}>
+                        <div className="watchlist-pos-badges">
                           {player.positions.map((p) => (
                             <PosBadge key={p} pos={p} />
                           ))}
@@ -192,14 +192,7 @@ export default function WatchlistTable({
                       }
                     >
                       {formatDollar(primary)}
-                      <div
-                        style={{
-                          fontSize: "0.62rem",
-                          opacity: 0.78,
-                          lineHeight: 1.1,
-                          marginTop: "1px",
-                        }}
-                      >
+                      <div className="watchlist-supporting-value">
                         {valuationSortLabel(
                           valuationSortField === "team_adjusted_value"
                             ? "recommended_bid"

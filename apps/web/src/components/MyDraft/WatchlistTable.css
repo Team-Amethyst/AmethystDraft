@@ -139,6 +139,19 @@
   font-weight: 700;
 }
 
+.watchlist-supporting-value {
+  font-size: 0.62rem;
+  opacity: 0.78;
+  line-height: 1.1;
+  margin-top: 1px;
+}
+
+.watchlist-pos-badges {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
 .priority-select {
   font-size: 0.61rem;
   font-weight: 700;
