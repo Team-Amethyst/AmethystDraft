@@ -1,7 +1,8 @@
 @import "../styles/command-center/05-tables.css";
 
 .ls-page {
-  min-height: 100vh;
+  min-height: 100dvh;
+  background: linear-gradient(180deg, var(--app-bg) 0%, #060210 100%);
   color: var(--app-text);
   font-family: var(--app-font-family);
   --ls-text-soft: color-mix(in srgb, var(--app-text) 62%, transparent);
@@ -118,9 +119,12 @@
   box-shadow:
     0 14px 36px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  min-height: 560px;
+  min-height: 520px;
+  height: clamp(520px, calc(100dvh - 10.5rem), 780px);
+  max-height: 780px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .ls-section-heading {
@@ -131,7 +135,11 @@
 }
 
 .ls-section {
+  flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .ls-copy {
@@ -1203,24 +1211,35 @@
 .ls-save-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #9f49ff 0%, #c46dff 100%);
-  border: none;
-  color: #fff;
-  font-size: 0.9rem;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 44%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  color: var(--app-text);
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0.6rem 1.4rem;
-  border-radius: 10px;
-  transition: opacity 0.2s;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
   font-family: inherit;
   min-width: 138px;
-  justify-content: center;
-  box-shadow: 0 8px 18px rgba(159, 73, 255, 0.24);
+  white-space: nowrap;
 }
 
-.ls-save-btn:hover {
-  opacity: 0.88;
+.ls-save-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--app-accent) 62%, white 12%);
+  background: color-mix(in srgb, var(--app-accent) 26%, transparent);
+}
+
+.ls-save-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ls-save-btn:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
 }
 
 /* ── Keeper headshots & cost inputs ─────────────────────── */
@@ -1321,6 +1340,18 @@
   .ls-keepers-layout {
     grid-template-rows: minmax(220px, 1fr) minmax(220px, 1fr);
     height: clamp(520px, calc(100vh - 12rem), min(88vh, 900px));
+  }
+
+  .ls-panel {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .ls-section {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .ls-player-row {

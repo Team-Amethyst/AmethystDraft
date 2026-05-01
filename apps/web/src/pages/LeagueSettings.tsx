@@ -296,7 +296,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
   };
 
   return (
-    <div className="ls-page theme-page-gradient">
+    <div className="ls-page">
       <div className="ls-container">
         <button className="ls-back" onClick={() => navigate(backPath)}>
           <ArrowLeft size={16} />
