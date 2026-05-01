@@ -1,0 +1,57 @@
+/**
+ * League create / edit wizard — shared design tokens and layout primitives.
+ * Import once from LeaguesCreate.css; all rules hang off .league-create-page or
+ * use the lc-flow-* prefix for BEM-like utilities scoped to this flow.
+ */
+.league-create-page {
+  --lc-flow-radius-lg: 12px;
+  --lc-flow-radius-md: 10px;
+  --lc-flow-radius-sm: 9px;
+  --lc-flow-pad-lg: 16px;
+  --lc-flow-pad-md: 12px;
+  --lc-flow-pad-sm: 10px;
+  --lc-flow-gap: 14px;
+  --lc-flow-gap-lg: 18px;
+  --lc-flow-gap-tight: 10px;
+  --lc-flow-stack-top: 12px;
+  --lc-flow-surface: color-mix(in srgb, var(--app-bg-alt) 70%, transparent);
+  --lc-flow-surface-raised: color-mix(in srgb, var(--app-bg-alt) 74%, transparent);
+  --lc-flow-surface-inset: color-mix(in srgb, var(--app-bg-alt) 64%, transparent);
+  --lc-flow-surface-muted: color-mix(in srgb, var(--app-bg-alt) 82%, black 18%);
+  --lc-flow-border: var(--lc-card-border);
+  --lc-flow-intro-size: 0.82rem;
+  --lc-flow-intro-color: var(--lc-text-soft);
+  --lc-flow-header-gap: 10px;
+}
+
+.lc-flow-surface {
+  box-sizing: border-box;
+  min-width: 0;
+  background: var(--lc-flow-surface);
+  border: 1px solid var(--lc-flow-border);
+  border-radius: var(--lc-flow-radius-lg);
+  padding: var(--lc-flow-pad-lg);
+}
+
+.lc-flow-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-flow-gap);
+}
+
+.lc-flow-intro {
+  margin: 0;
+  font-size: var(--lc-flow-intro-size);
+  color: var(--lc-flow-intro-color);
+  line-height: 1.45;
+  max-width: 52rem;
+}
+
+.league-create-card-header .lc-flow-intro {
+  margin-top: 8px;
+}
+
+.lc-flow-intro--tight {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}

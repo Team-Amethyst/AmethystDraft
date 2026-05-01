@@ -1,4 +1,6 @@
+/* Shared wizard tokens & primitives: ../styles/league-create-flow.css */
 @import "../styles/command-center/05-tables.css";
+@import "../styles/league-create-flow.css";
 
 .league-create-page {
   min-height: 100dvh;
@@ -19,6 +21,15 @@
   background: linear-gradient(180deg, var(--app-bg) 0%, #060210 100%);
 }
 
+/* Step 4: keep the whole view in the viewport so the fixed nav + panels don’t
+   drive unbounded document height (available list scrolls inside its card). */
+.league-create-page.league-create-page--keepers-step {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
 .league-create-profile {
   color: #8a809a;
   font-size: 1rem;
@@ -34,7 +45,7 @@
   overflow: visible;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--lc-flow-gap-tight);
 }
 
 .league-create-back {
@@ -121,7 +132,8 @@
   background: var(--lc-card-bg);
   border: 1px solid var(--lc-card-border);
   border-radius: 14px;
-  padding: 16px 18px 10px;
+  padding: var(--lc-flow-pad-lg) calc(var(--lc-flow-pad-lg) + 2px)
+    var(--lc-flow-gap-tight);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   flex: 1;
   min-height: 0;
@@ -139,6 +151,13 @@
   flex-direction: column;
 }
 
+/* Step 4: keep scroll inside available/roster panels, not unbounded page growth */
+.league-create-card-body--keepers-step {
+  overflow: hidden;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .league-create-card-header h2 {
   margin: 0;
   font-size: 1.65rem;
@@ -146,56 +165,61 @@
   color: var(--app-text);
 }
 
-.league-create-card-header p {
-  margin-top: 8px;
-  margin-bottom: 0;
-  font-size: 0.82rem;
-  color: var(--lc-text-soft);
+.league-create-card-header--keepers {
+  flex-shrink: 0;
+  margin-bottom: var(--lc-flow-gap-tight);
+}
+
+.league-create-card-header--keepers h2 {
+  font-size: 1.35rem;
 }
 
 .league-create-form-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: var(--lc-flow-gap);
   margin-top: 0;
 }
 
 .league-create-setup-layout {
   display: grid;
   grid-template-columns: minmax(340px, 0.95fr) minmax(420px, 1.05fr);
-  gap: 18px;
+  gap: var(--lc-flow-gap-lg);
   align-items: stretch;
-  margin-top: 12px;
+  margin-top: var(--lc-flow-stack-top);
 }
 
-.league-create-setup-left,
+.league-create-setup-panel,
 .league-create-setup-right {
   min-width: 0;
-  background: color-mix(in srgb, var(--app-bg-alt) 70%, transparent);
-  border: 1px solid var(--lc-card-border);
-  border-radius: 12px;
-  padding: 16px;
+  background: var(--lc-flow-surface);
+  border: 1px solid var(--lc-flow-border);
+  border-radius: var(--lc-flow-radius-lg);
+  padding: var(--lc-flow-pad-lg);
+}
+
+.league-create-setup-right {
   height: 100%;
+}
+
+.league-create-setup-left-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-flow-gap-lg);
+  min-width: 0;
+  align-self: stretch;
+}
+
+.league-create-setup-panel {
+  flex-shrink: 0;
+}
+
+.league-create-setup-panel .league-create-section-title {
+  margin-bottom: 2px;
 }
 
 .league-create-setup-layout .league-create-section {
   margin-top: 0;
-}
-
-.league-create-setup-left {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.league-create-setup-subcard {
-  border: 1px solid var(--lc-card-border);
-  border-radius: 10px;
-  padding: 10px;
-  background: color-mix(in srgb, var(--app-bg-alt) 64%, transparent);
-  margin-top: auto;
-  align-self: stretch;
-  text-align: left;
 }
 
 .league-create-setup-right .league-create-section-title {
@@ -215,7 +239,8 @@
 .league-create-field label,
 .league-create-section-title,
 .league-create-subtitle,
-.league-create-team-header {
+.league-create-keeper-title,
+.league-create-keeper-cc-label {
   font-size: 0.66rem;
   letter-spacing: 0.08em;
   color: var(--lc-text-dim);
@@ -224,8 +249,7 @@
 }
 
 .league-create-field input,
-.league-create-keeper-select select,
-.league-create-searchbar input {
+.league-create-keeper-select select {
   height: 42px;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
@@ -237,8 +261,7 @@
 }
 
 .league-create-field input:focus,
-.league-create-keeper-select select:focus,
-.league-create-searchbar input:focus {
+.league-create-keeper-select select:focus {
   border-color: color-mix(in srgb, var(--app-accent) 72%, white 28%);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 16%, transparent);
 }
@@ -406,23 +429,27 @@
   background: color-mix(in srgb, var(--app-accent) 24%, var(--app-bg-alt) 76%);
 }
 
-.league-create-mini-copy {
-  margin: 6px 0 14px;
-  color: #9b93a9;
-  font-size: 0.88rem;
+.league-create-stats-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.league-create-card-header + .league-create-stats-wrap,
+.league-create-card-header + .league-create-team-panel {
+  margin-top: var(--lc-flow-stack-top);
 }
 
 .league-create-stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: var(--lc-flow-gap);
 }
 
 .league-create-stats-column {
-  border: 1px solid rgba(190, 108, 255, 0.12);
-  border-radius: 14px;
-  padding: 12px;
-  background: rgba(12, 7, 20, 0.4);
+  border: 1px solid var(--lc-flow-border);
+  border-radius: var(--lc-flow-radius-md);
+  padding: var(--lc-flow-pad-md);
+  background: var(--lc-flow-surface-muted);
 }
 
 .league-create-check-grid {
@@ -492,52 +519,168 @@
   background: #ddd6fe;
 }
 
-.league-create-team-panel {
-  background: color-mix(in srgb, var(--app-bg-alt) 74%, transparent);
-  border: 1px solid var(--lc-card-border);
-  border-radius: 12px;
-  padding: 16px;
+.league-create-team-panel.lc-flow-surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-flow-gap);
 }
 
 .league-create-team-grid {
-  margin-top: 14px;
+  margin-top: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px 16px;
+  gap: var(--lc-flow-gap) var(--lc-flow-gap-lg);
 }
 
 .league-create-keeper-select {
   margin-bottom: 16px;
 }
 
-.league-create-keepers-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+.league-create-keepers-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 0;
+  width: 100%;
 }
 
-.league-create-card-body .league-create-keepers-layout {
-  flex: 1;
+.league-create-card-body .league-create-keepers-shell {
+  flex: 1 1 0;
   min-height: 0;
+}
+
+.lc-keeper-team-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  flex-shrink: 0;
+  width: 100%;
+  margin: 0 0 var(--lc-flow-gap-tight);
+  padding: 0;
+  overflow: hidden;
+  border-bottom: 2px solid rgba(139, 92, 246, 0.28);
+}
+
+.lc-keeper-team-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  margin-bottom: -2px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 9px 9px 0 0;
+  background: transparent;
+  color: #8a809a;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  outline: none;
+  padding: 0.48rem 0.35rem 0.52rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.lc-keeper-team-tab:hover:not(.lc-keeper-team-tab--active) {
+  color: #cfc7da;
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.lc-keeper-team-tab--active {
+  z-index: 1;
+  color: #f4edff;
+  border-color: rgba(139, 92, 246, 0.35);
+  border-bottom-color: transparent;
+  background: color-mix(in srgb, var(--app-bg-alt) 74%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.lc-keeper-team-tab:focus-visible {
+  border-color: rgba(167, 139, 250, 0.65);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.22);
+}
+
+.lc-keeper-team-tab-label {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.league-create-keepers-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--lc-flow-gap);
+  align-items: stretch;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.league-create-keepers-shell .league-create-keepers-layout {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
 }
 
 .league-create-keeper-panel.dark {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: color-mix(in srgb, var(--app-bg-alt) 74%, transparent);
-  border: 1px solid var(--lc-card-border);
-  border-radius: 12px;
-  padding: 14px;
+  background: var(--lc-flow-surface-raised);
+  border: 1px solid var(--lc-flow-border);
+  border-radius: var(--lc-flow-radius-lg);
+  padding: var(--lc-flow-pad-md);
 }
 
 .league-create-keeper-title {
-  color: var(--lc-text-dim);
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 0.55rem;
+}
+
+.league-create-keeper-panel--available .league-create-keeper-title {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.league-create-keeper-cc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-bottom: 0.42rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.league-create-keeper-cc-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league-create-keeper-cc-head--tabs-only {
+  justify-content: flex-start;
+  margin-bottom: 0.55rem;
+}
+
+.league-create-keeper-team-select--cc {
+  flex-shrink: 0;
+  max-width: min(11rem, 46%);
 }
 
 .league-create-keeper-head {
@@ -578,24 +721,159 @@
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
+.league-create-keeper-panel--available {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lc-available-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 rgba(12, 8, 22, 0.45);
+}
+
+.lc-available-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  background: rgba(10, 6, 20, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.22);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b4fa0;
+}
+
+.lc-available-table-head:hover {
+  background: rgba(10, 6, 20, 0.55);
+}
+
+.lc-available-th {
+  min-width: 0;
+}
+
+.lc-available-th--avatar {
+  width: 28px;
+}
+
+.lc-available-th--pos {
+  text-align: center;
+}
+
+.lc-available-th--adp {
+  text-align: center;
+}
+
+.lc-available-th--action {
+  text-align: center;
+}
+
+.lc-available-th--action-spacer {
+  display: block;
+  min-width: 0;
+}
+
+.lc-available-table-head.league-create-player-row--keepers {
+  padding: 0.2rem 0.4rem;
+}
+
+.league-create-keeper-panel--roster {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.league-create-keeper-panel--roster .league-create-keeper-makeup {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.04);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  padding: 0.55rem 0.42rem 0.48rem;
+}
+
+.lc-keeper-empty-player {
+  font-style: italic;
+  color: #4a3a60 !important;
+  font-weight: 600 !important;
+}
+
+.lc-keeper-slot-dash {
+  justify-self: start;
+  font-variant-numeric: tabular-nums;
+}
+
 .league-create-searchbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 13px;
+  box-sizing: border-box;
   border-radius: 10px;
-  padding: 0 12px;
-  color: #8e859a;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--app-bg-alt) 88%, black 12%);
+  color: color-mix(in srgb, var(--app-text-dim) 88%, transparent);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.league-create-searchbar:focus-within {
+  border-color: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 16%, transparent);
 }
 
 .league-create-searchbar input {
-  border: none;
-  background: transparent;
+  flex: 1;
+  min-width: 0;
   height: auto;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   padding: 0;
+  margin: 0;
   width: 100%;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--app-text);
+  outline: none;
+}
+
+.league-create-searchbar input::placeholder {
+  color: color-mix(in srgb, var(--app-text-dim) 72%, transparent);
+}
+
+.league-create-searchbar input:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.league-create-searchbar--keepers {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.55rem;
+  flex-shrink: 0;
 }
 
 .league-create-filter-row {
@@ -621,24 +899,171 @@
   color: #f0dbff;
 }
 
-.league-create-player-list,
-.league-create-roster-list {
+.league-create-player-list {
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-height: min(42vh, 360px);
-  overflow-y: auto;
+}
+
+.league-create-player-list--keepers {
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 0 0 8px 8px;
+  background: rgba(139, 92, 246, 0.04);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  border-top: none;
+  padding: 0;
 }
 
 .league-create-player-row {
   display: grid;
   grid-template-columns:
-    42px minmax(0, 1fr) auto auto minmax(72px, auto) minmax(6.75rem, 9.25rem);
-  gap: 10px;
+    42px minmax(0, 1fr) auto auto minmax(72px, auto) minmax(5.5rem, 1fr);
+  gap: 8px 10px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 10px;
-  padding: 8px 10px;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.09);
+  background: transparent;
+  border-radius: 0;
+}
+
+/* Shared track sizes: header + rows must match (scroll lives on .lc-available-scroll, not the list). */
+.lc-keeper-player-stack {
+  border-bottom: 1px solid rgba(139, 92, 246, 0.09);
+}
+
+.lc-keeper-player-stack:last-child {
+  border-bottom: none;
+}
+
+.lc-keeper-player-stack:hover .league-create-player-row--keepers {
+  background: rgba(139, 92, 246, 0.07);
+}
+
+.league-create-player-row--keepers {
+  grid-template-columns:
+    28px
+    minmax(0, 1fr)
+    3.25rem
+    minmax(5.25rem, 1fr)
+    2.35rem
+    2.65rem;
+  gap: 0 8px;
+  padding: 0.2rem 0.4rem;
+  min-width: 0;
+  border-bottom: none;
+}
+
+.league-create-player-row--keepers .league-create-player-pos-badges {
+  justify-content: center;
+  gap: 3px;
+}
+
+.lc-keeper-draft-trigger-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: stretch;
+  min-width: 0;
+}
+
+.lc-keeper-draft-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.38);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4c8e8;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.lc-keeper-draft-icon-btn:hover {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(139, 92, 246, 0.12);
+  color: #f4edff;
+}
+
+.lc-keeper-draft-icon-btn:focus-visible {
+  border-color: rgba(167, 139, 250, 0.7);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.22);
+}
+
+.lc-keeper-draft-icon-btn[aria-expanded="true"] {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: rgba(192, 132, 252, 0.45);
+}
+
+.lc-keeper-draft-icon-btn[aria-expanded="true"]
+  .lc-keeper-draft-icon-btn-chevron {
+  transform: rotate(180deg);
+}
+
+.lc-keeper-draft-icon-btn-chevron {
+  transition: transform 0.18s ease;
+}
+
+.lc-keeper-row-status {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.lc-keeper-row-status--kept {
+  color: #f59e0b;
+}
+
+.lc-keeper-row-status--muted {
+  color: #4a3a60;
+  font-weight: 600;
+}
+
+.league-create-player-row--keepers .lc-keeper-headshot {
+  width: 26px;
+  height: 26px;
+}
+
+.league-create-player-row--keepers .league-create-avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 0.6rem;
+}
+
+.league-create-player-row--keepers .league-create-player-name {
+  font-size: 0.78rem;
+}
+
+.league-create-player-row--keepers .league-create-player-team-col {
+  font-size: 0.68rem;
+}
+
+.league-create-player-row--keepers .league-create-player-adp {
+  font-size: 0.7rem;
+}
+
+.league-create-player-row--keepers .pos-badge {
+  width: 2.05rem;
+  font-size: 0.58rem;
+  padding: 0.06rem 0;
+  border-radius: 3px;
+}
+
+.league-create-player-row--keepers-expanded {
+  border-radius: 0;
 }
 
 .league-create-avatar {
@@ -655,6 +1080,20 @@
 
 .league-create-player-main {
   min-width: 0;
+}
+
+.league-create-player-main--name-only .league-create-player-meta {
+  display: none;
+}
+
+.league-create-player-team-col {
+  min-width: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #9890a6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .league-create-player-name {
@@ -689,21 +1128,8 @@
 .league-create-player-adp {
   color: #a79db5;
   font-size: 0.76rem;
-}
-
-.league-create-player-kept-badge {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: 4px;
-  padding: 2px 5px;
-  white-space: nowrap;
-  max-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .lc-available-keeper-add-select {
@@ -745,22 +1171,23 @@
 }
 
 .league-create-keeper-makeup.team-makeup-slots {
-  max-height: min(42vh, 360px);
-  overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #9070b8 rgba(12, 8, 22, 0.55);
   padding-right: 2px;
+  gap: 0.26rem;
 }
 
 .league-create-keeper-makeup .team-makeup-head-row,
 .league-create-keeper-makeup .team-makeup-slot-row {
   grid-template-columns:
-    minmax(2rem, 2.45rem)
+    minmax(1.85rem, 2.2rem)
     minmax(0, 1fr)
-    minmax(3.1rem, 4.35rem)
-    minmax(3.6rem, 5rem)
-    minmax(4.5rem, 1fr)
-    minmax(2.75rem, 3.4rem);
+    minmax(2rem, 2.85rem)
+    minmax(2.15rem, 3.1rem)
+    minmax(2rem, min(22%, 4.75rem))
+    minmax(2.4rem, 3rem);
+  column-gap: clamp(0.12rem, 0.45vw, 0.26rem);
+  align-items: center;
 }
 
 .lc-keeper-makeup-head .lc-keeper-makeup-head-cell {
@@ -768,9 +1195,19 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #7a6a94;
+  color: #9485ad;
   text-align: left;
   min-width: 0;
+}
+
+.league-create-keeper-makeup .team-makeup-head-row .team-makeup-head-player,
+.league-create-keeper-makeup .team-makeup-head-row .team-makeup-head-money {
+  color: #9485ad;
+}
+
+.league-create-keeper-makeup .team-makeup-slot-row {
+  padding: 0.2rem clamp(0.14rem, 0.85vw, 0.28rem);
+  min-height: 32px;
 }
 
 .lc-keeper-makeup-head-contract {
@@ -779,14 +1216,93 @@
 
 .lc-keeper-makeup-head-actions {
   width: 100%;
-  max-width: 2.45rem;
+  max-width: 3rem;
+}
+
+.lc-keeper-roster-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.lc-keeper-roster-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.lc-keeper-roster-remove-btn:hover {
+  border-color: rgba(252, 165, 165, 0.55);
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+}
+
+.lc-keeper-roster-remove-btn:focus-visible {
+  border-color: rgba(252, 165, 165, 0.65);
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.22);
+}
+
+.lc-keeper-roster-actions--spacer {
+  display: block;
+  min-height: 30px;
+}
+
+.lc-keeper-roster-cell {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #b8aacf;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-keeper-roster-cell--slot {
+  text-align: center;
+  color: #d4c8e8;
+  font-weight: 700;
+}
+
+.lc-keeper-roster-cell--paid {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: #c9badf;
+}
+
+.lc-keeper-roster-cell--contract {
+  text-align: center;
+  color: #9488ac;
+  font-weight: 500;
+}
+
+.lc-keeper-roster-cell--empty {
+  color: #5c4d78;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
 }
 
 .lc-keeper-makeup-player {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-width: 0;
+}
+
+.league-create-keeper-makeup .team-makeup-slot-row--filled .lc-keeper-makeup-player {
+  padding: 0.06rem 0;
 }
 
 .lc-keeper-makeup-name {
@@ -977,7 +1493,7 @@
 .league-create-actions {
   flex-shrink: 0;
   margin-top: 0;
-  padding-top: 10px;
+  padding-top: var(--lc-flow-gap-tight);
   border-top: 1px solid var(--lc-row-border);
   display: flex;
   justify-content: space-between;
@@ -1077,7 +1593,7 @@
   .league-create-roster-header,
   .league-create-roster-row,
   .league-create-roster-keeper-row,
-  .league-create-player-row {
+  .league-create-player-row:not(.league-create-player-row--keepers) {
     grid-template-columns: 1fr;
   }
 
