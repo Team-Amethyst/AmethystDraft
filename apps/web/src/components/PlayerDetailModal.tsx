@@ -160,71 +160,79 @@ export default function PlayerDetailModal({
 
           <section className="pdm-card pdm-card--wide">
             <h3>Performance Snapshot</h3>
-            {batting ? (
-              <div className="pdm-stat-group">
-                <h4>Batting</h4>
-                <div className="pdm-compare">
-                  <div className="pdm-compare-head">
-                    <span>Metric</span>
-                    <span>Last</span>
-                    <span>Proj</span>
-                    <span>3Y</span>
+            {batting || pitching ? (
+              <div
+                className={
+                  batting && pitching ? "pdm-snapshot-split" : "pdm-snapshot-single"
+                }
+              >
+                {batting ? (
+                  <div className="pdm-stat-group">
+                    <h4>Batting</h4>
+                    <div className="pdm-compare">
+                      <div className="pdm-compare-head">
+                        <span className="pdm-compare-corner">Stat</span>
+                        <span>Last</span>
+                        <span>Proj</span>
+                        <span>3Y</span>
+                      </div>
+                      <div className="pdm-compare-row"><span>AVG</span><span>{valueOrDash(batting.avg)}</span><span>{valueOrDash(projectionBat?.avg)}</span><span>{valueOrDash(stats3yrBat?.avg)}</span></div>
+                      <div className="pdm-compare-row"><span>HR</span><span>{valueOrDash(batting.hr)}</span><span>{valueOrDash(projectionBat?.hr)}</span><span>{valueOrDash(stats3yrBat?.hr)}</span></div>
+                      <div className="pdm-compare-row"><span>RBI</span><span>{valueOrDash(batting.rbi)}</span><span>{valueOrDash(projectionBat?.rbi)}</span><span>{valueOrDash(stats3yrBat?.rbi)}</span></div>
+                      <div className="pdm-compare-row"><span>R</span><span>{valueOrDash(batting.runs)}</span><span>{valueOrDash(projectionBat?.runs)}</span><span>{valueOrDash(stats3yrBat?.runs)}</span></div>
+                      <div className="pdm-compare-row"><span>SB</span><span>{valueOrDash(batting.sb)}</span><span>{valueOrDash(projectionBat?.sb)}</span><span>{valueOrDash(stats3yrBat?.sb)}</span></div>
+                    </div>
                   </div>
-                  <div className="pdm-compare-row"><span>AVG</span><span>{valueOrDash(batting.avg)}</span><span>{valueOrDash(projectionBat?.avg)}</span><span>{valueOrDash(stats3yrBat?.avg)}</span></div>
-                  <div className="pdm-compare-row"><span>HR</span><span>{valueOrDash(batting.hr)}</span><span>{valueOrDash(projectionBat?.hr)}</span><span>{valueOrDash(stats3yrBat?.hr)}</span></div>
-                  <div className="pdm-compare-row"><span>RBI</span><span>{valueOrDash(batting.rbi)}</span><span>{valueOrDash(projectionBat?.rbi)}</span><span>{valueOrDash(stats3yrBat?.rbi)}</span></div>
-                  <div className="pdm-compare-row"><span>R</span><span>{valueOrDash(batting.runs)}</span><span>{valueOrDash(projectionBat?.runs)}</span><span>{valueOrDash(stats3yrBat?.runs)}</span></div>
-                  <div className="pdm-compare-row"><span>SB</span><span>{valueOrDash(batting.sb)}</span><span>{valueOrDash(projectionBat?.sb)}</span><span>{valueOrDash(stats3yrBat?.sb)}</span></div>
-                </div>
+                ) : null}
+                {pitching ? (
+                  <div className="pdm-stat-group">
+                    <h4>Pitching</h4>
+                    <div className="pdm-compare">
+                      <div className="pdm-compare-head">
+                        <span className="pdm-compare-corner">Stat</span>
+                        <span>Last</span>
+                        <span>Proj</span>
+                        <span>3Y</span>
+                      </div>
+                      <div className="pdm-compare-row"><span>ERA</span><span>{valueOrDash(pitching.era)}</span><span>{valueOrDash(projectionPit?.era)}</span><span>{valueOrDash(stats3yrPit?.era)}</span></div>
+                      <div className="pdm-compare-row"><span>WHIP</span><span>{valueOrDash(pitching.whip)}</span><span>{valueOrDash(projectionPit?.whip)}</span><span>{valueOrDash(stats3yrPit?.whip)}</span></div>
+                      <div className="pdm-compare-row"><span>W</span><span>{valueOrDash(pitching.wins)}</span><span>{valueOrDash(projectionPit?.wins)}</span><span>{valueOrDash(stats3yrPit?.wins)}</span></div>
+                      <div className="pdm-compare-row"><span>SV</span><span>{valueOrDash(pitching.saves)}</span><span>{valueOrDash(projectionPit?.saves)}</span><span>{valueOrDash(stats3yrPit?.saves)}</span></div>
+                      <div className="pdm-compare-row"><span>K</span><span>{valueOrDash(pitching.strikeouts)}</span><span>{valueOrDash(projectionPit?.strikeouts)}</span><span>{valueOrDash(stats3yrPit?.strikeouts)}</span></div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <p className="pdm-empty">No batting stats available.</p>
-            )}
-            {pitching ? (
-              <div className="pdm-stat-group">
-                <h4>Pitching</h4>
-                <div className="pdm-compare">
-                  <div className="pdm-compare-head">
-                    <span>Metric</span>
-                    <span>Last</span>
-                    <span>Proj</span>
-                    <span>3Y</span>
-                  </div>
-                  <div className="pdm-compare-row"><span>ERA</span><span>{valueOrDash(pitching.era)}</span><span>{valueOrDash(projectionPit?.era)}</span><span>{valueOrDash(stats3yrPit?.era)}</span></div>
-                  <div className="pdm-compare-row"><span>WHIP</span><span>{valueOrDash(pitching.whip)}</span><span>{valueOrDash(projectionPit?.whip)}</span><span>{valueOrDash(stats3yrPit?.whip)}</span></div>
-                  <div className="pdm-compare-row"><span>W</span><span>{valueOrDash(pitching.wins)}</span><span>{valueOrDash(projectionPit?.wins)}</span><span>{valueOrDash(stats3yrPit?.wins)}</span></div>
-                  <div className="pdm-compare-row"><span>SV</span><span>{valueOrDash(pitching.saves)}</span><span>{valueOrDash(projectionPit?.saves)}</span><span>{valueOrDash(stats3yrPit?.saves)}</span></div>
-                  <div className="pdm-compare-row"><span>K</span><span>{valueOrDash(pitching.strikeouts)}</span><span>{valueOrDash(projectionPit?.strikeouts)}</span><span>{valueOrDash(stats3yrPit?.strikeouts)}</span></div>
-                </div>
-              </div>
-            ) : (
-              <p className="pdm-empty">No pitching stats available.</p>
+              <p className="pdm-empty">No stat lines available for this player.</p>
             )}
           </section>
 
           {(player.why?.length || player.market_notes?.length) && (
-            <section className="pdm-card pdm-card--wide">
-              <h3>Model Notes</h3>
-              {player.why?.length ? (
-                <div className="pdm-note-block">
-                  <h4>Why</h4>
-                  <ul>
-                    {player.why.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {player.market_notes?.length ? (
-                <div className="pdm-note-block">
-                  <h4>Market Notes</h4>
-                  <ul>
-                    {player.market_notes.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+            <section className="pdm-card pdm-card--wide pdm-card--details">
+              <details className="pdm-model-details">
+                <summary className="pdm-model-summary">Model notes</summary>
+                {player.why?.length ? (
+                  <div className="pdm-note-block">
+                    <h4>Why</h4>
+                    <ul>
+                      {player.why.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {player.market_notes?.length ? (
+                  <div className="pdm-note-block">
+                    <h4>Market Notes</h4>
+                    <ul>
+                      {player.market_notes.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </details>
             </section>
           )}
         </div>
