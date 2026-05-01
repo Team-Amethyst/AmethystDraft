@@ -119,12 +119,12 @@
   box-shadow:
     0 14px 36px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  min-height: 520px;
-  height: clamp(520px, calc(100dvh - 10.5rem), 780px);
-  max-height: 780px;
+  min-height: 0;
+  height: auto;
+  max-height: none;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .ls-section-heading {
@@ -135,11 +135,10 @@
 }
 
 .ls-section {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 2px;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .ls-copy {
@@ -248,6 +247,11 @@
 
 .ls-subsection {
   margin-top: 24px;
+}
+
+/* Setup roster column is top-aligned with setup form column. */
+.ls-subsection.ls-setup-slots {
+  margin-top: 0;
 }
 
 /* ── Roster table ────────────────────────────────────────── */
