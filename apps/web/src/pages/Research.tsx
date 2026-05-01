@@ -329,6 +329,27 @@ export default function Research() {
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
+  const getDraftedByTeamForPlayer = useCallback(
+    (player: Player | null): string | undefined => {
+      if (!player) return undefined;
+      return (
+        draftedByTeam.get(player.id) ?? draftedByTeam.get(String(player.mlbId))
+      );
+    },
+    [draftedByTeam],
+  );
+
+  const getDraftedContractForPlayer = useCallback(
+    (player: Player | null): string | undefined => {
+      if (!player) return undefined;
+      return (
+        draftedContractByPlayerId.get(player.id) ??
+        draftedContractByPlayerId.get(String(player.mlbId))
+      );
+    },
+    [draftedContractByPlayerId],
+  );
+
   const resolveDepthPlayer = useCallback(async (slot: DepthChartPlayerRow): Promise<Player | null> => {
     const fromLoaded = allPlayers.find(
       (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
@@ -680,17 +701,10 @@ export default function Research() {
         isOpen={selectedModalPlayer !== null}
         player={selectedModalPlayer}
         statBasis={statBasis}
-        draftedByTeam={
-          selectedModalPlayer
-            ? draftedByTeam.get(selectedModalPlayer.id)
-            : undefined
-        }
-        draftedContract={
-          selectedModalPlayer
-            ? draftedContractByPlayerId.get(selectedModalPlayer.id)
-            : undefined
-        }
+        draftedByTeam={getDraftedByTeamForPlayer(selectedModalPlayer)}
+        draftedContract={getDraftedContractForPlayer(selectedModalPlayer)}
         note={selectedModalPlayer ? getNote(selectedModalPlayer.id) : ""}
+        onNoteChange={setNote}
         isCustomPlayer={
           selectedModalPlayer ? isCustomPlayer(selectedModalPlayer.id) : false
         }

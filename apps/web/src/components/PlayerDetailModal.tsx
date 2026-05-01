@@ -1,4 +1,6 @@
 import {
+  useEffect,
+  useState,
   type StatBasis,
   statBasisFooterDescription,
 } from "@repo/player-stat-basis";
@@ -15,6 +17,7 @@ interface PlayerDetailModalProps {
   draftedByTeam?: string;
   draftedContract?: string;
   note?: string;
+  onNoteChange?: (playerId: string, note: string) => void;
   isCustomPlayer?: boolean;
   onClose: () => void;
   onMoveToCommandCenter: (player: Player) => void;
@@ -32,6 +35,7 @@ export default function PlayerDetailModal({
   draftedByTeam,
   draftedContract,
   note,
+  onNoteChange,
   isCustomPlayer = false,
   onClose,
   onMoveToCommandCenter,
@@ -45,6 +49,12 @@ export default function PlayerDetailModal({
   const projectionPit = player.projection.pitching;
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
+  const valuationDiff = player.edge ?? player.team_adjusted_value ?? null;
+  const [noteDraft, setNoteDraft] = useState(note ?? "");
+
+  useEffect(() => {
+    setNoteDraft(note ?? "");
+  }, [note, player.id]);
 
   return (
     <div className="pdm-overlay" onClick={onClose}>
@@ -56,26 +66,33 @@ export default function PlayerDetailModal({
         aria-label={`${player.name} details`}
       >
         <div className="pdm-header">
-          <div>
-            <h2 className="pdm-title">{player.name}</h2>
+          <div className="pdm-identity">
+            <img className="pdm-headshot" src={player.headshot} alt={player.name} />
+            <div>
+              <h2 className="pdm-title">{player.name}</h2>
+              <div className="pdm-meta-line">
+                <span>{player.team}</span>
+                <span>ADP {valueOrDash(player.adp)}</span>
+                <span>Tier {valueOrDash(player.tier)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="pdm-header-right">
             <div className="pdm-subtitle">
-              <span>{player.team}</span>
-              <span>ADP {valueOrDash(player.adp)}</span>
-              <span>Tier {valueOrDash(player.tier)}</span>
               {player.injuryStatus && <span className="pdm-chip pdm-chip--inj">{player.injuryStatus}</span>}
               {isCustomPlayer && <span className="pdm-chip">Custom</span>}
               {draftedByTeam && <span className="pdm-chip pdm-chip--drafted">Drafted by {draftedByTeam}</span>}
               {draftedContract && <span className="pdm-chip">{draftedContract}</span>}
             </div>
+            <button className="pdm-close" type="button" onClick={onClose} aria-label="Close player details">
+              ×
+            </button>
           </div>
-          <button className="pdm-close" type="button" onClick={onClose} aria-label="Close player details">
-            x
-          </button>
         </div>
 
         <div className="pdm-grid">
-          <section className="pdm-card">
-            <h3>Profile</h3>
+          <section className="pdm-card pdm-card--hero">
+            <h3>Player profile</h3>
             <div className="pdm-positions">
               {positions.map((pos) => (
                 <PosBadge key={pos} pos={pos} />
@@ -88,6 +105,8 @@ export default function PlayerDetailModal({
               <dd>{valueOrDash(player.mlbId || "-")}</dd>
               <dt>Indicator</dt>
               <dd>{valueOrDash(player.indicator)}</dd>
+              <dt>Outlook</dt>
+              <dd>{valueOrDash(player.outlook)}</dd>
             </dl>
           </section>
 
@@ -103,7 +122,7 @@ export default function PlayerDetailModal({
               <dt>Player Strength</dt>
               <dd>{formatCurrencyWhole(player.baseline_value)}</dd>
               <dt>Val Diff</dt>
-              <dd>{formatMaybeDelta(player.edge)}</dd>
+              <dd>{formatMaybeDelta(valuationDiff)}</dd>
             </dl>
           </section>
 
@@ -112,8 +131,15 @@ export default function PlayerDetailModal({
             {batting ? (
               <div className="pdm-stat-group">
                 <h4>Batting</h4>
-                <p>AVG {batting.avg} | HR {batting.hr} | RBI {batting.rbi} | R {batting.runs} | SB {batting.sb}</p>
-                <p>OBP {batting.obp} | SLG {batting.slg}</p>
+                <dl className="pdm-mini-grid">
+                  <dt>AVG</dt><dd>{valueOrDash(batting.avg)}</dd>
+                  <dt>HR</dt><dd>{valueOrDash(batting.hr)}</dd>
+                  <dt>RBI</dt><dd>{valueOrDash(batting.rbi)}</dd>
+                  <dt>R</dt><dd>{valueOrDash(batting.runs)}</dd>
+                  <dt>SB</dt><dd>{valueOrDash(batting.sb)}</dd>
+                  <dt>OBP</dt><dd>{valueOrDash(batting.obp)}</dd>
+                  <dt>SLG</dt><dd>{valueOrDash(batting.slg)}</dd>
+                </dl>
               </div>
             ) : (
               <p className="pdm-empty">No batting stats available.</p>
@@ -121,8 +147,16 @@ export default function PlayerDetailModal({
             {pitching ? (
               <div className="pdm-stat-group">
                 <h4>Pitching</h4>
-                <p>ERA {pitching.era} | WHIP {pitching.whip} | W {pitching.wins} | SV {pitching.saves}</p>
-                <p>K {pitching.strikeouts} | HLD {pitching.holds} | CG {pitching.completeGames} | IP {pitching.innings}</p>
+                <dl className="pdm-mini-grid">
+                  <dt>ERA</dt><dd>{valueOrDash(pitching.era)}</dd>
+                  <dt>WHIP</dt><dd>{valueOrDash(pitching.whip)}</dd>
+                  <dt>W</dt><dd>{valueOrDash(pitching.wins)}</dd>
+                  <dt>SV</dt><dd>{valueOrDash(pitching.saves)}</dd>
+                  <dt>K</dt><dd>{valueOrDash(pitching.strikeouts)}</dd>
+                  <dt>HLD</dt><dd>{valueOrDash(pitching.holds)}</dd>
+                  <dt>CG</dt><dd>{valueOrDash(pitching.completeGames)}</dd>
+                  <dt>IP</dt><dd>{valueOrDash(pitching.innings)}</dd>
+                </dl>
               </div>
             ) : (
               <p className="pdm-empty">No pitching stats available.</p>
@@ -132,12 +166,33 @@ export default function PlayerDetailModal({
           <section className="pdm-card">
             <h3>Blended outlook (5/3/2 year weights)</h3>
             {projectionBat ? (
-              <p>Batting: AVG {projectionBat.avg} | HR {projectionBat.hr} | RBI {projectionBat.rbi} | R {projectionBat.runs} | SB {projectionBat.sb}</p>
+              <div className="pdm-stat-group">
+                <h4>Batting</h4>
+                <dl className="pdm-mini-grid">
+                  <dt>AVG</dt><dd>{valueOrDash(projectionBat.avg)}</dd>
+                  <dt>HR</dt><dd>{valueOrDash(projectionBat.hr)}</dd>
+                  <dt>RBI</dt><dd>{valueOrDash(projectionBat.rbi)}</dd>
+                  <dt>R</dt><dd>{valueOrDash(projectionBat.runs)}</dd>
+                  <dt>SB</dt><dd>{valueOrDash(projectionBat.sb)}</dd>
+                </dl>
+              </div>
             ) : (
               <p className="pdm-empty">No batting projection available.</p>
             )}
             {projectionPit ? (
-              <p>Pitching: ERA {projectionPit.era} | WHIP {projectionPit.whip} | W {projectionPit.wins} | SV {projectionPit.saves} | K {projectionPit.strikeouts} | HLD {projectionPit.holds} | CG {projectionPit.completeGames} | IP {valueOrDash(projectionPit.innings)}</p>
+              <div className="pdm-stat-group">
+                <h4>Pitching</h4>
+                <dl className="pdm-mini-grid">
+                  <dt>ERA</dt><dd>{valueOrDash(projectionPit.era)}</dd>
+                  <dt>WHIP</dt><dd>{valueOrDash(projectionPit.whip)}</dd>
+                  <dt>W</dt><dd>{valueOrDash(projectionPit.wins)}</dd>
+                  <dt>SV</dt><dd>{valueOrDash(projectionPit.saves)}</dd>
+                  <dt>K</dt><dd>{valueOrDash(projectionPit.strikeouts)}</dd>
+                  <dt>HLD</dt><dd>{valueOrDash(projectionPit.holds)}</dd>
+                  <dt>CG</dt><dd>{valueOrDash(projectionPit.completeGames)}</dd>
+                  <dt>IP</dt><dd>{valueOrDash(projectionPit.innings)}</dd>
+                </dl>
+              </div>
             ) : (
               <p className="pdm-empty">No pitching projection available.</p>
             )}
@@ -145,31 +200,54 @@ export default function PlayerDetailModal({
 
           {(stats3yrBat || stats3yrPit) && (
             <section className="pdm-card">
-              <h3>3-year blend (equal weights, API)</h3>
+              <h3>3-year blend</h3>
               {stats3yrBat ? (
-                <p>
-                  Batting: AVG {stats3yrBat.avg} | HR {stats3yrBat.hr} | RBI {stats3yrBat.rbi} | R{" "}
-                  {stats3yrBat.runs} | SB {stats3yrBat.sb} | OBP {stats3yrBat.obp} | SLG {stats3yrBat.slg}
-                </p>
+                <div className="pdm-stat-group">
+                  <h4>Batting</h4>
+                  <dl className="pdm-mini-grid">
+                    <dt>AVG</dt><dd>{valueOrDash(stats3yrBat.avg)}</dd>
+                    <dt>HR</dt><dd>{valueOrDash(stats3yrBat.hr)}</dd>
+                    <dt>RBI</dt><dd>{valueOrDash(stats3yrBat.rbi)}</dd>
+                    <dt>R</dt><dd>{valueOrDash(stats3yrBat.runs)}</dd>
+                    <dt>SB</dt><dd>{valueOrDash(stats3yrBat.sb)}</dd>
+                    <dt>OBP</dt><dd>{valueOrDash(stats3yrBat.obp)}</dd>
+                    <dt>SLG</dt><dd>{valueOrDash(stats3yrBat.slg)}</dd>
+                  </dl>
+                </div>
               ) : null}
               {stats3yrPit ? (
-                <p>
-                  Pitching: ERA {stats3yrPit.era} | WHIP {stats3yrPit.whip} | W {stats3yrPit.wins} | SV{" "}
-                  {stats3yrPit.saves} | K {stats3yrPit.strikeouts} | IP {stats3yrPit.innings}
-                </p>
+                <div className="pdm-stat-group">
+                  <h4>Pitching</h4>
+                  <dl className="pdm-mini-grid">
+                    <dt>ERA</dt><dd>{valueOrDash(stats3yrPit.era)}</dd>
+                    <dt>WHIP</dt><dd>{valueOrDash(stats3yrPit.whip)}</dd>
+                    <dt>W</dt><dd>{valueOrDash(stats3yrPit.wins)}</dd>
+                    <dt>SV</dt><dd>{valueOrDash(stats3yrPit.saves)}</dd>
+                    <dt>K</dt><dd>{valueOrDash(stats3yrPit.strikeouts)}</dd>
+                    <dt>IP</dt><dd>{valueOrDash(stats3yrPit.innings)}</dd>
+                  </dl>
+                </div>
               ) : null}
             </section>
           )}
 
-          {(player.why?.length || player.market_notes?.length || note) && (
+          <section className="pdm-card pdm-card--wide">
+            <h3>Personal Notes</h3>
+            <textarea
+              className="pdm-note-editor"
+              value={noteDraft}
+              placeholder="Add draft thoughts, keeper logic, risk notes, and target price reminders..."
+              onChange={(event) => {
+                const next = event.target.value;
+                setNoteDraft(next);
+                onNoteChange?.(player.id, next);
+              }}
+            />
+          </section>
+
+          {(player.why?.length || player.market_notes?.length) && (
             <section className="pdm-card pdm-card--wide">
-              <h3>Notes</h3>
-              {note && (
-                <div className="pdm-note-block">
-                  <h4>Your Note</h4>
-                  <p>{note}</p>
-                </div>
-              )}
+              <h3>Model Notes</h3>
               {player.why?.length ? (
                 <div className="pdm-note-block">
                   <h4>Why</h4>
