@@ -13,12 +13,19 @@
   margin-top: 0;
   border: none;
   border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   max-height: none;
   overflow: visible;
 }
 
 .league-roster-editor--static .league-roster-editor-header {
   position: static;
+  background: transparent;
+}
+
+.league-roster-editor--static .league-roster-editor-row {
+  background: transparent;
 }
 
 .league-roster-editor-header,
