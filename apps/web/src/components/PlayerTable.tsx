@@ -25,13 +25,19 @@ import { sortPlayerTableRows } from "../domain/playerTableSort";
 import { playerTableRowsMatchingTagFilter } from "../domain/playerTableTagFilter";
 import { PlayerTableControls } from "./PlayerTableControls";
 import {
+  asFinite,
+  NoteCell,
+  PlayerHeadshot,
+  SortArrow,
+  TierBadge,
+} from "./PlayerTableParts";
+import {
   formatCurrencyWhole,
   formatMaybeDelta,
   playerValuationEdgeOrDiff,
   valuationSortLabel,
   type ValuationSortField,
 } from "../utils/valuation";
-import CustomPlayerHeadshot from "./CustomPlayerHeadshot";
 
 interface PlayerTableProps {
   players: Player[];
@@ -55,114 +61,6 @@ interface PlayerTableProps {
     { value: number; tier: number }
   >;
   defaultValuationSortField?: ValuationSortField;
-}
-
-const TIER_COLORS: Record<number, string> = {
-  1: "#a855f7",
-  2: "#6366f1",
-  3: "#22c55e",
-  4: "#f59e0b",
-  5: "#6b7280",
-};
-
-function TierBadge({ tier }: { tier: number }) {
-  return (
-    <span
-      className="tier-badge"
-      style={{ background: TIER_COLORS[tier] ?? "#6b7280" }}
-    >
-      {tier}
-    </span>
-  );
-}
-
-function PlayerHeadshot({
-  src,
-  name,
-  isCustom,
-}: {
-  src: string;
-  name: string;
-  isCustom?: boolean;
-}) {
-  const [failed, setFailed] = useState(false);
-  const initials = name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  if (isCustom) {
-    return <CustomPlayerHeadshot size={32} />;
-  }
-  if (failed || !src) {
-    return <div className="headshot-fallback">{initials}</div>;
-  }
-  return (
-    <img
-      src={src}
-      alt={name}
-      className="player-headshot"
-      onError={() => setFailed(true)}
-    />
-  );
-}
-
-function NoteCell({
-  playerId,
-  getNote,
-  onNoteChange,
-}: {
-  playerId: string;
-  playerName: string;
-  tags: string[];
-  getNote: (id: string) => string;
-  onNoteChange: (id: string, note: string) => void;
-}) {
-  const [value, setValue] = useState(() => getNote(playerId));
-
-  // Sync if the note changes externally (e.g. loaded from DB after mount)
-  const contextNote = getNote(playerId);
-  useEffect(() => {
-    setValue(contextNote);
-  }, [contextNote]);
-
-  return (
-    <input
-      className="pt-note-input"
-      value={value}
-      onChange={(e) => {
-        setValue(e.target.value);
-        onNoteChange(playerId, e.target.value);
-      }}
-      placeholder="Add note..."
-      title={value}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
-      }}
-    />
-  );
-}
-
-function asFinite(n: unknown): number | undefined {
-  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
-}
-
-function SortArrow({
-  col,
-  sort,
-}: {
-  col: string;
-  sort: { col: string; dir: "asc" | "desc" } | null;
-}) {
-  if (sort?.col !== col)
-    return <span className="th-sort-icon th-sort-idle">↕</span>;
-  return (
-    <span className="th-sort-icon th-sort-active">
-      {sort.dir === "asc" ? "▲" : "▼"}
-    </span>
-  );
 }
 
 export default function PlayerTable({
