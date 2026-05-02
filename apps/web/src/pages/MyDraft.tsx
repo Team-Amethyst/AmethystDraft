@@ -32,7 +32,11 @@ import {
 import { positionColorStyle } from "../constants/positionColors";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
-import { type ValuationShape, type ValuationSortField } from "../utils/valuation";
+import {
+  defaultValuationSortForPage,
+  type ValuationShape,
+  type ValuationSortField,
+} from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
 import {
   readPositionTargetsFromStorage,
@@ -73,8 +77,9 @@ export default function MyDraft() {
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
-  const [valuationSortField, setValuationSortField] =
-    useState<ValuationSortField>("team_adjusted_value");
+  const [valuationSortField, setValuationSortField] = useState<ValuationSortField>(
+    () => defaultValuationSortForPage("MyDraft"),
+  );
 
   // ── Persisted overrides ─────────────────────────────────────────────────────
   const defaultPositionTargets = Object.fromEntries(
@@ -122,7 +127,7 @@ export default function MyDraft() {
     setValuationSortField(
       loadJsonFromStorage<ValuationSortField>(
         myDraftLeagueKey(leagueId, "valuation-sort"),
-        "team_adjusted_value",
+        defaultValuationSortForPage("MyDraft"),
       ),
     );
   }, [leagueId]);

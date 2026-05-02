@@ -25,6 +25,7 @@ import AddPlayerModal from "../components/AddPlayerModal";
 import PlayerDetailModal from "../components/PlayerDetailModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
+  defaultValuationSortForPage,
   mergeCatalogPlayersWithValuations,
   type ValuationShape,
 } from "../utils/valuation";
@@ -332,6 +333,7 @@ export default function Research() {
                 </div>
               ) : (
                 <PlayerTable
+                  defaultValuationSortField={defaultValuationSortForPage("Research")}
                   players={mergedPlayers}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}

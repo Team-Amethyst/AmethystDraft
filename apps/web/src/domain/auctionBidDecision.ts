@@ -51,7 +51,8 @@ function finiteDollar(n: unknown): number | undefined {
 }
 
 /**
- * Single “target bid” line for quick UI: prefer likely bid, then your value, then market.
+ * Single headline bid line for quick UI: `recommended_bid`, then `team_adjusted_value`,
+ * then `adjusted_value` (Engine dollar ladder; see docs/engine-valuation-ui.md).
  */
 export function auctionTargetBidDollars(
   player: Pick<Player, "recommended_bid" | "team_adjusted_value" | "adjusted_value">,

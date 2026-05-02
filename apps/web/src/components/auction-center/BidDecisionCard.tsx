@@ -92,7 +92,7 @@ export function BidDecisionCard({
 
   const displayBid = cleanedPair?.bid ?? decisionData.recommended_bid;
   const displayYour = cleanedPair?.yourValue ?? decisionData.team_adjusted_value;
-  const displayDraftroomValue =
+  const displayAdjustedValue =
     decisionData.adjusted_value ??
     engineFiniteOrNull(selectedPlayer.adjusted_value);
   const displayBaseValue =
@@ -146,7 +146,7 @@ export function BidDecisionCard({
               title={valuationTooltip("adjusted_value")}
               value={
                 <span className="bdc-focus-value">
-                  {fmtMoney(displayDraftroomValue)}
+                  {fmtMoney(displayAdjustedValue)}
                 </span>
               }
             />

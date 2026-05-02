@@ -128,12 +128,15 @@ export function CommandCenterRightPanel({
     selectedNormId && engineMarket
       ? engineMarket.valuations.find((v) => String(v.player_id).trim() === selectedNormId)
       : undefined;
-  const selectedCeiling =
-    selectedValuationRow?.baseline_value != null && Number.isFinite(selectedValuationRow.baseline_value)
-      ? selectedValuationRow.baseline_value
-      : selectedPlayer?.baseline_value != null && Number.isFinite(selectedPlayer.baseline_value)
-        ? selectedPlayer.baseline_value
-        : undefined;
+  const finite = (n: unknown): number | undefined =>
+    typeof n === "number" && Number.isFinite(n) ? n : undefined;
+  const suggestedBidDollars =
+    finite(selectedValuationRow?.recommended_bid) ??
+    finite(selectedPlayer?.recommended_bid) ??
+    finite(selectedValuationRow?.adjusted_value) ??
+    finite(selectedPlayer?.adjusted_value) ??
+    finite(selectedValuationRow?.baseline_value) ??
+    finite(selectedPlayer?.baseline_value);
   const maxBid = my?.maxBid;
   const budgetLeft = my?.remaining;
   const dollarsPerSpot = my?.ppSpot;
@@ -141,7 +144,7 @@ export function CommandCenterRightPanel({
   return (
     <div className="cc-right">
       <CommandCenterRightBidContextCard
-        selectedCeiling={selectedCeiling}
+        suggestedBidDollars={suggestedBidDollars}
         maxBid={maxBid}
         budgetLeft={budgetLeft}
         dollarsPerSpot={dollarsPerSpot}
