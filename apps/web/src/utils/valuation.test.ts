@@ -73,10 +73,8 @@ describe("valuation helpers", () => {
 
   it("returns page default valuation fields", () => {
     expect(defaultValuationSortForPage("Research")).toBe("recommended_bid");
-    expect(defaultValuationSortForPage("MyDraft")).toBe("team_adjusted_value");
-    expect(defaultValuationSortForPage("AuctionCenter")).toBe(
-      "team_adjusted_value",
-    );
+    expect(defaultValuationSortForPage("MyDraft")).toBe("recommended_bid");
+    expect(defaultValuationSortForPage("AuctionCenter")).toBe("recommended_bid");
     expect(defaultValuationSortForPage("CommandCenter")).toBe("adjusted_value");
   });
 
@@ -100,7 +98,7 @@ describe("valuation helpers", () => {
     const m = commandCenterValuationMoney(row, 5);
     expect(m.your).toBe(40);
     expect(m.likely).toBe(30);
-    expect(m.market).toBe(30);
+    expect(m.market).toBe(20);
 
     const partial = {
       player_id: "1",
@@ -114,7 +112,7 @@ describe("valuation helpers", () => {
     const m2 = commandCenterValuationMoney(partial, 99);
     expect(m2.your).toBeUndefined();
     expect(m2.likely).toBeUndefined();
-    expect(m2.market).toBeUndefined();
+    expect(m2.market).toBe(20);
 
     expect(commandCenterValuationMoney(undefined, 12).your).toBeUndefined();
   });
@@ -144,7 +142,7 @@ describe("valuation helpers", () => {
     expect(d.yourIntrinsic).toBe(40);
     expect(d.likelyActionable).toBe(18);
     expect(d.budgetLimited).toBe(true);
-    expect(d.market).toBe(35);
+    expect(d.market).toBe(20);
   });
 
   it("commandCenterBidDecision caps suggested bid and flags budget-limited", () => {
@@ -207,13 +205,13 @@ describe("valuation helpers", () => {
   });
 
   it("exposes compact labels and tooltip copy", () => {
-    expect(valuationSortLabel("team_adjusted_value")).toBe("Your Value");
-    expect(valuationSortLabel("recommended_bid")).toBe("Likely Bid");
-    expect(valuationSortLabel("adjusted_value")).toBe("Market Value");
-    expect(valuationSortLabel("baseline_value")).toBe("Player Strength");
-    expect(valuationTooltip("team_adjusted_value")).toContain("Personalized");
-    expect(valuationTooltip("recommended_bid")).toContain("auction guidance");
-    expect(valuationTooltip("adjusted_value")).toContain("remaining roster slots");
-    expect(valuationTooltip("baseline_value")).toContain("before auction context");
+    expect(valuationSortLabel("team_adjusted_value")).toBe("Your roster $");
+    expect(valuationSortLabel("recommended_bid")).toBe("Suggested bid");
+    expect(valuationSortLabel("adjusted_value")).toBe("League context $");
+    expect(valuationSortLabel("baseline_value")).toBe("Player strength");
+    expect(valuationTooltip("team_adjusted_value")).toContain("team_adjusted_value");
+    expect(valuationTooltip("recommended_bid")).toContain("recommended_bid");
+    expect(valuationTooltip("adjusted_value")).toContain("adjusted_value");
+    expect(valuationTooltip("baseline_value")).toContain("baseline_value");
   });
 });

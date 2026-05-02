@@ -35,7 +35,7 @@ function coerceNumber(value: unknown): number | undefined {
 }
 
 /**
- * Val Diff for tables: prefer engine `edge` when present; otherwise TA minus likely bid.
+ * Edge column for tables: prefer engine `edge` when present; otherwise TA minus suggested bid.
  * Matches prior PlayerTable behavior in one place for reuse.
  */
 export function playerValuationEdgeOrDiff(player: {
@@ -104,7 +104,7 @@ function firstFiniteDollar(
 
 /**
  * Command Center header lines: one engine field each (no cross-field fallbacks).
- * Your Value → team_adjusted_value; Likely / Market clearing → recommended_bid.
+ * Your → team_adjusted_value; Likely bid anchor → recommended_bid; League context → adjusted_value.
  */
 export function commandCenterValuationMoney(
   row: ValuationResult | undefined | null,
@@ -113,7 +113,7 @@ export function commandCenterValuationMoney(
   return {
     your: coerceNumber(row?.team_adjusted_value),
     likely: coerceNumber(row?.recommended_bid),
-    market: coerceNumber(row?.recommended_bid),
+    market: coerceNumber(row?.adjusted_value),
   };
 }
 
@@ -201,7 +201,7 @@ export function commandCenterBidDecision(
 
   const yourValue = coerceNumber(rawTA);
   const likelyBid = coerceNumber(rawR);
-  const marketValue = coerceNumber(rawR);
+  const marketValue = coerceNumber(rawA);
   const playerStrength = firstFiniteDollar([rawB, rawA, rawR, rawTA, playerValue]);
 
   const edgeFromRow =
@@ -272,7 +272,7 @@ export type CommandCenterConstrainedMoney = {
   yourIntrinsic: number | undefined;
   /** Defaults log bid input — same as suggested bid (integer dollars). */
   youCanPay: number;
-  /** Model / list value (uncapped reference). */
+  /** Engine `adjusted_value` (draft-context league dollars), uncapped reference line. */
   market: number | undefined;
   /** min(recommended guidance, max executable); for log default / internal use. */
   likelyActionable: number | undefined;
@@ -374,29 +374,28 @@ export function mergeCatalogPlayersWithValuations(
 }
 
 export function valuationSortLabel(field: ValuationSortField): string {
-  if (field === "team_adjusted_value") return "Your Value";
-  if (field === "recommended_bid") return "Likely Bid";
-  if (field === "adjusted_value") return "Market Value";
-  return "Player Strength";
+  if (field === "team_adjusted_value") return "Your roster $";
+  if (field === "recommended_bid") return "Suggested bid";
+  if (field === "adjusted_value") return "League context $";
+  return "Player strength";
 }
 
 export function valuationTooltip(field: ValuationSortField): string {
   if (field === "team_adjusted_value") {
-    return "Personalized value based on your roster needs and budget.";
+    return "Engine team_adjusted_value — dollars for your roster and budget after the bid anchor (ladder step 4).";
   }
   if (field === "recommended_bid") {
-    return "General auction guidance based on player strength and market conditions.";
+    return "Engine recommended_bid — bid anchor / likely clearing price in live auction context (ladder step 3).";
   }
   if (field === "adjusted_value") {
-    return "Model value based on remaining roster slots, replacement levels, and league budget.";
+    return "Engine adjusted_value — league-wide list dollars in the current draft context (ladder step 2).";
   }
-  return "League-adjusted player value before auction context.";
+  return "Engine baseline_value — neutral projection before roster-specific adjustments (ladder step 1).";
 }
 
 export function defaultValuationSortForPage(
   page: "Research" | "MyDraft" | "AuctionCenter" | "CommandCenter",
 ): ValuationSortField {
-  if (page === "Research") return "recommended_bid";
   if (page === "CommandCenter") return "adjusted_value";
-  return "team_adjusted_value";
+  return "recommended_bid";
 }
