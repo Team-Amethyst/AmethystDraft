@@ -44,6 +44,7 @@ import {
   myDraftLeagueKey,
   saveJsonToStorage,
 } from "../utils/myDraftStateStorage";
+import { DRAFT_SESSION_NOTE_PLAYER_ID } from "../constants/draftNoteIds";
 import { useMyDraftWatchlistDerived } from "../hooks/useMyDraftWatchlistDerived";
 import { playerFromWatchlistEntry } from "../domain/watchlistToPlayer";
 import "./MyDraft.css";
@@ -367,8 +368,8 @@ export default function MyDraft() {
 
         {/* ── Notes strip ── */}
         <DraftNotes
-          value={getNote("__draft__")}
-          onChange={(val) => setNote("__draft__", val)}
+          value={getNote(DRAFT_SESSION_NOTE_PLAYER_ID)}
+          onChange={(val) => setNote(DRAFT_SESSION_NOTE_PLAYER_ID, val)}
         />
 
       </main>
