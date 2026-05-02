@@ -8,7 +8,6 @@ import {
 } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useParams } from "react-router";
-import PosBadge from "./PosBadge";
 import { RosterSlotPicker } from "./RosterSlotPicker";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -63,8 +62,8 @@ import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
-import { UserPlus } from "lucide-react";
 import { AuctionCenterPlayerImpact } from "./auction-center/AuctionCenterPlayerImpact";
+import { AuctionCenterSearchBar } from "./auction-center/AuctionCenterSearchBar";
 import { BidDecisionCard } from "./auction-center/BidDecisionCard";
 import { PlayerIdentityCard } from "./auction-center/PlayerIdentityCard";
 
@@ -643,136 +642,33 @@ export function AuctionCenter({
 
   return (
     <div className="cc-center">
-      {/* Search bar + undo/redo */}
-      <div className="cc-search-wrap" ref={searchRef}>
-        <div className="cc-search-inner">
-          <div className="auction-search-bar">
-            <span className="auction-search-icon">⊕</span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder={
-                selectedPlayer
-                  ? `${selectedPlayer.name} — type to switch...`
-                  : "Search player to load into auction..."
-              }
-              className="auction-search-input"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowDropdown(e.target.value.length >= 1);
-              }}
-              onFocus={() => {
-                if (searchQuery.length >= 1) setShowDropdown(true);
-              }}
-            />
-            {selectedPlayer && (
-              <button
-                className="cc-clear-btn"
-                onClick={() => {
-                  setSelectedPlayer(null);
-                  setSearchQuery("");
-                }}
-              >
-                ✕
-              </button>
-            )}
-            <div className="cc-undo-redo">
-              <button
-                className="cc-ur-btn"
-                title="Undo last pick"
-                disabled={rosterEntries.length === 0}
-                onClick={() => void handleUndo()}
-              >
-                ↩
-              </button>
-              <button
-                className="cc-ur-btn"
-                title="Redo last pick"
-                disabled={redoStack.length === 0}
-                onClick={() => void handleRedo()}
-              >
-                ↪
-              </button>
-            </div>
-          </div>
-          {/* {showDropdown && dropdownResults.length > 0 && (
-            <div className="cc-search-dropdown">
-              {dropdownResults.map((p) => (
-                <button
-                  key={p.id}
-                  className="cc-dropdown-item"
-                  onMouseDown={() => handleSelectPlayer(p)}
-                >
-                  <PosBadge pos={p.position} />
-                  <span className="cc-dd-name">
-                    {p.name}
-                    {p.injuryStatus && (
-                      <span className="pt-il-badge">
-                        {p.injuryStatus.replace("DL", "IL")}
-                      </span>
-                    )}
-                    {isInWatchlist(p.id) && (
-                      <span className="cc-dd-wl" title="On your watchlist">
-                        ★
-                      </span>
-                    )}
-                  </span>
-                  <span className="cc-dd-team">{p.team}</span>
-                  <span className="cc-dd-val">${p.value}</span>
-                </button>
-              ))}
-            </div>
-          )} */}
-          {showDropdown && (
-            <div className="cc-search-dropdown">
-              {dropdownResults.length > 0 ? (
-                dropdownResults.map((p) => (
-                  <button
-                    key={p.id}
-                    className="cc-dropdown-item"
-                    onMouseDown={() => handleSelectPlayer(p)}
-                  >
-                    <PosBadge pos={p.position} />
-                    <span className="cc-dd-name">
-                      {p.name}
-                      {p.injuryStatus && (
-                        <span className="pt-il-badge">
-                          {p.injuryStatus.replace("DL", "IL")}
-                        </span>
-                      )}
-                      {isInWatchlist(p.id) && (
-                        <span className="cc-dd-wl" title="On your watchlist">
-                          ★
-                        </span>
-                      )}
-                    </span>
-                    <span className="cc-dd-team">{p.team}</span>
-                    <span className="cc-dd-val">${p.value}</span>
-                  </button>
-                ))
-              ) : searchQuery.length >= 2 ? (
-                <div className="asd-no-results">
-                  <span className="asd-no-results-text">
-                    No players found for "{searchQuery}"
-                  </span>
-                  <button
-                    className="asd-add-missing-btn"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setShowDropdown(false);
-                      onAddMissingPlayer?.();
-                    }}
-                  >
-                    <UserPlus size={13} />
-                    Add "{searchQuery}" as custom player
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
+      <AuctionCenterSearchBar
+        searchRef={searchRef}
+        searchInputRef={searchInputRef}
+        searchQuery={searchQuery}
+        onSearchChange={(v) => {
+          setSearchQuery(v);
+          setShowDropdown(v.length >= 1);
+        }}
+        onSearchFocus={() => {
+          if (searchQuery.length >= 1) setShowDropdown(true);
+        }}
+        selectedPlayer={selectedPlayer}
+        onClearSelection={() => {
+          setSelectedPlayer(null);
+          setSearchQuery("");
+        }}
+        canUndo={rosterEntries.length > 0}
+        canRedo={redoStack.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        showDropdown={showDropdown}
+        dropdownResults={dropdownResults}
+        onSelectPlayer={handleSelectPlayer}
+        isInWatchlist={isInWatchlist}
+        onAddMissingPlayer={onAddMissingPlayer}
+        onDismissDropdown={() => setShowDropdown(false)}
+      />
 
       <div ref={contentScrollRef} className="cc-content-scroll">
         <div className="player-auction-card command-center-main">
