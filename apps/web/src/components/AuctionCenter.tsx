@@ -20,7 +20,6 @@ import type { RosterEntry } from "../api/roster";
 import {
   auctionCenterCategoryImpactRows,
   availableSlotsForTeamName,
-  getStatByCategory,
 } from "../pages/commandCenterUtils";
 import {
   getValuationPlayer,
@@ -59,13 +58,13 @@ import {
   valueMinusBidDeltaRounded,
   verdictFromValueMinusBid,
 } from "../domain/auctionCenterValuation";
-import { impactLabelParts } from "../domain/rotoCategoryDisplay";
 import { searchRankedAvailablePlayers } from "../domain/auctionPlayerSearch";
 import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
 import { UserPlus } from "lucide-react";
+import { AuctionCenterPlayerImpact } from "./auction-center/AuctionCenterPlayerImpact";
 import { BidDecisionCard } from "./auction-center/BidDecisionCard";
 import { PlayerIdentityCard } from "./auction-center/PlayerIdentityCard";
 
@@ -584,16 +583,6 @@ export function AuctionCenter({
     }
   };
 
-  // Derived pitching / batting stat refs
-  const sp = selectedPlayer?.stats?.pitching;
-  const sb = selectedPlayer?.stats?.batting;
-  const k9 = sp
-    ? (() => {
-        const ip = parseFloat(sp.innings);
-        return ip > 0 ? ((sp.strikeouts / ip) * 9).toFixed(1) : "--";
-      })()
-    : "--";
-
   const catImpactRows = useMemo(
     () =>
       auctionCenterCategoryImpactRows({
@@ -651,181 +640,6 @@ export function AuctionCenter({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayer?.id, wonBy]);
-
-  const playerImpactSection = selectedPlayer ? (
-    <div className="pac-impact-wrap">
-      <div className="pac-snapshot-header">
-        <span className="pac-section-label">PLAYER IMPACT</span>
-        <div className="stat-view-toggle">
-          <button
-            className={
-              "svt-btn " + (statView === "hitting" ? "active" : "")
-            }
-            onClick={() => setStatView("hitting")}
-          >
-            Hitting
-          </button>
-          <button
-            className={
-              "svt-btn " + (statView === "pitching" ? "active" : "")
-            }
-            onClick={() => setStatView("pitching")}
-          >
-            Pitching
-          </button>
-        </div>
-      </div>
-      {statView === "pitching" ? (
-        pitchingCats.length > 0 ? (
-          <div className="pac-impact-grid command-center-impact-grid">
-            {pitchingCats.map((cat) => {
-              const labels = impactLabelParts(cat.name);
-              const raw = selectedPlayer
-                ? getStatByCategory(selectedPlayer, cat.name, "pitching")
-                : 0;
-              const isRate = [
-                "ERA",
-                "WHIP",
-                "WALKS + HITS PER IP",
-              ].includes(cat.name.toUpperCase());
-              const display =
-                raw === 0
-                  ? "—"
-                  : isRate
-                    ? raw.toFixed(2)
-                    : String(Math.round(raw));
-              const imp = catImpactRows.find((r) => r.name === cat.name);
-              const dTone = imp
-                ? imp.neutral
-                  ? "neutral"
-                  : imp.improved
-                    ? "green"
-                    : "red"
-                : "muted";
-              return (
-                <div
-                  key={cat.name}
-                  className="pac-impact-mini command-center-impact-card"
-                >
-                  <div className="pac-impact-mini-label">{labels.primary}</div>
-                  {labels.secondary ? (
-                    <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
-                  ) : null}
-                  <div className="pac-impact-mini-stat">{display}</div>
-                  <div
-                    className={`pac-impact-mini-delta-pill pac-impact-mini-delta--${dTone}`}
-                  >
-                    {imp?.deltaStr ?? "—"}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
-            {(
-              [
-                ["ERA", sp?.era ?? "—"],
-                ["K/9", k9],
-                ["WHIP", sp?.whip ?? "—"],
-                ["Wins", sp?.wins ?? "—"],
-                ["Saves", sp?.saves ?? "—"],
-              ] as const
-            ).map(([catLabel, val]) => {
-              const labels = impactLabelParts(catLabel);
-              return (
-              <div
-                key={catLabel}
-                className="pac-impact-mini command-center-impact-card"
-              >
-                <div className="pac-impact-mini-label">{labels.primary}</div>
-                {labels.secondary ? (
-                  <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
-                ) : null}
-                <div className="pac-impact-mini-stat">{val}</div>
-                <div className="pac-impact-mini-delta-pill pac-impact-mini-delta--muted">
-                  —
-                </div>
-              </div>
-            );
-            })}
-          </div>
-        )
-      ) : hittingCats.length > 0 ? (
-        <div className="pac-impact-grid command-center-impact-grid">
-          {hittingCats.map((cat) => {
-            const labels = impactLabelParts(cat.name);
-            const raw = selectedPlayer
-              ? getStatByCategory(selectedPlayer, cat.name, "batting")
-              : 0;
-            const isRate = ["AVG", "OBP", "SLG"].includes(
-              cat.name.toUpperCase(),
-            );
-            const display =
-              raw === 0
-                ? "—"
-                : isRate
-                  ? raw.toFixed(3)
-                  : String(Math.round(raw));
-            const imp = catImpactRows.find((r) => r.name === cat.name);
-            const dTone = imp
-              ? imp.neutral
-                ? "neutral"
-                : imp.improved
-                  ? "green"
-                  : "red"
-              : "muted";
-            return (
-              <div
-                key={cat.name}
-                className="pac-impact-mini command-center-impact-card"
-              >
-                <div className="pac-impact-mini-label">{labels.primary}</div>
-                {labels.secondary ? (
-                  <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
-                ) : null}
-                <div className="pac-impact-mini-stat">{display}</div>
-                <div
-                  className={`pac-impact-mini-delta-pill pac-impact-mini-delta--${dTone}`}
-                >
-                  {imp?.deltaStr ?? "—"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="pac-impact-grid pac-impact-grid--fixed command-center-impact-grid">
-          {(
-            [
-              ["Batting Avg", sb?.avg ?? ".---"],
-              ["Home Runs", sb?.hr ?? "—"],
-              ["Runs Batted In", sb?.rbi ?? "—"],
-              ["Runs", sb?.runs ?? "—"],
-              ["Stolen Bases", sb?.sb ?? "—"],
-            ] as const
-          ).map(([catLabel, val]) => {
-            const labels = impactLabelParts(catLabel);
-            return (
-            <div
-              key={catLabel}
-              className="pac-impact-mini command-center-impact-card"
-            >
-              <div className="pac-impact-mini-label">{labels.primary}</div>
-              {labels.secondary ? (
-                <div className="pac-impact-mini-label-sub">{labels.secondary}</div>
-              ) : null}
-              <div className="pac-impact-mini-stat">{val}</div>
-              <div className="pac-impact-mini-delta-pill pac-impact-mini-delta--muted">
-                —
-              </div>
-            </div>
-          );
-          })}
-        </div>
-      )}
-    </div>
-  ) : null;
 
   return (
     <div className="cc-center">
@@ -997,7 +811,14 @@ export function AuctionCenter({
                         setNote(selectedPlayer.id, value)
                       }
                     />
-                    {playerImpactSection}
+                    <AuctionCenterPlayerImpact
+                      selectedPlayer={selectedPlayer}
+                      statView={statView}
+                      onStatViewChange={setStatView}
+                      catImpactRows={catImpactRows}
+                      pitchingCats={pitchingCats}
+                      hittingCats={hittingCats}
+                    />
                     <section className="pac-bid-section" aria-label="Bid recommendation">
                       <div className="pac-section-label">BID RECOMMENDATION</div>
                       <BidDecisionCard
