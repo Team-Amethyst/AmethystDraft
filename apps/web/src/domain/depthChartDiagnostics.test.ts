@@ -20,16 +20,25 @@ describe("depthChartDiagnostics", () => {
     tier: 1,
     headshot: "https://example.com/photo.jpg",
     stats: {},
+    projection: {},
+    outlook: "",
     ...overrides,
   });
 
   const mockRosterEntry = (overrides?: Partial<RosterEntry>): RosterEntry => ({
-    id: "roster-id",
+    _id: "roster-id",
     userId: "user-1",
     leagueId: "league-1",
+    teamId: "team-1",
     playerName: "Juan Soto",
-    externalPlayerId: 765432,
-    position: "LF",
+    playerTeam: "NYY",
+    externalPlayerId: "765432",
+    positions: ["LF"],
+    price: 0,
+    rosterSlot: "BN",
+    isKeeper: false,
+    acquiredAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     ...overrides,
   });
 
@@ -99,7 +108,7 @@ describe("depthChartDiagnostics", () => {
 
     it("should identify unmatched players", () => {
       const depth = mockDepthChart();
-      const catalog = [];
+      const catalog: Player[] = [];
 
       const diagnostics = diagnosisDepthChartMatching(depth, catalog, null, null);
 
@@ -118,7 +127,7 @@ describe("depthChartDiagnostics", () => {
 
     it("should match players in roster by externalPlayerId", () => {
       const depth = mockDepthChart();
-      const roster = [mockRosterEntry({ externalPlayerId: 999999 })];
+      const roster = [mockRosterEntry({ externalPlayerId: "999999" })];
 
       const diagnostics = diagnosisDepthChartMatching(depth, null, roster, null);
 

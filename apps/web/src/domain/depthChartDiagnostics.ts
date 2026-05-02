@@ -69,7 +69,10 @@ export function diagnosisDepthChartMatching(
   const rosterByName = new Map<string, RosterEntry>();
   if (rosterEntries) {
     for (const entry of rosterEntries) {
-      if (entry.externalPlayerId) rosterByExternalId.set(entry.externalPlayerId, entry);
+      if (entry.externalPlayerId) {
+        const numId = Number(entry.externalPlayerId);
+        if (!Number.isNaN(numId)) rosterByExternalId.set(numId, entry);
+      }
       if (entry.playerName) rosterByName.set(normalizeNameForSearch(entry.playerName), entry);
     }
   }

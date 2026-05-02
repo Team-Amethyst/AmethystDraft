@@ -21,22 +21,37 @@ describe("depthLeagueContext", () => {
     tier: 1,
     headshot: "https://example.com/photo.jpg",
     stats: {},
+    projection: {},
+    outlook: "",
     ...overrides,
   });
 
   const mockRosterEntry = (overrides?: Partial<RosterEntry>): RosterEntry => ({
-    id: "roster-id",
+    _id: "roster-id",
     userId: "user-1",
     leagueId: "league-1",
+    teamId: "team-1",
     playerName: "Juan Soto",
-    externalPlayerId: 765432,
-    position: "LF",
+    playerTeam: "NYY",
+    externalPlayerId: "765432",
+    positions: ["LF"],
+    price: 0,
+    rosterSlot: "BN",
+    isKeeper: false,
+    acquiredAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     ...overrides,
   });
 
   const mockWatchlistPlayer = (overrides?: Partial<WatchlistPlayer>): WatchlistPlayer => ({
+    id: "watch-1",
     mlbId: 111111,
     name: "Shohei Ohtani",
+    team: "LAA",
+    position: "DH",
+    adp: 0,
+    value: 0,
+    tier: 1,
     ...overrides,
   });
 
@@ -70,7 +85,7 @@ describe("depthLeagueContext", () => {
     });
 
     it("should build lookup from roster entries by externalPlayerId", () => {
-      const roster = [mockRosterEntry({ externalPlayerId: 765432 })];
+      const roster = [mockRosterEntry({ externalPlayerId: "765432" })];
       const lookup = buildDepthLeagueRelevanceLookup(null, roster, null);
 
       expect(lookup.mlbPlayerIds.has(765432)).toBe(true);
@@ -99,7 +114,7 @@ describe("depthLeagueContext", () => {
 
     it("should combine data from all three sources", () => {
       const catalog = [mockPlayer({ mlbId: 111 })];
-      const roster = [mockRosterEntry({ externalPlayerId: 222 })];
+      const roster = [mockRosterEntry({ externalPlayerId: "222" })];
       const watchlist = [mockWatchlistPlayer({ mlbId: 333 })];
 
       const lookup = buildDepthLeagueRelevanceLookup(catalog, roster, watchlist);

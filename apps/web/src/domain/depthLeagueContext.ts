@@ -50,7 +50,8 @@ export function buildDepthLeagueRelevanceLookup(
     for (const entry of rosterEntries) {
       // Roster entries have externalPlayerId which matches MLB ID
       if (entry.externalPlayerId) {
-        mlbPlayerIds.add(entry.externalPlayerId);
+        const numId = Number(entry.externalPlayerId);
+        if (!Number.isNaN(numId)) mlbPlayerIds.add(numId);
       }
       // If roster has player info with name, add normalized name
       if (entry.playerName) {
