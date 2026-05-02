@@ -4,6 +4,18 @@ This document describes **tunable thresholds**, **label-shortening rules**, and 
 
 ---
 
+## Research catalog list filter (`filterResearchCatalogPlayers`)
+
+Used for the Research **Players** / **Tiers** merged list before valuation merge.
+
+- **Search:** case-insensitive **substring** on `player.name` (not token-ranked like the auction typeahead).
+- **Position `all`:** no position filter.
+- **`P`:** `hasPitcherEligibility` (any P-eligible player).
+- **`OF`:** normalized positions include `"OF"`.
+- **Other positions:** normalized position list must include the filter string (e.g. `SS`, `1B`).
+
+---
+
 ## Auction Center: value vs. bid “verdict” (`verdictFromValueMinusBid`)
 
 Used for the identity badge tone (positive / negative / muted) and bid-decision card styling. It is based on **rounded dollars**: `round(your_value − recommended_bid)`.

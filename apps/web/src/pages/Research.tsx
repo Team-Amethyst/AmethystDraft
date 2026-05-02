@@ -10,7 +10,6 @@ import {
   getPlayersCached,
   getTeamDepthChart,
   type DepthChartPlayerRow,
-  type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
 import { getValuation } from "../api/engine";
@@ -20,10 +19,6 @@ import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
-import {
-  hasPitcherEligibility,
-  normalizePlayerPositions,
-} from "../utils/eligibility";
 import "./Research.css";
 import AddPlayerModal from "../components/AddPlayerModal";
 import PlayerDetailModal from "../components/PlayerDetailModal";
@@ -47,55 +42,16 @@ import {
   parseStatBasis,
   RESEARCH_STAT_BASIS_STORAGE_KEY_WEB,
 } from "@repo/player-stat-basis";
+import { MLB_TEAMS } from "../data/mlbTeams";
+import { filterResearchCatalogPlayers } from "../domain/researchCatalogFilter";
+import {
+  countDepthChartAssignments,
+  DEFAULT_RESEARCH_DEPTH_TEAM_ID,
+  RESEARCH_DEPTH_POSITIONS,
+  researchDepthSlotCapacity,
+} from "../domain/researchDepthLayout";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
-
-const DEPTH_POSITIONS: DepthChartPosition[] = [
-  "SP",
-  "RP",
-  "C",
-  "1B",
-  "2B",
-  "3B",
-  "SS",
-  "LF",
-  "CF",
-  "RF",
-  "DH",
-];
-
-const MLB_TEAMS = [
-  { id: 108, abbr: "LAA", name: "Los Angeles Angels" },
-  { id: 109, abbr: "AZ", name: "Arizona Diamondbacks" },
-  { id: 110, abbr: "BAL", name: "Baltimore Orioles" },
-  { id: 111, abbr: "BOS", name: "Boston Red Sox" },
-  { id: 112, abbr: "CHC", name: "Chicago Cubs" },
-  { id: 113, abbr: "CIN", name: "Cincinnati Reds" },
-  { id: 114, abbr: "CLE", name: "Cleveland Guardians" },
-  { id: 115, abbr: "COL", name: "Colorado Rockies" },
-  { id: 116, abbr: "DET", name: "Detroit Tigers" },
-  { id: 117, abbr: "HOU", name: "Houston Astros" },
-  { id: 118, abbr: "KC", name: "Kansas City Royals" },
-  { id: 119, abbr: "LAD", name: "Los Angeles Dodgers" },
-  { id: 120, abbr: "WSH", name: "Washington Nationals" },
-  { id: 121, abbr: "NYM", name: "New York Mets" },
-  { id: 133, abbr: "ATH", name: "Athletics" },
-  { id: 134, abbr: "PIT", name: "Pittsburgh Pirates" },
-  { id: 135, abbr: "SD", name: "San Diego Padres" },
-  { id: 136, abbr: "SEA", name: "Seattle Mariners" },
-  { id: 137, abbr: "SF", name: "San Francisco Giants" },
-  { id: 138, abbr: "STL", name: "St. Louis Cardinals" },
-  { id: 139, abbr: "TB", name: "Tampa Bay Rays" },
-  { id: 140, abbr: "TEX", name: "Texas Rangers" },
-  { id: 141, abbr: "TOR", name: "Toronto Blue Jays" },
-  { id: 142, abbr: "MIN", name: "Minnesota Twins" },
-  { id: 143, abbr: "PHI", name: "Philadelphia Phillies" },
-  { id: 144, abbr: "ATL", name: "Atlanta Braves" },
-  { id: 145, abbr: "CWS", name: "Chicago White Sox" },
-  { id: 146, abbr: "MIA", name: "Miami Marlins" },
-  { id: 147, abbr: "NYY", name: "New York Yankees" },
-  { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
-];
 
 export default function Research() {
   usePageTitle("Research");
@@ -113,12 +69,14 @@ export default function Research() {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
 
   const [selectedView, setSelectedView] = useState<ResearchView>("player-database");
-  const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(147);
+  const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(
+    DEFAULT_RESEARCH_DEPTH_TEAM_ID,
+  );
   const [depthChartData, setDepthChartData] = useState<DepthChartResponse | null>(
-    () => getDepthChartCached(147),
+    () => getDepthChartCached(DEFAULT_RESEARCH_DEPTH_TEAM_ID),
   );
   const [isLoadingDepthChart, setIsLoadingDepthChart] = useState(
-    () => getDepthChartCached(147) === null,
+    () => getDepthChartCached(DEFAULT_RESEARCH_DEPTH_TEAM_ID) === null,
   );
   const [depthChartError, setDepthChartError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -170,14 +128,11 @@ export default function Research() {
     [rosterEntries],
   );
 
-  const depthTotalSlots = DEPTH_POSITIONS.length * 3;
-  const depthAssignedCount = useMemo(() => {
-    if (!depthChartData) return 0;
-    return DEPTH_POSITIONS.reduce(
-      (total, position) => total + (depthChartData.positions[position]?.length ?? 0),
-      0,
-    );
-  }, [depthChartData]);
+  const depthTotalSlots = researchDepthSlotCapacity();
+  const depthAssignedCount = useMemo(
+    () => (depthChartData ? countDepthChartAssignments(depthChartData) : 0),
+    [depthChartData],
+  );
 
   const customPlayerIds = useMemo(
     () => new Set(customPlayers.map((p) => p.id)),
@@ -287,28 +242,10 @@ export default function Research() {
     [players, customPlayers],
   );
 
-  const filteredPlayers = useMemo(() => {
-    return allPlayers.filter((player) => {
-      const playerName = player.name?.toLowerCase() ?? "";
-      const matchesSearch = playerName.includes(searchQuery.toLowerCase());
-      const matchesPosition =
-        positionFilter === "all" ||
-        (() => {
-          const allPos = normalizePlayerPositions(
-            player.positions,
-            player.position,
-          );
-          if (positionFilter === "P") {
-            return hasPitcherEligibility(player.positions, player.position);
-          }
-          if (positionFilter === "OF") {
-            return allPos.includes("OF");
-          }
-          return allPos.includes(positionFilter);
-        })();
-      return matchesSearch && matchesPosition;
-    });
-  }, [allPlayers, searchQuery, positionFilter]);
+  const filteredPlayers = useMemo(
+    () => filterResearchCatalogPlayers(allPlayers, searchQuery, positionFilter),
+    [allPlayers, searchQuery, positionFilter],
+  );
 
   const mergedPlayers = useMemo(
     () => mergeCatalogPlayersWithValuations(filteredPlayers, valuationsByPlayerId),
@@ -536,7 +473,7 @@ export default function Research() {
                   </div>
 
                   <div className="depth-chart-grid">
-                    {DEPTH_POSITIONS.map((position) => {
+                    {RESEARCH_DEPTH_POSITIONS.map((position) => {
                       const rows = depthChartData.positions[position] ?? [];
                       return (
                         <section key={position} className="position-group">
