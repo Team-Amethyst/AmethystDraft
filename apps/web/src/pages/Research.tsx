@@ -51,6 +51,7 @@ import {
   RESEARCH_DEPTH_POSITIONS,
   researchDepthSlotCapacity,
 } from "../domain/researchDepthLayout";
+import { RESEARCH_POSITION_FILTER_STORAGE_KEY } from "../constants/researchStorage";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
@@ -83,7 +84,9 @@ export default function Research() {
   const [searchQuery, setSearchQuery] = useState("");
   const [positionFilter, setPositionFilter] = useState(() => {
     try {
-      return localStorage.getItem("amethyst-research-position") ?? "all";
+      return (
+        localStorage.getItem(RESEARCH_POSITION_FILTER_STORAGE_KEY) ?? "all"
+      );
     } catch {
       return "all";
     }
@@ -147,7 +150,10 @@ export default function Research() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-research-position", positionFilter);
+      localStorage.setItem(
+        RESEARCH_POSITION_FILTER_STORAGE_KEY,
+        positionFilter,
+      );
     } catch { /* noop */ }
   }, [positionFilter]);
 
