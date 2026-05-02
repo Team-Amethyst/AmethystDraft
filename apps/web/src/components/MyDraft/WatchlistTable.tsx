@@ -10,9 +10,8 @@
  *   and interaction. No budget or position logic lives here.
  */
 
-import { Minus, Plus, Star, X } from "lucide-react";
 import type { WatchlistPlayer } from "../../api/watchlist";
-import PosBadge from "../PosBadge";
+import { watchlistPrimaryPositionToken } from "../../domain/watchlistDisplayPosition";
 import {
   formatDollar,
   resolveValuationNumber,
@@ -20,6 +19,7 @@ import {
   valuationTooltip,
   type ValuationSortField,
 } from "../../utils/valuation";
+import { WatchlistTableRow } from "./WatchlistTableRow";
 import "./WatchlistTable.css";
 
 type ViewFilter = "all" | "hitters" | "pitchers";
@@ -43,12 +43,6 @@ interface WatchlistTableProps {
   onNoteChange: (playerId: string, note: string) => void;
   onRemove: (playerId: string) => void;
   onRowClick: (playerId: string) => void;
-}
-
-function normalizePosition(position: string): string {
-  return (
-    position.toUpperCase().replace(/\s+/g, "").split(/[/,|-]/)[0] || "UTIL"
-  );
 }
 
 export default function WatchlistTable({
@@ -138,7 +132,9 @@ export default function WatchlistTable({
               </tr>
             ) : (
               filteredWatchlist.map((player) => {
-                const pos = normalizePosition(player.position || "UTIL");
+                const pos = watchlistPrimaryPositionToken(
+                  player.position || "UTIL",
+                );
                 const primary = resolveValuationNumber(player, valuationSortField);
                 const supporting =
                   valuationSortField === "team_adjusted_value"
@@ -156,127 +152,28 @@ export default function WatchlistTable({
                     : String(targetVal);
 
                 return (
-                  <tr
+                  <WatchlistTableRow
                     key={player.id}
-                    className="watchlist-row watchlist-row--clickable"
-                    onClick={() => onRowClick(player.id)}
-                  >
-                    <td>
-                      <div className="player-main">
-                        <Star size={12} className="row-star" fill="#facc15" />
-                        <div className="player-name-row">
-                          <span className="player-name">{player.name}</span>
-                          <span className="player-team">
-                            {player.team || "--"}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td>
-                      {player.positions && player.positions.length > 1 ? (
-                        <div className="watchlist-pos-badges">
-                          {player.positions.map((p) => (
-                            <PosBadge key={p} pos={p} />
-                          ))}
-                        </div>
-                      ) : (
-                        <PosBadge pos={pos} />
-                      )}
-                    </td>
-
-                    <td
-                      className="money"
-                      title={
-                        valuationTooltip(valuationSortField)
-                      }
-                    >
-                      {formatDollar(primary)}
-                      <div className="watchlist-supporting-value">
-                        {valuationSortLabel(
-                          valuationSortField === "team_adjusted_value"
-                            ? "recommended_bid"
-                            : "team_adjusted_value",
-                        )}
-                        : {formatDollar(supporting)}
-                      </div>
-                    </td>
-
-                    {/* Target $ — stop propagation so clicks don't navigate */}
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div className="target-input-group">
-                        <button
-                          className="target-stepper"
-                          type="button"
-                          onClick={() => onTargetStep(player.id, -1, targetVal)}
-                        >
-                          <Minus size={9} />
-                        </button>
-                        <span className="target-prefix">$</span>
-                        <input
-                          className="target-input"
-                          type="text"
-                          inputMode="numeric"
-                          value={displayVal}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, "");
-                            const v = parseInt(raw);
-                            onTargetChange(player.id, raw, isNaN(v) ? null : v);
-                          }}
-                          onBlur={() =>
-                            onTargetBlur(player.id, displayVal, defaultTarget)
-                          }
-                        />
-                        <button
-                          className="target-stepper"
-                          type="button"
-                          onClick={() => onTargetStep(player.id, 1, targetVal)}
-                        >
-                          <Plus size={9} />
-                        </button>
-                      </div>
-                    </td>
-
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className={`md-select md-select--priority priority-select ${priority.toLowerCase()}`}
-                        value={priority}
-                        onChange={(e) =>
-                          onPriorityChange(
-                            player.id,
-                            e.target.value as Priority,
-                          )
-                        }
-                      >
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
-                      </select>
-                    </td>
-
-                    <td className="td-note" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        className="watchlist-note-input"
-                        value={getNote(player.id)}
-                        onChange={(e) => onNoteChange(player.id, e.target.value)}
-                        placeholder="Note..."
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") e.currentTarget.blur();
-                        }}
-                      />
-                    </td>
-
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="unstar-btn"
-                        type="button"
-                        onClick={() => onRemove(player.id)}
-                        title="Remove from watchlist"
-                      >
-                        <X size={13} strokeWidth={2.4} />
-                      </button>
-                    </td>
-                  </tr>
+                    model={{
+                      player,
+                      pos,
+                      primary,
+                      supporting,
+                      defaultTarget,
+                      targetVal,
+                      priority,
+                      displayVal,
+                    }}
+                    valuationSortField={valuationSortField}
+                    getNote={getNote}
+                    onRowClick={onRowClick}
+                    onTargetChange={onTargetChange}
+                    onTargetBlur={onTargetBlur}
+                    onTargetStep={onTargetStep}
+                    onPriorityChange={onPriorityChange}
+                    onNoteChange={onNoteChange}
+                    onRemove={onRemove}
+                  />
                 );
               })
             )}
