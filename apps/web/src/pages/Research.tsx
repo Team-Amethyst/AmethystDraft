@@ -52,6 +52,7 @@ import {
   RESEARCH_DEPTH_POSITIONS,
   researchDepthSlotCapacity,
 } from "../domain/researchDepthLayout";
+import { ResearchDepthChartToolbar } from "../components/research/ResearchDepthChartToolbar";
 import {
   ResearchViewTabs,
   type ResearchView,
@@ -362,37 +363,14 @@ export default function Research() {
           )}
           {selectedView === "depth-charts" && (
             <div className="depth-chart-wrapper">
-              <div className="depth-chart-header">
-                <div>
-                  <h2>Depth Charts</h2>
-                  <p>
-                    Daily active-roster depth with starter/backup/reserve ranking
-                  </p>
-                </div>
-                <div className="depth-chart-controls">
-                  <label htmlFor="depth-team-select">Team</label>
-                  <select
-                    id="depth-team-select"
-                    value={selectedDepthTeamId}
-                    onChange={(event) => {
-                      setSelectedDepthTeamId(Number(event.target.value));
-                    }}
-                  >
-                    {MLB_TEAMS.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.abbr} - {team.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="depth-chart-refresh-btn"
-                    onClick={() => void loadDepthChart(selectedDepthTeamId, true)}
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
+              <ResearchDepthChartToolbar
+                teams={MLB_TEAMS}
+                selectedTeamId={selectedDepthTeamId}
+                onTeamChange={setSelectedDepthTeamId}
+                onRefresh={() =>
+                  void loadDepthChart(selectedDepthTeamId, true)
+                }
+              />
 
               {depthChartError && (
                 <p className="research-error">{depthChartError}</p>
