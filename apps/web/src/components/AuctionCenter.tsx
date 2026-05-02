@@ -8,7 +8,6 @@ import {
 } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useParams } from "react-router";
-import { RosterSlotPicker } from "./RosterSlotPicker";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
@@ -62,10 +61,11 @@ import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
-import { AuctionCenterPlayerImpact } from "./auction-center/AuctionCenterPlayerImpact";
+import { DRAFT_SESSION_NOTE_PLAYER_ID } from "../constants/draftNoteIds";
+import { AuctionCenterLogResultBar } from "./auction-center/AuctionCenterLogResultBar";
+import { AuctionCenterPlayerStack } from "./auction-center/AuctionCenterPlayerStack";
+import { AuctionCenterNotesDock } from "./auction-center/AuctionCenterNotesDock";
 import { AuctionCenterSearchBar } from "./auction-center/AuctionCenterSearchBar";
-import { BidDecisionCard } from "./auction-center/BidDecisionCard";
-import { PlayerIdentityCard } from "./auction-center/PlayerIdentityCard";
 
 interface AuctionCenterProps {
   rosterEntries: RosterEntry[];
@@ -683,128 +683,50 @@ export function AuctionCenter({
           ) : (
             <>
             <div className="pac-cards-stack">
-              {(() => {
-                const rowUi = mergedValuationRow;
-                const tierValue = rowUi?.tier ?? selectedPlayer.tier;
-                const adpValue = rowUi?.adp ?? selectedPlayer.adp;
-                const adpTitle =
-                  rowUi?.adp != null
-                    ? `Engine ADP (valuation row): ${rowUi.adp}`
-                    : "Catalog ADP";
-                return (
-                  <>
-                    <PlayerIdentityCard
-                      selectedPlayer={selectedPlayer}
-                      tierValue={tierValue}
-                      adpValue={adpValue}
-                      adpTitle={adpTitle}
-                      valueVsBidBadge={identityValueVsBidBadge}
-                      isInWatchlist={isInWatchlist}
-                      playerNote={
-                        (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
-                      }
-                      setPlayerNote={(value) =>
-                        setNote(selectedPlayer.id, value)
-                      }
-                    />
-                    <AuctionCenterPlayerImpact
-                      selectedPlayer={selectedPlayer}
-                      statView={statView}
-                      onStatViewChange={setStatView}
-                      catImpactRows={catImpactRows}
-                      pitchingCats={pitchingCats}
-                      hittingCats={hittingCats}
-                    />
-                    <section className="pac-bid-section" aria-label="Bid recommendation">
-                      <div className="pac-section-label">BID RECOMMENDATION</div>
-                      <BidDecisionCard
-                        valuationRow={rowForValuationUi}
-                        selectedPlayer={selectedPlayer}
-                      />
-                    </section>
-                  </>
-                );
-              })()}
+              <AuctionCenterPlayerStack
+                selectedPlayer={selectedPlayer}
+                mergedValuationRow={mergedValuationRow}
+                rowForValuationUi={rowForValuationUi}
+                identityValueVsBidBadge={identityValueVsBidBadge}
+                getNote={getNote}
+                setNote={setNote}
+                isInWatchlist={isInWatchlist}
+                statView={statView}
+                onStatViewChange={setStatView}
+                catImpactRows={catImpactRows}
+                pitchingCats={pitchingCats}
+                hittingCats={hittingCats}
+              />
             </div>
 
-            <div className="pac-log-action-bar" role="group" aria-label="Log result">
-              <div className="pac-log-action-label">LOG RESULT</div>
-              <div className="log-result-grid log-result-grid--inline command-center-log-row">
-              <div className="log-field">
-                <select
-                  className="log-select"
-                  value={wonBy}
-                  onChange={(e) => setWonBy(e.target.value)}
-                >
-                  {teamNames.map((name) => (
-                    <option key={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="log-field">
-                <div className="log-price-input-wrap">
-                  <span className="log-dollar">$</span>
-                  <input
-                    type="text"
-                    className="log-price-input"
-                    value={finalPrice}
-                    onChange={(e) => onFinalPriceChange(e.target.value)}
-                    title="Bid amount; defaults to suggested bid when available"
-                  />
-                </div>
-              </div>
-              <div className="log-field">
-                <RosterSlotPicker
-                  variant="command-center"
-                  value={draftedToSlot}
-                  onChange={setDraftedToSlot}
-                  orderedSlots={overrideSlotOptions}
-                  eligibleSlots={eligibleSlotOptions}
-                  disabled={!selectedPlayer}
-                  warn={overrideSlotOptions.length === 0}
-                  emptyLabel="— no open slots —"
-                />
-              </div>
-              <button
-                className="log-result-btn log-result-btn--inline"
-                onClick={() => void handleLogResult()}
-                disabled={
-                  submitting ||
-                  !wonBy ||
-                  !finalPrice ||
-                  overrideSlotOptions.length === 0 ||
-                  !hasBidSignal
-                }
-              >
-                {submitting ? "Logging…" : "Log"}
-              </button>
-            </div>
+            <AuctionCenterLogResultBar
+              teamNames={teamNames}
+              wonBy={wonBy}
+              onWonByChange={setWonBy}
+              finalPrice={finalPrice}
+              onFinalPriceChange={onFinalPriceChange}
+              draftedToSlot={draftedToSlot}
+              onDraftedToSlotChange={setDraftedToSlot}
+              overrideSlotOptions={overrideSlotOptions}
+              eligibleSlotOptions={eligibleSlotOptions}
+              selectedPlayer={selectedPlayer}
+              submitting={submitting}
+              hasBidSignal={hasBidSignal}
+              onLog={handleLogResult}
+            />
             </div>
             </>
           )}
         </div>
 
-        <section
-          className="pac-notes-dock"
-          aria-label="Draft notes"
-          style={{ height: `${draftNotesHeight}px` }}
-        >
-          <div
-            className="pac-notes-dock-resizer"
-            onMouseDown={onDraftNotesResizeStart}
-            title="Drag to resize draft notes"
-            aria-hidden
-          />
-          <div className="pac-notes-dock-header">DRAFT NOTES</div>
-          <textarea
-            id="pac-note-draft"
-            className="pac-notes pac-notes--dock-only"
-            value={getNote("__draft__") ?? ""}
-            onChange={(e) => setNote("__draft__", e.target.value)}
-            placeholder="Draft strategy, targets, budget rules…"
-            rows={5}
-          />
-        </section>
+        <AuctionCenterNotesDock
+          heightPx={draftNotesHeight}
+          onResizeStart={onDraftNotesResizeStart}
+          noteValue={getNote(DRAFT_SESSION_NOTE_PLAYER_ID) ?? ""}
+          onNoteChange={(value) =>
+            setNote(DRAFT_SESSION_NOTE_PLAYER_ID, value)
+          }
+        />
       </div>
     </div>
   );
