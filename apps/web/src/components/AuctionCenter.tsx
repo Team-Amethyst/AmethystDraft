@@ -31,8 +31,15 @@ import {
 import {
   mergeValuationBoardRowIntoPrevious,
   normalizeValuationResultRow,
-  valuationRowPipelineSnapshot,
 } from "../api/valuationNormalize";
+import {
+  logDevCcValuationPlayerResponseBody,
+  logDevValuationPlayerHttpResponse,
+  logDevValuationPlayerRequest,
+  runDevEngineBoardRowConsistencyCheck,
+  runDevMergedValuationPipelineLog,
+  runDevValuationRowChangeLog,
+} from "../dev/auctionCenterDiagnostics";
 import { resolveUserTeamId } from "../utils/team";
 import {
   normalizeValuationPlayerId,
@@ -257,129 +264,14 @@ export function AuctionCenter({
   );
 
   useEffect(() => {
-    if (!import.meta.env.DEV || !selectedPlayer) return;
-    const p = selectedPlayer;
-    const maxB =
-      myWalletCaps != null && Number.isFinite(myWalletCaps.maxBid)
-        ? myWalletCaps.maxBid
-        : null;
-    const eng = activeValuationRow;
-    const merged = displayValuationRow;
-    const cardRow = mergedValuationRow;
-
-    const nullRowSnap = (label: string) => ({
-      source: label,
-      player_id: p.id,
-      name: p.name,
-      recommended_bid: null,
-      team_adjusted_value: null,
-      adjusted_value: null,
-      baseline_value: null,
-      edge: null,
-      finite_recommended_bid: null as number | null,
-      max_bid: maxB,
-    });
-
-    const catalogSnap = {
-      source: "1_raw_catalog_player",
-      player_id: p.id,
-      name: p.name,
-      recommended_bid: p.recommended_bid ?? null,
-      team_adjusted_value: p.team_adjusted_value ?? null,
-      adjusted_value: p.adjusted_value ?? null,
-      baseline_value: p.baseline_value ?? null,
-      edge: null,
-      finite_recommended_bid: engineFiniteOrNull(p.recommended_bid),
-      max_bid: maxB,
-    };
-
-    const engineSnap = eng
-      ? {
-          source: "2_matched_engine_row",
-          player_id: eng.player_id,
-          name: eng.name,
-          recommended_bid: eng.recommended_bid ?? null,
-          team_adjusted_value: eng.team_adjusted_value ?? null,
-          adjusted_value: eng.adjusted_value ?? null,
-          baseline_value: eng.baseline_value ?? null,
-          edge: eng.edge ?? null,
-          finite_recommended_bid: engineFiniteOrNull(eng.recommended_bid),
-          max_bid: maxB,
-        }
-      : nullRowSnap("2_matched_engine_row (none)");
-
-    const finalSnap = cardRow
-      ? {
-          source: "3_final_row_passed_to_BidDecisionCard",
-          player_id: cardRow.player_id,
-          name: cardRow.name,
-          recommended_bid: cardRow.recommended_bid ?? null,
-          team_adjusted_value: cardRow.team_adjusted_value ?? null,
-          adjusted_value: cardRow.adjusted_value ?? null,
-          baseline_value: cardRow.baseline_value ?? null,
-          edge: cardRow.edge ?? null,
-          finite_recommended_bid: engineFiniteOrNull(cardRow.recommended_bid),
-          max_bid: maxB,
-        }
-      : nullRowSnap("3_final_row_passed_to_BidDecisionCard (none)");
-
-    const actionablePreview =
-      cardRow != null
-        ? actionableBidFromRecommendedAndMaxBid(cardRow, maxB)
-        : null;
-
-    console.log("[BidDecisionCard valuation diagnostic]", {
-      raw_catalog_player: catalogSnap,
-      matched_engine_row: engineSnap,
-      final_row_passed_to_BidDecisionCard: finalSnap,
-      actionableBid_preview: actionablePreview,
-      engine_missing_catalog_had: eng
-        ? {
-            recommended_bid:
-              (eng.recommended_bid == null || !Number.isFinite(eng.recommended_bid)) &&
-              p.recommended_bid != null &&
-              Number.isFinite(p.recommended_bid),
-            team_adjusted_value:
-              (eng.team_adjusted_value == null ||
-                !Number.isFinite(eng.team_adjusted_value)) &&
-              p.team_adjusted_value != null &&
-              Number.isFinite(p.team_adjusted_value),
-          }
-        : null,
-      merge_recovered_field: merged && eng
-        ? {
-            recommended_bid:
-              (eng.recommended_bid == null || !Number.isFinite(eng.recommended_bid)) &&
-              merged.recommended_bid != null &&
-              Number.isFinite(merged.recommended_bid),
-            team_adjusted_value:
-              (eng.team_adjusted_value == null ||
-                !Number.isFinite(eng.team_adjusted_value)) &&
-              merged.team_adjusted_value != null &&
-              Number.isFinite(merged.team_adjusted_value),
-          }
-        : null,
-    });
-
-    const nid = normalizeValuationPlayerId(p.id);
-    const mapEntry = valuationMap.get(nid);
-    console.info("[valuation pipeline]", {
-      source: "draftroom_ui",
-      note: "A–D: logs with source=api_client_http from getValuation (A,B) and getValuationPlayer (C,D).",
-      selected_player_id: nid,
-      E_valuationMap_entry: valuationRowPipelineSnapshot(mapEntry),
-      F_mergedValuationRow_for_BidDecisionCard: valuationRowPipelineSnapshot(
-        mergedValuationRow,
-      ),
-      catalog_player_valuation_fields: {
-        player_id: p.id,
-        recommended_bid: p.recommended_bid ?? null,
-        team_adjusted_value: p.team_adjusted_value ?? null,
-        edge: null,
-        adjusted_value: p.adjusted_value ?? null,
-        baseline_value: p.baseline_value ?? null,
-        value: p.value,
-      },
+    if (!selectedPlayer) return;
+    runDevMergedValuationPipelineLog({
+      selectedPlayer,
+      myWalletCaps,
+      activeValuationRow,
+      displayValuationRow,
+      mergedValuationRow,
+      valuationMap,
     });
   }, [
     selectedPlayer,
@@ -409,36 +301,12 @@ export function AuctionCenter({
   }, [engineMarket]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV || !engineMarket?.valuations?.length || !selectedPlayer)
-      return;
-    const nid = normalizeValuationPlayerId(selectedPlayer.id);
-    const inBoard = engineMarket.valuations.some(
-      (x) => normalizeValuationPlayerId(x.player_id) === nid,
-    );
-    if (!inBoard) return;
-    const vr = valuationMap.get(nid);
-    if (!vr) {
-      console.warn(
-        "[AuctionCenter] engine snapshot lists player but valuationMap has no row",
-        { player_id: nid },
-      );
-      return;
-    }
-    if (
-      typeof vr.recommended_bid !== "number" ||
-      !Number.isFinite(vr.recommended_bid) ||
-      typeof vr.team_adjusted_value !== "number" ||
-      !Number.isFinite(vr.team_adjusted_value)
-    ) {
-      console.warn(
-        "[AuctionCenter] valuation row for board player missing recommended_bid or team_adjusted_value",
-        {
-          player_id: nid,
-          recommended_bid: vr.recommended_bid,
-          team_adjusted_value: vr.team_adjusted_value,
-        },
-      );
-    }
+    if (!engineMarket?.valuations?.length || !selectedPlayer) return;
+    runDevEngineBoardRowConsistencyCheck({
+      engineMarket,
+      selectedPlayer,
+      valuationMap,
+    });
   }, [engineMarket, selectedPlayer, valuationMap, selectedPlayerNormId]);
 
   // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
@@ -449,53 +317,32 @@ export function AuctionCenter({
     }
     const playerIdRaw = selectedPlayer.id;
     const playerId = normalizeValuationPlayerId(playerIdRaw);
-    if (import.meta.env.DEV) {
-      console.info("[valuation player request]", {
-        selected_player_id: playerId,
-        request_url: `/api/engine/leagues/${leagueId}/valuation/player`,
-        request_body: {
-          player_id: String(playerIdRaw),
-          user_team_id: userTeamId,
-          inflation_model: "replacement_slots_v2",
-        },
-      });
-    }
+    logDevValuationPlayerRequest({
+      playerId: playerIdRaw,
+      leagueId,
+      userTeamId,
+    });
     let cancelled = false;
     void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId)
       .then((res) => {
         if (cancelled) return;
-        if (import.meta.env.DEV) {
-          const responseRow =
-            res.player ??
-            (Array.isArray(res.valuations)
-              ? res.valuations.find(
-                  (x) => normalizeValuationPlayerId(x.player_id) === playerId,
-                )
-              : undefined);
-          console.info("[valuation player response]", {
-            selected_player_id: playerId,
-            response_player_id: responseRow?.player_id ?? null,
-            recommended_bid: responseRow?.recommended_bid ?? null,
-            team_adjusted_value: responseRow?.team_adjusted_value ?? null,
-            edge: responseRow?.edge ?? null,
-          });
-        }
-        if (import.meta.env.DEV) {
-          const p = res.player;
-          console.info("[cc-valuation-player-response]", {
-            requested_id: playerId,
-            player: p,
-            numeric_fields: p && {
-              team_adjusted_value: p.team_adjusted_value,
-              recommended_bid: p.recommended_bid,
-              adjusted_value: p.adjusted_value,
-              baseline_value: p.baseline_value,
-            },
-            valuations_len: Array.isArray(res.valuations)
-              ? res.valuations.length
-              : 0,
-          });
-        }
+        const responseRow =
+          res.player ??
+          (Array.isArray(res.valuations)
+            ? res.valuations.find(
+                (x) => normalizeValuationPlayerId(x.player_id) === playerId,
+              )
+            : undefined);
+        logDevValuationPlayerHttpResponse({
+          playerId: playerIdRaw,
+          row: responseRow,
+          valuationsLen: Array.isArray(res.valuations) ? res.valuations.length : 0,
+        });
+        logDevCcValuationPlayerResponseBody({
+          playerId: playerIdRaw,
+          row: res.player,
+          valuationsLen: Array.isArray(res.valuations) ? res.valuations.length : 0,
+        });
         let row: ValuationResult | undefined = res.player;
         if (!row && Array.isArray(res.valuations)) {
           row =
@@ -611,43 +458,13 @@ export function AuctionCenter({
   }, []);
 
   useEffect(() => {
-    if (!import.meta.env.DEV || !selectedPlayer?.id) return;
-    if (
-      !selectedPlayerValuationKey ||
-      selectedPlayerValuationKey.startsWith("missing:")
-    ) {
-      return;
-    }
-    const v = valuationMap.get(
-      normalizeValuationPlayerId(selectedPlayer.id),
-    );
-    if (!v) return;
-    console.info("[cc-valuation-change]", {
-      t: new Date().toISOString(),
-      player_id: v.player_id,
-      baseline_value: v.baseline_value,
-      adjusted_value: v.adjusted_value,
-      recommended_bid: v.recommended_bid,
-      team_adjusted_value: v.team_adjusted_value,
-      reason: "valuation_row_key_changed",
+    if (!selectedPlayer?.id) return;
+    runDevValuationRowChangeLog({
+      selectedPlayerId: selectedPlayer.id,
+      selectedPlayerValuationKey,
+      valuationMap,
     });
-    const y = v.team_adjusted_value;
-    const l = v.recommended_bid;
-    const m = v.adjusted_value;
-    if (
-      y !== undefined &&
-      l !== undefined &&
-      Number.isFinite(y) &&
-      Number.isFinite(l) &&
-      Number.isFinite(m) &&
-      y === l &&
-      l === m
-    ) {
-      console.warn(
-        "[cc-valuation-change] team_adjusted_value, recommended_bid, and adjusted_value are identical — check Engine payload.",
-      );
-    }
-  }, [selectedPlayer?.id, selectedPlayerValuationKey]);
+  }, [selectedPlayer?.id, selectedPlayerValuationKey, valuationMap]);
 
   const dropdownResults = useMemo(
     () =>

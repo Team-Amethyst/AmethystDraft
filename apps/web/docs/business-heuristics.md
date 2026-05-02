@@ -85,6 +85,8 @@ When the per-player or board **valuation row** omits a finite number, the UI **f
 
 `AuctionCenter` (and related code) may log structured snapshots in **`import.meta.env.DEV`** to trace valuation pipeline gaps (catalog vs. engine vs. merged row). These logs are **not** product behavior; remove or gate them if they become noisy.
 
+Implementation for the draft room lives in **`src/dev/auctionCenterDiagnostics.ts`** (`runDevMergedValuationPipelineLog`, HTTP response logs, board-row consistency checks, valuation-key change warnings).
+
 ---
 
 ## Research / roster value-diff signals (`auctionBidDecision.ts`)
