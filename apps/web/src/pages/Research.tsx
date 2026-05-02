@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useResearchPositionFilter } from "../hooks/useResearchPositionFilter";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { Database, BarChart3, Layers, UserPlus, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import {
@@ -51,9 +52,10 @@ import {
   RESEARCH_DEPTH_POSITIONS,
   researchDepthSlotCapacity,
 } from "../domain/researchDepthLayout";
-import { RESEARCH_POSITION_FILTER_STORAGE_KEY } from "../constants/researchStorage";
-
-type ResearchView = "player-database" | "tiers" | "depth-charts";
+import {
+  ResearchViewTabs,
+  type ResearchView,
+} from "../components/research/ResearchViewTabs";
 
 export default function Research() {
   usePageTitle("Research");
@@ -82,15 +84,7 @@ export default function Research() {
   );
   const [depthChartError, setDepthChartError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [positionFilter, setPositionFilter] = useState(() => {
-    try {
-      return (
-        localStorage.getItem(RESEARCH_POSITION_FILTER_STORAGE_KEY) ?? "all"
-      );
-    } catch {
-      return "all";
-    }
-  });
+  const [positionFilter, setPositionFilter] = useResearchPositionFilter();
   const [statBasis, setStatBasis] = useState<StatBasis>(() => {
     try {
       return parseStatBasis(
@@ -147,15 +141,6 @@ export default function Research() {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries);
   }, [leagueId, token]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        RESEARCH_POSITION_FILTER_STORAGE_KEY,
-        positionFilter,
-      );
-    } catch { /* noop */ }
-  }, [positionFilter]);
 
   useEffect(() => {
     try {
@@ -325,48 +310,15 @@ export default function Research() {
     }
   }, [addToWatchlist, isInWatchlist, removeFromWatchlist, resolveDepthPlayer]);
 
-  const navigationItems: Array<{
-    id: ResearchView;
-    label: string;
-    icon: typeof Database;
-  }> = [
-    { id: "player-database", label: "Players", icon: Database },
-    { id: "tiers",           label: "Tiers",   icon: BarChart3 },
-    { id: "depth-charts",    label: "Depth Charts", icon: Layers },
-  ];
-
   return (
     <div className="research-page">
       <div className="research-layout">
 
-        {/* Top Navigation Tabs + Add Player button */}
-        <div className="research-top-nav">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                className={`nav-tab ${selectedView === item.id ? "active" : ""}`}
-                onClick={() => setSelectedView(item.id)}
-              >
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-
-          {/* Add Player trigger — only shown on the player database view */}
-          {selectedView === "player-database" && (
-            <button
-              className="nav-tab add-player-btn"
-              onClick={() => setShowAddModal(true)}
-              title="Add a player not found in the MLB data source"
-            >
-              <UserPlus size={16} />
-              <span>Add Player</span>
-            </button>
-          )}
-        </div>
+        <ResearchViewTabs
+          selectedView={selectedView}
+          onSelectView={setSelectedView}
+          onOpenAddPlayer={() => setShowAddModal(true)}
+        />
 
         <div className="research-content">
           {selectedView === "player-database" && (
