@@ -18,10 +18,9 @@ import type { Player } from "../types/player";
 import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import {
+  auctionCenterCategoryImpactRows,
+  availableSlotsForTeamName,
   getStatByCategory,
-  rotoCategoryAggregation,
-  teamBattingRatePaceForCategory,
-  teamPitchingRatePaceForCategory,
 } from "../pages/commandCenterUtils";
 import {
   getValuationPlayer,
@@ -51,7 +50,6 @@ import {
   valuationResultNumbersEqual,
   valuationResultStableKey,
 } from "../utils/valuationDeps";
-import { findCatalogPlayerByExternalId } from "../domain/catalogPlayerKeys";
 import {
   actionableBidFromRecommendedAndMaxBid,
   cleanedYourValueAndRecommendedBid,
@@ -596,158 +594,28 @@ export function AuctionCenter({
       })()
     : "--";
 
-  // Category impact rows
-  const catImpactRows = (() => {
-    if (!selectedPlayer || !league?.scoringCategories)
-      return [] as Array<{
-        name: string;
-        teamPaceStr: string;
-        withPlayerStr: string;
-        deltaStr: string;
-        improved: boolean;
-        neutral: boolean;
-      }>;
-    const myTeamPlayers = myTeamEntries
-      .map((e) => findCatalogPlayerByExternalId(allPlayers, e.externalPlayerId))
-      .filter((p): p is Player => !!p);
-    const relevantCats = league.scoringCategories.filter((cat) =>
-      statView === "pitching"
-        ? cat.type === "pitching"
-        : cat.type === "batting",
-    );
-    return relevantCats.map((cat) => {
-      const agg = rotoCategoryAggregation(cat.name, cat.type);
-
-      if (agg === "lower") {
-        const teamPace = teamPitchingRatePaceForCategory(
-          myTeamPlayers,
-          cat.name,
-        );
-        const newTeamAvg = teamPitchingRatePaceForCategory(
-          [...myTeamPlayers, selectedPlayer],
-          cat.name,
-        );
-        if (teamPace === 0 && newTeamAvg === 0) {
-          return {
-            name: cat.name,
-            teamPaceStr: "0.00",
-            withPlayerStr: "0.00",
-            deltaStr: "0",
-            improved: false,
-            neutral: true,
-          };
-        }
-        const delta = teamPace - newTeamAvg;
-        const deltaRounded = +delta.toFixed(2);
-        const neutral = Math.abs(delta) < 0.005;
-        const paceStr = (n: number) =>
-          n > 0 ? n.toFixed(2) : n === 0 ? "0.00" : "—";
-        return {
-          name: cat.name,
-          teamPaceStr: paceStr(teamPace),
-          withPlayerStr: paceStr(newTeamAvg),
-          deltaStr: neutral
-            ? "0"
-            : deltaRounded > 0
-              ? `+${deltaRounded.toFixed(2)}`
-              : deltaRounded.toFixed(2),
-          improved: !neutral && deltaRounded > 0,
-          neutral,
-        };
-      }
-
-      if (agg === "higher") {
-        const teamPace = teamBattingRatePaceForCategory(
-          myTeamPlayers,
-          cat.name,
-        );
-        const newTeamAvg = teamBattingRatePaceForCategory(
-          [...myTeamPlayers, selectedPlayer],
-          cat.name,
-        );
-        if (teamPace === 0 && newTeamAvg === 0) {
-          return {
-            name: cat.name,
-            teamPaceStr: "0.000",
-            withPlayerStr: "0.000",
-            deltaStr: "0",
-            improved: false,
-            neutral: true,
-          };
-        }
-        const delta = newTeamAvg - teamPace;
-        const deltaRounded = +delta.toFixed(3);
-        const neutral = Math.abs(delta) < 0.0005;
-        const paceStr3 = (n: number) =>
-          n > 0 ? n.toFixed(3) : n === 0 ? "0.000" : "—";
-        return {
-          name: cat.name,
-          teamPaceStr: paceStr3(teamPace),
-          withPlayerStr: paceStr3(newTeamAvg),
-          deltaStr: neutral
-            ? "0"
-            : deltaRounded > 0
-              ? `+${deltaRounded.toFixed(3)}`
-              : deltaRounded.toFixed(3),
-          improved: !neutral && deltaRounded > 0,
-          neutral,
-        };
-      }
-
-      const teamPace = myTeamEntries.reduce((sum, entry) => {
-        const player = findCatalogPlayerByExternalId(
-          allPlayers,
-          entry.externalPlayerId,
-        );
-        return player
-          ? sum + getStatByCategory(player, cat.name, cat.type)
-          : sum;
-      }, 0);
-      const playerStat = getStatByCategory(
+  const catImpactRows = useMemo(
+    () =>
+      auctionCenterCategoryImpactRows({
         selectedPlayer,
-        cat.name,
-        cat.type,
-      );
-      const roundedDelta = Math.round(playerStat);
-      return {
-        name: cat.name,
-        teamPaceStr: Math.round(teamPace).toString(),
-        withPlayerStr: Math.round(teamPace + playerStat).toString(),
-        deltaStr:
-          roundedDelta === 0
-            ? "0"
-            : roundedDelta > 0
-              ? `+${roundedDelta}`
-              : String(roundedDelta),
-        improved: playerStat > 0,
-        neutral: playerStat === 0,
-      };
-    });
-  })();
+        scoringCategories: league?.scoringCategories,
+        statView,
+        myTeamEntries,
+        allPlayers,
+      }),
+    [
+      selectedPlayer,
+      league?.scoringCategories,
+      statView,
+      myTeamEntries,
+      allPlayers,
+    ],
+  );
 
   const teamNames = league?.teamNames ?? [];
   const allSlotOptions = league?.rosterSlots
     ? Object.keys(league.rosterSlots)
     : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"];
-
-  function getAvailableSlots(
-    teamName: string,
-    slots: string[],
-    roster: RosterEntry[],
-  ): Set<string> {
-    if (!league) return new Set(slots);
-    const teamIdx = league.teamNames.indexOf(teamName);
-    if (teamIdx === -1) return new Set(slots);
-    const teamId = `team_${teamIdx + 1}`;
-    const teamRoster = roster.filter((e) => e.teamId === teamId);
-    const filled = new Map<string, number>();
-    teamRoster.forEach((e) => {
-      filled.set(e.rosterSlot, (filled.get(e.rosterSlot) ?? 0) + 1);
-    });
-    return new Set(
-      slots.filter((s) => (filled.get(s) ?? 0) < (league.rosterSlots[s] ?? 1)),
-    );
-  }
 
   const eligible = selectedPlayer
     ? getEligibleSlotsForPositions(
@@ -756,7 +624,12 @@ export function AuctionCenter({
         selectedPlayer.position,
       )
     : allSlotOptions;
-  const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
+  const available = availableSlotsForTeamName(
+    league,
+    wonBy,
+    allSlotOptions,
+    rosterEntries,
+  );
   const eligibleSlotOptions = eligible.filter((s) => available.has(s));
   const overrideSlotOptions = allSlotOptions.filter((s) => available.has(s));
   const hittingCats = (league?.scoringCategories ?? []).filter(

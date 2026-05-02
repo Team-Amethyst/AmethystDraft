@@ -83,3 +83,24 @@ export function teamCanBid(
 
   return eligible.some((s) => (filled.get(s) ?? 0) < (league.rosterSlots[s] ?? 1));
 }
+
+/** Slots from `slots` that still have capacity for `teamName` under `league.rosterSlots`. */
+export function availableSlotsForTeamName(
+  league: League | null | undefined,
+  teamName: string,
+  slots: string[],
+  roster: RosterEntry[],
+): Set<string> {
+  if (!league) return new Set(slots);
+  const teamIdx = league.teamNames.indexOf(teamName);
+  if (teamIdx === -1) return new Set(slots);
+  const teamId = `team_${teamIdx + 1}`;
+  const teamRoster = roster.filter((e) => e.teamId === teamId);
+  const filled = new Map<string, number>();
+  teamRoster.forEach((e) => {
+    filled.set(e.rosterSlot, (filled.get(e.rosterSlot) ?? 0) + 1);
+  });
+  return new Set(
+    slots.filter((s) => (filled.get(s) ?? 0) < (league.rosterSlots[s] ?? 1)),
+  );
+}
