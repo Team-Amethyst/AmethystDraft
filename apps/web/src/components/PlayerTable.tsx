@@ -20,6 +20,12 @@ import {
   lookupRosterMapForCatalogPlayer,
 } from "../domain/catalogPlayerKeys";
 import {
+  battingStatColumnLabels,
+  pitchingStatColumnLabels,
+} from "../domain/playerTableColumns";
+import { sortPlayerTableRows } from "../domain/playerTableSort";
+import { PLAYER_TABLE_FILTER_TAGS } from "../domain/playerTableTags";
+import {
   formatCurrencyWhole,
   formatMaybeDelta,
   playerValuationEdgeOrDiff,
@@ -147,9 +153,6 @@ function NoteCell({
 function asFinite(n: unknown): number | undefined {
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
-
-const DEFAULT_BAT_COLS = ["AVG", "HR", "RBI", "R", "SB"];
-const DEFAULT_PIT_COLS = ["ERA", "K", "W", "SV", "WHIP"];
 
 function SortArrow({
   col,
@@ -307,8 +310,6 @@ export default function PlayerTable({
     }
   }, [statView]);
 
-  const ALL_TAGS = ["HR+", "SB+", "AVG+", "R+", "RBI+", "K+", "W+", "SV+"];
-
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (
@@ -340,19 +341,15 @@ export default function PlayerTable({
     });
   }
 
-  const batCols = useMemo(() => {
-    const cats = (scoringCategories ?? []).filter((c) => c.type === "batting");
-    return cats.length > 0
-      ? cats.map((c) => c.name.match(/\(([^)]+)\)$/)?.[1] ?? c.name)
-      : DEFAULT_BAT_COLS;
-  }, [scoringCategories]);
+  const batCols = useMemo(
+    () => battingStatColumnLabels(scoringCategories),
+    [scoringCategories],
+  );
 
-  const pitCols = useMemo(() => {
-    const cats = (scoringCategories ?? []).filter((c) => c.type === "pitching");
-    return cats.length > 0
-      ? cats.map((c) => c.name.match(/\(([^)]+)\)$/)?.[1] ?? c.name)
-      : DEFAULT_PIT_COLS;
-  }, [scoringCategories]);
+  const pitCols = useMemo(
+    () => pitchingStatColumnLabels(scoringCategories),
+    [scoringCategories],
+  );
 
   const numStatCols = Math.max(batCols.length, pitCols.length);
   // When a focused view is selected, use only that side's columns
@@ -455,72 +452,25 @@ export default function PlayerTable({
     [allRowData, selectedTags],
   );
 
-  const sortedRowData = useMemo(() => {
-    const { col, dir } = clientSort;
-    const mult = dir === "asc" ? 1 : -1;
-    return [...filteredRowData].sort((a, b) => {
-      if (col === "adp") return mult * (a.player.adp - b.player.adp);
-      if (col === "value") {
-        const av =
-          valuationSortField === "recommended_bid"
-            ? asFinite(a.player.recommended_bid) ?? -Infinity
-            : valuationSortField === "team_adjusted_value"
-              ? asFinite(a.player.team_adjusted_value) ?? -Infinity
-              : asFinite(a.player[valuationSortField]) ?? -Infinity;
-        const bv =
-          valuationSortField === "recommended_bid"
-            ? asFinite(b.player.recommended_bid) ?? -Infinity
-            : valuationSortField === "team_adjusted_value"
-              ? asFinite(b.player.team_adjusted_value) ?? -Infinity
-              : asFinite(b.player[valuationSortField]) ?? -Infinity;
-        return mult * (av - bv);
-      }
-      if (col === "tier") return mult * (a.player.tier - b.player.tier);
-      if (col === "valdiff") {
-        const av = a.valDiff ?? -Infinity;
-        const bv = b.valDiff ?? -Infinity;
-        return mult * (av - bv);
-      }
-      if (col.startsWith("stat-")) {
-        const i = parseInt(col.slice(5));
-        const aStat = a.isBatter ? batCols[i] : pitCols[i];
-        const bStat = b.isBatter ? batCols[i] : pitCols[i];
-        const aRaw = aStat
-          ? getDisplayStatValue(
-              aStat,
-              a.isBatter ? "batting" : "pitching",
-              a.bat,
-              a.pit,
-              a.player,
-              statBasis,
-            )
-          : "-";
-        const bRaw = bStat
-          ? getDisplayStatValue(
-              bStat,
-              b.isBatter ? "batting" : "pitching",
-              b.bat,
-              b.pit,
-              b.player,
-              statBasis,
-            )
-          : "-";
-        const aP = parseFloat(aRaw);
-        const bP = parseFloat(bRaw);
-        return (
-          mult * ((isNaN(aP) ? -Infinity : aP) - (isNaN(bP) ? -Infinity : bP))
-        );
-      }
-      return 0;
-    });
-  }, [
-    filteredRowData,
-    clientSort,
-    batCols,
-    pitCols,
-    valuationSortField,
-    statBasis,
-  ]);
+  const sortedRowData = useMemo(
+    () =>
+      sortPlayerTableRows(
+        filteredRowData,
+        clientSort,
+        batCols,
+        pitCols,
+        valuationSortField,
+        statBasis,
+      ),
+    [
+      filteredRowData,
+      clientSort,
+      batCols,
+      pitCols,
+      valuationSortField,
+      statBasis,
+    ],
+  );
 
   const rowData = useMemo(
     () =>
@@ -627,7 +577,7 @@ export default function PlayerTable({
             </button>
             {tagDropdownOpen && (
               <div className="pt-tag-dropdown" ref={tagDropdownRef}>
-                {ALL_TAGS.map((tag) => (
+                {PLAYER_TABLE_FILTER_TAGS.map((tag) => (
                   <label key={tag} className="pt-tag-option">
                     <input
                       type="checkbox"

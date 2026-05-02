@@ -16,6 +16,19 @@ Used for the Research **Players** / **Tiers** merged list before valuation merge
 
 ---
 
+## Player table stat columns (`playerTableColumns.ts`)
+
+- Default batting / pitching column headers are fixed lists when the league defines **no** scoring categories of that type.
+- When categories exist, the table prefers the **abbrev in parentheses** in the category display name (e.g. `"Runs (R)"` → column `R`); if there is no `(...)`, the full name is used.
+
+---
+
+## Player table tag filter (`PLAYER_TABLE_FILTER_TAGS`)
+
+The tag filter UI lists a fixed set of positive tags. It must stay aligned with tags produced by `getCategoryTags` in `@repo/player-stat-basis` (see package source when adding categories).
+
+---
+
 ## Auction Center: value vs. bid “verdict” (`verdictFromValueMinusBid`)
 
 Used for the identity badge tone (positive / negative / muted) and bid-decision card styling. It is based on **rounded dollars**: `round(your_value − recommended_bid)`.
