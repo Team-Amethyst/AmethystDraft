@@ -18,14 +18,10 @@ import { useMockDraft } from "../hooks/useMockDraft";
 import type { Player } from "../types/player";
 import PosBadge from "../components/PosBadge";
 import "./MockDraftPage.css";
-
-// ─── Default roster slots if league not configured ────────────────────────────
-const DEFAULT_ROSTER_SLOTS: Record<string, number> = {
-  C: 1, "1B": 1, "2B": 1, SS: 1, "3B": 1,
-  OF: 3, UTIL: 1, SP: 2, RP: 2, BN: 4,
-};
-
-const DEFAULT_BUDGET = 260;
+import {
+  MOCK_DRAFT_DEFAULT_BUDGET,
+  MOCK_DRAFT_DEFAULT_ROSTER_SLOTS,
+} from "../domain/mockDraftDefaults";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -208,8 +204,8 @@ export default function MockDraftPage() {
   const { watchlist } = useWatchlist();
   const { customPlayers } = useCustomPlayers();
 
-  const rosterSlots = league?.rosterSlots ?? DEFAULT_ROSTER_SLOTS;
-  const budget      = league?.budget      ?? DEFAULT_BUDGET;
+  const rosterSlots = league?.rosterSlots ?? MOCK_DRAFT_DEFAULT_ROSTER_SLOTS;
+  const budget      = league?.budget      ?? MOCK_DRAFT_DEFAULT_BUDGET;
 
   // Build team names: user is Team 1, rest are AI
   const teamNames = useMemo(() => {

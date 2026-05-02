@@ -33,6 +33,20 @@ When the Research page loads `getValuation`, rows are indexed by `player_id`. En
 
 The tag filter UI lists a fixed set of positive tags. It must stay aligned with tags produced by `getCategoryTags` in `@repo/player-stat-basis` (see package source when adding categories).
 
+Row filtering uses **AND** semantics: `playerTableRowsMatchingTagFilter` keeps only rows whose `tags` array includes **every** selected tag.
+
+---
+
+## Player table position list (`playerTablePositions.ts`)
+
+Position `<option>` values depend on **Hitters/Pitchers** mode (`positionFilterOptionsForStatView`). When the mode changes, `positionFilterAfterStatViewChange` may force `position` back to `all` if the current position is invalid (e.g. `P` while viewing hitters only).
+
+---
+
+## Mock draft defaults (`mockDraftDefaults.ts`)
+
+When the league record has no roster slots or budget, the mock draft UI uses `MOCK_DRAFT_DEFAULT_ROSTER_SLOTS` and `MOCK_DRAFT_DEFAULT_BUDGET` so the simulator can still start.
+
 ---
 
 ## Auction Center: value vs. bid “verdict” (`verdictFromValueMinusBid`)
