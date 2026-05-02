@@ -29,6 +29,7 @@ import PositionTargets from "../components/MyDraft/PositionTargets";
 import {
   POSITION_ALLOCATION_PLAN,
 } from "../constants/positionAllocationPlan";
+import { positionColorStyle } from "../constants/positionColors";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
 import { hasPitcherEligibility } from "../utils/eligibility";
@@ -55,19 +56,6 @@ import "./MyDraft.css";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const POSITION_PLAN = POSITION_ALLOCATION_PLAN;
-
-const POS_COLORS: Record<string, string> = {
-  C:    "#f87171",
-  "1B": "#fbbf24",
-  "2B": "#38bdf8",
-  "3B": "#fb923c",
-  SS:   "#22d3ee",
-  OF:   "#4ade80",
-  SP:   "#818cf8",
-  RP:   "#f472b6",
-  UTIL: "#94a3b8",
-  BN:   "#6b7280",
-};
 
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";
@@ -344,7 +332,7 @@ export default function MyDraft() {
     pos: row.pos,
     slots: row.slots,
     target: positionTargets[row.pos] ?? row.target,
-    color: POS_COLORS[row.pos] ?? "#7f72a8",
+    color: positionColorStyle(row.pos).color,
     pct: ((positionTargets[row.pos] ?? row.target) / totalBudget) * 100,
   }));
 
