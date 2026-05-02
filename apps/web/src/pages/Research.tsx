@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useResearchPositionFilter } from "../hooks/useResearchPositionFilter";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { Star } from "lucide-react";
+import { Database, BarChart3, Layers, UserPlus, Star } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import {
@@ -53,11 +52,16 @@ import {
   RESEARCH_DEPTH_POSITIONS,
   researchDepthSlotCapacity,
 } from "../domain/researchDepthLayout";
-import { ResearchDepthChartToolbar } from "../components/research/ResearchDepthChartToolbar";
 import {
-  ResearchViewTabs,
-  type ResearchView,
-} from "../components/research/ResearchViewTabs";
+  buildDepthLeagueRelevanceLookup,
+  isDepthChartRowLeagueRelevant,
+} from "../domain/depthLeagueContext";
+import {
+  diagnosisDepthChartMatching,
+  formatDiagnosticsForConsole,
+} from "../domain/depthChartDiagnostics";
+
+type ResearchView = "player-database" | "tiers" | "depth-charts";
 
 export default function Research() {
   usePageTitle("Research");
@@ -72,7 +76,7 @@ export default function Research() {
   const { league } = useLeague();
   const { token, user } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
-  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist, watchlist } = useWatchlist();
 
   const [selectedView, setSelectedView] = useState<ResearchView>("player-database");
   const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(
@@ -86,7 +90,13 @@ export default function Research() {
   );
   const [depthChartError, setDepthChartError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [positionFilter, setPositionFilter] = useResearchPositionFilter();
+  const [positionFilter, setPositionFilter] = useState(() => {
+    try {
+      return localStorage.getItem("amethyst-research-position") ?? "all";
+    } catch {
+      return "all";
+    }
+  });
   const [statBasis, setStatBasis] = useState<StatBasis>(() => {
     try {
       return parseStatBasis(
@@ -134,6 +144,25 @@ export default function Research() {
     [depthChartData],
   );
 
+  const depthLeagueRelevanceLookup = useMemo(() => {
+    return buildDepthLeagueRelevanceLookup(players, rosterEntries, watchlist);
+  }, [players, rosterEntries, watchlist]);
+
+  // Build a set of league-relevant player IDs for quick lookup during rendering
+  const leagueRelevantDepthPlayerIds = useMemo(() => {
+    if (!depthChartData || !depthLeagueRelevanceLookup) return new Set<string>();
+    
+    const relevantIds = new Set<string>();
+    for (const rows of Object.values(depthChartData.positions)) {
+      for (const row of rows) {
+        if (isDepthChartRowLeagueRelevant(row, depthLeagueRelevanceLookup)) {
+          relevantIds.add(`${row.playerId}`);
+        }
+      }
+    }
+    return relevantIds;
+  }, [depthChartData, depthLeagueRelevanceLookup]);
+
   const customPlayerIds = useMemo(
     () => new Set(customPlayers.map((p) => p.id)),
     [customPlayers],
@@ -143,6 +172,12 @@ export default function Research() {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries);
   }, [leagueId, token]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("amethyst-research-position", positionFilter);
+    } catch { /* noop */ }
+  }, [positionFilter]);
 
   useEffect(() => {
     try {
@@ -229,6 +264,26 @@ export default function Research() {
     void loadDepthChart(selectedDepthTeamId);
   }, [selectedDepthTeamId, selectedView, loadDepthChart]);
 
+  // Run diagnostics on depth chart data to identify unmatched players
+  useEffect(() => {
+    if (!depthChartData || selectedView !== "depth-charts") return;
+    
+    const diagnostics = diagnosisDepthChartMatching(
+      depthChartData,
+      players,
+      rosterEntries,
+      watchlist
+    );
+    
+    if (diagnostics.summaryStats.unmatched > 0) {
+      console.log(
+        "%c📊 Depth Chart Diagnostics",
+        "color: #4f46e5; font-weight: bold; font-size: 12px",
+        formatDiagnosticsForConsole(diagnostics)
+      );
+    }
+  }, [depthChartData, selectedView, players, rosterEntries, watchlist]);
+
   // Merge MLB API players with custom players — custom players appear at the top
   const allPlayers = useMemo(
     () => [...customPlayers, ...players],
@@ -312,15 +367,48 @@ export default function Research() {
     }
   }, [addToWatchlist, isInWatchlist, removeFromWatchlist, resolveDepthPlayer]);
 
+  const navigationItems: Array<{
+    id: ResearchView;
+    label: string;
+    icon: typeof Database;
+  }> = [
+    { id: "player-database", label: "Players", icon: Database },
+    { id: "tiers",           label: "Tiers",   icon: BarChart3 },
+    { id: "depth-charts",    label: "Depth Charts", icon: Layers },
+  ];
+
   return (
     <div className="research-page">
       <div className="research-layout">
 
-        <ResearchViewTabs
-          selectedView={selectedView}
-          onSelectView={setSelectedView}
-          onOpenAddPlayer={() => setShowAddModal(true)}
-        />
+        {/* Top Navigation Tabs + Add Player button */}
+        <div className="research-top-nav">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                className={`nav-tab ${selectedView === item.id ? "active" : ""}`}
+                onClick={() => setSelectedView(item.id)}
+              >
+                <Icon size={16} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Add Player trigger — only shown on the player database view */}
+          {selectedView === "player-database" && (
+            <button
+              className="nav-tab add-player-btn"
+              onClick={() => setShowAddModal(true)}
+              title="Add a player not found in the MLB data source"
+            >
+              <UserPlus size={16} />
+              <span>Add Player</span>
+            </button>
+          )}
+        </div>
 
         <div className="research-content">
           {selectedView === "player-database" && (
@@ -365,14 +453,37 @@ export default function Research() {
           )}
           {selectedView === "depth-charts" && (
             <div className="depth-chart-wrapper">
-              <ResearchDepthChartToolbar
-                teams={MLB_TEAMS}
-                selectedTeamId={selectedDepthTeamId}
-                onTeamChange={setSelectedDepthTeamId}
-                onRefresh={() =>
-                  void loadDepthChart(selectedDepthTeamId, true)
-                }
-              />
+              <div className="depth-chart-header">
+                <div>
+                  <h2>Depth Charts</h2>
+                  <p>
+                    Daily active-roster depth with starter/backup/reserve ranking
+                  </p>
+                </div>
+                <div className="depth-chart-controls">
+                  <label htmlFor="depth-team-select">Team</label>
+                  <select
+                    id="depth-team-select"
+                    value={selectedDepthTeamId}
+                    onChange={(event) => {
+                      setSelectedDepthTeamId(Number(event.target.value));
+                    }}
+                  >
+                    {MLB_TEAMS.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.abbr} - {team.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="depth-chart-refresh-btn"
+                    onClick={() => void loadDepthChart(selectedDepthTeamId, true)}
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
 
               {depthChartError && (
                 <p className="research-error">{depthChartError}</p>
@@ -466,6 +577,9 @@ export default function Research() {
                                           <div className="player-slot__name">{row.playerName}</div>
                                           <div className="player-slot__chips">
                                             <span className="player-slot__chip">{row.primaryPosition}</span>
+                                            {leagueRelevantDepthPlayerIds.has(`${row.playerId}`) && (
+                                              <span className="player-slot__chip player-slot__chip--league-relevant">In League</span>
+                                            )}
                                             {injured && <span className="player-slot__chip player-slot__chip--injured">INJ</span>}
                                             {(row.outOfPosition || row.needsManualReview) && (
                                               <span className="player-slot__chip player-slot__chip--oof">OOF</span>
