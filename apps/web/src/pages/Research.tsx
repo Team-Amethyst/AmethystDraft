@@ -36,6 +36,10 @@ import {
   findCatalogPlayerByExternalId,
   lookupRosterMapForCatalogPlayer,
 } from "../domain/catalogPlayerKeys";
+import {
+  buildDraftedByTeamMap,
+  buildKeeperContractByPlayerMap,
+} from "../domain/rosterMaps";
 import TiersView from "./TiersView";
 import { resolveUserTeamId } from "../utils/team";
 import {
@@ -156,28 +160,15 @@ export default function Research() {
     [rosterEntries],
   );
 
-  const draftedByTeam = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of rosterEntries) {
-      const idx = e.teamId
-        ? parseInt(e.teamId.replace("team_", ""), 10) - 1
-        : -1;
-      const name =
-        (idx >= 0 ? league?.teamNames[idx] : undefined) ?? e.teamId ?? "";
-      if (name) map.set(e.externalPlayerId, name);
-    }
-    return map;
-  }, [rosterEntries, league?.teamNames]);
+  const draftedByTeam = useMemo(
+    () => buildDraftedByTeamMap(rosterEntries, league?.teamNames),
+    [rosterEntries, league?.teamNames],
+  );
 
-  const draftedContractByPlayerId = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of rosterEntries) {
-      if (e.keeperContract && e.keeperContract.trim() !== "") {
-        map.set(e.externalPlayerId, e.keeperContract.trim());
-      }
-    }
-    return map;
-  }, [rosterEntries]);
+  const draftedContractByPlayerId = useMemo(
+    () => buildKeeperContractByPlayerMap(rosterEntries),
+    [rosterEntries],
+  );
 
   const depthTotalSlots = DEPTH_POSITIONS.length * 3;
   const depthAssignedCount = useMemo(() => {
