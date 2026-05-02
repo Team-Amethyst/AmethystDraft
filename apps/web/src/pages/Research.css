@@ -103,6 +103,29 @@
   font-size: 0.875rem;
 }
 
+@media (max-width: 900px) {
+  .research-top-nav {
+    padding: 0 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .research-top-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+  }
+
+  .research-content {
+    padding: 0.75rem;
+  }
+}
+
 .coming-soon {
   display: flex;
   flex-direction: column;
