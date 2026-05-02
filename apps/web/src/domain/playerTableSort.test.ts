@@ -27,8 +27,18 @@ describe("sortPlayerTableRows", () => {
 
   it("sorts by adp ascending", () => {
     const rows = [
-      { player: player("a", { name: "A", adp: 50, tier: 1 }), isBatter: true, valDiff: 0 },
-      { player: player("b", { name: "B", adp: 10, tier: 1 }), isBatter: true, valDiff: 0 },
+      {
+        player: player("a", { name: "A", adp: 50, tier: 1 }),
+        isBatter: true,
+        valDiff: 0,
+        tags: [],
+      },
+      {
+        player: player("b", { name: "B", adp: 10, tier: 1 }),
+        isBatter: true,
+        valDiff: 0,
+        tags: [],
+      },
     ];
     const out = sortPlayerTableRows(rows, { col: "adp", dir: "asc" }, batCols, pitCols, "recommended_bid", basis);
     expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);
@@ -36,8 +46,18 @@ describe("sortPlayerTableRows", () => {
 
   it("sorts by tier descending", () => {
     const rows = [
-      { player: player("a", { name: "A", adp: 1, tier: 1 }), isBatter: true, valDiff: 0 },
-      { player: player("b", { name: "B", adp: 2, tier: 3 }), isBatter: true, valDiff: 0 },
+      {
+        player: player("a", { name: "A", adp: 1, tier: 1 }),
+        isBatter: true,
+        valDiff: 0,
+        tags: [],
+      },
+      {
+        player: player("b", { name: "B", adp: 2, tier: 3 }),
+        isBatter: true,
+        valDiff: 0,
+        tags: [],
+      },
     ];
     const out = sortPlayerTableRows(rows, { col: "tier", dir: "desc" }, batCols, pitCols, "recommended_bid", basis);
     expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);

@@ -714,7 +714,6 @@ export function AuctionCenter({
               hasBidSignal={hasBidSignal}
               onLog={handleLogResult}
             />
-            </div>
             </>
           )}
         </div>

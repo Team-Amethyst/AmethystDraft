@@ -17,6 +17,7 @@ function basePlayer(overrides: Partial<Player> = {}): Player {
     headshot: "",
     stats: {},
     projection: {},
+    outlook: "",
     ...overrides,
   };
 }

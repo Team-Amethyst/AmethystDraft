@@ -14,6 +14,7 @@ export type PlayerTableSortableRow = {
   pit?: DisplayPitching;
   isBatter: boolean;
   valDiff: number | undefined;
+  tags: string[];
 };
 
 /**
