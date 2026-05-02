@@ -45,6 +45,7 @@ import {
   valuationResultNumbersEqual,
   valuationResultStableKey,
 } from "../utils/valuationDeps";
+import { findCatalogPlayerByExternalId } from "../domain/catalogPlayerKeys";
 
 import {
   getEligibleSlotsForPositions,
@@ -1268,7 +1269,7 @@ export function AuctionCenter({
         neutral: boolean;
       }>;
     const myTeamPlayers = myTeamEntries
-      .map((e) => allPlayers.find((a) => a.id === e.externalPlayerId))
+      .map((e) => findCatalogPlayerByExternalId(allPlayers, e.externalPlayerId))
       .filter((p): p is Player => !!p);
     const relevantCats = league.scoringCategories.filter((cat) =>
       statView === "pitching"
@@ -1355,8 +1356,9 @@ export function AuctionCenter({
       }
 
       const teamPace = myTeamEntries.reduce((sum, entry) => {
-        const player = allPlayers.find(
-          (a) => a.id === entry.externalPlayerId,
+        const player = findCatalogPlayerByExternalId(
+          allPlayers,
+          entry.externalPlayerId,
         );
         return player
           ? sum + getStatByCategory(player, cat.name, cat.type)
