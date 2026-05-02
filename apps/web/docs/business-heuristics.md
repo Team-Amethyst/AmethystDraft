@@ -16,6 +16,12 @@ Used for the Research **Players** / **Tiers** merged list before valuation merge
 
 ---
 
+## Research engine valuation map (`researchValuationRowMapFromEngine`)
+
+When the Research page loads `getValuation`, rows are indexed by `player_id`. Entries whose id is in the **custom player** set are dropped before merge, because the engine does not value custom entries the same way as catalog MLB ids.
+
+---
+
 ## Player table stat columns (`playerTableColumns.ts`)
 
 - Default batting / pitching column headers are fixed lists when the league defines **no** scoring categories of that type.

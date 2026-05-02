@@ -35,6 +35,7 @@ import {
   buildDraftedByTeamMap,
   buildKeeperContractByPlayerMap,
 } from "../domain/rosterMaps";
+import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
 import TiersView from "./TiersView";
 import { resolveUserTeamId } from "../utils/team";
 import {
@@ -197,11 +198,10 @@ export default function Research() {
       try {
         const userTeamId = resolveUserTeamId(league, user?.id);
         const res = await getValuation(leagueId, token, userTeamId);
-        const merged = new Map<string, ValuationShape>();
-        for (const row of res.valuations) {
-          if (customPlayerIds.has(row.player_id)) continue;
-          merged.set(row.player_id, row);
-        }
+        const merged = researchValuationRowMapFromEngine(
+          res.valuations,
+          customPlayerIds,
+        );
         if (!cancelled) setValuationsByPlayerId(merged);
       } catch {
         if (!cancelled) setValuationsByPlayerId(new Map());
