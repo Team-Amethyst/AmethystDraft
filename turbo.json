@@ -14,6 +14,7 @@
         "CORS_ORIGIN",
         "MONGO_URI",
         "JWT_SECRET",
+        "AMETHYST_API_BASE_URL",
         "AMETHYST_API_URL",
         "AMETHYST_API_KEY",
         "PLAYER_API_TEST_KEY",
