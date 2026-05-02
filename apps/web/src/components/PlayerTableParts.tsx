@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
+import {
+  TIER_BADGE_BACKGROUND,
+  TIER_BADGE_FALLBACK_BACKGROUND,
+} from "../constants/tierBadgeColors";
 import CustomPlayerHeadshot from "./CustomPlayerHeadshot";
-
-const TIER_COLORS: Record<number, string> = {
-  1: "#a855f7",
-  2: "#6366f1",
-  3: "#22c55e",
-  4: "#f59e0b",
-  5: "#6b7280",
-};
 
 export function TierBadge({ tier }: { tier: number }) {
   return (
     <span
       className="tier-badge"
-      style={{ background: TIER_COLORS[tier] ?? "#6b7280" }}
+      style={{
+        background:
+          TIER_BADGE_BACKGROUND[tier] ?? TIER_BADGE_FALLBACK_BACKGROUND,
+      }}
     >
       {tier}
     </span>
