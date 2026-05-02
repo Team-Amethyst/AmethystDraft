@@ -15,7 +15,7 @@
  *   management and cross-component coordination; all rendering is delegated.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
@@ -32,13 +32,7 @@ import {
 import { positionColorStyle } from "../constants/positionColors";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
-import { hasPitcherEligibility } from "../utils/eligibility";
-import {
-  mergePlayerWithValuation,
-  resolveValuationNumber,
-  type ValuationShape,
-  type ValuationSortField,
-} from "../utils/valuation";
+import { type ValuationShape, type ValuationSortField } from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
 import {
   readPositionTargetsFromStorage,
@@ -50,6 +44,7 @@ import {
   myDraftLeagueKey,
   saveJsonToStorage,
 } from "../utils/myDraftStateStorage";
+import { useMyDraftWatchlistDerived } from "../hooks/useMyDraftWatchlistDerived";
 import { playerFromWatchlistEntry } from "../domain/watchlistToPlayer";
 import "./MyDraft.css";
 
@@ -180,25 +175,14 @@ export default function MyDraft() {
     user?.id,
   ]);
 
-  const effectiveWatchlist = useMemo(
-    () => {
-      return watchlist.map((p) => {
-        const merged = mergePlayerWithValuation(
-          playerFromWatchlistEntry(p),
-          valuationsByPlayerId.get(p.id),
-        );
-        return {
-          ...p,
-          baseline_value: merged.baseline_value,
-          adjusted_value: merged.adjusted_value,
-          recommended_bid: merged.recommended_bid,
-          team_adjusted_value: merged.team_adjusted_value,
-        };
-      });
-    },
-    [watchlist, valuationsByPlayerId],
-  );
-
+  const { effectiveWatchlist, watchlistTargetTotal, filteredWatchlist } =
+    useMyDraftWatchlistDerived(
+      watchlist,
+      valuationsByPlayerId,
+      viewFilter,
+      targetOverrides,
+      valuationSortField,
+    );
 
   // ── Position target handlers ────────────────────────────────────────────────
 
@@ -292,35 +276,6 @@ export default function MyDraft() {
       void navigate(`/leagues/${leagueId}/command-center`);
     }
   }
-
-  // ── Derived data ────────────────────────────────────────────────────────────
-
-  const { watchlistTargetTotal, filteredWatchlist } = useMemo(() => {
-    let targetTotal = 0;
-    for (const player of effectiveWatchlist) {
-      targetTotal +=
-        targetOverrides[player.id] ??
-        Math.round(resolveValuationNumber(player, "team_adjusted_value"));
-    }
-
-    let filtered = [...effectiveWatchlist];
-    if (viewFilter === "hitters") {
-      filtered = filtered.filter(
-        (p) => !hasPitcherEligibility(p.positions, p.position || "UTIL"),
-      );
-    } else if (viewFilter === "pitchers") {
-      filtered = filtered.filter((p) =>
-        hasPitcherEligibility(p.positions, p.position || "UTIL"),
-      );
-    }
-    filtered.sort(
-      (a, b) =>
-        resolveValuationNumber(b, valuationSortField) -
-        resolveValuationNumber(a, valuationSortField),
-    );
-
-    return { watchlistTargetTotal: targetTotal, filteredWatchlist: filtered };
-  }, [effectiveWatchlist, viewFilter, targetOverrides, valuationSortField]);
 
   const positionBudgetTotal = Object.values(positionTargets).reduce(
     (a, b) => a + b,
