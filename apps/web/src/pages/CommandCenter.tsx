@@ -16,21 +16,7 @@ import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import { resolveUserTeamId } from "../utils/team";
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
 import { useCommandCenterData } from "./useCommandCenterData";
-
-/** Default 5×5-style cats when league has no custom scoring list (same as right-rail standings). */
-export const COMMAND_CENTER_FALLBACK_SCORING_CATS: {
-  name: string;
-  type: "batting" | "pitching";
-}[] = [
-  { name: "HR", type: "batting" },
-  { name: "RBI", type: "batting" },
-  { name: "SB", type: "batting" },
-  { name: "AVG", type: "batting" },
-  { name: "W", type: "pitching" },
-  { name: "SV", type: "pitching" },
-  { name: "ERA", type: "pitching" },
-  { name: "WHIP", type: "pitching" },
-];
+import { COMMAND_CENTER_FALLBACK_SCORING_CATS } from "../constants/commandCenterFallbacks";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main page
@@ -203,11 +189,11 @@ export default function CommandCenter() {
           fallbackScoringCategories={COMMAND_CENTER_FALLBACK_SCORING_CATS}
         />
       </div>
-  
+
       {toast && (
         <div className={`cc-toast cc-toast-${toast.type}`}>{toast.message}</div>
       )}
-  
+
       <AddPlayerModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
