@@ -52,3 +52,14 @@ The **Engine admin / portal UI** is **not** the rubric for how **AmethystDraft**
 ## Architecture reminder
 
 Browser **must not** call Engine with `x-api-key` or embed Engine origins for valuation. All Engine traffic goes **server-side** through `apps/api` (BFF). See `.env.example` in `apps/api` for `AMETHYST_API_BASE_URL` and `AMETHYST_API_KEY` (server-only; never `VITE_*` or web public env).
+
+## Mediation audit (AmethystDraft repo)
+
+Run from the **repository root** after changes that touch the web client or env. Expect **no matches** in `apps/web` (except this doc if you copy the patterns literally):
+
+```bash
+rg -n 'valuation/calculate|x-api-key|AMETHYST_API_KEY|amethystapi\.com|Team-Amethyst/AmethystAPI' apps/web \
+  --glob '!**/node_modules/**'
+```
+
+Engine paths like `/valuation/calculate` belong in **`apps/api`** only. The SPA should call **`/api/engine/...`** on your Draftroom API host (`VITE_API_URL`).

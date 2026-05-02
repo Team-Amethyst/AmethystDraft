@@ -1,3 +1,12 @@
+# Draftroom web (`apps/web`)
+
+Vite + React SPA for **AmethystDraft**. The browser talks only to the **Draftroom API** (`VITE_API_URL`); Engine keys and Engine HTTP origins stay in **`apps/api`**.
+
+- **Local env:** copy [`.env.example`](.env.example) to `.env.local` and set `VITE_API_URL` to your API (e.g. `http://localhost:3000` or `http://localhost:3002`).
+- **Valuation ladder / copy:** see repo root [`docs/engine-valuation-ui.md`](../docs/engine-valuation-ui.md).
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
