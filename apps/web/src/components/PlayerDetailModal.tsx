@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { type StatBasis, statBasisFooterDescription } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import {
+  auctionDecisionSignalFromPlayer,
+  auctionTargetBidDollars,
+} from "../domain/auctionBidDecision";
+import {
   formatCurrencyWhole,
   formatMaybeDelta,
   playerValuationEdgeOrDiff,
@@ -28,10 +32,6 @@ function valueOrDash(value: unknown): string {
   return String(value);
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
 export default function PlayerDetailModal({
   isOpen,
   player,
@@ -54,22 +54,21 @@ export default function PlayerDetailModal({
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
   const valuationDiff = playerValuationEdgeOrDiff(player);
-  const likelyBid = isFiniteNumber(player.recommended_bid) ? player.recommended_bid : null;
-  const yourValue = isFiniteNumber(player.team_adjusted_value) ? player.team_adjusted_value : null;
-  const marketValue = isFiniteNumber(player.adjusted_value) ? player.adjusted_value : null;
-  const targetBid = likelyBid ?? yourValue ?? marketValue;
-  const decisionSignal =
-    valuationDiff == null
-      ? "Neutral"
-      : valuationDiff >= 7
-        ? "Aggressive target"
-        : valuationDiff >= 2
-          ? "Slight value"
-          : valuationDiff <= -7
-            ? "Likely overpay"
-            : valuationDiff <= -2
-              ? "Price sensitive"
-              : "Neutral";
+  const likelyBid =
+    typeof player.recommended_bid === "number" && Number.isFinite(player.recommended_bid)
+      ? player.recommended_bid
+      : null;
+  const yourValue =
+    typeof player.team_adjusted_value === "number" &&
+    Number.isFinite(player.team_adjusted_value)
+      ? player.team_adjusted_value
+      : null;
+  const marketValue =
+    typeof player.adjusted_value === "number" && Number.isFinite(player.adjusted_value)
+      ? player.adjusted_value
+      : null;
+  const targetBid = auctionTargetBidDollars(player);
+  const decisionSignal = auctionDecisionSignalFromPlayer(player);
   const [noteDraft, setNoteDraft] = useState(note ?? "");
 
   useEffect(() => {

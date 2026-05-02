@@ -15,6 +15,11 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
 import "./PlayerTable.css";
 import {
+  catalogPlayerIdInStringSet,
+  hasRosterMapEntryForCatalogPlayer,
+  lookupRosterMapForCatalogPlayer,
+} from "../domain/catalogPlayerKeys";
+import {
   formatCurrencyWhole,
   formatMaybeDelta,
   playerValuationEdgeOrDiff,
@@ -399,9 +404,13 @@ export default function PlayerTable({
       ? players.filter((p) => isInWatchlist(p.id))
       : players;
     if (availabilityFilter === "available")
-      base = base.filter((p) => !draftedIds?.has(p.id));
+      base = base.filter(
+        (p) => !draftedIds || !catalogPlayerIdInStringSet(draftedIds, p),
+      );
     else if (availabilityFilter === "drafted")
-      base = base.filter((p) => draftedIds?.has(p.id));
+      base = base.filter(
+        (p) => !!draftedIds && catalogPlayerIdInStringSet(draftedIds, p),
+      );
     if (injuryFilter === "healthy") base = base.filter((p) => !p.injuryStatus);
     else if (injuryFilter === "injured")
       base = base.filter((p) => !!p.injuryStatus);
@@ -747,6 +756,12 @@ export default function PlayerTable({
                 const eng = engineCatalogByPlayerId?.get(player.id);
                 const primaryValue = asFinite(player.recommended_bid);
                 const secondaryValue = asFinite(player.team_adjusted_value);
+                const draftedTeamName = draftedByTeam
+                  ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
+                  : undefined;
+                const draftedContractLabel = draftedContractByPlayerId
+                  ? lookupRosterMapForCatalogPlayer(draftedContractByPlayerId, player)
+                  : undefined;
 
                 return (
                   <tr
@@ -754,7 +769,9 @@ export default function PlayerTable({
                     className={
                       "pt-row" +
                       (isStarred ? " pt-row--starred" : "") +
-                      (draftedIds?.has(player.id) ? " pt-row--drafted" : "") +
+                      (draftedIds && catalogPlayerIdInStringSet(draftedIds, player)
+                        ? " pt-row--drafted"
+                        : "") +
                       (onPlayerClick ? " pt-row--clickable" : "")
                     }
                     onClick={
@@ -803,22 +820,25 @@ export default function PlayerTable({
                             <span className="custom-badge">Custom</span>
                           )}
                           {(tags.length > 0 ||
-                            draftedByTeam?.has(player.id) ||
-                            draftedContractByPlayerId?.has(player.id)) && (
+                            hasRosterMapEntryForCatalogPlayer(draftedByTeam, player) ||
+                            hasRosterMapEntryForCatalogPlayer(
+                              draftedContractByPlayerId,
+                              player,
+                            )) && (
                             <div className="tag-list">
                               {tags.map((t) => (
                                 <span key={t} className="tag">
                                   {t}
                                 </span>
                               ))}
-                              {draftedByTeam?.get(player.id) && (
+                              {draftedTeamName && (
                                 <span className="tag pt-drafted-tag">
-                                  ▶ {draftedByTeam.get(player.id)}
+                                  ▶ {draftedTeamName}
                                 </span>
                               )}
-                              {draftedContractByPlayerId?.get(player.id) && (
+                              {draftedContractLabel && (
                                 <span className="tag pt-drafted-contract-tag">
-                                  {draftedContractByPlayerId.get(player.id)}
+                                  {draftedContractLabel}
                                 </span>
                               )}
                             </div>

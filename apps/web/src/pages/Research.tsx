@@ -32,6 +32,10 @@ import {
   mergeCatalogPlayersWithValuations,
   type ValuationShape,
 } from "../utils/valuation";
+import {
+  findCatalogPlayerByExternalId,
+  lookupRosterMapForCatalogPlayer,
+} from "../domain/catalogPlayerKeys";
 import TiersView from "./TiersView";
 import { resolveUserTeamId } from "../utils/team";
 import {
@@ -330,31 +334,8 @@ export default function Research() {
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
-  const getDraftedByTeamForPlayer = useCallback(
-    (player: Player | null): string | undefined => {
-      if (!player) return undefined;
-      return (
-        draftedByTeam.get(player.id) ?? draftedByTeam.get(String(player.mlbId))
-      );
-    },
-    [draftedByTeam],
-  );
-
-  const getDraftedContractForPlayer = useCallback(
-    (player: Player | null): string | undefined => {
-      if (!player) return undefined;
-      return (
-        draftedContractByPlayerId.get(player.id) ??
-        draftedContractByPlayerId.get(String(player.mlbId))
-      );
-    },
-    [draftedContractByPlayerId],
-  );
-
   const resolveDepthPlayer = useCallback(async (slot: DepthChartPlayerRow): Promise<Player | null> => {
-    const fromLoaded = allPlayers.find(
-      (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
-    );
+    const fromLoaded = findCatalogPlayerByExternalId(allPlayers, slot.playerId);
     if (fromLoaded) return fromLoaded;
 
     const playersFromApi = await getPlayers(
@@ -364,11 +345,7 @@ export default function Research() {
     );
     setPlayers(playersFromApi);
 
-    return (
-      playersFromApi.find(
-        (player) => player.mlbId === slot.playerId || player.id === String(slot.playerId),
-      ) ?? null
-    );
+    return findCatalogPlayerByExternalId(playersFromApi, slot.playerId) ?? null;
   }, [allPlayers, league?.playerPool, league?.posEligibilityThreshold]);
 
   const handleDepthPlayerClick = useCallback(async (slot: DepthChartPlayerRow) => {
@@ -706,8 +683,19 @@ export default function Research() {
         isOpen={selectedModalPlayer !== null}
         player={selectedModalPlayer}
         statBasis={statBasis}
-        draftedByTeam={getDraftedByTeamForPlayer(selectedModalPlayer)}
-        draftedContract={getDraftedContractForPlayer(selectedModalPlayer)}
+        draftedByTeam={
+          selectedModalPlayer
+            ? lookupRosterMapForCatalogPlayer(draftedByTeam, selectedModalPlayer)
+            : undefined
+        }
+        draftedContract={
+          selectedModalPlayer
+            ? lookupRosterMapForCatalogPlayer(
+                draftedContractByPlayerId,
+                selectedModalPlayer,
+              )
+            : undefined
+        }
         note={selectedModalPlayer ? getNote(selectedModalPlayer.id) : ""}
         onNoteChange={setNote}
         isCustomPlayer={
