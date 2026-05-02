@@ -49,6 +49,12 @@ When the league record has no roster slots or budget, the mock draft UI uses `MO
 
 ---
 
+## Mock draft persistence (`mockDraftPersistence.ts`)
+
+In-progress mock draft state is saved under `mockDraftStorageKey(leagueId)` (prefix `amethyst-mock-draft-`). Setup and complete phases are not written; on complete the key is removed. If you change the key format or schema, consider a one-time migration or version field in the JSON.
+
+---
+
 ## Watchlist → catalog `Player` stub (`playerFromWatchlistEntry`)
 
 My Draft merges watchlist API rows with engine valuations via `mergePlayerWithValuation`. Watchlist entries do not carry full catalog fields (`mlbId`, `headshot`, `stats`, etc.), so the adapter fills **zeros / empty strings / empty objects** for those. Do not use this shape for features that assume a real catalog row (e.g. deep stats or projections).

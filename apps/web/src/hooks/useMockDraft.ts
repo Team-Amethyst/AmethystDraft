@@ -15,6 +15,16 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Player } from "../types/player";
 import {
+  initialMockDraftState,
+  type DraftLogEntry,
+  type MockDraftState,
+} from "../domain/mockDraftState";
+import {
+  clearMockDraftState,
+  loadMockDraftState,
+  saveMockDraftState,
+} from "../utils/mockDraftPersistence";
+import {
   type AIRoster,
   type AIPick,
   aiMaxBid,
@@ -24,99 +34,13 @@ import {
   openSlots,
 } from "../utils/mockDraftAI";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface DraftLogEntry {
-  pickNum: number;
-  player: Player;
-  teamName: string;
-  price: number;
-  slot: string;
-}
-
-export type DraftPhase =
-  | "setup"
-  | "nomination"
-  | "bidding"
-  | "user-confirm"
-  | "sold"
-  | "complete";
-
-export interface MockDraftState {
-  phase: DraftPhase;
-  rosters: AIRoster[];
-  undraftedPlayers: Player[];
-  snakeOrder: number[];
-  currentOrderIdx: number;
-  nominatedPlayer: Player | null;
-  currentBid: number;
-  currentBidder: string;
-  userBid: number;
-  log: DraftLogEntry[];
-  suggestion: { player: Player; reason: string } | null;
-  // AI bid queue: teams yet to bid in the current bidding round
-  pendingAIBids: string[];
-  // Whether we're in a "re-bid" round triggered by user keeping bidding
-  isRebidRound: boolean;
-  message: string;
-}
+export type { DraftLogEntry, DraftPhase, MockDraftState } from "../domain/mockDraftState";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AI_BID_DELAY_MS   = 850;
 const SOLD_DELAY_MS     = 1600;
 const NOMINATE_DELAY_MS = 1100;
-
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
-function storageKey(leagueId: string) {
-  return `amethyst-mock-draft-${leagueId}`;
-}
-
-function saveState(leagueId: string, state: MockDraftState) {
-  if (!leagueId) return;
-  try {
-    localStorage.setItem(storageKey(leagueId), JSON.stringify(state));
-  } catch {
-    // storage full — non-fatal
-  }
-}
-
-function loadState(leagueId: string): MockDraftState | null {
-  if (!leagueId) return null;
-  try {
-    const raw = localStorage.getItem(storageKey(leagueId));
-    return raw ? (JSON.parse(raw) as MockDraftState) : null;
-  } catch {
-    return null;
-  }
-}
-
-function clearState(leagueId: string) {
-  if (!leagueId) return;
-  try {
-    localStorage.removeItem(storageKey(leagueId));
-  } catch { /* noop */ }
-}
-
-// ─── Initial state ────────────────────────────────────────────────────────────
-
-const INITIAL_STATE: MockDraftState = {
-  phase: "setup",
-  rosters: [],
-  undraftedPlayers: [],
-  snakeOrder: [],
-  currentOrderIdx: 0,
-  nominatedPlayer: null,
-  currentBid: 0,
-  currentBidder: "",
-  userBid: 1,
-  log: [],
-  suggestion: null,
-  pendingAIBids: [],
-  isRebidRound: false,
-  message: "",
-};
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -133,7 +57,7 @@ export function useMockDraft(
 
   // Load saved state for this league, fall back to setup
   const [state, setState] = useState<MockDraftState>(() => {
-    const saved = loadState(leagueId);
+    const saved = loadMockDraftState(leagueId);
     // Only restore if the draft was in progress (not setup/complete)
     if (saved && saved.phase !== "setup" && saved.phase !== "complete") {
       // Reset any mid-flight async state so timers don't fire stale
@@ -147,7 +71,7 @@ export function useMockDraft(
         message: "Draft restored — continuing from where you left off.",
       };
     }
-    return INITIAL_STATE;
+    return initialMockDraftState;
   });
 
   const stateRef = useRef(state);
@@ -156,7 +80,7 @@ export function useMockDraft(
   // Persist state whenever it changes (skip setup/complete — no need to save)
   useEffect(() => {
     if (state.phase !== "setup" && state.phase !== "complete") {
-      saveState(leagueId, state);
+      saveMockDraftState(leagueId, state);
     }
   }, [state, leagueId]);
 
@@ -186,7 +110,7 @@ export function useMockDraft(
     );
 
     const newState: MockDraftState = {
-      ...INITIAL_STATE,
+      ...initialMockDraftState,
       phase: "nomination",
       rosters,
       undraftedPlayers,
@@ -197,14 +121,14 @@ export function useMockDraft(
     };
 
     setState(newState);
-    saveState(leagueId, newState);
+    saveMockDraftState(leagueId, newState);
   }, [teamNames, budget, numRounds, allPlayers, leagueId]);
 
   // ── Reset draft ───────────────────────────────────────────────────────────────
 
   const resetDraft = useCallback(() => {
-    clearState(leagueId);
-    setState(INITIAL_STATE);
+    clearMockDraftState(leagueId);
+    setState(initialMockDraftState);
   }, [leagueId]);
 
   // ── Nominate a player ─────────────────────────────────────────────────────────
@@ -341,8 +265,8 @@ export function useMockDraft(
     };
 
     setState(newState);
-    if (isDone) clearState(leagueId);
-    else saveState(leagueId, newState);
+    if (isDone) clearMockDraftState(leagueId);
+    else saveMockDraftState(leagueId, newState);
   }, [rosterSlots, leagueId]);
 
   // ── Confirm sell ──────────────────────────────────────────────────────────────
@@ -481,6 +405,6 @@ export function useMockDraft(
     confirmSell,
     currentTeamIdx: currentTeamIdx(state),
     isUserTurn: currentTeam(state)?.isUser ?? false,
-    hasSavedDraft: loadState(leagueId) !== null,
+    hasSavedDraft: loadMockDraftState(leagueId) !== null,
   };
 }
