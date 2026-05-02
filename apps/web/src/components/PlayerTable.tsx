@@ -23,6 +23,7 @@ import {
 } from "../domain/playerTableColumns";
 import { sortPlayerTableRows } from "../domain/playerTableSort";
 import { playerTableRowsMatchingTagFilter } from "../domain/playerTableTagFilter";
+import { PLAYER_TABLE_STORAGE_KEYS } from "../constants/playerTableStorage";
 import { PlayerTableControls } from "./PlayerTableControls";
 import {
   asFinite,
@@ -85,7 +86,7 @@ export default function PlayerTable({
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("amethyst-pt-starred") === "true";
+      return localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.starred) === "true";
     } catch {
       return false;
     }
@@ -95,7 +96,7 @@ export default function PlayerTable({
   >(() => {
     try {
       return (
-        (localStorage.getItem("amethyst-pt-injury") as
+        (localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.injury) as
           | "all"
           | "healthy"
           | "injured") ?? "all"
@@ -109,7 +110,7 @@ export default function PlayerTable({
   >(() => {
     try {
       return (
-        (localStorage.getItem("amethyst-pt-availability") as
+        (localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.availability) as
           | "all"
           | "available"
           | "drafted") ?? "all"
@@ -120,7 +121,7 @@ export default function PlayerTable({
   });
   const [selectedTags, setSelectedTags] = useState<Set<string>>(() => {
     try {
-      const s = localStorage.getItem("amethyst-pt-tags");
+      const s = localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.tags);
       return s ? new Set(JSON.parse(s) as string[]) : new Set();
     } catch {
       return new Set();
@@ -130,7 +131,7 @@ export default function PlayerTable({
     () => {
       try {
         return (
-          (localStorage.getItem("amethyst-pt-statview") as
+          (localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.statView) as
             | "all"
             | "hitting"
             | "pitching") ?? "all"
@@ -147,7 +148,7 @@ export default function PlayerTable({
     dir: "asc" | "desc";
   }>(() => {
     try {
-      const s = localStorage.getItem("amethyst-pt-sort");
+      const s = localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.sort);
       return s
         ? (JSON.parse(s) as { col: string; dir: "asc" | "desc" })
         : { col: "adp", dir: "asc" };
@@ -159,21 +160,27 @@ export default function PlayerTable({
 
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-pt-starred", String(starredOnly));
+      localStorage.setItem(
+        PLAYER_TABLE_STORAGE_KEYS.starred,
+        String(starredOnly),
+      );
     } catch {
       /* noop */
     }
   }, [starredOnly]);
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-pt-injury", injuryFilter);
+      localStorage.setItem(PLAYER_TABLE_STORAGE_KEYS.injury, injuryFilter);
     } catch {
       /* noop */
     }
   }, [injuryFilter]);
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-pt-availability", availabilityFilter);
+      localStorage.setItem(
+        PLAYER_TABLE_STORAGE_KEYS.availability,
+        availabilityFilter,
+      );
     } catch {
       /* noop */
     }
@@ -181,7 +188,7 @@ export default function PlayerTable({
   useEffect(() => {
     try {
       localStorage.setItem(
-        "amethyst-pt-tags",
+        PLAYER_TABLE_STORAGE_KEYS.tags,
         JSON.stringify([...selectedTags]),
       );
     } catch {
@@ -190,14 +197,17 @@ export default function PlayerTable({
   }, [selectedTags]);
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-pt-sort", JSON.stringify(clientSort));
+      localStorage.setItem(
+        PLAYER_TABLE_STORAGE_KEYS.sort,
+        JSON.stringify(clientSort),
+      );
     } catch {
       /* noop */
     }
   }, [clientSort]);
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-pt-statview", statView);
+      localStorage.setItem(PLAYER_TABLE_STORAGE_KEYS.statView, statView);
     } catch {
       /* noop */
     }
