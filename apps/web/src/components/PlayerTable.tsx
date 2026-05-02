@@ -37,6 +37,7 @@ import {
   formatMaybeDelta,
   playerValuationEdgeOrDiff,
   valuationSortLabel,
+  valuationTooltip,
   type ValuationSortField,
 } from "../utils/valuation";
 
@@ -435,15 +436,17 @@ export default function PlayerTable({
               <th
                 className="th-value th-sortable"
                 onClick={() => handleColSort("value")}
-                title="General auction guidance based on player strength and market conditions."
+                title={valuationTooltip("recommended_bid")}
               >
-                Likely Bid <SortArrow col="value" sort={clientSort} />
+                {valuationSortLabel("recommended_bid")}{" "}
+                <SortArrow col="value" sort={clientSort} />
               </th>
               <th
                 className="th-valdiff th-sortable"
                 onClick={() => handleColSort("valdiff")}
+                title="Engine edge when present; else your roster $ minus suggested bid."
               >
-                Val Diff <SortArrow col="valdiff" sort={clientSort} />
+                Edge <SortArrow col="valdiff" sort={clientSort} />
               </th>
               {focusedCols
                 ? focusedCols.map((col, i) => (
@@ -613,7 +616,7 @@ export default function PlayerTable({
                     <td className="td-value">
                       <span
                         className="value-chip"
-                        title="General auction guidance based on player strength and market conditions."
+                        title={valuationTooltip("recommended_bid")}
                       >
                         {formatCurrencyWhole(primaryValue)}
                       </span>
@@ -624,7 +627,7 @@ export default function PlayerTable({
                           lineHeight: 1.1,
                           marginTop: "1px",
                         }}
-                        title="Personalized value based on your roster needs and budget."
+                        title={valuationTooltip("team_adjusted_value")}
                       >
                         {valuationSortLabel("team_adjusted_value")}:{" "}
                         {formatCurrencyWhole(secondaryValue)}

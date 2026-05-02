@@ -13,7 +13,6 @@
 import type { WatchlistPlayer } from "../../api/watchlist";
 import { watchlistPrimaryPositionToken } from "../../domain/watchlistDisplayPosition";
 import {
-  formatDollar,
   resolveValuationNumber,
   valuationSortLabel,
   valuationTooltip,
@@ -94,10 +93,18 @@ export default function WatchlistTable({
             }
             title="Sort watchlist by valuation signal"
           >
-            <option value="team_adjusted_value">Your Value</option>
-            <option value="recommended_bid">Likely Bid</option>
-            <option value="adjusted_value">Market Value</option>
-            <option value="baseline_value">Player Strength</option>
+            <option value="team_adjusted_value">
+              {valuationSortLabel("team_adjusted_value")}
+            </option>
+            <option value="recommended_bid">
+              {valuationSortLabel("recommended_bid")}
+            </option>
+            <option value="adjusted_value">
+              {valuationSortLabel("adjusted_value")}
+            </option>
+            <option value="baseline_value">
+              {valuationSortLabel("baseline_value")}
+            </option>
           </select>
         </div>
       </div>
@@ -109,13 +116,7 @@ export default function WatchlistTable({
               <th>Player</th>
               <th>Pos</th>
               <th title={valuationTooltip(valuationSortField)}>
-                {valuationSortField === "team_adjusted_value"
-                  ? "Your Value"
-                  : valuationSortField === "recommended_bid"
-                    ? "Likely Bid"
-                    : valuationSortField === "adjusted_value"
-                      ? "Market Value"
-                      : "Player Strength"}
+                {valuationSortLabel(valuationSortField)}
               </th>
               <th>Target $</th>
               <th>Priority</th>

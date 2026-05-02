@@ -54,10 +54,6 @@ export default function PlayerDetailModal({
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
   const valuationDiff = playerValuationEdgeOrDiff(player);
-  const likelyBid =
-    typeof player.recommended_bid === "number" && Number.isFinite(player.recommended_bid)
-      ? player.recommended_bid
-      : null;
   const yourValue =
     typeof player.team_adjusted_value === "number" &&
     Number.isFinite(player.team_adjusted_value)
@@ -141,14 +137,22 @@ export default function PlayerDetailModal({
           <section className="pdm-card cc-surface-inset pdm-card--decision">
             <h3>Bid decision</h3>
             <div className="pdm-decision-signal">{decisionSignal}</div>
-            <dl>
-              <dt>Target Bid</dt>
+            <dl className="pdm-valuation-dl">
+              <dt title="Engine recommended_bid when present; else falls back along the ladder.">
+                Suggested bid
+              </dt>
               <dd>{formatCurrencyWhole(targetBid)}</dd>
-              <dt>Your Value</dt>
+              <dt title="Engine team_adjusted_value — dollars for your roster.">
+                Your roster $
+              </dt>
               <dd>{formatCurrencyWhole(yourValue)}</dd>
-              <dt>Market</dt>
+              <dt title="Engine adjusted_value — league-wide draft-context dollars.">
+                League context $
+              </dt>
               <dd>{formatCurrencyWhole(marketValue)}</dd>
-              <dt>Value Diff</dt>
+              <dt title="Engine edge when present; else your roster $ minus suggested bid.">
+                Edge
+              </dt>
               <dd>{formatMaybeDelta(valuationDiff)}</dd>
             </dl>
             {player.outlook?.trim() ? (
@@ -221,10 +225,29 @@ export default function PlayerDetailModal({
             />
           </section>
 
-          {(player.why?.length || player.market_notes?.length) && (
+          {(player.why?.length ||
+            player.market_notes?.length ||
+            player.explain_v2) && (
             <section className="pdm-card cc-surface-inset pdm-card--wide pdm-card--details">
               <details className="pdm-model-details">
                 <summary className="pdm-model-summary">Model notes</summary>
+                {player.explain_v2 ? (
+                  <div className="pdm-note-block">
+                    <h4>Valuation detail (explain_v2)</h4>
+                    <p className="pdm-explain-meta">
+                      Indicator {player.explain_v2.indicator} · confidence{" "}
+                      {Math.round(player.explain_v2.confidence * 100)}%
+                    </p>
+                    <ul className="pdm-explain-drivers">
+                      {player.explain_v2.drivers.slice(0, 6).map((d) => (
+                        <li key={d.label + d.reason}>
+                          <strong>{d.label}</strong> ({d.impact >= 0 ? "+" : ""}
+                          {d.impact}): {d.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {player.why?.length ? (
                   <div className="pdm-note-block">
                     <h4>Why</h4>

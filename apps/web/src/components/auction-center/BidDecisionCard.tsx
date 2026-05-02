@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
-import { formatDollar } from "../../utils/valuation";
+import { formatDollar, valuationSortLabel, valuationTooltip } from "../../utils/valuation";
 import {
   cleanedYourValueAndRecommendedBid,
   engineFiniteOrNull,
@@ -111,11 +111,11 @@ export function BidDecisionCard({
         <div className="bdc-metric-row">
           <div
             className="bdc-metric-grid bdc-metric-grid--focus3 bdc-metric-grid--focus-boxes"
-            aria-label="Market price, your value, draftroom value, and base value"
+            aria-label="Suggested bid, your roster dollars, league context dollars, player strength"
           >
             <AuctionMetricTile
-              label="Market Price"
-              title="Engine recommended_bid (expected auction clearing price)"
+              label={valuationSortLabel("recommended_bid")}
+              title={valuationTooltip("recommended_bid")}
               value={
                 recommendedBidDisplay != null ? (
                   <span
@@ -133,8 +133,8 @@ export function BidDecisionCard({
               }
             />
             <AuctionMetricTile
-              label="Your Value"
-              title="team_adjusted_value — intrinsic value for your roster (same finite cleanup as edge)"
+              label={valuationSortLabel("team_adjusted_value")}
+              title={valuationTooltip("team_adjusted_value")}
               value={
                 <span className="bdc-focus-value">
                   {fmtMoney(displayYour)}
@@ -142,8 +142,8 @@ export function BidDecisionCard({
               }
             />
             <AuctionMetricTile
-              label="Draftroom Value"
-              title="adjusted_value — league-wide value in the current draft context"
+              label={valuationSortLabel("adjusted_value")}
+              title={valuationTooltip("adjusted_value")}
               value={
                 <span className="bdc-focus-value">
                   {fmtMoney(displayDraftroomValue)}
@@ -151,8 +151,8 @@ export function BidDecisionCard({
               }
             />
             <AuctionMetricTile
-              label="Base Value"
-              title="baseline_value — neutral baseline projection before roster/context adjustments"
+              label={valuationSortLabel("baseline_value")}
+              title={valuationTooltip("baseline_value")}
               value={
                 <span className="bdc-focus-value">{fmtMoney(displayBaseValue)}</span>
               }

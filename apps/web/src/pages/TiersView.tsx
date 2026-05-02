@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { Player } from "../types/player";
 import "./TiersView.css";
 import { groupPlayersByTier, calculateTierStats, sortPlayersByValue, formatCurrency } from "../utils/tiers";
+import { valuationSortLabel } from "../utils/valuation";
 
 type Props = {
   players: Player[];
@@ -98,8 +99,12 @@ export default function TiersView({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             >
-              <option value="recommended_bid">Likely Bid</option>
-              <option value="team_adjusted_value">Your Value</option>
+              <option value="recommended_bid">
+                {valuationSortLabel("recommended_bid")}
+              </option>
+              <option value="team_adjusted_value">
+                {valuationSortLabel("team_adjusted_value")}
+              </option>
             </select>
           </div>
         </div>
