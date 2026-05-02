@@ -23,8 +23,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
-import type { WatchlistPlayer } from "../api/watchlist";
-import type { Player } from "../types/player";
 import { getValuation } from "../api/engine";
 import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets from "../components/MyDraft/PositionTargets";
@@ -51,6 +49,7 @@ import {
   myDraftLeagueKey,
   saveJsonToStorage,
 } from "../utils/myDraftStateStorage";
+import { playerFromWatchlistEntry } from "../domain/watchlistToPlayer";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,29 +71,6 @@ const POS_COLORS: Record<string, string> = {
 
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";
-
-function watchlistToPlayer(p: WatchlistPlayer): Player {
-  return {
-    id: p.id,
-    mlbId: 0,
-    name: p.name,
-    team: p.team,
-    position: p.position,
-    positions: p.positions,
-    age: 0,
-    adp: p.adp,
-    value: p.value,
-    tier: p.tier,
-    baseline_value: p.baseline_value,
-    adjusted_value: p.adjusted_value,
-    recommended_bid: p.recommended_bid,
-    team_adjusted_value: p.team_adjusted_value,
-    headshot: "",
-    outlook: "",
-    stats: {},
-    projection: {},
-  };
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -220,7 +196,7 @@ export default function MyDraft() {
     () => {
       return watchlist.map((p) => {
         const merged = mergePlayerWithValuation(
-          watchlistToPlayer(p),
+          playerFromWatchlistEntry(p),
           valuationsByPlayerId.get(p.id),
         );
         return {
@@ -324,7 +300,7 @@ export default function MyDraft() {
   function handleWatchlistRowClick(playerId: string) {
     const player = effectiveWatchlist.find((p) => p.id === playerId);
     if (player) {
-      setSelectedPlayer(watchlistToPlayer(player));
+      setSelectedPlayer(playerFromWatchlistEntry(player));
       void navigate(`/leagues/${leagueId}/command-center`);
     }
   }

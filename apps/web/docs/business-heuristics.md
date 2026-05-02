@@ -49,6 +49,12 @@ When the league record has no roster slots or budget, the mock draft UI uses `MO
 
 ---
 
+## Watchlist → catalog `Player` stub (`playerFromWatchlistEntry`)
+
+My Draft merges watchlist API rows with engine valuations via `mergePlayerWithValuation`. Watchlist entries do not carry full catalog fields (`mlbId`, `headshot`, `stats`, etc.), so the adapter fills **zeros / empty strings / empty objects** for those. Do not use this shape for features that assume a real catalog row (e.g. deep stats or projections).
+
+---
+
 ## Auction Center: value vs. bid “verdict” (`verdictFromValueMinusBid`)
 
 Used for the identity badge tone (positive / negative / muted) and bid-decision card styling. It is based on **rounded dollars**: `round(your_value − recommended_bid)`.
