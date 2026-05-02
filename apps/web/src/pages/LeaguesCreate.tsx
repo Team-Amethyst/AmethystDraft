@@ -33,16 +33,11 @@ import {
   poolFormToApi,
   toLeagueFormPlayer,
 } from "../features/leagues/shared";
+import {
+  LEAGUE_CREATE_STEP_LABELS,
+  type LeagueCreateStep,
+} from "../features/leagues/createFlow";
 import "./LeaguesCreate.css";
-
-type Step = 1 | 2 | 3 | 4;
-
-const stepLabels: Record<Step, string> = {
-  1: "League Setup",
-  2: "Scoring",
-  3: "Team Names",
-  4: "Keepers",
-};
 
 export default function LeagueCreate() {
   usePageTitle("Create League");
@@ -50,7 +45,7 @@ export default function LeagueCreate() {
   const { token } = useAuth();
   const { refreshLeagues } = useLeague();
 
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<LeagueCreateStep>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
@@ -128,12 +123,12 @@ export default function LeagueCreate() {
       navigate("/leagues");
       return;
     }
-    setStep((prev) => (prev - 1) as Step);
+    setStep((prev) => (prev - 1) as LeagueCreateStep);
   };
 
   const goNext = async () => {
     if (step < 4) {
-      setStep((prev) => (prev + 1) as Step);
+      setStep((prev) => (prev + 1) as LeagueCreateStep);
       return;
     }
 
@@ -233,7 +228,7 @@ export default function LeagueCreate() {
               </div>
             ))}
           </div>
-          <div className="league-create-step-label">{stepLabels[step]}</div>
+          <div className="league-create-step-label">{LEAGUE_CREATE_STEP_LABELS[step]}</div>
         </div>
 
         <section className="league-create-card">
@@ -246,7 +241,7 @@ export default function LeagueCreate() {
           {step === 1 && (
             <>
               <LeagueCreateStepHeader
-                title={stepLabels[1]}
+                title={LEAGUE_CREATE_STEP_LABELS[1]}
                 lead="Configure league structure, player pool, and roster slots for your new league."
               />
 
@@ -348,7 +343,7 @@ export default function LeagueCreate() {
           {step === 2 && (
             <>
               <LeagueCreateStepHeader
-                title={stepLabels[2]}
+                title={LEAGUE_CREATE_STEP_LABELS[2]}
                 lead="Select the individual stats for your Rotisserie league scoring."
               />
 
@@ -405,7 +400,7 @@ export default function LeagueCreate() {
           {step === 3 && (
             <>
               <LeagueCreateStepHeader
-                title={stepLabels[3]}
+                title={LEAGUE_CREATE_STEP_LABELS[3]}
                 lead={`Name all ${teams} teams in your league.`}
               />
 
@@ -486,7 +481,7 @@ export default function LeagueCreate() {
                 <>
                   <LeagueCreateStepHeader
                     variant="keepers"
-                    title={stepLabels[4]}
+                    title={LEAGUE_CREATE_STEP_LABELS[4]}
                     lead="Pick a team tab, then add keepers from the list and edit the roster on the right."
                   />
 
