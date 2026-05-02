@@ -1,6 +1,8 @@
 import type { Player } from "../types/player";
 import { playerValuationEdgeOrDiff } from "../utils/valuation";
 
+/** Heuristic thresholds for research / roster UI; see `docs/business-heuristics.md`. */
+
 /** Dollar thresholds on value diff (your value vs likely bid, or engine edge). */
 export const AUCTION_VALUE_DIFF_THRESHOLDS = {
   /** At or above: show strong “value” signal */
