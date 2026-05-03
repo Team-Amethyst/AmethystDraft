@@ -17,8 +17,7 @@ export default function HeroSection(): JSX.Element {
         </h1>
         <p className="hero-subtitle">
           Amethyst gives you real-time budget intelligence, market-adjusted
-          valuations, and AI-powered draft preparation — all in one command
-          center.
+          valuations, and AI-powered draft preparation — all in one platform.
         </p>
         <div className="hero-cta">
           <button className="cta-primary" onClick={() => navigate("/signup")}>
