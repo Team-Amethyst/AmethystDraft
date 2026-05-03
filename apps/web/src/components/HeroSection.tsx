@@ -24,9 +24,9 @@ export default function HeroSection(): JSX.Element {
           <button className="cta-primary" onClick={() => navigate("/signup")}>
             Get Started
           </button>
-          <button className="cta-outline">View Rankings</button>
+          <button className="cta-outline" onClick={() => navigate("/login")}>View Rankings</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
   );
 }
