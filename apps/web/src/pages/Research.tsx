@@ -444,6 +444,7 @@ export default function Research() {
           {selectedView === "tiers" && (
             <TiersView
               players={mergedPlayers}
+              draftedIds={draftedIds}
               onPlayerClick={handlePlayerClick}
               isInWatchlist={isInWatchlist}
               addToWatchlist={addToWatchlist}

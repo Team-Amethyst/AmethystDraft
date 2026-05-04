@@ -11,6 +11,7 @@ export type ValuationSortField =
 
 export interface ValuationShape {
   player_id: string;
+  tier?: number;
   baseline_value?: number;
   adjusted_value?: number;
   recommended_bid?: number;
@@ -348,6 +349,7 @@ export function mergePlayerWithValuation(
   if (!valuation) return player;
   return {
     ...player,
+    tier: coerceNumber(valuation.tier) ?? player.tier,
     baseline_value: coerceNumber(valuation.baseline_value) ?? player.baseline_value,
     adjusted_value: coerceNumber(valuation.adjusted_value) ?? player.adjusted_value,
     recommended_bid:

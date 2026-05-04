@@ -39,6 +39,7 @@ describe("valuation helpers", () => {
   it("merges all new valuation fields from engine row", () => {
     const merged = mergePlayerWithValuation(basePlayer(), {
       player_id: "1",
+      tier: 2,
       baseline_value: 20,
       adjusted_value: 26,
       recommended_bid: 29,
@@ -46,12 +47,21 @@ describe("valuation helpers", () => {
       inflation_model: "replacement_slots_v2",
       indicator: "Steal",
     });
+    expect(merged.tier).toBe(2);
     expect(merged.baseline_value).toBe(20);
     expect(merged.adjusted_value).toBe(26);
     expect(merged.recommended_bid).toBe(29);
     expect(merged.team_adjusted_value).toBe(31);
     expect(merged.inflation_model).toBe("replacement_slots_v2");
     expect(merged.indicator).toBe("Steal");
+  });
+
+  it("preserves player tier when valuation tier is missing", () => {
+    const merged = mergePlayerWithValuation(basePlayer(), {
+      player_id: "1",
+      baseline_value: 20,
+    });
+    expect(merged.tier).toBe(3);
   });
 
   it("uses strict fallback order for valuation numbers", () => {

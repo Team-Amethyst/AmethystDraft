@@ -6,6 +6,7 @@ import { valuationSortLabel } from "../utils/valuation";
 
 type Props = {
   players: Player[];
+  draftedIds: ReadonlySet<string>;
   onPlayerClick: (p: Player) => void;
   onMoveToCommandCenter: (p: Player) => void;
   isInWatchlist: (id: string) => boolean;
@@ -22,6 +23,7 @@ function TierBadge({ tier }: { tier: string | number }) {
 
 export default function TiersView({
   players,
+  draftedIds,
   onPlayerClick,
   onMoveToCommandCenter,
   isInWatchlist,
@@ -37,7 +39,6 @@ export default function TiersView({
     return initial;
   });
 
-  const draftedIds = useMemo(() => new Set<string>(), []);
   const groups = useMemo(() => groupPlayersByTier(players), [players]);
   const stats = useMemo(() => calculateTierStats(groups, draftedIds), [groups, draftedIds]);
 
