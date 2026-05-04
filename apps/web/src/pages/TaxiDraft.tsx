@@ -7,6 +7,8 @@ import {
   moveTaxiDraftOrderTeamUp,
   searchEligibleTaxiPlayers,
   addPlayerToTaxiRoster,
+  removePlayerFromTaxiRoster,
+  replaceTaxiRosterPlayer,
 } from "../domain/taxiDraft";
 import {
   loadTaxiDraftState,
@@ -37,26 +39,25 @@ export default function TaxiDraft() {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
 
+  // Edit mode state
+  const [editingPlayer, setEditingPlayer] = useState<{ teamId: string; playerId: string } | null>(null);
+  const [editSearchQuery, setEditSearchQuery] = useState("");
+
   useEffect(() => {
     if (!league) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiDraftOrder([]);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiRosters({});
       return;
     }
 
     const savedState = loadTaxiDraftState(league.id);
     if (savedState?.taxiDraftOrder?.length) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiDraftOrder(savedState.taxiDraftOrder);
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
     }
 
     if (savedState?.taxiRosters) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiRosters(savedState.taxiRosters);
     }
   }, [league, leagueTeamNames]);
@@ -73,7 +74,6 @@ export default function TaxiDraft() {
   useEffect(() => {
     const cached = getPlayersCached("adp", league?.posEligibilityThreshold, league?.playerPool);
     if (cached) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAllPlayers(cached);
     }
   }, [league?.posEligibilityThreshold, league?.playerPool]);
@@ -81,19 +81,16 @@ export default function TaxiDraft() {
   // Load roster entries for drafted player IDs
   useEffect(() => {
     if (!league?.id) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRosterEntries([]);
       return;
     }
 
     const cached = getRosterCached(league.id);
     if (cached) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRosterEntries(cached);
     } else {
       // Load from API if not cached
       void getRoster(league.id, "").then(setRosterEntries).catch(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRosterEntries([]);
       });
     }
@@ -125,6 +122,34 @@ export default function TaxiDraft() {
     );
   };
 
+  // Remove player handler
+  const handleRemovePlayer = (teamId: string, playerId: string) => {
+    setTaxiRosters((current) =>
+      removePlayerFromTaxiRoster(current, teamId, playerId)
+    );
+  };
+
+  // Edit player handlers
+  const handleStartEdit = (teamId: string, playerId: string) => {
+    setEditingPlayer({ teamId, playerId });
+    setEditSearchQuery("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPlayer(null);
+    setEditSearchQuery("");
+  };
+
+  const handleReplacePlayer = (newPlayerId: string) => {
+    if (!editingPlayer) return;
+
+    setTaxiRosters((current) =>
+      replaceTaxiRosterPlayer(current, editingPlayer.teamId, editingPlayer.playerId, newPlayerId)
+    );
+    setEditingPlayer(null);
+    setEditSearchQuery("");
+  };
+
   // Search results
   const searchResults = useMemo(() => {
     if (!league) return [];
@@ -136,6 +161,24 @@ export default function TaxiDraft() {
       taxiRosters
     );
   }, [allPlayers, searchQuery, rosterEntries, taxiRosters, league]);
+
+  // Edit search results
+  const editSearchResults = useMemo(() => {
+    if (!league || !editingPlayer) return [];
+    const draftedIds = rosterEntries.map(e => e.externalPlayerId);
+    return searchEligibleTaxiPlayers(
+      allPlayers,
+      editSearchQuery,
+      draftedIds,
+      taxiRosters
+    );
+  }, [allPlayers, editSearchQuery, rosterEntries, taxiRosters, league, editingPlayer]);
+
+  // Player lookup helper
+  const getPlayerById = useMemo(() => {
+    const playerMap = new Map(allPlayers.map(p => [p.id, p]));
+    return (playerId: string) => playerMap.get(playerId);
+  }, [allPlayers]);
 
   return (
     <div className="taxi-draft-page">
@@ -310,7 +353,177 @@ export default function TaxiDraft() {
           <section className="taxi-draft-card taxi-draft-card--wide">
             <div className="taxi-draft-card-label">Taxi Rosters by Team</div>
             <div className="taxi-draft-card-body">
-              Placeholder for the team-level taxi roster summaries.
+              {league ? (
+                <div className="taxi-draft-rosters-wrapper">
+                  {leagueTeamNames.map((teamName, teamIndex) => {
+                    const teamId = teamIndex.toString();
+                    const teamRoster = taxiRosters[teamId] || [];
+
+                    return (
+                      <div key={teamId} className="taxi-draft-team-roster">
+                        <div className="taxi-draft-team-roster-header">
+                          <h3 className="taxi-draft-team-roster-title">{teamName}</h3>
+                          <span className="taxi-draft-team-roster-count">
+                            {teamRoster.length} player{teamRoster.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+
+                        {teamRoster.length > 0 ? (
+                          <div className="taxi-draft-team-roster-players">
+                            {teamRoster.map((entry) => {
+                              const player = getPlayerById(entry.playerId);
+                              const isEditing = editingPlayer?.teamId === teamId && editingPlayer?.playerId === entry.playerId;
+
+                              return (
+                                <div key={entry.playerId} className="taxi-draft-roster-row">
+                                  {isEditing ? (
+                                    <div className="taxi-draft-edit-mode">
+                                      <div className="taxi-draft-edit-header">
+                                        <span className="taxi-draft-edit-label">
+                                          Replace {player?.name || 'Unknown Player'}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="taxi-draft-button taxi-draft-button--secondary"
+                                          onClick={handleCancelEdit}
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+
+                                      <input
+                                        type="text"
+                                        className="taxi-draft-search-input taxi-draft-edit-search"
+                                        placeholder="Search for replacement player..."
+                                        value={editSearchQuery}
+                                        onChange={(e) => setEditSearchQuery(e.target.value)}
+                                        autoFocus
+                                      />
+
+                                      {editSearchQuery.length > 0 && (
+                                        <div className="taxi-draft-edit-results">
+                                          {editSearchResults.length > 0 ? (
+                                            editSearchResults.slice(0, 5).map((replacementPlayer) => (
+                                              <button
+                                                key={replacementPlayer.id}
+                                                type="button"
+                                                className="taxi-draft-edit-result-row"
+                                                onClick={() => handleReplacePlayer(replacementPlayer.id)}
+                                              >
+                                                <img
+                                                  src={replacementPlayer.headshot}
+                                                  alt={replacementPlayer.name}
+                                                  className="taxi-draft-player-headshot"
+                                                  onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                    e.currentTarget.nextElementSibling!.textContent = replacementPlayer.name
+                                                      .split(' ')
+                                                      .map(w => w[0])
+                                                      .join('')
+                                                      .slice(0, 2)
+                                                      .toUpperCase();
+                                                  }}
+                                                />
+                                                <div className="taxi-draft-player-headshot-fallback">
+                                                  {replacementPlayer.name
+                                                    .split(' ')
+                                                    .map(w => w[0])
+                                                    .join('')
+                                                    .slice(0, 2)
+                                                    .toUpperCase()}
+                                                </div>
+                                                <div className="taxi-draft-player-details">
+                                                  <div className="taxi-draft-player-name">{replacementPlayer.name}</div>
+                                                  <div className="taxi-draft-player-meta">
+                                                    {replacementPlayer.team} • {replacementPlayer.position}
+                                                  </div>
+                                                </div>
+                                              </button>
+                                            ))
+                                          ) : (
+                                            <div className="taxi-draft-no-results">
+                                              No eligible players found matching "{editSearchQuery}"
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="taxi-draft-roster-player-info">
+                                        <img
+                                          src={player?.headshot}
+                                          alt={player?.name || 'Unknown Player'}
+                                          className="taxi-draft-player-headshot"
+                                          onError={(e) => {
+                                            e.currentTarget.style.display = 'none';
+                                            e.currentTarget.nextElementSibling!.textContent = (player?.name || 'Unknown Player')
+                                              .split(' ')
+                                              .map(w => w[0])
+                                              .join('')
+                                              .slice(0, 2)
+                                              .toUpperCase();
+                                          }}
+                                        />
+                                        <div className="taxi-draft-player-headshot-fallback">
+                                          {(player?.name || 'Unknown Player')
+                                            .split(' ')
+                                            .map(w => w[0])
+                                            .join('')
+                                            .slice(0, 2)
+                                            .toUpperCase()}
+                                        </div>
+                                        <div className="taxi-draft-roster-player-details">
+                                          <div className="taxi-draft-player-name">{player?.name || 'Unknown Player'}</div>
+                                          <div className="taxi-draft-player-meta">
+                                            {player?.team || 'Unknown'} • {player?.position || 'Unknown'}
+                                          </div>
+                                          <div className="taxi-draft-roster-meta">
+                                            {entry.pickNumber && (
+                                              <span className="taxi-draft-pick-number">Pick #{entry.pickNumber}</span>
+                                            )}
+                                            <span className="taxi-draft-added-at">
+                                              Added {new Date(entry.addedAt).toLocaleDateString()}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="taxi-draft-roster-actions">
+                                        <button
+                                          type="button"
+                                          className="taxi-draft-button taxi-draft-button--edit"
+                                          onClick={() => handleStartEdit(teamId, entry.playerId)}
+                                        >
+                                          Replace
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="taxi-draft-button taxi-draft-button--remove"
+                                          onClick={() => handleRemovePlayer(teamId, entry.playerId)}
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="taxi-draft-team-roster-empty">
+                            No taxi players assigned to this team yet.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="taxi-draft-rosters-empty">
+                  Select a league to view taxi rosters.
+                </div>
+              )}
             </div>
           </section>
         </div>
