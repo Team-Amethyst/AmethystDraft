@@ -123,8 +123,11 @@ export default function AuthNavbar() {
     if (!alertsOpen || !token) return;
     const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
     let active = true;
-    setAlertsLoading(true);
-    setAlertsError(null);
+
+    queueMicrotask(() => {
+      setAlertsLoading(true);
+      setAlertsError(null);
+    });
 
     getNewsSignals(token, {
       days: NEWS_LOOKBACK_DAYS,
@@ -167,6 +170,7 @@ export default function AuthNavbar() {
         "2": `${leagueBase}/my-draft`,
         "3": `${leagueBase}/command-center`,
         "4": `${leagueBase}/overview`,
+        "5": `${leagueBase}/taxi-draft`,
       };
       if (routes[e.key]) navigate(routes[e.key]);
     };
@@ -225,6 +229,15 @@ export default function AuthNavbar() {
             onClick={() => navigate(`${leagueBase}/overview`)}
           >
             <span className="nav-key-badge">4</span>Overview
+          </button>
+          <button
+            className={
+              "nav-link" +
+              (isActive(`${leagueBase}/taxi-draft`) ? " nav-link-active" : "")
+            }
+            onClick={() => navigate(`${leagueBase}/taxi-draft`)}
+          >
+            <span className="nav-key-badge">5</span>Taxi Draft
           </button>
         </div>
       )}

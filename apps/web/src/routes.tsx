@@ -13,6 +13,7 @@ import MyDraft from "./pages/MyDraft";
 import CommandCenter from "./pages/CommandCenter";
 import Research from "./pages/Research";
 import MockDraftPage from "./pages/MockDraftPage";
+import TaxiDraft from "./pages/TaxiDraft";
 
 export const router = createBrowserRouter([
   { path: "/", Component: HomePage },
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: "my-draft", Component: MyDraft },
       { path: "command-center", Component: CommandCenter },
       { path: "overview", Component: LeagueOverview },
+      { path: "taxi-draft", Component: TaxiDraft },
       { path: "settings", Component: LeagueSettings },
       { path: "mock-draft", Component: MockDraftPage },
     ],
