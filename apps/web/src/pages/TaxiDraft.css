@@ -77,6 +77,99 @@
   padding: 1rem;
 }
 
+.taxi-draft-order-body {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.taxi-draft-order-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.taxi-draft-order-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.taxi-draft-order-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.taxi-draft-order-row {
+  display: grid;
+  grid-template-columns: minmax(2rem, auto) 1fr minmax(160px, auto);
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+}
+
+.taxi-draft-order-rank {
+  color: #b8a4ff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.taxi-draft-order-team {
+  color: #f6efff;
+  font-size: 1rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxi-draft-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.taxi-draft-button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f6efff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.taxi-draft-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.taxi-draft-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.taxi-draft-button--secondary {
+  min-width: 190px;
+}
+
+.taxi-draft-order-empty {
+  width: 100%;
+  padding: 1.5rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  color: #d4cbf8;
+  text-align: center;
+}
+
 .taxi-draft-card--wide {
   grid-column: span 2;
 }
