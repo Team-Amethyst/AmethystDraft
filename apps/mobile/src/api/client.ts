@@ -1,4 +1,4 @@
-const API_BASE = "http://10.0.2.2:3001";
+const API_BASE = "http://192.168.1.9:3001";
 
 type ValidationErr = { field?: string; message?: string };
 
@@ -59,12 +59,46 @@ async function parseApiError(
   throw new Error(message);
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = 10000,
+): Promise<Response> {
+  const controller = new AbortController();
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function requestJson<T>(
   path: string,
   init: RequestInit,
   fallbackErrorMessage: string,
 ): Promise<T> {
-  const res = await fetch(buildApiUrl(path), init);
+  const url = buildApiUrl(path);
+
+  console.log("API request:", url);
+
+  let res: Response;
+
+  try {
+    res = await fetchWithTimeout(url, init);
+  } catch (err) {
+    console.log("API request failed:", err);
+    throw new Error("Could not reach the API. Check that the backend is running and reachable.");
+  }
+
+  console.log("API response:", res.status, url);
 
   if (!res.ok) {
     return parseApiError(res, fallbackErrorMessage);
@@ -78,7 +112,20 @@ export async function requestVoid(
   init: RequestInit,
   fallbackErrorMessage: string,
 ): Promise<void> {
-  const res = await fetch(buildApiUrl(path), init);
+  const url = buildApiUrl(path);
+
+  console.log("API request:", url);
+
+  let res: Response;
+
+  try {
+    res = await fetchWithTimeout(url, init);
+  } catch (err) {
+    console.log("API request failed:", err);
+    throw new Error("Could not reach the API. Check that the backend is running and reachable.");
+  }
+
+  console.log("API response:", res.status, url);
 
   if (!res.ok) {
     return parseApiError(res, fallbackErrorMessage);

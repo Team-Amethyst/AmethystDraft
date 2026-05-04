@@ -22,10 +22,17 @@ export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail || !password) {
+      Alert.alert("Missing login info", "Please enter both email and password.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const data = await loginUser(email, password);
+      const data = await loginUser(cleanEmail, password);
       await login(data.token, data.user);
     } catch (err) {
       Alert.alert(
@@ -48,6 +55,7 @@ export default function LoginScreen({ navigation }: Props) {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        keyboardType="email-address"
         style={{
           borderWidth: 1,
           borderColor: "#ccc",
@@ -73,13 +81,16 @@ export default function LoginScreen({ navigation }: Props) {
 
       <Button
         title={loading ? "Signing in..." : "Sign In"}
-        onPress={handleLogin}
+        onPress={() => void handleLogin()}
         disabled={loading}
       />
 
       <View style={{ height: 12 }} />
 
-      <Button title="Go to Sign Up" onPress={() => navigation.navigate("Signup")} />
+      <Button
+        title="Go to Sign Up"
+        onPress={() => navigation.navigate("Signup")}
+      />
     </SafeAreaView>
   );
 }
