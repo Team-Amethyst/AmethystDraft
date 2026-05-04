@@ -75,6 +75,28 @@ export interface Player {
       innings?: number;
     };
   };
+  /** Equal-weight 3-season blend from catalog API. */
+  stats3yr?: {
+    batting?: {
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+      obp: string;
+      slg: string;
+    };
+    pitching?: {
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      holds: number;
+      strikeouts: number;
+      completeGames: number;
+      innings: number;
+    };
+  };
   outlook: string;
   injuryStatus?: string;
   springStats?: {

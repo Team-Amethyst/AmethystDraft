@@ -9,9 +9,9 @@
   justify-content: space-between;
   padding: 0 2rem;
   height: 56px;
-  background: rgba(10, 5, 20, 0.75);
+  background: var(--app-nav-bg);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(138, 43, 226, 0.15);
+  border-bottom: 1px solid var(--app-nav-border);
 }
 
 .navbar-logo {
@@ -21,14 +21,17 @@
 }
 
 .logo-icon {
-  color: #a855f7;
+  color: var(--app-accent);
+  display: block;
+  transform: translateY(-1px);
 }
 
 .logo-text {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.25rem;
   letter-spacing: 0.15em;
-  color: #fff;
+  color: var(--app-text);
+  line-height: 1;
 }
 
 .navbar-actions {
@@ -54,7 +57,7 @@
 }
 
 .btn-primary {
-  background: #8b3cf7;
+  background: var(--app-accent);
   border: none;
   color: #fff;
   font-size: 0.875rem;
@@ -67,6 +70,6 @@
 }
 
 .btn-primary:hover {
-  background: #a855f7;
+  background: var(--app-accent-soft);
   transform: translateY(-1px);
 }

@@ -13,6 +13,7 @@ import {
   buildProjectedStandings,
   LOWER_IS_BETTER_CATS,
   formatStatCell,
+  isStatCellEmpty,
   rankColor,
   computeRanks,
   normalizeCatName,
@@ -187,7 +188,7 @@ function TeamCard({ data }: { data: TeamData }) {
 
 export default function LeagueOverview() {
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   usePageTitle(league ? `${league.name} Overview` : "League Overview");
 
   const [entries, setEntries] = useState<RosterEntry[]>([]);
@@ -233,6 +234,13 @@ export default function LeagueOverview() {
         : [],
     [league],
   );
+
+  const myTeamId = useMemo(() => {
+    if (!league || !user?.id) return null;
+    const idx = league.memberIds.indexOf(user.id);
+    if (idx < 0) return null;
+    return `team_${idx + 1}`;
+  }, [league, user?.id]);
 
   const teamCards = useMemo(
     () =>
@@ -330,7 +338,12 @@ export default function LeagueOverview() {
 
   const handleUpdateEntry = async (
     entryId: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => {
     if (!league || !token) return;
     const prev = entries.find((e) => e._id === entryId);
@@ -428,10 +441,23 @@ export default function LeagueOverview() {
                     <td className="lo-td-team">{row.teamName}</td>
                     {allCatNames.map((cat) => {
                       const rank = rankMaps[cat]?.get(row.teamName) ?? 1;
-                      const colorClass = rankColor(rank, teamNames.length);
                       const val = row.stats[cat] ?? 0;
+                      const empty = isStatCellEmpty(val);
+                      const colorClass = empty
+                        ? ""
+                        : rankColor(rank, teamNames.length);
                       return (
-                        <td key={cat} className={`lo-td-stat ${colorClass}`}>
+                        <td
+                          key={cat}
+                          className={
+                            "lo-td-stat" +
+                            (empty
+                              ? " lo-td-stat--empty"
+                              : colorClass
+                                ? ` ${colorClass}`
+                                : "")
+                          }
+                        >
                           {formatStatCell(cat, val)}
                         </td>
                       );
@@ -470,6 +496,16 @@ export default function LeagueOverview() {
                           entry.teamId ??
                           entry.userId)
                         : (entry.teamId ?? entry.userId);
+                    const myIdx =
+                      myTeamId != null
+                        ? parseInt(myTeamId.replace("team_", ""), 10) - 1
+                        : -1;
+                    const isMyTeamPick =
+                      myTeamId != null &&
+                      (entry.teamId
+                        ? entry.teamId === myTeamId
+                        : myIdx >= 0 &&
+                          league.memberIds.indexOf(entry.userId) === myIdx);
                     const player = playerMap.get(entry.externalPlayerId);
                     return (
                       <DraftLogRow
@@ -477,8 +513,8 @@ export default function LeagueOverview() {
                         entry={entry}
                         pickNum={i + 1}
                         teamName={teamName}
+                        isMyTeamPick={Boolean(isMyTeamPick)}
                         headshot={player?.headshot}
-                        mlbTeam={player?.team || entry.playerTeam}
                         slotOptions={slotOptions}
                         teamOptions={teamOptions}
                         allRosterEntries={entries}

@@ -24,6 +24,8 @@ import {
   calcAge,
   calcBatterValue,
   calcPitcherValue,
+  equalWeightThreeYearBatting,
+  equalWeightThreeYearPitching,
   projectBatting,
   projectPitching,
 } from "../lib/playerScoring";
@@ -1182,6 +1184,13 @@ const getPlayers: RequestHandler = async (
           projection: {
             batting: projectBatting(stat, bat2Map.get(pid), bat3Map.get(pid)),
           },
+          stats3yr: {
+            batting: equalWeightThreeYearBatting(
+              stat,
+              bat2Map.get(pid),
+              bat3Map.get(pid),
+            ),
+          },
           outlook: "",
           injuryStatus: injuryStatusMap.get(pid),
           springStats:
@@ -1253,6 +1262,13 @@ const getPlayers: RequestHandler = async (
           },
           projection: {
             pitching: projectPitching(stat, pit2Map.get(pid), pit3Map.get(pid)),
+          },
+          stats3yr: {
+            pitching: equalWeightThreeYearPitching(
+              stat,
+              pit2Map.get(pid),
+              pit3Map.get(pid),
+            ),
           },
           outlook: "",
           injuryStatus: injuryStatusMap.get(pid),

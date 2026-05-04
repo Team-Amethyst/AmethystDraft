@@ -7,20 +7,72 @@ import {
   LogOut,
   UserCog,
   Bell,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { getNewsSignals, type NewsSignal } from "../api/engine";
 import "./AuthNavbar.css";
+
+const NEWS_LOOKBACK_DAYS = 7;
+type NewsSignalType =
+  | "injury"
+  | "role_change"
+  | "trade"
+  | "demotion"
+  | "promotion";
+
+type AlertTab = {
+  label: string;
+  signalType?: NewsSignalType;
+};
+
+const ALERT_TABS: AlertTab[] = [
+  { label: "All Alerts" },
+  { label: "Injuries", signalType: "injury" },
+  { label: "Role Changes", signalType: "role_change" },
+  { label: "Trades", signalType: "trade" },
+  { label: "Promotions", signalType: "promotion" },
+  { label: "Demotions", signalType: "demotion" },
+];
+
+function getAlertClass(signalType: string): "injury" | "trade" | "structural" {
+  if (signalType === "injury") return "injury";
+  if (signalType === "trade") return "trade";
+  return "structural";
+}
+
+function formatAlertTime(effectiveDate: string): string {
+  const parsed = new Date(effectiveDate);
+  if (Number.isNaN(parsed.getTime())) return "Just now";
+  const diffMinutes = Math.floor((Date.now() - parsed.getTime()) / 60000);
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+function formatAlertType(signalType: string): string {
+  return signalType
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
 
 export default function AuthNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const { league, allLeagues } = useLeague();
   const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [alertTab, setAlertTab] = useState("All Alerts");
+  const [alertTab, setAlertTab] = useState<AlertTab["label"]>("All Alerts");
+  const [alertSignals, setAlertSignals] = useState<NewsSignal[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
@@ -67,8 +119,43 @@ export default function AuthNavbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [alertsOpen]);
 
+  useEffect(() => {
+    if (!alertsOpen || !token) return;
+    const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
+    let active = true;
+    setAlertsLoading(true);
+    setAlertsError(null);
+
+    getNewsSignals(token, {
+      days: NEWS_LOOKBACK_DAYS,
+      signal_type: selectedTab?.signalType,
+    })
+      .then((response) => {
+        if (!active) return;
+        setAlertSignals(response.signals);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to load MLB alerts right now.";
+        setAlertsError(message);
+        setAlertSignals([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setAlertsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [alertsOpen, token, alertTab]);
+
   const leagueBase = league ? `/leagues/${league.id}` : "";
   const isActive = (path: string) => location.pathname === path;
+  const visibleAlerts = alertSignals;
 
   useEffect(() => {
     if (!league) return;
@@ -218,26 +305,71 @@ export default function AuthNavbar() {
                   <span className="nb-alerts-title">Intelligence Alerts</span>
                 </div>
                 <div className="nb-alerts-tabs">
-                  {[
-                    "All Alerts",
-                    "External Baseball",
-                    "Structural Signals",
-                  ].map((t) => (
+                  {ALERT_TABS.map((tab) => (
                     <button
-                      key={t}
+                      key={tab.label}
                       className={
-                        "nb-alert-tab" + (alertTab === t ? " active" : "")
+                        "nb-alert-tab" + (alertTab === tab.label ? " active" : "")
                       }
-                      onClick={() => setAlertTab(t)}
+                      onClick={() => setAlertTab(tab.label)}
                     >
-                      {t}
+                      {tab.label}
                     </button>
                   ))}
                 </div>
                 <div className="nb-alerts-list">
-                  <div className="nb-alerts-empty">
-                    No alerts — intelligence feed coming soon
-                  </div>
+                  {alertsLoading && (
+                    <div className="nb-alerts-state nb-alerts-loading">
+                      <RefreshCw size={13} className="nb-alerts-spinner" />
+                      Loading MLB alerts...
+                    </div>
+                  )}
+                  {!alertsLoading && alertsError && (
+                    <div className="nb-alerts-state nb-alerts-error">
+                      <AlertTriangle size={13} />
+                      <span>{alertsError}</span>
+                    </div>
+                  )}
+                  {!alertsLoading && !alertsError && visibleAlerts.length === 0 && (
+                    <div className="nb-alerts-empty">
+                      No MLB alerts match this filter right now.
+                    </div>
+                  )}
+                  {!alertsLoading &&
+                    !alertsError &&
+                    visibleAlerts.map((signal) => {
+                      const alertClass = getAlertClass(signal.signal_type);
+                      return (
+                        <div
+                          key={`${signal.player_name}-${signal.effective_date}-${signal.signal_type}`}
+                          className={`nb-alert-item alert-${alertClass}`}
+                        >
+                          <div className="nb-alert-icon">
+                            {signal.severity[0].toUpperCase()}
+                          </div>
+                          <div className="nb-alert-body">
+                            <div className="nb-alert-head">
+                              <span className="nb-alert-title">
+                                {signal.player_name}
+                              </span>
+                              <span className="nb-alert-time">
+                                {formatAlertTime(signal.effective_date)}
+                              </span>
+                            </div>
+                            <div className="nb-alert-meta">
+                              <span className={`nb-alert-pill nb-alert-pill-${signal.severity}`}>
+                                {signal.severity}
+                              </span>
+                              <span className="nb-alert-pill nb-alert-pill-source">
+                                {formatAlertType(signal.signal_type)}
+                              </span>
+                              <span className="nb-alert-source">{signal.source}</span>
+                            </div>
+                            <div className="nb-alert-desc">{signal.description}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}

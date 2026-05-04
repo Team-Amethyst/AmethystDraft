@@ -1,3 +1,4 @@
+/** AmethystDraft API (BFF) origin — not the Engine URL; Engine calls stay server-side in apps/api. */
 const ENV_API_BASE = import.meta.env.VITE_API_URL?.trim() || "";
 const LOCAL_API_FALLBACKS = ["http://localhost:3000", "http://localhost:3002"];
 

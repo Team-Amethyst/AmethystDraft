@@ -24,6 +24,10 @@ This Turborepo has some additional tools already setup for you:
 - [ESLint](https://eslint.org/) for code linting
 - [Prettier](https://prettier.io) for code formatting
 
+### Engine valuation (UI copy)
+
+- [docs/engine-valuation-ui.md](docs/engine-valuation-ui.md) — dollar ladder summary, which field to headline per surface, and reminder that the Engine portal is not the product rubric. Canonical definitions: [AmethystAPI `valuation-dollar-ladder.md`](https://github.com/Team-Amethyst/AmethystAPI/blob/main/docs/valuation-dollar-ladder.md).
+
 ## Getting Started
 
 Install dependencies:

@@ -44,7 +44,7 @@ describe("fixture draft sizes", () => {
 });
 
 describe.skipIf(!process.env.AMETHYST_CONTRACT_TEST)(
-  "live engine contract (set AMETHYST_CONTRACT_TEST=1 + AMETHYST_API_URL + AMETHYST_API_KEY)",
+  "live engine contract (set AMETHYST_CONTRACT_TEST=1 + AMETHYST_API_BASE_URL or AMETHYST_API_URL + AMETHYST_API_KEY)",
   () => {
     it("posts pre_draft fixture to engine", async () => {
       const { amethyst } = await import("./amethyst");

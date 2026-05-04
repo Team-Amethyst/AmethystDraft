@@ -1,6 +1,7 @@
-import { useState, useEffect, Fragment } from "react";
-import { ArrowLeft, Search, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, ChevronDown, Search, Save, X } from "lucide-react";
 import { useNavigate } from "react-router";
+import PosBadge from "../components/PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
 import type { League } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -17,22 +18,20 @@ import { getRoster, addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import { getPlayers, getPlayersCached } from "../api/players";
 import type { Player as ApiPlayer } from "../types/player";
+import { LeagueRosterSlotsEditor } from "../components/leagues/LeagueRosterSlotsEditor";
+import { KeeperDraftFormPopover } from "../components/leagues/KeeperDraftFormPopover";
+import { KeeperSlotSelectWithOverride } from "../components/leagues/KeeperSlotSelectWithOverride";
+import {
+  PLAYER_POOL_OPTIONS,
+  extractStatAbbreviation,
+  keeperDisplayPositions,
+  poolApiToForm,
+  poolFormToApi,
+  toLeagueFormPlayer,
+} from "../features/leagues/shared";
 import "./LeagueSettings.css";
 
 type Section = "setup" | "scoring" | "teams" | "keepers";
-
-const abbr = (label: string) => label.match(/\(([^)]+)\)$/)?.[1] ?? label;
-
-const poolToForm: Record<string, "Mixed MLB" | "AL-Only" | "NL-Only"> = {
-  Mixed: "Mixed MLB",
-  AL: "AL-Only",
-  NL: "NL-Only",
-};
-const poolToApi: Record<string, "Mixed" | "AL" | "NL"> = {
-  "Mixed MLB": "Mixed",
-  "AL-Only": "AL",
-  "NL-Only": "NL",
-};
 
 function keepersToMap(
   entries: RosterEntry[],
@@ -52,7 +51,9 @@ function keepersToMap(
       playerName: entry.playerName,
       team: entry.playerTeam,
       cost: entry.price,
+      contractType: entry.keeperContract,
       playerId: entry.externalPlayerId,
+      positions: entry.positions?.length ? entry.positions : undefined,
       entryId: entry._id,
     });
   }
@@ -70,7 +71,7 @@ export default function LeagueSettings() {
   const { league, loading } = useLeague();
   if (loading && !league)
     return (
-      <div className="ls-page">
+      <div className="ls-page theme-page-gradient">
         <div
           className="ls-container"
           style={{ padding: "40px 0", color: "var(--text-muted)" }}
@@ -95,9 +96,6 @@ function LeagueSettingsForm({ league }: { league: League }) {
   const [savedKeeperEntries, setSavedKeeperEntries] = useState<RosterEntry[]>(
     [],
   );
-  const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
-  const [pendingCost, setPendingCost] = useState("1");
-  const [posFilter, setPosFilter] = useState("ALL");
   const [posEligibilityRaw, setPosEligibilityRaw] = useState(
     String(league.posEligibilityThreshold ?? 20),
   );
@@ -108,16 +106,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
       league.playerPool,
     );
     return cached
-      ? cached.map((p: ApiPlayer) => ({
-          id: Number(p.id),
-          name: p.name,
-          team: p.team,
-          pos: p.positions?.join("/") || p.position,
-          adp: p.adp,
-          value: p.value,
-          headshot: p.headshot,
-          positions: p.positions,
-        }))
+      ? cached.map((p: ApiPlayer) => toLeagueFormPlayer(p))
       : [];
   });
 
@@ -146,30 +135,34 @@ function LeagueSettingsForm({ league }: { league: League }) {
     teamKeepers,
     setTeamKeepers,
     currentKeepers,
-    remainingBudget,
-    completionPercent,
     filteredPlayers,
     toggleStat,
-    updateRosterCount,
+    setRosterCount,
+    resetRosterSlots,
     updateTeamName,
     addKeeper,
     removeKeeper,
     getEligibleSlotsForPlayer,
+    getOpenSlotsForPlayer,
     keeperOwnerMap,
     updateKeeperCost,
+    updateKeeperContract,
+    updateKeeperSlot,
+    getEligibleSlotsForKeeperAtIndex,
+    getOpenSlotsForKeeperAtIndex,
   } = useLeagueForm({
     initialName: league.name,
     initialTeams: league.teams,
     initialBudget: league.budget,
-    initialPlayerPool: poolToForm[league.playerPool] ?? "Mixed MLB",
+    initialPlayerPool: poolApiToForm(league.playerPool),
     initialHitting: hittingStats.filter((s) =>
       league.scoringCategories.some(
-        (c) => c.type === "batting" && c.name === abbr(s),
+        (c) => c.type === "batting" && c.name === extractStatAbbreviation(s),
       ),
     ),
     initialPitching: pitchingStats.filter((s) =>
       league.scoringCategories.some(
-        (c) => c.type === "pitching" && c.name === abbr(s),
+        (c) => c.type === "pitching" && c.name === extractStatAbbreviation(s),
       ),
     ),
     initialRosterSlots: league.rosterSlots,
@@ -178,6 +171,19 @@ function LeagueSettingsForm({ league }: { league: League }) {
     initialKeepers: {},
     externalPlayers: keeperPlayers,
   });
+
+  const keeperAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [keeperDraftPlayerId, setKeeperDraftPlayerId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (activeSection !== "keepers") setKeeperDraftPlayerId(null);
+  }, [activeSection]);
+
+  useEffect(() => {
+    setKeeperDraftPlayerId(null);
+  }, [activeKeeperTeam]);
 
   useEffect(() => {
     if (!token) return;
@@ -195,39 +201,17 @@ function LeagueSettingsForm({ league }: { league: League }) {
       league.posEligibilityThreshold,
       league.playerPool,
     ).then((apiPlayers: ApiPlayer[]) =>
-      setKeeperPlayers(
-        apiPlayers.map((p) => ({
-          id: Number(p.id),
-          name: p.name,
-          team: p.team,
-          pos: p.positions?.join("/") || p.position,
-          adp: p.adp,
-          value: p.value,
-          headshot: p.headshot,
-          positions: p.positions,
-        })),
-      ),
+      setKeeperPlayers(apiPlayers.map((p) => toLeagueFormPlayer(p))),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league.id, token]);
 
   // Re-fetch keeper player list when the form's playerPool or posEligibilityThreshold changes
   useEffect(() => {
-    const apiPool = poolToApi[playerPool] ?? "Mixed";
+    const apiPool = poolFormToApi(playerPool);
     void getPlayers("adp", posEligibilityThreshold, apiPool).then(
       (apiPlayers: ApiPlayer[]) =>
-        setKeeperPlayers(
-          apiPlayers.map((p) => ({
-            id: Number(p.id),
-            name: p.name,
-            team: p.team,
-            pos: p.positions?.join("/") || p.position,
-            adp: p.adp,
-            value: p.value,
-            headshot: p.headshot,
-            positions: p.positions,
-          })),
-        ),
+        setKeeperPlayers(apiPlayers.map((p) => toLeagueFormPlayer(p))),
     );
   }, [playerPool, posEligibilityThreshold]);
 
@@ -251,15 +235,15 @@ function LeagueSettingsForm({ league }: { league: League }) {
           rosterSlots: rosterSlotsMap,
           scoringCategories: [
             ...selectedHitting.map((s) => ({
-              name: abbr(s),
+              name: extractStatAbbreviation(s),
               type: "batting" as const,
             })),
             ...selectedPitching.map((s) => ({
-              name: abbr(s),
+              name: extractStatAbbreviation(s),
               type: "pitching" as const,
             })),
           ],
-          playerPool: poolToApi[playerPool] ?? "Mixed",
+          playerPool: poolFormToApi(playerPool),
           teamNames: teamNames.slice(0, teams),
         },
         token,
@@ -289,6 +273,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                 price: keeper.cost,
                 rosterSlot: keeper.slot,
                 isKeeper: true,
+                    keeperContract: keeper.contractType,
                 teamId: `team_${i + 1}`,
                 userId: teamUserId,
               },
@@ -328,7 +313,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
 
         <div className="ls-layout">
           {/* Sidebar nav */}
-          <nav className="ls-nav">
+          <nav className="ls-nav theme-surface">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -345,84 +330,85 @@ function LeagueSettingsForm({ league }: { league: League }) {
           </nav>
 
           {/* Content panel */}
-          <div className="ls-panel">
+          <div className="ls-panel theme-surface">
             {activeSection === "setup" && (
               <div className="ls-section">
                 <div className="ls-section-heading">League Setup</div>
-
-                <div className="ls-form-grid">
-                  <div className="ls-field">
-                    <label>LEAGUE NAME</label>
-                    <input
-                      value={leagueName}
-                      onChange={(e) => setLeagueName(e.target.value)}
-                    />
-                  </div>
-                  <div className="ls-field">
-                    <label>TEAMS</label>
-                    <input
-                      type="number"
-                      value={teams}
-                      onChange={(e) => setTeams(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="ls-field">
-                    <label>BUDGET ($)</label>
-                    <input
-                      type="number"
-                      value={budget}
-                      onChange={(e) => setBudget(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="ls-field">
-                    <label>POSITION ELIGIBILITY (MIN. GAMES)</label>
-                    <input
-                      type="number"
-                      value={posEligibilityRaw}
-                      min={1}
-                      onChange={(e) => setPosEligibilityRaw(e.target.value)}
-                      onBlur={() => {
-                        const clamped = Math.max(
-                          1,
-                          Number(posEligibilityRaw) || 1,
-                        );
-                        setPosEligibilityThreshold(clamped);
-                        setPosEligibilityRaw(String(clamped));
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="ls-subsection">
-                  <div className="ls-label">ROSTER SLOTS</div>
-                  <div className="ls-roster-table">
-                    <div className="ls-roster-header">
-                      <span>POSITION</span>
-                      <span>COUNT</span>
+                <div className="ls-setup-layout">
+                  <div className="ls-form-grid ls-setup-left">
+                    <div className="ls-field">
+                      <label>LEAGUE NAME</label>
+                      <input
+                        value={leagueName}
+                        onChange={(e) => setLeagueName(e.target.value)}
+                      />
                     </div>
-                    {rosterSlots.map((slot) => (
-                      <div key={slot.position} className="ls-roster-row">
-                        <span>{slot.position}</span>
-                        <div className="ls-roster-controls">
+                    <div className="ls-field">
+                      <label>TEAMS</label>
+                      <input
+                        type="number"
+                        value={teams}
+                        onChange={(e) => setTeams(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="ls-field">
+                      <label>BUDGET ($)</label>
+                      <input
+                        type="number"
+                        value={budget}
+                        onChange={(e) => setBudget(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="ls-field">
+                      <label>POSITION ELIGIBILITY (MIN. GAMES)</label>
+                      <input
+                        type="number"
+                        value={posEligibilityRaw}
+                        min={1}
+                        onChange={(e) => setPosEligibilityRaw(e.target.value)}
+                        onBlur={() => {
+                          const clamped = Math.max(
+                            1,
+                            Number(posEligibilityRaw) || 1,
+                          );
+                          setPosEligibilityThreshold(clamped);
+                          setPosEligibilityRaw(String(clamped));
+                        }}
+                      />
+                    </div>
+
+                    <div className="ls-setup-subcard">
+                      <div className="ls-label">PLAYER POOL</div>
+                      <div className="ls-pool-grid ls-pool-grid--setup">
+                        {PLAYER_POOL_OPTIONS.map((option) => (
                           <button
+                            key={option.formValue}
                             type="button"
-                            onClick={() => updateRosterCount(slot.position, -1)}
+                            className={
+                              "ls-pool-card" +
+                              (playerPool === option.formValue
+                                ? " ls-pool-card-selected"
+                                : "")
+                            }
+                            onClick={() => setPlayerPool(option.formValue)}
                           >
-                            −
+                            <strong>{option.formValue}</strong>
+                            <span>{option.description}</span>
                           </button>
-                          <span>{slot.count}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateRosterCount(slot.position, 1)}
-                          >
-                            +
-                          </button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                  <div className="ls-total">
-                    Total: {totalRosterSpots} roster spots
+
+                  <div className="ls-subsection ls-setup-slots ls-setup-right">
+                    <div className="ls-label">ROSTER SLOTS</div>
+                    <LeagueRosterSlotsEditor
+                      className="league-roster-editor--static"
+                      rosterSlots={rosterSlots}
+                      totalRosterSpots={totalRosterSpots}
+                      onSetRosterCount={setRosterCount}
+                      onResetRosterSlots={resetRosterSlots}
+                    />
                   </div>
                 </div>
               </div>
@@ -431,36 +417,6 @@ function LeagueSettingsForm({ league }: { league: League }) {
             {activeSection === "scoring" && (
               <div className="ls-section">
                 <div className="ls-section-heading">Scoring</div>
-
-                <div className="ls-label" style={{ marginBottom: "10px" }}>
-                  PLAYER POOL
-                </div>
-                <div className="ls-pool-grid">
-                  {(["Mixed MLB", "AL-Only", "NL-Only"] as const).map(
-                    (option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        className={
-                          "ls-pool-card" +
-                          (playerPool === option
-                            ? " ls-pool-card-selected"
-                            : "")
-                        }
-                        onClick={() => setPlayerPool(option)}
-                      >
-                        <strong>{option}</strong>
-                        <span>
-                          {option === "Mixed MLB"
-                            ? "All players available"
-                            : option === "AL-Only"
-                              ? "American League only"
-                              : "National League only"}
-                        </span>
-                      </button>
-                    ),
-                  )}
-                </div>
 
                 <div className="ls-subsection">
                   <div className="ls-label">STAT CATEGORIES</div>
@@ -552,44 +508,18 @@ function LeagueSettingsForm({ league }: { league: League }) {
                   })),
                 );
 
-                // Player list filtered by position category
-                const POS_CATS: Record<string, string[]> = {
-                  IF: ["1B", "2B", "3B", "SS", "MI", "CI", "IF"],
-                  P: ["SP", "RP", "P", "TWP"],
-                };
-                const keeperDisplayPlayers =
-                  posFilter === "ALL"
-                    ? filteredPlayers
-                    : filteredPlayers.filter((p) => {
-                        const pps = p.pos.split("/").map((x) => x.trim());
-                        return pps.some((pp) =>
-                          (POS_CATS[posFilter] ?? [posFilter]).includes(pp),
-                        );
-                      });
+                const keeperAvailablePlayers = filteredPlayers.filter(
+                  (p) => !keeperOwnerMap.get(String(p.id)),
+                );
 
                 return (
                   <div className="ls-section">
                     <div className="ls-section-heading">Keepers</div>
 
-                    <select
-                      className="ls-keeper-select"
-                      value={activeKeeperTeam}
-                      onChange={(e) => {
-                        setActiveKeeperTeam(e.target.value);
-                        setPendingPlayer(null);
-                      }}
-                    >
-                      {teamNames.slice(0, teams).map((name, i) => (
-                        <option key={i} value={name}>
-                          Managing keepers for: {name}
-                        </option>
-                      ))}
-                    </select>
-
                     <div className="ls-keepers-layout">
-                      <div className="ls-keeper-panel">
+                      <div className="ls-keeper-panel ls-keeper-panel--available">
                         <div className="ls-keeper-title">AVAILABLE PLAYERS</div>
-                        <div className="ls-searchbar">
+                        <div className="ls-searchbar ls-searchbar--keepers">
                           <Search size={14} />
                           <input
                             placeholder="Search..."
@@ -597,211 +527,317 @@ function LeagueSettingsForm({ league }: { league: League }) {
                             onChange={(e) => setPlayerSearch(e.target.value)}
                           />
                         </div>
-                        <div className="ls-filter-row">
-                          {(["ALL", "C", "IF", "OF", "P"] as const).map((f) => (
-                            <button
-                              key={f}
-                              type="button"
-                              className={posFilter === f ? "active" : ""}
-                              onClick={() => {
-                                setPosFilter(f);
-                                setPendingPlayer(null);
-                              }}
-                            >
-                              {f}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="ls-player-list">
-                          {keeperDisplayPlayers.map((player) => {
-                            const isPending = pendingPlayer?.id === player.id;
+                        <div className="ls-player-list ls-player-list--keepers">
+                          <div
+                            className="ls-available-table-head ls-player-row ls-player-row--keepers"
+                            role="row"
+                            aria-hidden
+                          >
+                            <span className="ls-available-th ls-available-th--avatar" />
+                            <div className="ls-available-th">Player</div>
+                            <div className="ls-available-th">Team</div>
+                            <div className="ls-available-th ls-available-th--pos">
+                              Pos
+                            </div>
+                            <div className="ls-available-th ls-available-th--adp">
+                              ADP
+                            </div>
+                            <span
+                              className="ls-available-th ls-available-th--action ls-available-th--action-spacer"
+                              aria-hidden
+                            />
+                          </div>
+                          {keeperAvailablePlayers.map((player) => {
                             const eligible = getEligibleSlotsForPlayer(player);
-                            const keptByTeam = keeperOwnerMap.get(
-                              String(player.id),
-                            );
+                            const openSlots = getOpenSlotsForPlayer(player);
+                            const draftOpen =
+                              keeperDraftPlayerId === String(player.id);
                             return (
-                              <Fragment key={player.id}>
-                                <div
-                                  className={
-                                    "ls-player-row" +
-                                    (isPending ? " ls-player-pending" : "")
-                                  }
-                                >
-                                  {player.headshot ? (
-                                    <img
-                                      src={player.headshot}
-                                      alt={player.name}
-                                      className="ls-keeper-headshot"
-                                    />
-                                  ) : (
-                                    <div className="ls-avatar">
-                                      {player.name
-                                        .split(" ")
-                                        .map((n) => n[0])
-                                        .slice(0, 2)
-                                        .join("")}
-                                    </div>
-                                  )}
-                                  <div className="ls-player-main">
-                                    <div className="ls-player-name">
-                                      {player.name}
-                                    </div>
-                                    <div className="ls-player-meta">
-                                      {player.team}
-                                    </div>
-                                  </div>
-                                  <div className="ls-badge">{player.pos}</div>
-                                  <div className="ls-adp">ADP {player.adp}</div>
-                                  {keptByTeam && (
-                                    <div className="ls-kept-badge">
-                                      {keptByTeam === activeKeeperTeam
-                                        ? "KEPT"
-                                        : keptByTeam}
-                                    </div>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className={
-                                      "ls-add-btn" +
-                                      (isPending ? " ls-add-btn-cancel" : "")
-                                    }
-                                    disabled={
-                                      !isPending && eligible.length === 0
-                                    }
-                                    onClick={() => {
-                                      if (isPending) {
-                                        setPendingPlayer(null);
-                                        return;
-                                      }
-                                      setPendingCost(String(player.value ?? 1));
-                                      setPendingPlayer(player);
-                                    }}
-                                  >
-                                    {isPending ? "×" : "+"}
-                                  </button>
-                                </div>
-                                {isPending && (
-                                  <div className="ls-pos-picker">
-                                    <label className="ls-cost-label">
-                                      <span>$</span>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={pendingCost}
-                                        onChange={(e) =>
-                                          setPendingCost(e.target.value)
-                                        }
-                                        className="ls-cost-input"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    </label>
-                                    <span>Slot:</span>
-                                    {eligible.map((slot) => (
-                                      <button
-                                        key={slot}
-                                        type="button"
-                                        onClick={() => {
-                                          addKeeper(
-                                            player,
-                                            slot,
-                                            parseInt(pendingCost) || 1,
-                                          );
-                                          setPendingPlayer(null);
-                                        }}
-                                      >
-                                        {slot}
-                                      </button>
-                                    ))}
+                              <div key={player.id} className="ls-keeper-player-stack">
+                                <div className="ls-player-row ls-player-row--keepers">
+                                {player.headshot ? (
+                                  <img
+                                    src={player.headshot}
+                                    alt={player.name}
+                                    className="ls-keeper-headshot"
+                                  />
+                                ) : (
+                                  <div className="ls-avatar">
+                                    {player.name
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .slice(0, 2)
+                                      .join("")}
                                   </div>
                                 )}
-                              </Fragment>
+                                <div className="ls-player-main ls-player-main--name-only">
+                                  <div className="ls-player-name">
+                                    {player.name}
+                                  </div>
+                                </div>
+                                <div className="ls-player-team-col">
+                                  {player.team || "—"}
+                                </div>
+                                <div className="ls-pos-badges">
+                                  {keeperDisplayPositions(player)
+                                    .slice(0, 3)
+                                    .map((pos) => (
+                                      <PosBadge key={pos} pos={pos} />
+                                    ))}
+                                </div>
+                                <div className="ls-player-adp">
+                                  {player.adp ?? "—"}
+                                </div>
+                                <div className="keeper-draft-popover-anchor ls-keeper-draft-trigger-cell">
+                                  {openSlots.length === 0 ? (
+                                    <span
+                                      className="ls-keeper-row-status ls-keeper-row-status--muted"
+                                      title="No open roster slots"
+                                    >
+                                      —
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="ls-keeper-draft-icon-btn"
+                                      aria-label={`Draft ${player.name} as keeper`}
+                                      aria-expanded={draftOpen}
+                                      aria-haspopup="dialog"
+                                      ref={(el) => {
+                                        if (draftOpen) {
+                                          keeperAnchorRef.current = el;
+                                        }
+                                      }}
+                                      onClick={() => {
+                                        const id = String(player.id);
+                                        setKeeperDraftPlayerId((prev) =>
+                                          prev === id ? null : id,
+                                        );
+                                      }}
+                                    >
+                                      <ChevronDown
+                                        className="ls-keeper-draft-icon-btn-chevron"
+                                        aria-hidden
+                                        size={18}
+                                        strokeWidth={2.25}
+                                      />
+                                    </button>
+                                  )}
+                                  {keeperDraftPlayerId === String(player.id) && (
+                                    <KeeperDraftFormPopover
+                                      key={player.id}
+                                      anchorRef={keeperAnchorRef}
+                                      player={player}
+                                      eligibleSlots={eligible}
+                                      assignableSlots={openSlots}
+                                      defaultCost={
+                                        player.value ??
+                                        Math.floor(player.adp * 2 + 10)
+                                      }
+                                      onClose={() =>
+                                        setKeeperDraftPlayerId(null)
+                                      }
+                                      onDraft={(slot, cost, contract) => {
+                                        addKeeper(
+                                          player,
+                                          slot,
+                                          cost,
+                                          contract,
+                                        );
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
                       </div>
 
-                      <div className="ls-keeper-panel">
-                        <div className="ls-keeper-title">
-                          {activeKeeperTeam.toUpperCase()} — KEEPER ROSTER
+                      <div className="ls-keeper-panel ls-keeper-panel--roster">
+                        <div className="ls-keeper-cc-head">
+                          <span className="ls-keeper-cc-label">Keeper roster</span>
+                          <select
+                            className="ls-keeper-team-select ls-keeper-team-select--cc"
+                            aria-label="Team to edit keepers for"
+                            value={activeKeeperTeam}
+                            onChange={(e) => {
+                              setActiveKeeperTeam(e.target.value);
+                            }}
+                          >
+                            {teamNames.slice(0, teams).map((name, i) => (
+                              <option key={i} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <div className="ls-progress-copy">
-                          {completionPercent}% filled ({currentKeepers.length}/
-                          {keeperRosterRows.length})
-                        </div>
-                        <div className="ls-progressbar">
-                          <div style={{ width: `${completionPercent}%` }} />
-                        </div>
-                        <div className="ls-budget">
-                          Remaining Budget: ${remainingBudget}
-                        </div>
-                        <div className="ls-player-list">
-                          {keeperRosterRows.map(({ pos, entry }, i) => (
-                            <div key={`${pos}-${i}`} className="ls-keeper-row">
-                              <div className="ls-keeper-slot">{pos}</div>
-                              {entry ? (
-                                <>
-                                  {(() => {
-                                    const p = keeperPlayers.find(
-                                      (kp) =>
-                                        String(kp.id) === entry.keeper.playerId,
-                                    );
-                                    return p?.headshot ? (
-                                      <img
-                                        src={p.headshot}
-                                        alt={entry.keeper.playerName}
-                                        className="ls-keeper-headshot-sm"
-                                      />
-                                    ) : (
-                                      <div className="ls-keeper-init">
-                                        {entry.keeper.playerName
-                                          .split(" ")
-                                          .map((n) => n[0])
-                                          .slice(0, 2)
-                                          .join("")}
-                                      </div>
-                                    );
-                                  })()}
-                                  <div className="ls-keeper-player">
-                                    {entry.keeper.playerName}
-                                    <span className="ls-keeper-team">
-                                      {entry.keeper.team}
-                                    </span>
-                                  </div>
-                                  <label className="ls-keeper-cost-wrap">
-                                    <span>$</span>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={entry.keeper.cost}
-                                      onChange={(e) =>
-                                        updateKeeperCost(
+                        <div className="team-makeup-slots ls-keeper-makeup">
+                          <div
+                            className="team-makeup-head-row ls-keeper-makeup-head"
+                            aria-hidden
+                          >
+                            <span className="team-makeup-head-badge-spacer" />
+                            <div className="team-makeup-head-player">Player</div>
+                            <div className="ls-keeper-makeup-head-cell">Slot</div>
+                            <div className="team-makeup-head-money">Paid</div>
+                            <div className="ls-keeper-makeup-head-cell ls-keeper-makeup-head-contract">
+                              Contract
+                            </div>
+                            <span className="ls-keeper-makeup-head-actions" />
+                          </div>
+                          {keeperRosterRows.map(({ pos, entry }, i) => {
+                            const rowKey = `${pos}-${i}`;
+                            const eligibleSlots = entry
+                              ? getEligibleSlotsForKeeperAtIndex(entry.keeperIdx)
+                              : [];
+                            const assignableSlots = entry
+                              ? getOpenSlotsForKeeperAtIndex(entry.keeperIdx)
+                              : [];
+                            return (
+                              <div
+                                key={rowKey}
+                                className={
+                                  "team-makeup-slot-row ls-keeper-makeup-row" +
+                                  (entry
+                                    ? " team-makeup-slot-row--filled"
+                                    : " team-makeup-slot-row--empty")
+                                }
+                              >
+                                <PosBadge pos={pos} />
+                                {entry ? (
+                                  <>
+                                    <div
+                                      className="team-makeup-slot-player ls-keeper-makeup-player"
+                                      title={entry.keeper.playerName}
+                                    >
+                                      {(() => {
+                                        const p = keeperPlayers.find(
+                                          (kp) =>
+                                            String(kp.id) ===
+                                            entry.keeper.playerId,
+                                        );
+                                        return p?.headshot ? (
+                                          <img
+                                            src={p.headshot}
+                                            alt={entry.keeper.playerName}
+                                            className="ls-keeper-headshot-sm"
+                                          />
+                                        ) : (
+                                          <div className="ls-keeper-init">
+                                            {entry.keeper.playerName
+                                              .split(" ")
+                                              .map((n) => n[0])
+                                              .slice(0, 2)
+                                              .join("")}
+                                          </div>
+                                        );
+                                      })()}
+                                      <span className="ls-keeper-makeup-name">
+                                        {entry.keeper.playerName}
+                                        <span className="ls-keeper-team">
+                                          {entry.keeper.team}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <KeeperSlotSelectWithOverride
+                                      eligibleSlots={eligibleSlots}
+                                      assignableSlots={assignableSlots}
+                                      value={entry.keeper.slot}
+                                      onChange={(slot) =>
+                                        updateKeeperSlot(
                                           entry.keeperIdx,
-                                          parseInt(e.target.value) || 1,
+                                          slot,
                                         )
                                       }
-                                      className="ls-cost-input"
+                                      selectClassName="ls-keeper-slot-select"
+                                      hideLabel
+                                      compact
+                                      showIneligibleHint={false}
+                                      rootClassName="ls-keeper-slot-select-wrap"
                                     />
-                                  </label>
-                                  <button
-                                    type="button"
-                                    className="ls-remove-btn"
-                                    onClick={() =>
-                                      removeKeeper(entry.keeperIdx)
-                                    }
-                                  >
-                                    Remove
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="ls-keeper-player ls-keeper-empty">
-                                    (empty)
-                                  </div>
-                                  <div className="ls-empty-slot">—</div>
-                                </>
-                              )}
-                            </div>
-                          ))}
+                                    <label className="ls-keeper-makeup-paid">
+                                      <span className="ls-keeper-makeup-sr">
+                                        Paid
+                                      </span>
+                                      <span>$</span>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={entry.keeper.cost}
+                                        onChange={(e) =>
+                                          updateKeeperCost(
+                                            entry.keeperIdx,
+                                            parseInt(e.target.value, 10) || 1,
+                                          )
+                                        }
+                                        className="ls-cost-input ls-keeper-makeup-cost-input"
+                                      />
+                                    </label>
+                                    <label className="ls-keeper-makeup-contract">
+                                      <span className="ls-keeper-makeup-sr">
+                                        Contract
+                                      </span>
+                                      <input
+                                        type="text"
+                                        value={entry.keeper.contractType ?? ""}
+                                        onChange={(e) =>
+                                          updateKeeperContract(
+                                            entry.keeperIdx,
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="ls-cost-input ls-contract-input ls-keeper-makeup-contract-input"
+                                        placeholder="Arb / 3Y"
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      className="ls-keeper-makeup-remove"
+                                      aria-label={`Remove ${entry.keeper.playerName} from keepers`}
+                                      onClick={() =>
+                                        removeKeeper(entry.keeperIdx)
+                                      }
+                                    >
+                                      <X size={15} strokeWidth={2.25} aria-hidden />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div
+                                      className="team-makeup-slot-player ls-keeper-empty-player"
+                                      title="Empty roster slot"
+                                    >
+                                      — empty —
+                                    </div>
+                                    <div
+                                      className="ls-keeper-roster-cell ls-keeper-roster-cell--slot ls-keeper-roster-cell--empty"
+                                      aria-hidden
+                                    >
+                                      —
+                                    </div>
+                                    <div
+                                      className="ls-keeper-roster-cell ls-keeper-roster-cell--paid ls-keeper-roster-cell--empty"
+                                      aria-hidden
+                                    >
+                                      —
+                                    </div>
+                                    <div
+                                      className="ls-keeper-roster-cell ls-keeper-roster-cell--contract ls-keeper-roster-cell--empty"
+                                      aria-hidden
+                                    >
+                                      —
+                                    </div>
+                                    <span
+                                      className="ls-keeper-roster-actions-spacer"
+                                      aria-hidden
+                                    />
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -811,15 +847,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
 
             <div className="ls-save-row">
               {saveError && (
-                <p
-                  style={{
-                    color: "var(--error, #f87171)",
-                    margin: "0 0 8px",
-                    fontSize: "13px",
-                  }}
-                >
-                  {saveError}
-                </p>
+                <p className="ls-save-error">{saveError}</p>
               )}
               <button
                 className="ls-save-btn"

@@ -11,6 +11,7 @@ export interface IRosterEntry extends Document {
   price: number;
   rosterSlot: string;
   isKeeper: boolean;
+  keeperContract?: string;
   acquiredAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,11 @@ const rosterEntrySchema = new Schema<IRosterEntry>(
     isKeeper: {
       type: Boolean,
       default: false,
+    },
+    keeperContract: {
+      type: String,
+      default: "",
+      trim: true,
     },
   },
   { timestamps: true },

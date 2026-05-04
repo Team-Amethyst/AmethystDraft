@@ -8,6 +8,8 @@
  * Design Principle: Single Responsibility — only concerned with visualizing budget splits.
  */
 
+import "./AllocationBar.css";
+
 interface Segment {
   pos: string;
   slots: number;

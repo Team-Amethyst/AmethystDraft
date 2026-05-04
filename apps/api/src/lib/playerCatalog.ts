@@ -52,6 +52,31 @@ export interface PlayerData {
       innings: number;
     };
   };
+  /**
+   * Equal-weight (1:1:1) blend of the last three completed MLB seasons.
+   * Same sample gates as projection (AB/IP per year); distinct from 5/3/2 `projection`.
+   */
+  stats3yr?: {
+    batting?: {
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+      obp: string;
+      slg: string;
+    };
+    pitching?: {
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      holds: number;
+      strikeouts: number;
+      completeGames: number;
+      innings: number;
+    };
+  };
   outlook: string;
   injuryStatus?: string;
   springStats?: {
@@ -94,6 +119,10 @@ export function mergeTwoWayPlayers(players: PlayerData[]): PlayerData[] {
       stats: {
         ...existing.stats,
         ...p.stats,
+      },
+      stats3yr: {
+        ...existing.stats3yr,
+        ...p.stats3yr,
       },
     });
   }

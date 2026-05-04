@@ -1,0 +1,284 @@
+/* Reuses pac-snapshot-header layout but sits first in a surface card — no top gap */
+.cc-my-standings-card > .cc-my-standings-head.pac-snapshot-header,
+.cc-right-roster-pane > .cc-roster-pane-head.pac-snapshot-header {
+  margin-top: 0;
+}
+
+.pac-section-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--cc-heading-color);
+  text-transform: uppercase;
+}
+
+.pac-section-label:not(.pac-section-label--inline):not(.pac-log-result-label) {
+  margin: var(--cc-gap-md) 0 var(--cc-heading-mb);
+}
+
+.pac-snapshot-header .pac-section-label {
+  margin: 0;
+}
+
+.pac-section-label.pac-log-result-label {
+  margin-top: var(--cc-gap-lg);
+  margin-bottom: var(--cc-heading-mb);
+  padding-top: var(--cc-gap-md);
+  border-top: 1px solid var(--app-accent-hairline);
+}
+
+.pac-section-label--inline {
+  margin: 0;
+  padding: 0;
+}
+
+.pac-notes-section {
+  margin: var(--cc-gap-sm) 0 var(--cc-gap-md);
+  padding: var(--cc-card-pad);
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+}
+
+.pac-notes-section--sticky-bottom {
+  margin-top: auto;
+}
+
+.pac-notes-dock {
+  margin: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--cc-rail-bottom-gap);
+  z-index: 8;
+  max-height: 100%;
+  /* No horizontal padding so top borders (dock + resizer) span full rail width */
+  padding: 0 0 var(--cc-space-12);
+  border-top: 1px solid var(--app-accent-hairline);
+  background: var(--app-bg-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+.pac-notes-dock-resizer {
+  height: 10px;
+  margin: -2px 0 0;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
+  cursor: ns-resize;
+}
+
+.pac-notes-dock-resizer::after {
+  content: "";
+  display: block;
+  width: 52px;
+  height: 3px;
+  margin: 3px auto 0;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.5);
+}
+
+.pac-notes-dock-header {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cc-heading-color);
+  margin: 0 var(--cc-space-12) var(--cc-space-8);
+}
+
+.pac-notes.pac-notes--dock-only {
+  align-self: stretch;
+  width: auto;
+  min-height: 96px;
+  height: auto;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  resize: none;
+  overflow-y: auto;
+  margin: 0 var(--cc-space-12);
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  background: rgba(17, 12, 26, 1);
+  color: #d8caf0;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.86rem;
+  line-height: 1.42;
+  box-sizing: border-box;
+}
+
+.pac-notes-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.28rem;
+  min-height: 1rem;
+}
+
+.pac-notes-hint {
+  font-size: 0.58rem;
+  color: #4a3a60;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.pac-notes-collapse {
+  border: none;
+  background: transparent;
+  color: #a78bfa;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  padding: 0.1rem 0.2rem;
+}
+
+.pac-notes-collapse:hover {
+  color: #c4b5fd;
+}
+
+.pac-notes-peek {
+  display: block;
+  width: 100%;
+  margin: 0;
+  min-height: 3.1rem;
+  padding: 0.4rem 0.45rem;
+  text-align: left;
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  background: var(--cc-card-bg);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  color: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.pac-notes-peek:focus-visible {
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.25);
+}
+
+.pac-notes-preview-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 0.35rem 0.45rem;
+  align-items: start;
+  min-height: 1.15em;
+}
+
+.pac-notes-preview-row + .pac-notes-preview-row {
+  margin-top: 0.2rem;
+}
+
+.pac-notes-preview-tag {
+  font-size: 0.56rem;
+  font-weight: 900;
+  color: #6b4fa0;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+}
+
+.pac-notes-preview-text {
+  font-size: 0.72rem;
+  line-height: 1.28;
+  color: #c4b5d4;
+  display: -webkit-box;
+  line-clamp: 1;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  text-align: left;
+}
+
+.pac-notes-preview-text--empty {
+  color: #4a3a60;
+  font-style: italic;
+}
+
+.pac-notes-editor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.pac-notes-editor-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.pac-notes-inline-label {
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--cc-heading-color);
+  text-transform: uppercase;
+}
+
+textarea.pac-notes.pac-notes--compact {
+  min-height: 72px;
+  max-height: 120px;
+  padding: 0.42rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+.stat-view-toggle {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(255,255,255,0.04);
+  border-radius: 7px;
+  padding: 0.2rem;
+}
+
+.svt-btn {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b4fa0;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.svt-btn.active {
+  background: rgba(139, 92, 246, 0.25);
+  color: #c4b5fd;
+}
+
+.pac-stat-boxes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--cc-gap-sm);
+}
+
+.stat-box {
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  padding: var(--cc-card-pad);
+  text-align: center;
+}
+
+.sb-label {
+  font-size: 0.62rem;
+  color: var(--cc-heading-color);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.sb-val   { font-size: 1.1rem;  color: #e2d9f3; font-weight: 700; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+

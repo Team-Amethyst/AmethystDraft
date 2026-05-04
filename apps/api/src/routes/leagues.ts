@@ -218,6 +218,7 @@ const addRosterEntry: RequestHandler = async (
       userId,
       teamId: bodyTeamId,
       isKeeper,
+      keeperContract,
     } = req.body;
     const memberIds = league.memberIds.map(String);
     const requesterId = String(req.user!._id);
@@ -246,6 +247,8 @@ const addRosterEntry: RequestHandler = async (
       price,
       rosterSlot,
       isKeeper: isKeeper ?? false,
+      keeperContract:
+        typeof keeperContract === "string" ? keeperContract.trim() : "",
     });
     res.status(201).json(entry);
   } catch (err) {
@@ -321,10 +324,11 @@ const updateRosterEntry: RequestHandler = async (
       throw new ForbiddenError("Not authorized to update this entry", 403, "FORBIDDEN_TEAM_WRITE");
     }
 
-    const { price, rosterSlot, teamId } = req.body as {
+    const { price, rosterSlot, teamId, keeperContract } = req.body as {
       price?: number;
       rosterSlot?: string;
       teamId?: string;
+      keeperContract?: string;
     };
 
     // Only the commissioner can reassign an entry to a different team
@@ -344,6 +348,9 @@ const updateRosterEntry: RequestHandler = async (
       // Also update userId if that team slot has a joined member
       const newUserId = league.memberIds[teamIndex];
       if (newUserId) update.userId = newUserId;
+    }
+    if (keeperContract !== undefined) {
+      update.keeperContract = String(keeperContract).trim();
     }
     const entry = await RosterEntry.findOneAndUpdate(
       { _id: req.params.entryId, leagueId: req.params.id },

@@ -82,6 +82,7 @@ export const addRosterEntrySchema = z.object({
   price: z.number().int().min(1, "Price must be at least $1"),
   rosterSlot: z.string().min(1, "Roster slot is required"),
   isKeeper: z.boolean().optional(),
+  keeperContract: z.string().trim().max(40).optional(),
   userId: z.string().optional(),
   teamId: z.string().optional(),
 });

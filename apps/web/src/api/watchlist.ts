@@ -2,6 +2,8 @@ import { authHeaders, requestJson, requestVoid } from "./client";
 
 export interface WatchlistPlayer {
   id: string;
+  /** Optional MLB player id to support matching against depth charts */
+  mlbId?: number;
   name: string;
   team: string;
   position: string;

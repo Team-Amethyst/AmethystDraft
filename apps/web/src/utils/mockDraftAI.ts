@@ -119,8 +119,25 @@ export function aiMaxBid(
   // Only bid if it makes financial sense
   if (currentBid >= maxWilling) return 0;
 
-  // Return what they'd bid next (current + 1), capped at their max
-  const nextBid = currentBid + 1;
+  // Smart increment — jump meaningfully rather than crawling up $1 at a time
+  let nextBid: number;
+
+  if (currentBid <= 1) {
+    // Opening bid: jump straight to 60-75% of max willingness
+    const openingPct = 0.60 + Math.random() * 0.15;
+    nextBid = Math.max(2, Math.floor(maxWilling * openingPct));
+  } else {
+    // Subsequent bids: jump by a fraction of remaining headroom
+    const headroom = maxWilling - currentBid;
+    const incrementPct =
+      headroom > 20 ? 0.30   // lots of room — jump aggressively
+      : headroom > 10 ? 0.40  // moderate room — medium jumps
+      : headroom > 5  ? 0.60  // getting close — smaller jumps
+      : 1.0;                   // near max — $1 at a time
+    const increment = Math.max(1, Math.floor(headroom * incrementPct));
+    nextBid = currentBid + increment;
+  }
+
   if (nextBid > maxWilling || nextBid > spendable) return 0;
 
   return Math.min(nextBid, spendable, maxWilling);

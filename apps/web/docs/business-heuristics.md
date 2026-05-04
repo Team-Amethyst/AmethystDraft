@@ -1,0 +1,126 @@
+# Business heuristics and UI-only rules
+
+This document describes **tunable thresholds**, **label-shortening rules**, and **search ranking** that are not enforced by the API. They exist to keep the draft room and research UI readable. When you change behavior here, update this file and any affected tests.
+
+---
+
+## Research catalog list filter (`filterResearchCatalogPlayers`)
+
+Used for the Research **Players** / **Tiers** merged list before valuation merge.
+
+- **Search:** case-insensitive **substring** on `player.name` (not token-ranked like the auction typeahead).
+- **Position `all`:** no position filter.
+- **`P`:** `hasPitcherEligibility` (any P-eligible player).
+- **`OF`:** normalized positions include `"OF"`.
+- **Other positions:** normalized position list must include the filter string (e.g. `SS`, `1B`).
+
+---
+
+## Research engine valuation map (`researchValuationRowMapFromEngine`)
+
+When the Research page loads `getValuation`, rows are indexed by `player_id`. Entries whose id is in the **custom player** set are dropped before merge, because the engine does not value custom entries the same way as catalog MLB ids.
+
+---
+
+## Player table stat columns (`playerTableColumns.ts`)
+
+- Default batting / pitching column headers are fixed lists when the league defines **no** scoring categories of that type.
+- When categories exist, the table prefers the **abbrev in parentheses** in the category display name (e.g. `"Runs (R)"` → column `R`); if there is no `(...)`, the full name is used.
+
+---
+
+## Player table tag filter (`PLAYER_TABLE_FILTER_TAGS`)
+
+The tag filter UI lists a fixed set of positive tags. It must stay aligned with tags produced by `getCategoryTags` in `@repo/player-stat-basis` (see package source when adding categories).
+
+Row filtering uses **AND** semantics: `playerTableRowsMatchingTagFilter` keeps only rows whose `tags` array includes **every** selected tag.
+
+---
+
+## Player table position list (`playerTablePositions.ts`)
+
+Position `<option>` values depend on **Hitters/Pitchers** mode (`positionFilterOptionsForStatView`). When the mode changes, `positionFilterAfterStatViewChange` may force `position` back to `all` if the current position is invalid (e.g. `P` while viewing hitters only).
+
+---
+
+## Mock draft defaults (`mockDraftDefaults.ts`)
+
+When the league record has no roster slots or budget, the mock draft UI uses `MOCK_DRAFT_DEFAULT_ROSTER_SLOTS` and `MOCK_DRAFT_DEFAULT_BUDGET` so the simulator can still start.
+
+---
+
+## Mock draft persistence (`mockDraftPersistence.ts`)
+
+In-progress mock draft state is saved under `mockDraftStorageKey(leagueId)` (prefix `amethyst-mock-draft-`). Setup and complete phases are not written; on complete the key is removed. If you change the key format or schema, consider a one-time migration or version field in the JSON.
+
+---
+
+## Watchlist → catalog `Player` stub (`playerFromWatchlistEntry`)
+
+My Draft merges watchlist API rows with engine valuations via `mergePlayerWithValuation`. Watchlist entries do not carry full catalog fields (`mlbId`, `headshot`, `stats`, etc.), so the adapter fills **zeros / empty strings / empty objects** for those. Do not use this shape for features that assume a real catalog row (e.g. deep stats or projections).
+
+---
+
+## Auction Center: value vs. bid “verdict” (`verdictFromValueMinusBid`)
+
+Used for the identity badge tone (positive / negative / muted) and bid-decision card styling. It is based on **rounded dollars**: `round(your_value − recommended_bid)`.
+
+| Condition | Effect |
+|-----------|--------|
+| `delta < -10` | Card tone **overpay** |
+| `delta > 5` | Card tone **value** |
+| Otherwise | Card tone **fair** |
+| `delta < -15` | **danger** flag (strong overpay warning styling) |
+| `delta > 10` | **strong** flag (strong value styling) |
+| `delta > 2` | UI tone **pos**; `delta < -2` → **neg**; else **muted** |
+| Label text | `delta > 0` → “Strong Value”; `delta < 0` → “Overpay”; else “Fair Price” |
+
+These cutoffs are **product choices**, not engine outputs. For roster-wide bid guidance aligned with research tables, see `auctionBidDecision.ts` (`AUCTION_VALUE_DIFF_THRESHOLDS`, `playerValuationEdgeOrDiff`).
+
+---
+
+## Roto category labels (`impactLabelParts`)
+
+Maps league **scoring category names** (as stored on the league) to **primary** (and optional **secondary**) labels for small “impact” tiles in Command Center / Auction Center.
+
+- Normalizes synonyms (e.g. `"Walks + Hits per IP"` → WHIP, `"K"` → strikeouts / SO).
+- Prefers a **short abbreviation** when the full name would overflow tile layout.
+- Uses **string length heuristics** (e.g. full ≤ 22 chars → single line; otherwise abbrev + subtitle).
+- Replaces words like “Percentage” → “Pct” for compact display.
+
+If a league uses a custom category name not in the map, the function falls back to the raw name or a truncated slice—**review tiles** after adding exotic scoring.
+
+---
+
+## Auction player search (typeahead)
+
+`searchRankedAvailablePlayers` ranks **undrafted** players whose names match the query.
+
+| Score | Match rule |
+|-------|------------|
+| 0 | Full name starts with query |
+| 1 | Any name token starts with query |
+| 2 | Any token contains query |
+| 3 | Full name contains query (substring) |
+
+Ties break by **lower ADP** (better list rank). Results are capped (default 8). Minimum query length for listing is enforced by the caller.
+
+---
+
+## Engine row vs. catalog merge (`mergeDisplayValuationRow`)
+
+When the per-player or board **valuation row** omits a finite number, the UI **fills from the catalog `Player`** for: `recommended_bid`, `team_adjusted_value`, `adjusted_value`, `baseline_value`. `edge` is only taken from the engine row when finite (no catalog fallback). This avoids blank tiles when the API is partial; it is **display-only**—persisted roster/engine state is unchanged.
+
+---
+
+## Dev-only diagnostics
+
+`AuctionCenter` (and related code) may log structured snapshots in **`import.meta.env.DEV`** to trace valuation pipeline gaps (catalog vs. engine vs. merged row). These logs are **not** product behavior; remove or gate them if they become noisy.
+
+Implementation for the draft room lives in **`src/dev/auctionCenterDiagnostics.ts`** (`runDevMergedValuationPipelineLog`, HTTP response logs, board-row consistency checks, valuation-key change warnings).
+
+---
+
+## Research / roster value-diff signals (`auctionBidDecision.ts`)
+
+`AUCTION_VALUE_DIFF_THRESHOLDS` and `auctionDecisionSignalFromValueDiff` drive **research table** and **roster-wide** bid guidance labels (e.g. “Aggressive target”, “Price sensitive”). Those dollar cutoffs are **not the same numbers** as `verdictFromValueMinusBid` above, which only powers the **Auction Center** identity badge and bid-decision card styling. Unifying the two models is optional future work; until then, treat both as documented UI heuristics.

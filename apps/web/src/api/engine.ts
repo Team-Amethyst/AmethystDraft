@@ -65,6 +65,10 @@ export interface ValuationContextV2 {
     headline: string;
     inflation_factor: number;
     inflation_percent_vs_neutral: number;
+    /** v2: % change in auction-open-relative index (when Engine sends it). */
+    inflation_percent_vs_auction_open?: number;
+    /** v2: current inflation_factor ÷ factor recomputed at auction open (UI hero gauge). */
+    inflation_index_vs_opening_auction?: number;
     budget_left: number;
     players_left: number;
     model_version: string;
@@ -90,6 +94,13 @@ export interface ValuationContextV2 {
 
 export interface ValuationResponse {
   inflation_factor: number;
+  /** When Engine labels the inflation contract (e.g. replacement_slots_v2). */
+  inflation_model?: "replacement_slots_v2";
+  /**
+   * v2: auction-open-relative index (current allocator ÷ allocator at auction open).
+   * Prefer this for hero “Inflation Index” when `inflation_model` is v2.
+   */
+  inflation_index_vs_opening_auction?: number;
   total_budget_remaining: number;
   pool_value_remaining: number;
   players_remaining: number;
@@ -354,10 +365,17 @@ export async function getMockPick(
 
 // ─── /api/engine/signals/news ─────────────────────────────────────────────────
 
+export type NewsSignalType =
+  | "injury"
+  | "role_change"
+  | "trade"
+  | "demotion"
+  | "promotion";
+
 export interface NewsSignal {
   player_id?: string; // present when matched to a DB player
   player_name: string;
-  signal_type: string;
+  signal_type: NewsSignalType;
   severity: "low" | "medium" | "high";
   description: string;
   effective_date: string;
@@ -371,7 +389,7 @@ export interface NewsSignalsResponse {
 
 export async function getNewsSignals(
   token: string,
-  options?: { days?: number; signal_type?: string },
+  options?: { days?: number; signal_type?: NewsSignalType },
 ): Promise<NewsSignalsResponse> {
   const params = new URLSearchParams();
   if (options?.days) params.set("days", String(options.days));

@@ -1,0 +1,37 @@
+/* ─── Empty state ────────────────────────────────────────────────────────── */
+
+.cc-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 3rem 2rem 1.5rem;
+}
+
+.cc-empty-icon {
+  font-size: 2.5rem;
+  color: #2e2050;
+  line-height: 1;
+}
+
+.cc-empty-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #4a3a60;
+  margin-top: 0.25rem;
+}
+
+.cc-empty-sub {
+  font-size: 0.78rem;
+  color: #362850;
+  text-align: center;
+}
+
+.cc-empty-notes {
+  width: 100%;
+  margin-top: 1.5rem;
+  align-self: stretch;
+}
+

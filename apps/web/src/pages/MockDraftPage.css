@@ -5,9 +5,9 @@
   grid-template-columns: 280px 1fr 260px;
   height: calc(100vh - 56px);
   margin-top: 56px;
-  background: #0a0714;
+  background: var(--app-bg);
   overflow: hidden;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--app-font-family);
 }
 
 /* ─── Shared panel styles ──────────────────────────────────────────────────── */
@@ -16,16 +16,16 @@
 .md-center,
 .md-right {
   overflow-y: auto;
-  border-right: 1px solid rgba(139, 92, 246, 0.1);
+  border-right: 1px solid var(--app-accent-border);
 }
 
-.md-right { border-right: none; border-left: 1px solid rgba(139, 92, 246, 0.1); }
+.md-right { border-right: none; border-left: 1px solid var(--app-accent-border); }
 
 .md-panel-title {
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  color: #6b4fa0;
+  color: var(--app-text-dim);
   text-transform: uppercase;
   margin-bottom: 0.6rem;
   padding: 0.75rem 0.75rem 0;
@@ -33,12 +33,12 @@
 
 /* ─── Left: rosters ────────────────────────────────────────────────────────── */
 
-.md-left { background: #0a0714; padding-bottom: 1rem; }
+.md-left { background: var(--app-bg); padding-bottom: 1rem; }
 
 .md-rosters-list { display: flex; flex-direction: column; gap: 0.4rem; padding: 0 0.6rem; }
 
 .md-team-card {
-  border: 1px solid rgba(139, 92, 246, 0.12);
+  border: 1px solid var(--app-accent-border-faint);
   border-radius: 8px;
   overflow: hidden;
   background: rgba(255,255,255,0.02);
@@ -99,7 +99,7 @@
 
 .md-center {
   display: flex; flex-direction: column; gap: 0;
-  background: #0d0a1a;
+  background: var(--app-bg-soft);
 }
 
 .md-status-bar {
@@ -266,7 +266,7 @@
 
 /* ─── Right panel ──────────────────────────────────────────────────────────── */
 
-.md-right { padding-bottom: 1rem; background: #0a0714; }
+.md-right { padding-bottom: 1rem; background: var(--app-bg-alt); }
 
 .md-suggestion-card {
   margin: 0.75rem;
@@ -370,7 +370,7 @@
 
 .md-setup {
   min-height: 100vh; display: flex; align-items: center;
-  justify-content: center; background: #0a0714; padding: 2rem;
+  justify-content: center; background: var(--app-bg-alt); padding: 2rem;
   margin-top: 56px;
 }
 
@@ -421,7 +421,7 @@
 
 .md-complete {
   min-height: 100vh; display: flex; align-items: center;
-  justify-content: center; background: #0a0714; padding: 2rem;
+  justify-content: center; background: var(--app-bg-alt); padding: 2rem;
   margin-top: 56px;
 }
 
@@ -454,3 +454,35 @@
 .md-result-left  { color: #22c55e; font-weight: 700; }
 
 .md-complete-actions { display: flex; gap: 0.75rem; justify-content: center; }
+
+.md-resume-notice {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.78rem;
+  color: #9080b0;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+
+.md-reset-btn {
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 6px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #f87171;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.md-reset-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.4);
+  opacity: 1;
+}

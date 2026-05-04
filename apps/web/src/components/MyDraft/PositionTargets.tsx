@@ -10,12 +10,10 @@
 
 import PosBadge from "../PosBadge";
 import { useNavigate, useParams } from "react-router";
+import type { PositionPlanRow } from "../../constants/positionAllocationPlan";
+import "./PositionTargets.css";
 
-export interface PositionPlanRow {
-  pos: string;
-  slots: number;
-  target: number;
-}
+export type { PositionPlanRow } from "../../constants/positionAllocationPlan";
 
 interface PositionTargetsProps {
   positionPlan: PositionPlanRow[];
