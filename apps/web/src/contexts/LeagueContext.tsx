@@ -8,6 +8,7 @@ import {
 import type { ReactNode } from "react";
 import { getMyLeagues } from "../api/leagues";
 import { useAuth } from "./AuthContext";
+import type { TaxiRosterEntry } from "../types/taxiDraft";
 
 export interface League {
   id: string;
@@ -27,6 +28,8 @@ export interface League {
   teamNames: string[];
   posEligibilityThreshold: number;
   createdAt: string;
+  taxiDraftOrder?: string[];
+  taxiRosters?: Record<string, TaxiRosterEntry[]>;
 }
 
 interface LeagueContextType {
