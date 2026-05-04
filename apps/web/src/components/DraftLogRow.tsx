@@ -166,6 +166,14 @@ export function DraftLogRow({
           <div className="dl-row-top">
             <span className="dl-name">{entry.playerName}</span>
           </div>
+          <div className="dl-row-meta">
+            {entry.playerTeam ? (
+              <span className="dl-player-team">{entry.playerTeam}</span>
+            ) : null}
+            {entry.positions?.length ? (
+              <span className="dl-position">{entry.positions.join("/")}</span>
+            ) : null}
+          </div>
           <div className="dl-row-bottom">
             <span className="dl-fantasy-team">
               {teamName}

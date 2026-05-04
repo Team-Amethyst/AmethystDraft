@@ -23,6 +23,29 @@
   min-width: 0;
 }
 
+.dl-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  color: rgba(212, 200, 232, 0.8);
+  font-size: 0.62rem;
+}
+
+.dl-player-team,
+.dl-position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  padding: 0.14rem 0.38rem;
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  background: rgba(139, 92, 246, 0.1);
+  color: #e7d9ff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .dl-row-bottom {
   display: flex;
   align-items: center;
