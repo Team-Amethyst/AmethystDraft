@@ -5,11 +5,17 @@ import {
   initializeTaxiDraftOrder,
   moveTaxiDraftOrderTeamDown,
   moveTaxiDraftOrderTeamUp,
+  searchEligibleTaxiPlayers,
+  addPlayerToTaxiRoster,
 } from "../domain/taxiDraft";
 import {
   loadTaxiDraftState,
   saveTaxiDraftState,
 } from "../utils/taxiDraftPersistence";
+import { getPlayersCached } from "../api/players";
+import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
+import type { Player } from "../types/player";
+import type { TaxiRosters } from "../types/taxiDraft";
 import "./TaxiDraft.css";
 
 export default function TaxiDraft() {
@@ -23,30 +29,75 @@ export default function TaxiDraft() {
   }, [league]);
 
   const [taxiDraftOrder, setTaxiDraftOrder] = useState<string[]>([]);
+  const [taxiRosters, setTaxiRosters] = useState<TaxiRosters>({});
+
+  // Add player section state
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
 
   useEffect(() => {
     if (!league) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiDraftOrder([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTaxiRosters({});
       return;
     }
 
     const savedState = loadTaxiDraftState(league.id);
     if (savedState?.taxiDraftOrder?.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiDraftOrder(savedState.taxiDraftOrder);
-      return;
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
     }
 
-    setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
+    if (savedState?.taxiRosters) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTaxiRosters(savedState.taxiRosters);
+    }
   }, [league, leagueTeamNames]);
 
   useEffect(() => {
     if (!league) return;
     saveTaxiDraftState(league.id, {
       taxiDraftOrder,
-      taxiRosters: {},
+      taxiRosters,
     });
-  }, [league, taxiDraftOrder]);
+  }, [league, taxiDraftOrder, taxiRosters]);
+
+  // Load players for search
+  useEffect(() => {
+    const cached = getPlayersCached("adp", league?.posEligibilityThreshold, league?.playerPool);
+    if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAllPlayers(cached);
+    }
+  }, [league?.posEligibilityThreshold, league?.playerPool]);
+
+  // Load roster entries for drafted player IDs
+  useEffect(() => {
+    if (!league?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRosterEntries([]);
+      return;
+    }
+
+    const cached = getRosterCached(league.id);
+    if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRosterEntries(cached);
+    } else {
+      // Load from API if not cached
+      void getRoster(league.id, "").then(setRosterEntries).catch(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setRosterEntries([]);
+      });
+    }
+  }, [league?.id]);
 
   const handleMoveUp = (teamName: string) => {
     setTaxiDraftOrder((current) => moveTaxiDraftOrderTeamUp(current, teamName));
@@ -63,6 +114,28 @@ export default function TaxiDraft() {
   const handleReverseOrder = () => {
     setTaxiDraftOrder((current) => [...current].reverse());
   };
+
+  // Add player handlers
+  const handleAddPlayer = (playerId: string) => {
+    if (!selectedTeamId) return;
+
+    const addedAt = new Date().toISOString();
+    setTaxiRosters((current) =>
+      addPlayerToTaxiRoster(current, selectedTeamId, playerId, addedAt)
+    );
+  };
+
+  // Search results
+  const searchResults = useMemo(() => {
+    if (!league) return [];
+    const draftedIds = rosterEntries.map(e => e.externalPlayerId);
+    return searchEligibleTaxiPlayers(
+      allPlayers,
+      searchQuery,
+      draftedIds,
+      taxiRosters
+    );
+  }, [allPlayers, searchQuery, rosterEntries, taxiRosters, league]);
 
   return (
     <div className="taxi-draft-page">
@@ -147,8 +220,90 @@ export default function TaxiDraft() {
 
           <section className="taxi-draft-card">
             <div className="taxi-draft-card-label">Add Player to Taxi Roster</div>
-            <div className="taxi-draft-card-body">
-              Placeholder for assigning eligible players to a taxi roster.
+            <div className="taxi-draft-card-body taxi-draft-add-player-body">
+              {league ? (
+                <div className="taxi-draft-add-player-wrapper">
+                  <div className="taxi-draft-add-player-controls">
+                    <select
+                      className="taxi-draft-select"
+                      value={selectedTeamId}
+                      onChange={(e) => setSelectedTeamId(e.target.value)}
+                    >
+                      <option value="">Select a team...</option>
+                      {leagueTeamNames.map((teamName, index) => (
+                        <option key={index} value={index.toString()}>
+                          {teamName}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="text"
+                      className="taxi-draft-search-input"
+                      placeholder="Search players by name, team, or position..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  {searchQuery.length > 0 && (
+                    <div className="taxi-draft-search-results">
+                      {searchResults.length > 0 ? (
+                        searchResults.slice(0, 10).map((player) => (
+                          <div key={player.id} className="taxi-draft-player-row">
+                            <div className="taxi-draft-player-info">
+                              <img
+                                src={player.headshot}
+                                alt={player.name}
+                                className="taxi-draft-player-headshot"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling!.textContent = player.name
+                                    .split(' ')
+                                    .map(w => w[0])
+                                    .join('')
+                                    .slice(0, 2)
+                                    .toUpperCase();
+                                }}
+                              />
+                              <div className="taxi-draft-player-headshot-fallback">
+                                {player.name
+                                  .split(' ')
+                                  .map(w => w[0])
+                                  .join('')
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </div>
+                              <div className="taxi-draft-player-details">
+                                <div className="taxi-draft-player-name">{player.name}</div>
+                                <div className="taxi-draft-player-meta">
+                                  {player.team} • {player.position}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="taxi-draft-button taxi-draft-button--add"
+                              onClick={() => handleAddPlayer(player.id)}
+                              disabled={!selectedTeamId}
+                            >
+                              Add
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="taxi-draft-no-results">
+                          No eligible players found matching "{searchQuery}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="taxi-draft-add-player-empty">
+                  Select a league to add players to taxi rosters.
+                </div>
+              )}
             </div>
           </section>
 

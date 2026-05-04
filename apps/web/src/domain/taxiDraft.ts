@@ -1,5 +1,5 @@
 import type { Player } from "../types/player";
-import type { TaxiRosterEntry, TaxiRosters } from "../types/taxiDraft";
+import type { TaxiRosters } from "../types/taxiDraft";
 
 export function initializeTaxiDraftOrder(teamIds: readonly string[]): string[] {
   return [...teamIds];
@@ -98,30 +98,46 @@ export function replaceTaxiRosterPlayer(
   oldPlayerId: string,
   newPlayerId: string,
 ): TaxiRosters {
-  if (oldPlayerId === newPlayerId) return taxiRosters;
+  const teamEntries = taxiRosters[teamId];
+  if (!teamEntries) return taxiRosters;
 
-  const existingPlayerIds = new Set(getTaxiRosterPlayerIds(taxiRosters));
-  if (existingPlayerIds.has(newPlayerId)) {
-    return taxiRosters;
-  }
+  // Check if new player already exists in any roster
+  const existingTaxiIds = new Set(getTaxiRosterPlayerIds(taxiRosters));
+  if (existingTaxiIds.has(newPlayerId)) return taxiRosters;
 
-  const teamRoster = taxiRosters[teamId];
-  if (!teamRoster) return taxiRosters;
+  const entryIndex = teamEntries.findIndex((entry) => entry.playerId === oldPlayerId);
+  if (entryIndex === -1) return taxiRosters;
 
-  const index = teamRoster.findIndex((entry) => entry.playerId === oldPlayerId);
-  if (index === -1) return taxiRosters;
-
-  const updatedEntry: TaxiRosterEntry = {
-    ...teamRoster[index],
+  const newEntries = [...teamEntries];
+  newEntries[entryIndex] = {
+    ...newEntries[entryIndex],
     playerId: newPlayerId,
   };
 
   return {
     ...taxiRosters,
-    [teamId]: [
-      ...teamRoster.slice(0, index),
-      updatedEntry,
-      ...teamRoster.slice(index + 1),
-    ],
+    [teamId]: newEntries,
   };
 }
+
+export function searchEligibleTaxiPlayers(
+  players: readonly Player[],
+  query: string,
+  draftedPlayerIds: ReadonlySet<string> | readonly string[],
+  taxiRosters: TaxiRosters,
+): Player[] {
+  if (query.length < 1) return [];
+
+  const q = query.toLowerCase().trim();
+  const eligible = getEligibleTaxiPlayers(players, draftedPlayerIds, taxiRosters);
+
+  return eligible.filter((player) => {
+    const nameMatch = player.name.toLowerCase().includes(q);
+    const teamMatch = player.team.toLowerCase().includes(q);
+    const positionMatch = (player.position?.toLowerCase().includes(q) ?? false) ||
+                         (player.positions?.some(pos => pos.toLowerCase().includes(q)) ?? false);
+
+    return nameMatch || teamMatch || positionMatch;
+  });
+}
+

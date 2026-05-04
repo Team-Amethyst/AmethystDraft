@@ -8,6 +8,7 @@ import {
   moveTaxiDraftOrderTeamUp,
   removePlayerFromTaxiRoster,
   replaceTaxiRosterPlayer,
+  searchEligibleTaxiPlayers,
 } from "./taxiDraft";
 import type { TaxiRosters } from "../types/taxiDraft";
 import type { Player } from "../types/player";
@@ -89,5 +90,24 @@ describe("taxiDraft helpers", () => {
   it("does not replace when the new player already exists in any roster", () => {
     const replaced = replaceTaxiRosterPlayer(sampleRosters, "teamA", "p1", "p2");
     expect(replaced).toBe(sampleRosters);
+  });
+
+  it("searches eligible taxi players by name, team, or position", () => {
+    const searchRosters: TaxiRosters = {
+      teamA: [
+        { playerId: "p1", teamId: "teamA", addedAt: "2026-01-01T00:00:00.000Z", pickNumber: 1 },
+      ],
+    };
+    const results = searchEligibleTaxiPlayers(samplePlayers, "Bravo", ["p1"], searchRosters);
+    expect(results.map(p => p.id)).toEqual(["p2"]);
+
+    const teamResults = searchEligibleTaxiPlayers(samplePlayers, "BOS", ["p1"], searchRosters);
+    expect(teamResults.map(p => p.id)).toEqual(["p2"]);
+
+    const positionResults = searchEligibleTaxiPlayers(samplePlayers, "2B", ["p1"], searchRosters);
+    expect(positionResults.map(p => p.id)).toEqual(["p2"]);
+
+    const noResults = searchEligibleTaxiPlayers(samplePlayers, "nonexistent", ["p1"], searchRosters);
+    expect(noResults).toEqual([]);
   });
 });
