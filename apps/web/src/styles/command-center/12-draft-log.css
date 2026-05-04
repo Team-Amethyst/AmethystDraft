@@ -24,21 +24,11 @@
   margin-bottom: 0.8rem;
 }
 
-.cc-draft-log-summary-copy {
-  min-width: 0;
-}
-
-.cc-draft-log-summary-title {
-  color: #ece7ff;
-  font-size: 0.84rem;
-  font-weight: 700;
-  margin-bottom: 0.15rem;
-}
-
-.cc-draft-log-summary-description {
+.cc-draft-log-summary-note {
   color: rgba(212, 200, 232, 0.82);
   font-size: 0.72rem;
   line-height: 1.4;
+  text-align: right;
 }
 
 .cc-draft-log-button {

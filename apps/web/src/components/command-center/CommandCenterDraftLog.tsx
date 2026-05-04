@@ -77,14 +77,6 @@ export function CommandCenterDraftLog({
         <span className="cc-draft-log-count">{draftCountLabel}</span>
       </div>
       <div className="cc-draft-log-summary">
-        <div className="cc-draft-log-summary-copy">
-          <div className="cc-draft-log-summary-title">Draft Log</div>
-          <div className="cc-draft-log-summary-description">
-            {sorted.length > 0
-              ? draftCountLabel
-              : "No picks yet. Open the draft log to watch picks as they happen."}
-          </div>
-        </div>
         <button
           type="button"
           className="cc-draft-log-button"
@@ -92,6 +84,9 @@ export function CommandCenterDraftLog({
         >
           View Draft Log
         </button>
+        {sorted.length === 0 ? (
+          <div className="cc-draft-log-summary-note">No picks yet.</div>
+        ) : null}
       </div>
       {isModalOpen && (
         <div
