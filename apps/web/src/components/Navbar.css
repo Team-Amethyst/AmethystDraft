@@ -73,3 +73,19 @@
   background: var(--app-accent-soft);
   transform: translateY(-1px);
 }
+
+.navbar-logo-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1;
+}
+
+.logo-byline {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: #6b4fa0;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  margin-top: 1px;
+}
