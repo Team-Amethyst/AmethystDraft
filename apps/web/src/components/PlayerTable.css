@@ -558,27 +558,37 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.12rem;
-  line-height: 1.2;
+  gap: 0.1rem;
+  line-height: 1.15;
 }
 
 .pt-value-stack__primary {
-  font-size: 0.9rem;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .pt-value-stack__secondary {
-  font-size: 0.62rem;
-  font-weight: 500;
-  color: color-mix(in srgb, #e8dff8 78%, #9080b0);
-  opacity: 0.92;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #ddd0f2;
+  letter-spacing: 0.015em;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  line-height: 1.25;
+  opacity: 0.92;
 }
 
 .pt-value-stack__sep {
-  opacity: 0.65;
+  color: rgba(200, 182, 228, 0.62);
+  font-weight: 500;
 }
 
-/* ── Val diff ── */
+/* ── Val diff (Edge vs Max): neutral base; pos/neg/bid-relative modifiers only ── */
+.td-valdiff {
+  color: #b0a0cc;
+  font-variant-numeric: tabular-nums;
+}
 .td-valdiff.pos { color: #22c55e; font-weight: 600; }
 .td-valdiff.neg { color: #f87171; font-weight: 600; }
 .td-valdiff.bid-relative {
