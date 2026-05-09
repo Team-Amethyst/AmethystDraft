@@ -15,6 +15,8 @@ export interface ValuationResult {
   position: string;
   tier: number;
   baseline_value: number;
+  /** League-wide canonical auction dollars when Engine sends it (else infer from adjusted_value). */
+  auction_value?: number;
   adjusted_value: number;
   recommended_bid?: number;
   team_adjusted_value?: number;
@@ -104,6 +106,8 @@ export interface ValuationResponse {
   total_budget_remaining: number;
   pool_value_remaining: number;
   players_remaining: number;
+  /** Echo of roster context used for team_adjusted_value / edge (when Engine returns it). */
+  user_team_id_used?: string;
   /** Optional Engine fields (when present on JSON; used for diagnostics / UI copy). */
   remaining_slots?: number;
   players_left?: number;
@@ -139,6 +143,7 @@ function logDraftroomValuationPipeline(
   console.info("[valuation pipeline]", {
     source: "api_client_http",
     route,
+    user_team_id_used: normalized.user_team_id_used ?? null,
     selected_player_id: focus ?? null,
     A_board_raw_row: rawValuationRowPipelineSnapshot(rawRow),
     B_getValuation_normalized_row: valuationRowPipelineSnapshot(normRow),
@@ -218,6 +223,7 @@ export async function getValuationPlayer(
       console.info("[valuation pipeline]", {
         source: "api_client_http",
         route: "POST /api/engine/leagues/:leagueId/valuation/player",
+        user_team_id_used: normalized.user_team_id_used ?? null,
         selected_player_id: pid,
         C_player_raw_row: rawValuationRowPipelineSnapshot(rawRow),
         D_getValuationPlayer_normalized_row: valuationRowPipelineSnapshot(normRow),

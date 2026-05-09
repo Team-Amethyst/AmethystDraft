@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { type StatBasis, statBasisFooterDescription } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import {
@@ -8,7 +7,9 @@ import {
 import {
   formatCurrencyWhole,
   formatMaybeDelta,
+  leagueWideAuctionDollars,
   playerValuationEdgeOrDiff,
+  valuationSortLabel,
 } from "../utils/valuation";
 import PosBadge from "./PosBadge";
 import "./PlayerDetailModal.css";
@@ -59,17 +60,13 @@ export default function PlayerDetailModal({
     Number.isFinite(player.team_adjusted_value)
       ? player.team_adjusted_value
       : null;
+  const leagueAuction = leagueWideAuctionDollars(player);
   const marketValue =
-    typeof player.adjusted_value === "number" && Number.isFinite(player.adjusted_value)
-      ? player.adjusted_value
+    typeof leagueAuction === "number" && Number.isFinite(leagueAuction)
+      ? leagueAuction
       : null;
   const targetBid = auctionTargetBidDollars(player);
   const decisionSignal = auctionDecisionSignalFromPlayer(player);
-  const [noteDraft, setNoteDraft] = useState(note ?? "");
-
-  useEffect(() => {
-    setNoteDraft(note ?? "");
-  }, [note, player.id]);
 
   return (
     <div className="pdm-overlay" onClick={onClose}>
@@ -138,19 +135,19 @@ export default function PlayerDetailModal({
             <h3>Bid decision</h3>
             <div className="pdm-decision-signal">{decisionSignal}</div>
             <dl className="pdm-valuation-dl">
-              <dt title="Engine recommended_bid when present; else falls back along the ladder.">
-                Suggested bid
-              </dt>
-              <dd>{formatCurrencyWhole(targetBid)}</dd>
-              <dt title="Engine team_adjusted_value — dollars for your roster.">
-                Your roster $
-              </dt>
-              <dd>{formatCurrencyWhole(yourValue)}</dd>
-              <dt title="Engine adjusted_value — league-wide draft-context dollars.">
-                League context $
+              <dt title="Engine auction_value when present; otherwise adjusted_value (league-wide canonical).">
+                {valuationSortLabel("auction_value")}
               </dt>
               <dd>{formatCurrencyWhole(marketValue)}</dd>
-              <dt title="Engine edge when present; else your roster $ minus suggested bid.">
+              <dt title={valuationSortLabel("recommended_bid")}>
+                {valuationSortLabel("recommended_bid")}
+              </dt>
+              <dd>{formatCurrencyWhole(targetBid)}</dd>
+              <dt title="Engine team_adjusted_value — value to your roster for the active user_team_id.">
+                {valuationSortLabel("team_adjusted_value")}
+              </dt>
+              <dd>{formatCurrencyWhole(yourValue)}</dd>
+              <dt title="Team surplus vs recommended bid: Engine edge when present, else value to your roster minus recommended bid.">
                 Edge
               </dt>
               <dd>{formatMaybeDelta(valuationDiff)}</dd>
@@ -215,12 +212,10 @@ export default function PlayerDetailModal({
             <p className="pdm-note-help">Notes save automatically as you type.</p>
             <textarea
               className="pdm-note-editor"
-              value={noteDraft}
+              value={note ?? ""}
               placeholder="Capture target bid, fallback options, roster fit, and risk notes..."
               onChange={(event) => {
-                const next = event.target.value;
-                setNoteDraft(next);
-                onNoteChange?.(player.id, next);
+                onNoteChange?.(player.id, event.target.value);
               }}
             />
           </section>

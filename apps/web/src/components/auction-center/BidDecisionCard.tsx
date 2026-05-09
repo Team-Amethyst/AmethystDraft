@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
-import { formatDollar, valuationSortLabel, valuationTooltip } from "../../utils/valuation";
+import {
+  formatDollar,
+  leagueWideAuctionDollars,
+  valuationSortLabel,
+  valuationTooltip,
+} from "../../utils/valuation";
 import {
   cleanedYourValueAndRecommendedBid,
   engineFiniteOrNull,
@@ -35,6 +40,7 @@ export function BidDecisionCard({
   const decisionData = {
     team_adjusted_value: row ? engineFiniteOrNull(row.team_adjusted_value) : null,
     recommended_bid: row ? engineFiniteOrNull(row.recommended_bid) : null,
+    auction_value: row ? engineFiniteOrNull(row.auction_value) : null,
     adjusted_value: row ? engineFiniteOrNull(row.adjusted_value) : null,
     baseline_value: row ? engineFiniteOrNull(row.baseline_value) : null,
     edge: row ? engineFiniteOrNull(row.edge) : null,
@@ -67,6 +73,8 @@ export function BidDecisionCard({
               Number.isFinite(cat.team_adjusted_value),
             adjusted_value:
               cat.adjusted_value != null && Number.isFinite(cat.adjusted_value),
+            auction_value:
+              cat.auction_value != null && Number.isFinite(cat.auction_value),
             baseline_value:
               cat.baseline_value != null && Number.isFinite(cat.baseline_value),
             value: cat.value != null && Number.isFinite(cat.value),
@@ -92,9 +100,9 @@ export function BidDecisionCard({
 
   const displayBid = cleanedPair?.bid ?? decisionData.recommended_bid;
   const displayYour = cleanedPair?.yourValue ?? decisionData.team_adjusted_value;
-  const displayAdjustedValue =
-    decisionData.adjusted_value ??
-    engineFiniteOrNull(selectedPlayer.adjusted_value);
+  const displayLeagueAuction =
+    (row ? leagueWideAuctionDollars(row) : undefined) ??
+    leagueWideAuctionDollars(selectedPlayer);
   const displayBaseValue =
     decisionData.baseline_value ??
     engineFiniteOrNull(selectedPlayer.baseline_value);
@@ -111,7 +119,7 @@ export function BidDecisionCard({
         <div className="bdc-metric-row">
           <div
             className="bdc-metric-grid bdc-metric-grid--focus3 bdc-metric-grid--focus-boxes"
-            aria-label="Suggested bid, your roster dollars, league context dollars, player strength"
+            aria-label="Recommended bid, value to your roster, league auction value, player strength"
           >
             <AuctionMetricTile
               label={valuationSortLabel("recommended_bid")}
@@ -142,11 +150,15 @@ export function BidDecisionCard({
               }
             />
             <AuctionMetricTile
-              label={valuationSortLabel("adjusted_value")}
-              title={valuationTooltip("adjusted_value")}
+              label={valuationSortLabel("auction_value")}
+              title={valuationTooltip("auction_value")}
               value={
                 <span className="bdc-focus-value">
-                  {fmtMoney(displayAdjustedValue)}
+                  {fmtMoney(
+                    displayLeagueAuction != null && Number.isFinite(displayLeagueAuction)
+                      ? displayLeagueAuction
+                      : null,
+                  )}
                 </span>
               }
             />

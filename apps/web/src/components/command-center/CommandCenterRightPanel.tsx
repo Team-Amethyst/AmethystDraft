@@ -132,11 +132,7 @@ export function CommandCenterRightPanel({
     typeof n === "number" && Number.isFinite(n) ? n : undefined;
   const suggestedBidDollars =
     finite(selectedValuationRow?.recommended_bid) ??
-    finite(selectedPlayer?.recommended_bid) ??
-    finite(selectedValuationRow?.adjusted_value) ??
-    finite(selectedPlayer?.adjusted_value) ??
-    finite(selectedValuationRow?.baseline_value) ??
-    finite(selectedPlayer?.baseline_value);
+    finite(selectedPlayer?.recommended_bid);
   const maxBid = my?.maxBid;
   const budgetLeft = my?.remaining;
   const dollarsPerSpot = my?.ppSpot;

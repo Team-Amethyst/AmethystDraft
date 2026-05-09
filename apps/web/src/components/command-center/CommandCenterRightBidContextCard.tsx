@@ -1,4 +1,4 @@
-import { valuationTooltip } from "../../utils/valuation";
+import { valuationSortLabel, valuationTooltip } from "../../utils/valuation";
 
 export function CommandCenterRightBidContextCard({
   suggestedBidDollars,
@@ -6,7 +6,7 @@ export function CommandCenterRightBidContextCard({
   budgetLeft,
   dollarsPerSpot,
 }: {
-  /** Engine `recommended_bid` when present; falls back along the dollar ladder for display only. */
+  /** Engine `recommended_bid` only (not league list value). */
   suggestedBidDollars: number | undefined;
   maxBid: number | undefined;
   budgetLeft: number | undefined;
@@ -18,7 +18,7 @@ export function CommandCenterRightBidContextCard({
       <div className="rp-bid-context-grid">
         <div className="budget-card budget-card--row">
           <div className="bc-label" title={valuationTooltip("recommended_bid")}>
-            Suggested bid
+            {valuationSortLabel("recommended_bid")}
           </div>
           <div className="bc-val">
             {suggestedBidDollars != null ? `$${Math.round(suggestedBidDollars)}` : "—"}

@@ -93,6 +93,9 @@ export default function WatchlistTable({
             }
             title="Sort watchlist by valuation signal"
           >
+            <option value="auction_value">
+              {valuationSortLabel("auction_value")}
+            </option>
             <option value="team_adjusted_value">
               {valuationSortLabel("team_adjusted_value")}
             </option>
@@ -140,7 +143,9 @@ export default function WatchlistTable({
                 const supporting =
                   valuationSortField === "team_adjusted_value"
                     ? resolveValuationNumber(player, "recommended_bid")
-                    : resolveValuationNumber(player, "team_adjusted_value");
+                    : valuationSortField === "recommended_bid"
+                      ? resolveValuationNumber(player, "team_adjusted_value")
+                      : resolveValuationNumber(player, "recommended_bid");
                 const defaultTarget = Math.round(
                   resolveValuationNumber(player, "team_adjusted_value"),
                 );

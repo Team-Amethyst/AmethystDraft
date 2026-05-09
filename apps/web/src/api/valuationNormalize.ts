@@ -26,6 +26,7 @@ export function valuationRowPipelineSnapshot(
   row: ValuationResult | null | undefined,
 ): {
   player_id: string | null;
+  auction_value: number | null;
   recommended_bid: number | null;
   team_adjusted_value: number | null;
   edge: number | null;
@@ -34,8 +35,11 @@ export function valuationRowPipelineSnapshot(
   all_keys: string[];
 } | null {
   if (!row) return null;
+  const av = row.auction_value;
   return {
     player_id: row.player_id ?? null,
+    auction_value:
+      av != null && Number.isFinite(av) ? av : null,
     recommended_bid:
       row.recommended_bid != null && Number.isFinite(row.recommended_bid)
         ? row.recommended_bid
@@ -63,6 +67,7 @@ export function rawValuationRowPipelineSnapshot(raw: unknown): {
 } | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
+  const auc = readFiniteFromRecord(r, ["auction_value", "auctionValue"]);
   const rb = readFiniteFromRecord(r, ["recommended_bid", "recommendedBid"]);
   const ta = readFiniteFromRecord(r, ["team_adjusted_value", "teamAdjustedValue"]);
   const edge = readFiniteFromRecord(r, ["edge"]);
@@ -70,6 +75,7 @@ export function rawValuationRowPipelineSnapshot(raw: unknown): {
   const base = readFiniteFromRecord(r, ["baseline_value", "baselineValue"]);
   return {
     player_id: String(r.player_id ?? r.playerId ?? "").trim() || null,
+    auction_value: auc ?? null,
     recommended_bid: rb ?? null,
     team_adjusted_value: ta ?? null,
     edge: edge ?? null,
@@ -90,6 +96,7 @@ export function valuationRowDebugLiterals(row: unknown): {
   return {
     literal_snake: {
       player_id: r.player_id,
+      auction_value: r.auction_value,
       recommended_bid: r.recommended_bid,
       team_adjusted_value: r.team_adjusted_value,
       edge: r.edge,
@@ -98,6 +105,7 @@ export function valuationRowDebugLiterals(row: unknown): {
     },
     literal_camel: {
       playerId: r.playerId,
+      auctionValue: r.auctionValue,
       recommendedBid: r.recommendedBid,
       teamAdjustedValue: r.teamAdjustedValue,
       edge: r.edge,
@@ -123,8 +131,9 @@ export function normalizeValuationResultRow(
   const tier = readFiniteFromRecord(row, ["tier"]) ?? 0;
   const baseline_value =
     readFiniteFromRecord(row, ["baseline_value", "baselineValue"]) ?? 0;
-  const adjusted_value =
-    readFiniteFromRecord(row, ["adjusted_value", "adjustedValue"]) ?? 0;
+  const auctionVal = readFiniteFromRecord(row, ["auction_value", "auctionValue"]);
+  const adjVal = readFiniteFromRecord(row, ["adjusted_value", "adjustedValue"]);
+  const adjusted_value = adjVal ?? auctionVal ?? 0;
   const recommended_bid = readFiniteFromRecord(row, [
     "recommended_bid",
     "recommendedBid",
@@ -150,6 +159,8 @@ export function normalizeValuationResultRow(
     adjusted_value,
     indicator,
   };
+  if (auctionVal !== undefined) out.auction_value = auctionVal;
+  else if (adjVal !== undefined) out.auction_value = adjVal;
   if (recommended_bid !== undefined) out.recommended_bid = recommended_bid;
   if (team_adjusted_value !== undefined) out.team_adjusted_value = team_adjusted_value;
   if (edge !== undefined) out.edge = edge;
@@ -206,6 +217,7 @@ export function mergeValuationBoardRowIntoPrevious(
   merged.adjusted_value =
     firstFinite(incoming.adjusted_value, previous.adjusted_value) ??
     previous.adjusted_value;
+  merged.auction_value = firstFinite(incoming.auction_value, previous.auction_value);
   return merged;
 }
 
@@ -225,6 +237,13 @@ export function normalizeValuationResponseBody(raw: unknown): ValuationResponse 
   const o = raw as Record<string, unknown>;
   const base = { ...raw } as ValuationResponse;
   base.valuations = normalizeValuationsArray(o.valuations);
+  const ut =
+    typeof o.user_team_id_used === "string"
+      ? o.user_team_id_used
+      : typeof o.userTeamIdUsed === "string"
+        ? o.userTeamIdUsed
+        : undefined;
+  if (ut) base.user_team_id_used = ut;
   return base;
 }
 

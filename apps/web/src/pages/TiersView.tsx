@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { Player } from "../types/player";
 import "./TiersView.css";
 import { groupPlayersByTier, calculateTierStats, sortPlayersByValue, formatCurrency } from "../utils/tiers";
-import { valuationSortLabel } from "../utils/valuation";
+import { leagueWideAuctionDollars, valuationSortLabel } from "../utils/valuation";
 
 type Props = {
   players: Player[];
@@ -31,7 +31,9 @@ export default function TiersView({
   removeFromWatchlist,
 }: Props) {
   const [positionFilter, setPositionFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"recommended_bid" | "team_adjusted_value">("recommended_bid");
+  const [sortBy, setSortBy] = useState<
+    "auction_value" | "recommended_bid" | "team_adjusted_value"
+  >("auction_value");
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     initial["1"] = true;
@@ -100,6 +102,9 @@ export default function TiersView({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             >
+              <option value="auction_value">
+                {valuationSortLabel("auction_value")}
+              </option>
               <option value="recommended_bid">
                 {valuationSortLabel("recommended_bid")}
               </option>
@@ -160,7 +165,12 @@ export default function TiersView({
               <div className="tier-group__body">
                 {tierStat.players.map((player) => {
                   const isDrafted = draftedIds.has(player.id) || draftedIds.has(String(player.mlbId));
-                  const value = player.team_adjusted_value ?? player.recommended_bid ?? player.adjusted_value ?? 0;
+                  const value =
+                    sortBy === "auction_value"
+                      ? leagueWideAuctionDollars(player) ?? 0
+                      : sortBy === "recommended_bid"
+                        ? player.recommended_bid ?? 0
+                        : player.team_adjusted_value ?? 0;
 
                   return (
                     <div

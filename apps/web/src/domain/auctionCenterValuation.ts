@@ -83,6 +83,10 @@ export function mergeDisplayValuationRow(
   if (!row) return undefined;
   return {
     ...row,
+    auction_value:
+      engineFiniteOrNull(row.auction_value) ??
+      engineFiniteOrNull(player.auction_value) ??
+      row.auction_value,
     recommended_bid:
       engineFiniteOrNull(row.recommended_bid) ??
       engineFiniteOrNull(player.recommended_bid) ??

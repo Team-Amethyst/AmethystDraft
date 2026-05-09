@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   findRawValuationEntry,
   mergeValuationBoardRowIntoPrevious,
+  normalizeValuationResponseBody,
   normalizeValuationResultRow,
 } from "./valuationNormalize";
 import type { ValuationResult } from "./engine";
@@ -99,5 +100,59 @@ describe("valuationNormalize", () => {
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.recommended_bid).toBe(30);
     expect(merged.team_adjusted_value).toBe(31);
+  });
+
+  it("maps auction_value snake and camel", () => {
+    const snake = normalizeValuationResultRow({
+      player_id: "1",
+      name: "S",
+      position: "P",
+      tier: 1,
+      baseline_value: 1,
+      auction_value: 40,
+      adjusted_value: 41,
+      indicator: "Fair Value",
+    });
+    expect(snake.auction_value).toBe(40);
+    expect(snake.adjusted_value).toBe(41);
+
+    const camel = normalizeValuationResultRow({
+      playerId: "2",
+      name: "T",
+      position: "C",
+      tier: 1,
+      baselineValue: 2,
+      auctionValue: 50,
+      adjustedValue: 51,
+      indicator: "Fair Value",
+    });
+    expect(camel.auction_value).toBe(50);
+    expect(camel.adjusted_value).toBe(51);
+  });
+
+  it("merge keeps prior auction_value when board row omits it", () => {
+    const prev = baseRow({ auction_value: 40, adjusted_value: 41 });
+    const board = baseRow({ adjusted_value: 42 });
+    const merged = mergeValuationBoardRowIntoPrevious(prev, board);
+    expect(merged.auction_value).toBe(40);
+    expect(merged.adjusted_value).toBe(42);
+  });
+
+  it("normalizeValuationResponseBody copies user_team_id_used", () => {
+    const out = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      user_team_id_used: "team_3",
+    });
+    expect(out.user_team_id_used).toBe("team_3");
+  });
+
+  it("normalizeValuationResponseBody accepts camelCase userTeamIdUsed", () => {
+    const out = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      userTeamIdUsed: "team_7",
+    });
+    expect(out.user_team_id_used).toBe("team_7");
   });
 });

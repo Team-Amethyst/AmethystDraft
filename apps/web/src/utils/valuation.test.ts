@@ -8,6 +8,7 @@ import {
   commandCenterValuationMoney,
   commandCenterWalletCapsFromMyTeam,
   defaultValuationSortForPage,
+  leagueWideAuctionDollars,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
   resolveValuationNumber,
@@ -41,6 +42,7 @@ describe("valuation helpers", () => {
       player_id: "1",
       tier: 2,
       baseline_value: 20,
+      auction_value: 28,
       adjusted_value: 26,
       recommended_bid: 29,
       team_adjusted_value: 31,
@@ -49,6 +51,7 @@ describe("valuation helpers", () => {
     });
     expect(merged.tier).toBe(2);
     expect(merged.baseline_value).toBe(20);
+    expect(merged.auction_value).toBe(28);
     expect(merged.adjusted_value).toBe(26);
     expect(merged.recommended_bid).toBe(29);
     expect(merged.team_adjusted_value).toBe(31);
@@ -64,7 +67,7 @@ describe("valuation helpers", () => {
     expect(merged.tier).toBe(3);
   });
 
-  it("uses strict fallback order for valuation numbers", () => {
+  it("uses strict fallback order for valuation numbers (league auction before roster fields)", () => {
     const player = basePlayer();
     expect(resolveValuationNumber(player)).toBe(24);
 
@@ -75,17 +78,20 @@ describe("valuation helpers", () => {
     expect(resolveValuationNumber(player)).toBe(25);
 
     player.recommended_bid = 27;
-    expect(resolveValuationNumber(player)).toBe(27);
+    expect(resolveValuationNumber(player)).toBe(25);
 
     player.team_adjusted_value = 30;
-    expect(resolveValuationNumber(player)).toBe(30);
+    expect(resolveValuationNumber(player)).toBe(25);
+
+    player.auction_value = 33;
+    expect(resolveValuationNumber(player)).toBe(33);
   });
 
   it("returns page default valuation fields", () => {
-    expect(defaultValuationSortForPage("Research")).toBe("recommended_bid");
-    expect(defaultValuationSortForPage("MyDraft")).toBe("recommended_bid");
-    expect(defaultValuationSortForPage("AuctionCenter")).toBe("recommended_bid");
-    expect(defaultValuationSortForPage("CommandCenter")).toBe("adjusted_value");
+    expect(defaultValuationSortForPage("Research")).toBe("auction_value");
+    expect(defaultValuationSortForPage("MyDraft")).toBe("auction_value");
+    expect(defaultValuationSortForPage("AuctionCenter")).toBe("auction_value");
+    expect(defaultValuationSortForPage("CommandCenter")).toBe("auction_value");
   });
 
   it("normalizes valuation player ids for map keys", () => {
@@ -105,7 +111,7 @@ describe("valuation helpers", () => {
       team_adjusted_value: 40,
       indicator: "Fair Value" as const,
     };
-    const m = commandCenterValuationMoney(row, 5);
+    const m = commandCenterValuationMoney(row);
     expect(m.your).toBe(40);
     expect(m.likely).toBe(30);
     expect(m.market).toBe(20);
@@ -119,12 +125,29 @@ describe("valuation helpers", () => {
       adjusted_value: 20,
       indicator: "Fair Value" as const,
     } as ValuationResult;
-    const m2 = commandCenterValuationMoney(partial, 99);
+    const m2 = commandCenterValuationMoney(partial);
     expect(m2.your).toBeUndefined();
     expect(m2.likely).toBeUndefined();
     expect(m2.market).toBe(20);
 
-    expect(commandCenterValuationMoney(undefined, 12).your).toBeUndefined();
+    expect(commandCenterValuationMoney(undefined).your).toBeUndefined();
+  });
+
+  it("commandCenterValuationMoney prefers auction_value for market line", () => {
+    const row = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 1,
+      baseline_value: 5,
+      auction_value: 55,
+      adjusted_value: 20,
+      recommended_bid: 30,
+      team_adjusted_value: 40,
+      indicator: "Fair Value" as const,
+    };
+    const m = commandCenterValuationMoney(row);
+    expect(m.market).toBe(55);
   });
 
   it("commandCenterMaxExecutableBid is min(max_bid, budget − (spots−1))", () => {
@@ -215,13 +238,23 @@ describe("valuation helpers", () => {
   });
 
   it("exposes compact labels and tooltip copy", () => {
-    expect(valuationSortLabel("team_adjusted_value")).toBe("Your roster $");
-    expect(valuationSortLabel("recommended_bid")).toBe("Suggested bid");
+    expect(valuationSortLabel("auction_value")).toBe("Auction value");
+    expect(valuationSortLabel("team_adjusted_value")).toBe("Value to Your Roster");
+    expect(valuationSortLabel("recommended_bid")).toBe("Recommended Bid");
     expect(valuationSortLabel("adjusted_value")).toBe("League context $");
     expect(valuationSortLabel("baseline_value")).toBe("Player strength");
+    expect(valuationTooltip("auction_value")).toContain("auction_value");
     expect(valuationTooltip("team_adjusted_value")).toContain("team_adjusted_value");
     expect(valuationTooltip("recommended_bid")).toContain("recommended_bid");
     expect(valuationTooltip("adjusted_value")).toContain("adjusted_value");
     expect(valuationTooltip("baseline_value")).toContain("baseline_value");
+  });
+
+  it("leagueWideAuctionDollars prefers auction_value over adjusted_value", () => {
+    expect(
+      leagueWideAuctionDollars({ auction_value: 12, adjusted_value: 99 }),
+    ).toBe(12);
+    expect(leagueWideAuctionDollars({ adjusted_value: 44 })).toBe(44);
+    expect(leagueWideAuctionDollars({})).toBeUndefined();
   });
 });

@@ -62,4 +62,41 @@ describe("sortPlayerTableRows", () => {
     const out = sortPlayerTableRows(rows, { col: "tier", dir: "desc" }, batCols, pitCols, "recommended_bid", basis);
     expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);
   });
+
+  it("sorts by value column using league-wide auction dollars", () => {
+    const rows = [
+      {
+        player: player("a", {
+          name: "A",
+          adp: 1,
+          tier: 1,
+          auction_value: 10,
+          adjusted_value: 10,
+        }),
+        isBatter: true,
+        valDiff: 0,
+        tags: [],
+      },
+      {
+        player: player("b", {
+          name: "B",
+          adp: 2,
+          tier: 1,
+          adjusted_value: 50,
+        }),
+        isBatter: true,
+        valDiff: 0,
+        tags: [],
+      },
+    ];
+    const out = sortPlayerTableRows(
+      rows,
+      { col: "value", dir: "desc" },
+      batCols,
+      pitCols,
+      "auction_value",
+      basis,
+    );
+    expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);
+  });
 });

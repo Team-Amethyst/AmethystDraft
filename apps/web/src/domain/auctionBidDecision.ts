@@ -51,8 +51,9 @@ function finiteDollar(n: unknown): number | undefined {
 }
 
 /**
- * Single headline bid line for quick UI: `recommended_bid`, then `team_adjusted_value`,
- * then `adjusted_value` (Engine dollar ladder; see docs/engine-valuation-ui.md).
+ * Suggested bid headline for quick UI: `recommended_bid` first (bid anchor), then
+ * `team_adjusted_value`, then league-wide `adjusted_value` — not the official
+ * league auction list value (use `leagueWideAuctionDollars` for that).
  */
 export function auctionTargetBidDollars(
   player: Pick<Player, "recommended_bid" | "team_adjusted_value" | "adjusted_value">,

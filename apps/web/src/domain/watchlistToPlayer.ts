@@ -18,6 +18,7 @@ export function playerFromWatchlistEntry(p: WatchlistPlayer): Player {
     value: p.value,
     tier: p.tier,
     baseline_value: p.baseline_value,
+    auction_value: p.auction_value,
     adjusted_value: p.adjusted_value,
     recommended_bid: p.recommended_bid,
     team_adjusted_value: p.team_adjusted_value,

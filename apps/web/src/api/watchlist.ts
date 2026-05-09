@@ -12,6 +12,7 @@ export interface WatchlistPlayer {
   value: number;
   tier: number;
   baseline_value?: number;
+  auction_value?: number;
   adjusted_value?: number;
   recommended_bid?: number;
   team_adjusted_value?: number;
@@ -49,6 +50,7 @@ export async function addWatchlistEntry(
         value: player.value,
         tier: player.tier,
         baseline_value: player.baseline_value,
+        auction_value: player.auction_value,
         adjusted_value: player.adjusted_value,
         recommended_bid: player.recommended_bid,
         team_adjusted_value: player.team_adjusted_value,

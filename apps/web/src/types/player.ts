@@ -10,6 +10,8 @@ export interface Player {
   value: number;
   tier: number;
   baseline_value?: number;
+  /** Engine league-wide auction list dollars when present (canonical with adjusted_value). */
+  auction_value?: number;
   adjusted_value?: number;
   recommended_bid?: number;
   team_adjusted_value?: number;

@@ -35,6 +35,7 @@ export function valuationResultNumbersEqual(
 ): boolean {
   return (
     a.baseline_value === b.baseline_value &&
+    a.auction_value === b.auction_value &&
     a.adjusted_value === b.adjusted_value &&
     a.recommended_bid === b.recommended_bid &&
     a.team_adjusted_value === b.team_adjusted_value &&
@@ -49,6 +50,7 @@ export function valuationResultStableKey(v: ValuationResult): string {
   return [
     String(v.player_id).trim(),
     v.baseline_value,
+    v.auction_value ?? "",
     v.adjusted_value,
     v.recommended_bid ?? "",
     v.team_adjusted_value ?? "",

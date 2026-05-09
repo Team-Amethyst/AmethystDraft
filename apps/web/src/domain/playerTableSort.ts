@@ -2,7 +2,7 @@ import type { StatBasis } from "@repo/player-stat-basis";
 import type { DisplayBatting, DisplayPitching } from "@repo/player-stat-basis";
 import { getDisplayStatValue } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
-import type { ValuationSortField } from "../utils/valuation";
+import { leagueWideAuctionDollars, type ValuationSortField } from "../utils/valuation";
 
 function asFinite(n: unknown): number | undefined {
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
@@ -33,19 +33,19 @@ export function sortPlayerTableRows(
   return [...rows].sort((a, b) => {
     if (col === "adp") return mult * (a.player.adp - b.player.adp);
     if (col === "value") {
-      const av =
-        valuationSortField === "recommended_bid"
-          ? asFinite(a.player.recommended_bid) ?? -Infinity
-          : valuationSortField === "team_adjusted_value"
-            ? asFinite(a.player.team_adjusted_value) ?? -Infinity
-            : asFinite(a.player[valuationSortField]) ?? -Infinity;
-      const bv =
-        valuationSortField === "recommended_bid"
-          ? asFinite(b.player.recommended_bid) ?? -Infinity
-          : valuationSortField === "team_adjusted_value"
-            ? asFinite(b.player.team_adjusted_value) ?? -Infinity
-            : asFinite(b.player[valuationSortField]) ?? -Infinity;
-      return mult * (av - bv);
+      const sortKey = (p: Player) => {
+        if (valuationSortField === "auction_value") {
+          return leagueWideAuctionDollars(p) ?? -Infinity;
+        }
+        if (valuationSortField === "recommended_bid") {
+          return asFinite(p.recommended_bid) ?? -Infinity;
+        }
+        if (valuationSortField === "team_adjusted_value") {
+          return asFinite(p.team_adjusted_value) ?? -Infinity;
+        }
+        return asFinite(p[valuationSortField]) ?? -Infinity;
+      };
+      return mult * (sortKey(a.player) - sortKey(b.player));
     }
     if (col === "tier") return mult * (a.player.tier - b.player.tier);
     if (col === "valdiff") {

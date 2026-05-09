@@ -86,7 +86,9 @@ export function WatchlistTableRow({
           {valuationSortLabel(
             valuationSortField === "team_adjusted_value"
               ? "recommended_bid"
-              : "team_adjusted_value",
+              : valuationSortField === "recommended_bid"
+                ? "team_adjusted_value"
+                : "recommended_bid",
           )}
           : {formatDollar(supporting)}
         </div>

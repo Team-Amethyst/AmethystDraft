@@ -35,6 +35,7 @@ import {
 import {
   formatCurrencyWhole,
   formatMaybeDelta,
+  leagueWideAuctionDollars,
   playerValuationEdgeOrDiff,
   valuationSortLabel,
   valuationTooltip,
@@ -82,7 +83,7 @@ export default function PlayerTable({
   draftedContractByPlayerId,
   isCustomPlayer,
   engineCatalogByPlayerId,
-  defaultValuationSortField = "recommended_bid",
+  defaultValuationSortField = "auction_value",
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -436,15 +437,15 @@ export default function PlayerTable({
               <th
                 className="th-value th-sortable"
                 onClick={() => handleColSort("value")}
-                title={valuationTooltip("recommended_bid")}
+                title={valuationTooltip("auction_value")}
               >
-                {valuationSortLabel("recommended_bid")}{" "}
+                {valuationSortLabel("auction_value")}{" "}
                 <SortArrow col="value" sort={clientSort} />
               </th>
               <th
                 className="th-valdiff th-sortable"
                 onClick={() => handleColSort("valdiff")}
-                title="Engine edge when present; else your roster $ minus suggested bid."
+                title="Team surplus vs recommended bid: Engine edge when present, else value to your roster minus recommended bid."
               >
                 Edge <SortArrow col="valdiff" sort={clientSort} />
               </th>
@@ -488,8 +489,9 @@ export default function PlayerTable({
               ({ player, bat, pit, isBatter, tags, valDiff }, index) => {
                 const isStarred = isInWatchlist(player.id);
                 const eng = engineCatalogByPlayerId?.get(player.id);
-                const primaryValue = asFinite(player.recommended_bid);
-                const secondaryValue = asFinite(player.team_adjusted_value);
+                const primaryValue = leagueWideAuctionDollars(player);
+                const recommended = asFinite(player.recommended_bid);
+                const teamValue = asFinite(player.team_adjusted_value);
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
                   : undefined;
@@ -616,7 +618,7 @@ export default function PlayerTable({
                     <td className="td-value">
                       <span
                         className="value-chip"
-                        title={valuationTooltip("recommended_bid")}
+                        title={valuationTooltip("auction_value")}
                       >
                         {formatCurrencyWhole(primaryValue)}
                       </span>
@@ -624,13 +626,25 @@ export default function PlayerTable({
                         style={{
                           fontSize: "0.62rem",
                           opacity: 0.78,
-                          lineHeight: 1.1,
+                          lineHeight: 1.15,
+                          marginTop: "1px",
+                        }}
+                        title={valuationTooltip("recommended_bid")}
+                      >
+                        {valuationSortLabel("recommended_bid")}:{" "}
+                        {formatCurrencyWhole(recommended)}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.62rem",
+                          opacity: 0.78,
+                          lineHeight: 1.15,
                           marginTop: "1px",
                         }}
                         title={valuationTooltip("team_adjusted_value")}
                       >
                         {valuationSortLabel("team_adjusted_value")}:{" "}
-                        {formatCurrencyWhole(secondaryValue)}
+                        {formatCurrencyWhole(teamValue)}
                       </div>
                     </td>
 
