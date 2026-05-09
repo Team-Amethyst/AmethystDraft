@@ -4,6 +4,7 @@ import type { Player } from "../../types/player";
 import {
   formatDollar,
   leagueWideAuctionDollars,
+  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
   valuationSortLabel,
   valuationTooltip,
 } from "../../utils/valuation";
@@ -34,8 +35,16 @@ export function BidDecisionCard({
     cleanedPair != null
       ? valueMinusBidDeltaRounded(cleanedPair.yourValue, cleanedPair.bid)
       : null;
+  const bidRelativeStar =
+    typeof selectedPlayer.tier === "number" &&
+    selectedPlayer.tier >= 1 &&
+    selectedPlayer.tier <= 2;
   const computedVerdict =
-    computedDelta != null ? verdictFromValueMinusBid(computedDelta) : null;
+    computedDelta != null
+      ? verdictFromValueMinusBid(computedDelta, {
+          bidRelativeStar,
+        })
+      : null;
 
   const decisionData = {
     team_adjusted_value: row ? engineFiniteOrNull(row.team_adjusted_value) : null,
@@ -172,6 +181,7 @@ export function BidDecisionCard({
           </div>
         </div>
       </div>
+      <p className="bdc-footnote">{RECOMMENDED_BID_VS_AUCTION_VALUE_COPY}</p>
     </div>
   );
 }

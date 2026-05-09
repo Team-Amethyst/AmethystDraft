@@ -24,6 +24,40 @@ export interface ValuationShape {
   explain_v2?: Player["explain_v2"];
   why?: string[];
   market_notes?: string[];
+  valuation_explain?: Player["valuation_explain"];
+  recommended_bid_note?: string;
+  edge_note?: string;
+}
+
+/** Shown near max-bid guidance / modals to separate bid anchor from league auction FMV. */
+export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
+  "Max bid is a strategic bid anchor and may be higher than Auction Value for elite players.";
+
+/** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
+export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
+  "Auction Value: fair league-wide auction value.";
+
+export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
+  "Max Bid: strategic bid anchor; may be higher than auction value for elite players.";
+
+export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
+  "Team Value: value to your roster.";
+
+/** Research `PlayerTable` edge / surplus column header `title`. */
+export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP =
+  "Surplus vs Max: team_adjusted_value minus recommended_bid (or Engine edge). Negative on stars can be normal when the bid anchor sits above auction value.";
+
+/**
+ * Research table secondary line under the primary auction $ (compact scan layout).
+ * Max = `recommended_bid`, Team = `team_adjusted_value` (does not surface `baseline_value`).
+ */
+export function researchTableSecondaryMaxTeamLine(player: {
+  recommended_bid?: number | null;
+  team_adjusted_value?: number | null;
+}): string {
+  const max = formatCurrencyWhole(coerceNumber(player.recommended_bid));
+  const team = formatCurrencyWhole(coerceNumber(player.team_adjusted_value));
+  return `Max ${max} · Team ${team}`;
 }
 
 export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
@@ -54,6 +88,20 @@ function coerceNumber(value: unknown): number | undefined {
  * Edge column for tables: prefer engine `edge` when present; otherwise TA minus suggested bid.
  * Matches prior PlayerTable behavior in one place for reuse.
  */
+/** Edge column CSS: stars (tier 1–2) with negative edge use bid-relative tone, not error red. */
+export function playerEdgeDisplayClass(
+  player: Pick<Player, "tier">,
+  valDiff: number | null | undefined,
+): "" | "pos" | "neg" | "bid-relative" {
+  if (valDiff == null || !Number.isFinite(valDiff)) return "";
+  if (valDiff >= 0) return "pos";
+  const tier = player.tier;
+  const starTier =
+    typeof tier === "number" && tier >= 1 && tier <= 2 && Number.isFinite(tier);
+  if (starTier) return "bid-relative";
+  return "neg";
+}
+
 export function playerValuationEdgeOrDiff(player: {
   edge?: number | null;
   recommended_bid?: number | null;
@@ -386,6 +434,10 @@ export function mergePlayerWithValuation(
     explain_v2: valuation.explain_v2 ?? player.explain_v2,
     why: valuation.why ?? player.why,
     market_notes: valuation.market_notes ?? player.market_notes,
+    valuation_explain: valuation.valuation_explain ?? player.valuation_explain,
+    recommended_bid_note:
+      valuation.recommended_bid_note ?? player.recommended_bid_note,
+    edge_note: valuation.edge_note ?? player.edge_note,
   };
 }
 
@@ -415,7 +467,7 @@ export function valuationTooltip(field: ValuationSortField): string {
     return "Engine team_adjusted_value — dollars to your roster for user_team_id (not the league-wide list value).";
   }
   if (field === "recommended_bid") {
-    return "Engine recommended_bid — suggested next bid, not the official list/auction value.";
+    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Engine recommended_bid is the bid anchor, not league-wide FMV.`;
   }
   if (field === "adjusted_value") {
     return "Engine adjusted_value — same semantic as auction_value when the Engine mirrors compatibility fields.";

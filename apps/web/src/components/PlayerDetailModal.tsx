@@ -7,9 +7,16 @@ import {
 import {
   formatCurrencyWhole,
   formatMaybeDelta,
+  formatMaybeDollar,
   leagueWideAuctionDollars,
   playerValuationEdgeOrDiff,
+  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
+  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
+  RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
+  RESEARCH_TABLE_TOOLTIP_MAX_BID,
+  RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
   valuationSortLabel,
+  valuationTooltip,
 } from "../utils/valuation";
 import PosBadge from "./PosBadge";
 import "./PlayerDetailModal.css";
@@ -26,6 +33,10 @@ interface PlayerDetailModalProps {
   isCustomPlayer?: boolean;
   onClose: () => void;
   onMoveToCommandCenter: (player: Player) => void;
+  /** Latest board valuation response warnings (same payload as Command Center). */
+  valuationContextWarnings?: readonly string[];
+  /** DEV-only: opaque `valuation_context` JSON for support / diagnostics. */
+  valuationContextDev?: Record<string, unknown> | null;
 }
 
 function valueOrDash(value: unknown): string {
@@ -44,6 +55,8 @@ export default function PlayerDetailModal({
   isCustomPlayer = false,
   onClose,
   onMoveToCommandCenter,
+  valuationContextWarnings,
+  valuationContextDev,
 }: PlayerDetailModalProps) {
   if (!isOpen || !player) return null;
 
@@ -103,6 +116,16 @@ export default function PlayerDetailModal({
         </div>
 
         <div className="pdm-body">
+        {valuationContextWarnings && valuationContextWarnings.length > 0 ? (
+          <div className="pdm-inline-warnings" role="status">
+            <strong>Valuation notice</strong>
+            <ul>
+              {valuationContextWarnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="pdm-grid">
           <section className="pdm-card cc-surface-inset pdm-card--hero">
             <h3>Player profile</h3>
@@ -135,23 +158,110 @@ export default function PlayerDetailModal({
             <h3>Bid decision</h3>
             <div className="pdm-decision-signal">{decisionSignal}</div>
             <dl className="pdm-valuation-dl">
-              <dt title="Engine auction_value when present; otherwise adjusted_value (league-wide canonical).">
+              <dt title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
                 {valuationSortLabel("auction_value")}
               </dt>
               <dd>{formatCurrencyWhole(marketValue)}</dd>
-              <dt title={valuationSortLabel("recommended_bid")}>
-                {valuationSortLabel("recommended_bid")}
-              </dt>
+              <dt title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>Max bid</dt>
               <dd>{formatCurrencyWhole(targetBid)}</dd>
-              <dt title="Engine team_adjusted_value — value to your roster for the active user_team_id.">
+              <dt title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
                 {valuationSortLabel("team_adjusted_value")}
               </dt>
               <dd>{formatCurrencyWhole(yourValue)}</dd>
-              <dt title="Team surplus vs recommended bid: Engine edge when present, else value to your roster minus recommended bid.">
-                Edge
+              <dt title={valuationTooltip("baseline_value")}>
+                {valuationSortLabel("baseline_value")}
               </dt>
+              <dd>
+                {formatCurrencyWhole(
+                  typeof player.baseline_value === "number" &&
+                    Number.isFinite(player.baseline_value)
+                    ? player.baseline_value
+                    : undefined,
+                )}
+              </dd>
+              <dt title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}>Edge vs Max</dt>
               <dd>{formatMaybeDelta(valuationDiff)}</dd>
             </dl>
+            <p className="pdm-anchor-help">{RECOMMENDED_BID_VS_AUCTION_VALUE_COPY}</p>
+            {player.recommended_bid_note?.trim() ? (
+              <p className="pdm-engine-note">{player.recommended_bid_note.trim()}</p>
+            ) : null}
+            {player.edge_note?.trim() ? (
+              <p className="pdm-engine-note">{player.edge_note.trim()}</p>
+            ) : null}
+            {player.valuation_explain ? (
+              <details className="pdm-valuation-explain">
+                <summary>Valuation explain</summary>
+                <dl className="pdm-valuation-dl pdm-valuation-dl--dense">
+                  {player.valuation_explain.effective_positions?.length ? (
+                    <>
+                      <dt>Effective positions</dt>
+                      <dd>{player.valuation_explain.effective_positions.join(", ")}</dd>
+                    </>
+                  ) : null}
+                  {player.valuation_explain.replacement_key_used ? (
+                    <>
+                      <dt>Replacement key</dt>
+                      <dd>{player.valuation_explain.replacement_key_used}</dd>
+                    </>
+                  ) : null}
+                  {player.valuation_explain.replacement_value_used != null ? (
+                    <>
+                      <dt>Replacement value</dt>
+                      <dd>
+                        {formatMaybeDollar(player.valuation_explain.replacement_value_used)}
+                      </dd>
+                    </>
+                  ) : null}
+                  {player.valuation_explain.surplus_basis ? (
+                    <>
+                      <dt>Surplus basis</dt>
+                      <dd>{player.valuation_explain.surplus_basis}</dd>
+                    </>
+                  ) : null}
+                  {player.valuation_explain.inflation_factor != null ? (
+                    <>
+                      <dt>Inflation factor</dt>
+                      <dd>
+                        {formatMaybeDollar(player.valuation_explain.inflation_factor, {
+                          oneDecimal: true,
+                        })}
+                      </dd>
+                    </>
+                  ) : null}
+                  {player.valuation_explain.pool_to_slot_ratio != null ? (
+                    <>
+                      <dt>Pool to slot ratio</dt>
+                      <dd>
+                        {formatMaybeDollar(player.valuation_explain.pool_to_slot_ratio, {
+                          oneDecimal: true,
+                        })}
+                      </dd>
+                    </>
+                  ) : null}
+                  {player.valuation_explain.scoring_category_warnings?.length ? (
+                    <>
+                      <dt>Scoring warnings</dt>
+                      <dd>
+                        <ul className="pdm-explain-warnings">
+                          {player.valuation_explain.scoring_category_warnings.map((x) => (
+                            <li key={x}>{x}</li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </>
+                  ) : null}
+                </dl>
+              </details>
+            ) : null}
+            {import.meta.env.DEV && valuationContextDev && Object.keys(valuationContextDev).length > 0 ? (
+              <details className="pdm-valuation-context-dev">
+                <summary>valuation_context (dev)</summary>
+                <pre className="pdm-valuation-context-pre">
+                  {JSON.stringify(valuationContextDev, null, 2)}
+                </pre>
+              </details>
+            ) : null}
             {player.outlook?.trim() ? (
               <p className="pdm-outlook">{player.outlook.trim()}</p>
             ) : null}

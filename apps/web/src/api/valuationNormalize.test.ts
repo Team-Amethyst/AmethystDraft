@@ -155,4 +155,72 @@ describe("valuationNormalize", () => {
     });
     expect(out.user_team_id_used).toBe("team_7");
   });
+
+  it("normalizeValuationResponseBody maps valuation_context_warnings snake and camel", () => {
+    const snake = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      valuation_context_warnings: ["thin bench", "  "],
+    });
+    expect(snake.valuation_context_warnings).toEqual(["thin bench"]);
+
+    const camel = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      valuationContextWarnings: ["x"],
+    });
+    expect(camel.valuation_context_warnings).toEqual(["x"]);
+  });
+
+  it("normalizeValuationResponseBody maps valuation_context object", () => {
+    const out = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      valuation_context: { pool_phase: "mid", k: 1 },
+    });
+    expect(out.valuation_context).toEqual({ pool_phase: "mid", k: 1 });
+  });
+
+  it("normalizeValuationResultRow maps valuation_explain and notes", () => {
+    const row = normalizeValuationResultRow({
+      player_id: "1",
+      name: "S",
+      position: "P",
+      tier: 1,
+      baseline_value: 1,
+      adjusted_value: 10,
+      indicator: "Fair Value",
+      recommended_bid_note: "anchor high",
+      edge_note: "vs bid",
+      valuation_explain: {
+        effective_positions: ["SS", "2B"],
+        replacementKeyUsed: "MI3",
+        replacementValueUsed: 4,
+        surplus_basis: "ta_minus_rb",
+        inflationFactor: 1.05,
+        poolToSlotRatio: 2.5,
+        scoringCategoryWarnings: ["SV thin"],
+      },
+    });
+    expect(row.recommended_bid_note).toBe("anchor high");
+    expect(row.edge_note).toBe("vs bid");
+    expect(row.valuation_explain?.effective_positions).toEqual(["SS", "2B"]);
+    expect(row.valuation_explain?.replacement_key_used).toBe("MI3");
+    expect(row.valuation_explain?.replacement_value_used).toBe(4);
+    expect(row.valuation_explain?.surplus_basis).toBe("ta_minus_rb");
+    expect(row.valuation_explain?.inflation_factor).toBe(1.05);
+    expect(row.valuation_explain?.pool_to_slot_ratio).toBe(2.5);
+    expect(row.valuation_explain?.scoring_category_warnings).toEqual(["SV thin"]);
+  });
+
+  it("mergeValuationBoardRowIntoPrevious keeps explain when board omits it", () => {
+    const prev = baseRow({
+      valuation_explain: { surplus_basis: "x" },
+      recommended_bid_note: "keep me",
+    });
+    const board = baseRow({ adjusted_value: 12 });
+    const merged = mergeValuationBoardRowIntoPrevious(prev, board);
+    expect(merged.valuation_explain).toEqual({ surplus_basis: "x" });
+    expect(merged.recommended_bid_note).toBe("keep me");
+  });
 });

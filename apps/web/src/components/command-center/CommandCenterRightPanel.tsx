@@ -11,6 +11,7 @@ import { CommandCenterDraftLog } from "./CommandCenterDraftLog";
 import { CommandCenterRightBidContextCard } from "./CommandCenterRightBidContextCard";
 import { CommandCenterRightMarketPressureCard } from "./CommandCenterRightMarketPressureCard";
 import { CommandCenterRightRosterPane } from "./CommandCenterRightRosterPane";
+import { ValuationContextWarningsBanner } from "../ValuationContextWarningsBanner";
 
 type ScoringCategory = {
   name: string;
@@ -139,6 +140,10 @@ export function CommandCenterRightPanel({
 
   return (
     <div className="cc-right">
+      <ValuationContextWarningsBanner
+        warnings={engineMarket?.valuation_context_warnings}
+        className="cc-right-valuation-warnings"
+      />
       <CommandCenterRightBidContextCard
         suggestedBidDollars={suggestedBidDollars}
         maxBid={maxBid}

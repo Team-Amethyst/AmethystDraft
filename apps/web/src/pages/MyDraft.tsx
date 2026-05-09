@@ -24,6 +24,7 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { getValuation } from "../api/engine";
+import { ValuationContextWarningsBanner } from "../components/ValuationContextWarningsBanner";
 import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets from "../components/MyDraft/PositionTargets";
 import {
@@ -113,6 +114,9 @@ export default function MyDraft() {
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationShape>
   >(() => new Map());
+  const [valuationBoardWarnings, setValuationBoardWarnings] = useState<
+    string[] | undefined
+  >(undefined);
 
   useEffect(() => {
     setTargetOverrides(
@@ -155,7 +159,10 @@ export default function MyDraft() {
   }, [leagueId, valuationSortField]);
   useEffect(() => {
     if (!token || !leagueId || watchlist.length === 0) {
-      const clear = window.setTimeout(() => setValuationsByPlayerId(new Map()), 0);
+      const clear = window.setTimeout(() => {
+        setValuationsByPlayerId(new Map());
+        setValuationBoardWarnings(undefined);
+      }, 0);
       return () => window.clearTimeout(clear);
     }
     let cancelled = false;
@@ -165,9 +172,15 @@ export default function MyDraft() {
         const res = await getValuation(leagueId, token, userTeamId);
         const merged = new Map<string, ValuationShape>();
         for (const row of res.valuations) merged.set(row.player_id, row);
-        if (!cancelled) setValuationsByPlayerId(merged);
+        if (!cancelled) {
+          setValuationsByPlayerId(merged);
+          setValuationBoardWarnings(res.valuation_context_warnings);
+        }
       } catch {
-        if (!cancelled) setValuationsByPlayerId(new Map());
+        if (!cancelled) {
+          setValuationsByPlayerId(new Map());
+          setValuationBoardWarnings(undefined);
+        }
       }
     })();
     return () => {
@@ -304,6 +317,10 @@ export default function MyDraft() {
   return (
     <div className="mydraft-page">
       <main className="mydraft-shell">
+        <ValuationContextWarningsBanner
+          warnings={valuationBoardWarnings}
+          className="mydraft-valuation-warnings"
+        />
 
         {/* ── Top summary strip ── */}
         <section className="mydraft-top panel-card">

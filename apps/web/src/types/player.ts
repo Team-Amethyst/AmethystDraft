@@ -1,3 +1,5 @@
+import type { ValuationExplain } from "../api/engine";
+
 export interface Player {
   id: string;
   mlbId: number;
@@ -36,6 +38,10 @@ export interface Player {
   };
   why?: string[];
   market_notes?: string[];
+  /** Row-level Engine explainability when requested (`explain_valuation_rows`). */
+  valuation_explain?: ValuationExplain;
+  recommended_bid_note?: string;
+  edge_note?: string;
   headshot: string;
   stats: {
     batting?: {

@@ -6,6 +6,7 @@ import {
   updateProfileSchema,
   changePasswordSchema,
   valuationPlayerBodySchema,
+  valuationBoardBodySchema,
   catalogBatchValuesBodySchema,
 } from "./schemas";
 
@@ -101,10 +102,41 @@ describe("updateProfileSchema", () => {
   });
 });
 
+describe("valuationBoardBodySchema", () => {
+  it("accepts empty body", () => {
+    expect(valuationBoardBodySchema.parse({})).toEqual({});
+  });
+
+  it("accepts explain_valuation_rows", () => {
+    expect(
+      valuationBoardBodySchema.parse({
+        user_team_id: "team_1",
+        explain_valuation_rows: true,
+      }),
+    ).toEqual({ user_team_id: "team_1", explain_valuation_rows: true });
+  });
+});
+
 describe("valuationPlayerBodySchema", () => {
   it("accepts player_id", () => {
     expect(valuationPlayerBodySchema.parse({ player_id: "660271" })).toEqual({
       player_id: "660271",
+    });
+  });
+
+  it("accepts optional explain and team fields (preserved for BFF → Engine)", () => {
+    expect(
+      valuationPlayerBodySchema.parse({
+        player_id: "660271",
+        user_team_id: "team_2",
+        inflation_model: "replacement_slots_v2",
+        explain_valuation_rows: true,
+      }),
+    ).toEqual({
+      player_id: "660271",
+      user_team_id: "team_2",
+      inflation_model: "replacement_slots_v2",
+      explain_valuation_rows: true,
     });
   });
 

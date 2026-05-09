@@ -52,7 +52,20 @@ export type ValueVsBidVerdict = {
 };
 
 /** See `docs/business-heuristics.md` for threshold rationale. */
-export function verdictFromValueMinusBid(delta: number): ValueVsBidVerdict {
+export function verdictFromValueMinusBid(
+  delta: number,
+  opts?: { bidRelativeStar?: boolean },
+): ValueVsBidVerdict {
+  const bidRelativeStar = opts?.bidRelativeStar === true;
+  if (bidRelativeStar && delta < 0) {
+    return {
+      tone: "muted",
+      cardTone: "fair",
+      danger: false,
+      strong: delta > 10,
+      label: "Bid-relative",
+    };
+  }
   const cardTone =
     delta < -10 ? "overpay" : delta > 5 ? "value" : "fair";
   const danger = delta < -15;
@@ -104,5 +117,8 @@ export function mergeDisplayValuationRow(
       engineFiniteOrNull(player.baseline_value) ??
       row.baseline_value,
     edge: engineFiniteOrNull(row.edge) ?? undefined,
+    recommended_bid_note: row.recommended_bid_note ?? player.recommended_bid_note,
+    edge_note: row.edge_note ?? player.edge_note,
+    valuation_explain: row.valuation_explain ?? player.valuation_explain,
   };
 }

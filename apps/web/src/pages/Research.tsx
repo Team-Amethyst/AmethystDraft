@@ -12,7 +12,8 @@ import {
   type DepthChartPlayerRow,
   type DepthChartResponse,
 } from "../api/players";
-import { getValuation } from "../api/engine";
+import { getValuation, getValuationPlayer } from "../api/engine";
+import { ValuationContextWarningsBanner } from "../components/ValuationContextWarningsBanner";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -26,6 +27,7 @@ import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
   defaultValuationSortForPage,
   mergeCatalogPlayersWithValuations,
+  mergePlayerWithValuation,
   type ValuationShape,
 } from "../utils/valuation";
 import {
@@ -118,6 +120,13 @@ export default function Research() {
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationShape>
   >(() => new Map());
+  const [valuationBoardMeta, setValuationBoardMeta] = useState<{
+    warnings?: string[];
+    context?: Record<string, unknown>;
+  } | null>(null);
+  const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
+    null,
+  );
 
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
     () => getRosterCached(leagueId ?? "") ?? [],
@@ -219,6 +228,7 @@ export default function Research() {
   useEffect(() => {
     if (!token || !leagueId || players.length === 0) {
       setValuationsByPlayerId(new Map());
+      setValuationBoardMeta(null);
       return;
     }
     let cancelled = false;
@@ -230,15 +240,50 @@ export default function Research() {
           res.valuations,
           customPlayerIds,
         );
-        if (!cancelled) setValuationsByPlayerId(merged);
+        if (!cancelled) {
+          setValuationsByPlayerId(merged);
+          setValuationBoardMeta({
+            warnings: res.valuation_context_warnings,
+            context: res.valuation_context,
+          });
+        }
       } catch {
-        if (!cancelled) setValuationsByPlayerId(new Map());
+        if (!cancelled) {
+          setValuationsByPlayerId(new Map());
+          setValuationBoardMeta(null);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [token, leagueId, players.length, customPlayerIds, league, user?.id]);
+
+  useEffect(() => {
+    if (!selectedModalPlayer || !token || !leagueId) {
+      setModalExplainRow(null);
+      return;
+    }
+    let cancelled = false;
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    const pid = String(selectedModalPlayer.id).trim();
+    void getValuationPlayer(leagueId, token, selectedModalPlayer.id, userTeamId, {
+      explainValuationRows: true,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const row =
+          res.player ??
+          res.valuations.find((v) => String(v.player_id).trim() === pid);
+        setModalExplainRow(row ? (row as ValuationShape) : null);
+      })
+      .catch(() => {
+        if (!cancelled) setModalExplainRow(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedModalPlayer?.id, token, leagueId, league, user?.id]);
 
   const loadDepthChart = useCallback(async (teamId: number, forceRefresh = false) => {
     const cached = getDepthChartCached(teamId);
@@ -299,6 +344,18 @@ export default function Research() {
     () => mergeCatalogPlayersWithValuations(filteredPlayers, valuationsByPlayerId),
     [filteredPlayers, valuationsByPlayerId],
   );
+
+  const displayModalPlayer = useMemo(() => {
+    if (!selectedModalPlayer) return null;
+    let p = mergePlayerWithValuation(
+      selectedModalPlayer,
+      valuationsByPlayerId.get(selectedModalPlayer.id),
+    );
+    if (modalExplainRow) {
+      p = mergePlayerWithValuation(p, modalExplainRow);
+    }
+    return p;
+  }, [selectedModalPlayer, valuationsByPlayerId, modalExplainRow]);
 
   const handlePlayerClick = (player: Player) => {
     setSelectedModalPlayer(player);
@@ -411,6 +468,10 @@ export default function Research() {
         </div>
 
         <div className="research-content">
+          <ValuationContextWarningsBanner
+            warnings={valuationBoardMeta?.warnings}
+            className="research-valuation-warnings"
+          />
           {selectedView === "player-database" && (
             <>
               {playersError && <p className="research-error">{playersError}</p>}
@@ -662,7 +723,7 @@ export default function Research() {
       />
       <PlayerDetailModal
         isOpen={selectedModalPlayer !== null}
-        player={selectedModalPlayer}
+        player={displayModalPlayer ?? selectedModalPlayer}
         statBasis={statBasis}
         draftedByTeam={
           selectedModalPlayer
@@ -684,6 +745,10 @@ export default function Research() {
         }
         onClose={() => setSelectedModalPlayer(null)}
         onMoveToCommandCenter={handleMoveToCommandCenter}
+        valuationContextWarnings={valuationBoardMeta?.warnings}
+        valuationContextDev={
+          import.meta.env.DEV ? valuationBoardMeta?.context ?? null : undefined
+        }
       />
     </div>
   );

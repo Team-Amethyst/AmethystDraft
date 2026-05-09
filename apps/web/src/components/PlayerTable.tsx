@@ -36,9 +36,14 @@ import {
   formatCurrencyWhole,
   formatMaybeDelta,
   leagueWideAuctionDollars,
+  playerEdgeDisplayClass,
   playerValuationEdgeOrDiff,
+  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
+  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
+  RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
+  RESEARCH_TABLE_TOOLTIP_MAX_BID,
+  RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
   valuationSortLabel,
-  valuationTooltip,
   type ValuationSortField,
 } from "../utils/valuation";
 
@@ -437,7 +442,7 @@ export default function PlayerTable({
               <th
                 className="th-value th-sortable"
                 onClick={() => handleColSort("value")}
-                title={valuationTooltip("auction_value")}
+                title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}
               >
                 {valuationSortLabel("auction_value")}{" "}
                 <SortArrow col="value" sort={clientSort} />
@@ -445,9 +450,9 @@ export default function PlayerTable({
               <th
                 className="th-valdiff th-sortable"
                 onClick={() => handleColSort("valdiff")}
-                title="Team surplus vs recommended bid: Engine edge when present, else value to your roster minus recommended bid."
+                title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
               >
-                Edge <SortArrow col="valdiff" sort={clientSort} />
+                Edge vs Max <SortArrow col="valdiff" sort={clientSort} />
               </th>
               {focusedCols
                 ? focusedCols.map((col, i) => (
@@ -490,8 +495,6 @@ export default function PlayerTable({
                 const isStarred = isInWatchlist(player.id);
                 const eng = engineCatalogByPlayerId?.get(player.id);
                 const primaryValue = leagueWideAuctionDollars(player);
-                const recommended = asFinite(player.recommended_bid);
-                const teamValue = asFinite(player.team_adjusted_value);
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
                   : undefined;
@@ -616,43 +619,34 @@ export default function PlayerTable({
                     <td className="td-adp">{player.adp}</td>
 
                     <td className="td-value">
-                      <span
-                        className="value-chip"
-                        title={valuationTooltip("auction_value")}
-                      >
-                        {formatCurrencyWhole(primaryValue)}
-                      </span>
-                      <div
-                        style={{
-                          fontSize: "0.62rem",
-                          opacity: 0.78,
-                          lineHeight: 1.15,
-                          marginTop: "1px",
-                        }}
-                        title={valuationTooltip("recommended_bid")}
-                      >
-                        {valuationSortLabel("recommended_bid")}:{" "}
-                        {formatCurrencyWhole(recommended)}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.62rem",
-                          opacity: 0.78,
-                          lineHeight: 1.15,
-                          marginTop: "1px",
-                        }}
-                        title={valuationTooltip("team_adjusted_value")}
-                      >
-                        {valuationSortLabel("team_adjusted_value")}:{" "}
-                        {formatCurrencyWhole(teamValue)}
+                      <div className="pt-value-stack">
+                        <span
+                          className="value-chip pt-value-stack__primary"
+                          title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}
+                        >
+                          {formatCurrencyWhole(primaryValue)}
+                        </span>
+                        <div className="pt-value-stack__secondary">
+                          <span title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
+                            Max {formatCurrencyWhole(asFinite(player.recommended_bid))}
+                          </span>
+                          <span className="pt-value-stack__sep" aria-hidden="true">
+                            {" "}
+                            ·{" "}
+                          </span>
+                          <span title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
+                            Team {formatCurrencyWhole(asFinite(player.team_adjusted_value))}
+                          </span>
+                        </div>
                       </div>
                     </td>
 
                     <td
                       className={
                         "td-valdiff " +
-                        (valDiff == null ? "" : valDiff >= 0 ? "pos" : "neg")
+                        (valDiff == null ? "" : playerEdgeDisplayClass(player, valDiff))
                       }
+                      title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
                     >
                       {formatMaybeDelta(valDiff)}
                     </td>
@@ -719,8 +713,13 @@ export default function PlayerTable({
       </div>
 
       <div className="pt-footer">
-        Showing {displayed.length} players · {statBasisFooterLine} · Data via
-        MLB Stats API
+        <span className="pt-footer-line">
+          Showing {displayed.length} players · {statBasisFooterLine} · Data via
+          MLB Stats API
+        </span>
+        <span className="pt-footer-line pt-footer-line--subtle">
+          {RECOMMENDED_BID_VS_AUCTION_VALUE_COPY}
+        </span>
       </div>
     </div>
   );

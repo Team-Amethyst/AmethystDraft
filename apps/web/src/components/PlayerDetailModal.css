@@ -485,3 +485,66 @@
     grid-template-columns: 1fr 1fr 1fr 1fr;
   }
 }
+
+.pdm-inline-warnings {
+  margin: 0 1rem 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #fbbf24 40%, transparent);
+  background: color-mix(in srgb, #fbbf24 10%, var(--app-bg-soft));
+  color: #fde68a;
+  font-size: 0.8rem;
+}
+
+.pdm-inline-warnings ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.pdm-anchor-help {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--app-text-muted);
+}
+
+.pdm-engine-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--app-text-muted) 92%, #c4b5fd);
+}
+
+.pdm-valuation-explain,
+.pdm-valuation-context-dev {
+  margin-top: 0.55rem;
+  font-size: 0.8rem;
+}
+
+.pdm-valuation-explain summary,
+.pdm-valuation-context-dev summary {
+  cursor: pointer;
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.pdm-valuation-dl--dense dt {
+  font-size: 0.72rem;
+}
+
+.pdm-explain-warnings {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.pdm-valuation-context-pre {
+  margin: 0.4rem 0 0;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  padding: 0.45rem;
+  border-radius: 6px;
+  background: var(--app-bg-soft);
+  border: 1px solid var(--app-accent-hairline);
+}

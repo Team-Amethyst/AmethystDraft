@@ -109,7 +109,8 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       const res = await request(app)
         .post(`/api/engine/leagues/${lid}/valuation`)
-        .set("Authorization", "Bearer t");
+        .set("Authorization", "Bearer t")
+        .send({});
 
       expect(res.status).toBe(404);
       expect(postMock).not.toHaveBeenCalled();
@@ -127,7 +128,8 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       const res = await request(app)
         .post(`/api/engine/leagues/${lid}/valuation`)
-        .set("Authorization", "Bearer t");
+        .set("Authorization", "Bearer t")
+        .send({});
 
       expect(res.status).toBe(200);
       expect(res.body.inflation_factor).toBe(1);
@@ -163,6 +165,22 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(payload.position_overrides).toEqual([
         { player_id: "660271", positions: ["SS", "2B"] },
       ]);
+    });
+
+    it("forwards explain_valuation_rows to Engine when requested", async () => {
+      postMock.mockResolvedValueOnce({
+        data: { inflation_factor: 1, valuations: [], calculated_at: "x" },
+        headers: {},
+      });
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation`)
+        .set("Authorization", "Bearer t")
+        .send({ explain_valuation_rows: true });
+
+      expect(res.status).toBe(200);
+      const [, payload] = postMock.mock.calls[0] ?? [];
+      expect(payload).toMatchObject({ explain_valuation_rows: true });
     });
 
     it("sends keepers/minors/taxi/drafted context sections", async () => {
@@ -239,6 +257,7 @@ describe("engine routes (BFF → Amethyst)", () => {
 
   describe("POST /api/engine/leagues/:leagueId/valuation/player", () => {
     it("proxies to POST /valuation/player with player_id merged into payload", async () => {
+      vi.mocked(RosterEntry.find).mockResolvedValue([] as never);
       postMock.mockResolvedValue({
         data: {
           engine_contract_version: "1",
@@ -264,9 +283,6 @@ describe("engine routes (BFF → Amethyst)", () => {
           league_scope: "Mixed",
           user_team_id: "team_1",
           inflation_model: "replacement_slots_v2",
-          pre_draft_rosters: [],
-          minors: [],
-          taxi: [],
         }),
       );
     });
@@ -409,7 +425,8 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       const res = await request(app)
         .post(`/api/engine/leagues/${lid}/valuation`)
-        .set("Authorization", "Bearer t");
+        .set("Authorization", "Bearer t")
+        .send({});
 
       expect(res.status).toBe(502);
       expect(res.body.error?.code).toBe("ENGINE_UPSTREAM_ERROR");

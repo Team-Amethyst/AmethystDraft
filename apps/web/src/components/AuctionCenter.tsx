@@ -319,7 +319,9 @@ export function AuctionCenter({
       userTeamId,
     });
     let cancelled = false;
-    void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId)
+    void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId, {
+      explainValuationRows: true,
+    })
       .then((res) => {
         if (cancelled) return;
         const responseRow =

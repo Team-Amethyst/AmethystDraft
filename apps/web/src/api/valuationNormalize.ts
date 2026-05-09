@@ -1,4 +1,9 @@
-import type { ValuationPlayerResponse, ValuationResponse, ValuationResult } from "./engine";
+import type {
+  ValuationExplain,
+  ValuationPlayerResponse,
+  ValuationResponse,
+  ValuationResult,
+} from "./engine";
 
 /** Accept finite numbers and numeric strings from JSON (engine occasionally stringifies). */
 function readFiniteScalar(v: unknown): number | undefined {
@@ -19,6 +24,86 @@ function readFiniteFromRecord(
     if (v !== undefined) return v;
   }
   return undefined;
+}
+
+function readNonEmptyString(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  return t === "" ? undefined : t;
+}
+
+function readStringArrayField(
+  row: Record<string, unknown>,
+  snake: string,
+  camel: string,
+): string[] | undefined {
+  const raw = row[snake] ?? row[camel];
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw.filter(
+    (x): x is string => typeof x === "string" && x.trim() !== "",
+  );
+  return out.length ? out : undefined;
+}
+
+function normalizeValuationExplain(raw: unknown): ValuationExplain | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const e = raw as Record<string, unknown>;
+  const eff =
+    e.effective_positions ??
+    e.effectivePositions;
+  const effective_positions = Array.isArray(eff)
+    ? eff.filter((x): x is string => typeof x === "string" && x.trim() !== "")
+    : undefined;
+  const replacement_key_used = readNonEmptyString(
+    e.replacement_key_used ?? e.replacementKeyUsed,
+  );
+  const replacement_value_used = readFiniteScalar(
+    e.replacement_value_used ?? e.replacementValueUsed,
+  );
+  const surplus_basis = readNonEmptyString(e.surplus_basis ?? e.surplusBasis);
+  const inflation_factor = readFiniteScalar(
+    e.inflation_factor ?? e.inflationFactor,
+  );
+  const pool_to_slot_ratio = readFiniteScalar(
+    e.pool_to_slot_ratio ?? e.poolToSlotRatio,
+  );
+  const scoring_category_warnings = readStringArrayField(
+    e,
+    "scoring_category_warnings",
+    "scoringCategoryWarnings",
+  );
+  const out: ValuationExplain = {};
+  if (effective_positions?.length) out.effective_positions = effective_positions;
+  if (replacement_key_used !== undefined)
+    out.replacement_key_used = replacement_key_used;
+  if (replacement_value_used !== undefined)
+    out.replacement_value_used = replacement_value_used;
+  if (surplus_basis !== undefined) out.surplus_basis = surplus_basis;
+  if (inflation_factor !== undefined) out.inflation_factor = inflation_factor;
+  if (pool_to_slot_ratio !== undefined) out.pool_to_slot_ratio = pool_to_slot_ratio;
+  if (scoring_category_warnings?.length)
+    out.scoring_category_warnings = scoring_category_warnings;
+  return Object.keys(out).length ? out : undefined;
+}
+
+function readValuationContextWarnings(
+  o: Record<string, unknown>,
+): string[] | undefined {
+  const raw =
+    o.valuation_context_warnings ?? o.valuationContextWarnings;
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw.filter(
+    (x): x is string => typeof x === "string" && x.trim() !== "",
+  );
+  return out.length ? out : undefined;
+}
+
+function readValuationContext(
+  o: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const raw = o.valuation_context ?? o.valuationContext;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  return { ...(raw as Record<string, unknown>) };
 }
 
 /** Same six money fields + `all_keys` for pipeline logs (A–F). */
@@ -58,6 +143,7 @@ export function valuationRowPipelineSnapshot(
 /** Snapshot a raw JSON valuation object (before `normalizeValuationResultRow`). */
 export function rawValuationRowPipelineSnapshot(raw: unknown): {
   player_id: string | null;
+  auction_value: number | null;
   recommended_bid: number | null;
   team_adjusted_value: number | null;
   edge: number | null;
@@ -179,6 +265,19 @@ export function normalizeValuationResultRow(
   if (Array.isArray(row.why)) out.why = row.why as string[];
   if (typeof row.team === "string") out.team = row.team;
 
+  const ve = normalizeValuationExplain(
+    row.valuation_explain ?? row.valuationExplain,
+  );
+  if (ve) out.valuation_explain = ve;
+
+  const rbn = readNonEmptyString(
+    row.recommended_bid_note ?? row.recommendedBidNote,
+  );
+  if (rbn !== undefined) out.recommended_bid_note = rbn;
+
+  const en = readNonEmptyString(row.edge_note ?? row.edgeNote);
+  if (en !== undefined) out.edge_note = en;
+
   return out;
 }
 
@@ -218,6 +317,13 @@ export function mergeValuationBoardRowIntoPrevious(
     firstFinite(incoming.adjusted_value, previous.adjusted_value) ??
     previous.adjusted_value;
   merged.auction_value = firstFinite(incoming.auction_value, previous.auction_value);
+
+  merged.recommended_bid_note =
+    incoming.recommended_bid_note ?? previous.recommended_bid_note;
+  merged.edge_note = incoming.edge_note ?? previous.edge_note;
+  merged.valuation_explain =
+    incoming.valuation_explain ?? previous.valuation_explain;
+
   return merged;
 }
 
@@ -244,6 +350,13 @@ export function normalizeValuationResponseBody(raw: unknown): ValuationResponse 
         ? o.userTeamIdUsed
         : undefined;
   if (ut) base.user_team_id_used = ut;
+
+  const warnings = readValuationContextWarnings(o);
+  if (warnings) base.valuation_context_warnings = warnings;
+
+  const ctx = readValuationContext(o);
+  if (ctx) base.valuation_context = ctx;
+
   return base;
 }
 

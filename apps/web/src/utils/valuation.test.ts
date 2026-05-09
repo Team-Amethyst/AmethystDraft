@@ -8,13 +8,17 @@ import {
   commandCenterValuationMoney,
   commandCenterWalletCapsFromMyTeam,
   defaultValuationSortForPage,
+  formatCurrencyWhole,
   leagueWideAuctionDollars,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
+  playerEdgeDisplayClass,
+  researchTableSecondaryMaxTeamLine,
   resolveValuationNumber,
   valuationSortLabel,
   valuationTooltip,
 } from "./valuation";
+import { verdictFromValueMinusBid } from "../domain/auctionCenterValuation";
 import type { League } from "../contexts/LeagueContext";
 
 function basePlayer(): Player {
@@ -57,6 +61,37 @@ describe("valuation helpers", () => {
     expect(merged.team_adjusted_value).toBe(31);
     expect(merged.inflation_model).toBe("replacement_slots_v2");
     expect(merged.indicator).toBe("Steal");
+  });
+
+  it("merges explainability notes and valuation_explain from engine row", () => {
+    const merged = mergePlayerWithValuation(basePlayer(), {
+      player_id: "1",
+      recommended_bid_note: "Strategic anchor",
+      edge_note: "Bid-relative",
+      valuation_explain: {
+        effective_positions: ["OF"],
+        replacement_key_used: "OF5",
+        replacement_value_used: 3,
+      },
+    });
+    expect(merged.recommended_bid_note).toBe("Strategic anchor");
+    expect(merged.edge_note).toBe("Bid-relative");
+    expect(merged.valuation_explain?.replacement_key_used).toBe("OF5");
+  });
+
+  it("playerEdgeDisplayClass uses bid-relative for negative edge on star tiers", () => {
+    const star = { ...basePlayer(), tier: 1 };
+    expect(playerEdgeDisplayClass(star, -5)).toBe("bid-relative");
+    expect(playerEdgeDisplayClass(star, 3)).toBe("pos");
+    const deep = { ...basePlayer(), tier: 5 };
+    expect(playerEdgeDisplayClass(deep, -5)).toBe("neg");
+  });
+
+  it("verdictFromValueMinusBid softens negative delta for star bid-relative mode", () => {
+    const v = verdictFromValueMinusBid(-20, { bidRelativeStar: true });
+    expect(v.danger).toBe(false);
+    expect(v.label).toBe("Bid-relative");
+    expect(v.cardTone).toBe("fair");
   });
 
   it("preserves player tier when valuation tier is missing", () => {
@@ -256,5 +291,43 @@ describe("valuation helpers", () => {
     ).toBe(12);
     expect(leagueWideAuctionDollars({ adjusted_value: 44 })).toBe(44);
     expect(leagueWideAuctionDollars({})).toBeUndefined();
+  });
+
+  describe("Research PlayerTable valuation cell (contract)", () => {
+    it("uses auction_value as the primary dollar (not baseline_value)", () => {
+      const row = {
+        auction_value: 29,
+        adjusted_value: 40,
+        baseline_value: 99,
+        recommended_bid: 51,
+        team_adjusted_value: 29,
+      };
+      expect(leagueWideAuctionDollars(row)).toBe(29);
+      expect(formatCurrencyWhole(leagueWideAuctionDollars(row))).toBe("$29");
+      expect(formatCurrencyWhole(row.baseline_value)).toBe("$99");
+    });
+
+    it("secondary Max uses recommended_bid and Team uses team_adjusted_value", () => {
+      expect(
+        researchTableSecondaryMaxTeamLine({
+          recommended_bid: 51,
+          team_adjusted_value: 29,
+        }),
+      ).toBe("Max $51 · Team $29");
+    });
+
+    it("uses dashes when Max or Team inputs are missing", () => {
+      expect(researchTableSecondaryMaxTeamLine({})).toBe("Max — · Team —");
+    });
+
+    it("labels Max from recommended_bid, not as the league-wide auction anchor", () => {
+      const line = researchTableSecondaryMaxTeamLine({
+        recommended_bid: 60,
+        team_adjusted_value: 45,
+      });
+      expect(line).toMatch(/^Max \$60/);
+      expect(line).toContain("Team $45");
+      expect(line).not.toMatch(/Recommended/i);
+    });
   });
 });

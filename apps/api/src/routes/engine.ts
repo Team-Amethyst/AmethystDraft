@@ -18,6 +18,7 @@ import { validateBody, validateQuery } from "../validation/validate";
 import {
   mockPickSchema,
   newsSignalsQuerySchema,
+  valuationBoardBodySchema,
   valuationPlayerBodySchema,
   catalogBatchValuesBodySchema,
 } from "../validation/schemas";
@@ -74,10 +75,22 @@ const calculateValuation: RequestHandler = async (
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
+    const body = req.body as {
+      explain_valuation_rows?: boolean;
+      recommended_bid_soft_cap_ratio?: number;
+    };
     const context = await buildValuationContext(league, entries, {
       userTeamId: resolveUserTeamId(req, league),
     });
-    const payload = finalizeEngineValuationPostPayload(context);
+    const payload = finalizeEngineValuationPostPayload({
+      ...context,
+      ...(body.explain_valuation_rows === true
+        ? { explain_valuation_rows: true }
+        : {}),
+      ...(typeof body.recommended_bid_soft_cap_ratio === "number"
+        ? { recommended_bid_soft_cap_ratio: body.recommended_bid_soft_cap_ratio }
+        : {}),
+    });
     logEngineValuationPayloadIfEnabled(payload);
     const axiosRes = await amethyst.post("/valuation/calculate", payload);
     logEngineValuationResponseIfEnabled(axiosRes.data);
@@ -105,9 +118,22 @@ const calculateValuationPlayer: RequestHandler = async (
     const context = await buildValuationContext(league, entries, {
       userTeamId: resolveUserTeamId(req, league),
     });
-    const base = finalizeEngineValuationPostPayload(context);
+    const body = req.body as {
+      player_id: string;
+      explain_valuation_rows?: boolean;
+      recommended_bid_soft_cap_ratio?: number;
+    };
+    const base = finalizeEngineValuationPostPayload({
+      ...context,
+      ...(body.explain_valuation_rows === true
+        ? { explain_valuation_rows: true }
+        : {}),
+      ...(typeof body.recommended_bid_soft_cap_ratio === "number"
+        ? { recommended_bid_soft_cap_ratio: body.recommended_bid_soft_cap_ratio }
+        : {}),
+    });
     logEngineValuationPayloadIfEnabled(base);
-    const { player_id } = req.body as { player_id: string };
+    const { player_id } = body;
     const payload = { ...base, player_id };
     const axiosRes = await amethyst.post("/valuation/player", payload);
     logEngineValuationResponseIfEnabled(axiosRes.data);
@@ -223,7 +249,11 @@ const postCatalogBatchValues: RequestHandler = async (
 
 // ─── Route registration ───────────────────────────────────────────────────────
 
-router.post("/leagues/:leagueId/valuation", calculateValuation);
+router.post(
+  "/leagues/:leagueId/valuation",
+  validateBody(valuationBoardBodySchema),
+  calculateValuation,
+);
 router.post(
   "/leagues/:leagueId/valuation/player",
   validateBody(valuationPlayerBodySchema),

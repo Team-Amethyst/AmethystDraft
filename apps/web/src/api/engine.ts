@@ -53,6 +53,23 @@ export interface ValuationResult {
     }>;
     confidence: number;
   };
+  /** Row-level Engine explainability (present when `explain_valuation_rows` was requested). */
+  valuation_explain?: ValuationExplain;
+  /** Short copy clarifying recommended_bid semantics when Engine sends it. */
+  recommended_bid_note?: string;
+  /** Short copy clarifying edge vs bid anchor when Engine sends it. */
+  edge_note?: string;
+}
+
+/** Subset of Engine `valuation_explain` we surface in player detail (additive fields ignored at display). */
+export interface ValuationExplain {
+  effective_positions?: string[];
+  replacement_key_used?: string;
+  replacement_value_used?: number;
+  surplus_basis?: string;
+  inflation_factor?: number;
+  pool_to_slot_ratio?: number;
+  scoring_category_warnings?: string[];
 }
 
 export interface ValuationContextV2 {
@@ -124,6 +141,10 @@ export interface ValuationResponse {
   market_notes?: string[];
   /** Structured explainability payload (v2, additive). */
   context_v2?: ValuationContextV2;
+  /** Response-level Engine valuation context (opaque JSON; diagnostics / detail UI). */
+  valuation_context?: Record<string, unknown>;
+  /** Engine warnings when valuations may be unstable or context-dependent. */
+  valuation_context_warnings?: string[];
 }
 
 function logDraftroomValuationPipeline(
@@ -145,6 +166,8 @@ function logDraftroomValuationPipeline(
     route,
     user_team_id_used: normalized.user_team_id_used ?? null,
     selected_player_id: focus ?? null,
+    valuation_context_warnings:
+      normalized.valuation_context_warnings ?? null,
     A_board_raw_row: rawValuationRowPipelineSnapshot(rawRow),
     B_getValuation_normalized_row: valuationRowPipelineSnapshot(normRow),
     valuations_len: normalized.valuations.length,
@@ -187,13 +210,23 @@ export type ValuationPlayerResponse = ValuationResponse & {
   player?: ValuationResult;
 };
 
+export type GetValuationPlayerOptions = {
+  /**
+   * When true, asks Engine for row-level explain payloads (`valuation_explain`, notes).
+   * Omit or false for minimal payloads (board refresh paths should stay false).
+   */
+  explainValuationRows?: boolean;
+};
+
 export async function getValuationPlayer(
   leagueId: string,
   token: string,
   playerId: string,
   userTeamId = "team_1",
+  options?: GetValuationPlayerOptions,
 ): Promise<ValuationPlayerResponse> {
   const pid = String(playerId).trim();
+  const explain = options?.explainValuationRows === true;
   return requestJsonParsed<ValuationPlayerResponse>(
     `/api/engine/leagues/${leagueId}/valuation/player`,
     {
@@ -203,6 +236,7 @@ export async function getValuationPlayer(
         player_id: playerId,
         user_team_id: userTeamId,
         inflation_model: "replacement_slots_v2",
+        ...(explain ? { explain_valuation_rows: true } : {}),
       }),
     },
     "Valuation (player) request failed",
@@ -225,6 +259,8 @@ export async function getValuationPlayer(
         route: "POST /api/engine/leagues/:leagueId/valuation/player",
         user_team_id_used: normalized.user_team_id_used ?? null,
         selected_player_id: pid,
+        valuation_context_warnings:
+          normalized.valuation_context_warnings ?? null,
         C_player_raw_row: rawValuationRowPipelineSnapshot(rawRow),
         D_getValuationPlayer_normalized_row: valuationRowPipelineSnapshot(normRow),
       });

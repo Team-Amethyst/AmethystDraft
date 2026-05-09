@@ -76,6 +76,10 @@ export interface EngineValuationContext {
   seed?: number;
   user_team_id?: string;
   inflation_model?: "replacement_slots_v2";
+  /** When true, Engine may attach row-level explain payloads (larger response). */
+  explain_valuation_rows?: boolean;
+  /** Optional bid-cap hint for Engine experiments; omit in Draftroom by default. */
+  recommended_bid_soft_cap_ratio?: number;
 }
 
 export interface EngineTeamPlayersSection {
