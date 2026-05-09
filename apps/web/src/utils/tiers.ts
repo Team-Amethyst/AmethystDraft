@@ -39,7 +39,7 @@ export function groupPlayersByTier(
 
 export function calculateTierStats(
   groups: TierGroup[],
-  draftedIds: Set<string>,
+  draftedIds: ReadonlySet<string>,
 ): TierStats[] {
   const stats: TierStats[] = [];
 
