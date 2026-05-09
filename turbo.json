@@ -11,6 +11,7 @@
     "lint": {
       "dependsOn": ["^lint"],
       "env": [
+        "NODE_ENV",
         "CORS_ORIGIN",
         "MONGO_URI",
         "JWT_SECRET",
@@ -19,7 +20,8 @@
         "AMETHYST_API_KEY",
         "PLAYER_API_TEST_KEY",
         "AMETHYST_CONTRACT_TEST",
-        "AMETHYST_ENGINE_TIMEOUT_MS"
+        "AMETHYST_ENGINE_TIMEOUT_MS",
+        "LOG_ENGINE_VALUATION_DEBUG"
       ]
     },
     "check-types": {

@@ -35,8 +35,14 @@ vi.mock("../models/RosterEntry", () => ({
   },
 }));
 
+vi.mock("../lib/catalogPlayerFetch", () => ({
+  getOrRefreshCatalogPlayers: vi.fn(),
+}));
+
 import League from "../models/League";
 import RosterEntry from "../models/RosterEntry";
+import type { PlayerData } from "../lib/playerCatalog";
+import { getOrRefreshCatalogPlayers } from "../lib/catalogPlayerFetch";
 import engineRouter from "./engine";
 import errorHandler from "../middleware/errorHandler";
 import { assignRequestId } from "../lib/requestContext";
@@ -77,6 +83,24 @@ describe("engine routes (BFF → Amethyst)", () => {
     getMock.mockReset();
     vi.mocked(League.findById).mockResolvedValue(mockLeagueDoc as never);
     vi.mocked(RosterEntry.find).mockResolvedValue([] as never);
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([
+      {
+        id: "660271",
+        mlbId: 660271,
+        name: "Star",
+        team: "NYY",
+        position: "SS",
+        positions: ["SS", "2B"],
+        age: 27,
+        adp: 1,
+        value: 40,
+        tier: 1,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+    ]);
   });
 
   describe("POST /api/engine/leagues/:leagueId/valuation", () => {
@@ -123,6 +147,7 @@ describe("engine routes (BFF → Amethyst)", () => {
         taxi?: unknown[];
         drafted_players?: unknown[];
         budget_by_team_id?: Record<string, number>;
+        position_overrides?: Array<{ player_id: string; positions: string[] }>;
       };
       expect(payload.num_teams).toBe(2);
       expect(payload.league_scope).toBe("Mixed");
@@ -135,6 +160,9 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(payload.taxi).toEqual([]);
       expect(payload.drafted_players).toEqual([]);
       expect(payload.budget_by_team_id).toEqual({ team_1: 260, team_2: 260 });
+      expect(payload.position_overrides).toEqual([
+        { player_id: "660271", positions: ["SS", "2B"] },
+      ]);
     });
 
     it("sends keepers/minors/taxi/drafted context sections", async () => {

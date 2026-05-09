@@ -1,5 +1,7 @@
 import type { ILeague } from "../models/League";
 import type { IRosterEntry } from "../models/RosterEntry";
+import { getOrRefreshCatalogPlayers } from "./catalogPlayerFetch";
+import type { PlayerData } from "./playerCatalog";
 import {
   normalizeRosterSlots,
   type ValuationRequestFixture,
@@ -32,6 +34,12 @@ export interface EngineDraftedPlayer {
   pick_number?: number;
 }
 
+/** Catalog-derived eligibility row for Engine (full player pool). */
+export interface EnginePositionOverride {
+  player_id: string;
+  positions: string[];
+}
+
 /** Payload for POST /valuation/calculate (extends legacy fields; engine may ignore unknown keys). */
 export interface EngineValuationContext {
   roster_slots: EngineRosterSlot[];
@@ -46,6 +54,11 @@ export interface EngineValuationContext {
   scoring_format?: "5x5" | "6x6" | "points";
   hitter_budget_pct?: number;
   pos_eligibility_threshold?: number;
+  /**
+   * Full-pool eligibility from Draftroom catalog (`GET /api/players` pipeline).
+   * Engine should treat this as canonical fantasy positions for valuation universe ids.
+   */
+  position_overrides?: EnginePositionOverride[];
   minors?: EngineTeamPlayersSection[];
   taxi?: EngineTeamPlayersSection[];
   /** Engine: optional subset of undrafted ids to value. */
@@ -253,9 +266,13 @@ export function summarizeEngineValuationPayload(
     budget_by_team_id_sum = s;
   }
 
+  const po = payload.position_overrides;
+  const position_overrides_count = Array.isArray(po) ? po.length : 0;
+
   return {
     drafted_players_length: drafted.length,
     drafted_players_first_20: drafted.slice(0, 20),
+    position_overrides_count,
     pre_draft_rosters_player_count: countSectionPlayers(
       payload.pre_draft_rosters as EngineTeamPlayersSection[] | undefined,
     ),
@@ -334,6 +351,22 @@ export function logEngineValuationResponseIfEnabled(data: unknown): void {
 }
 
 /**
+ * Maps catalog players to Engine `position_overrides` (MLB person id strings).
+ * Empty `positions` falls back to normalized primary `position` (same as catalog rows).
+ */
+export function playerDataToPositionOverrides(
+  players: PlayerData[],
+): EnginePositionOverride[] {
+  return players.map((p) => ({
+    player_id: String(p.id),
+    positions:
+      Array.isArray(p.positions) && p.positions.length > 0
+        ? [...p.positions]
+        : [String(p.position)],
+  }));
+}
+
+/**
  * Builds the full context object for /valuation/calculate and /analysis/scarcity.
  *
  * Player stat lines (`stats`, `stats3yr`, `projection` on catalog) are for the
@@ -341,11 +374,11 @@ export function logEngineValuationResponseIfEnabled(data: unknown): void {
  * player features from the ids and league rules in this payload; keep catalog
  * season definitions aligned with engine release notes when changing MLB season math.
  */
-export function buildValuationContext(
+export async function buildValuationContext(
   league: ILeague,
   rosterEntries: IRosterEntry[],
   options?: { userTeamId?: string },
-): EngineValuationContext {
+): Promise<EngineValuationContext> {
   const rosterSlots = leagueRosterSlotsForEngine(league);
   const numTeams = resolveLeagueNumTeams(league);
 
@@ -356,6 +389,10 @@ export function buildValuationContext(
     (e) => !e.isKeeper && !isMinorSlot(e.rosterSlot) && !isTaxiSlot(e.rosterSlot),
   );
   const drafted_players = toDraftedPlayers(draftedEntries);
+
+  const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
+  const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
+  const position_overrides = playerDataToPositionOverrides(catalogPlayers);
 
   return {
     roster_slots: rosterSlots,
@@ -378,6 +415,7 @@ export function buildValuationContext(
     ...(league.posEligibilityThreshold !== undefined
       ? { pos_eligibility_threshold: league.posEligibilityThreshold }
       : {}),
+    position_overrides,
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
     pre_draft_rosters: toTeamPlayersSections(keeperEntries),
@@ -586,6 +624,9 @@ export function buildEngineValuationCalculateBodyFromFixture(
     ...(fixture.minors?.length ? { minors: fixture.minors } : {}),
     ...(fixture.taxi?.length ? { taxi: fixture.taxi } : {}),
     ...(fixture.player_ids?.length ? { player_ids: fixture.player_ids } : {}),
+    ...(fixture.position_overrides !== undefined
+      ? { position_overrides: fixture.position_overrides }
+      : {}),
     ...(fixture.deterministic !== undefined
       ? { deterministic: fixture.deterministic }
       : {}),
@@ -647,6 +688,9 @@ export function buildEngineValuationCalculateBodyFromFlat(
     ...(flat.minors?.length ? { minors: flat.minors } : {}),
     ...(flat.taxi?.length ? { taxi: flat.taxi } : {}),
     ...(flat.player_ids?.length ? { player_ids: flat.player_ids } : {}),
+    ...(flat.position_overrides !== undefined
+      ? { position_overrides: flat.position_overrides }
+      : {}),
     ...(flat.deterministic !== undefined
       ? { deterministic: flat.deterministic }
       : {}),

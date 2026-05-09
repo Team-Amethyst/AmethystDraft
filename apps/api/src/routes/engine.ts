@@ -74,7 +74,7 @@ const calculateValuation: RequestHandler = async (
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
-    const context = buildValuationContext(league, entries, {
+    const context = await buildValuationContext(league, entries, {
       userTeamId: resolveUserTeamId(req, league),
     });
     const payload = finalizeEngineValuationPostPayload(context);
@@ -102,7 +102,7 @@ const calculateValuationPlayer: RequestHandler = async (
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
     const entries = await RosterEntry.find({ leagueId: league._id });
-    const context = buildValuationContext(league, entries, {
+    const context = await buildValuationContext(league, entries, {
       userTeamId: resolveUserTeamId(req, league),
     });
     const base = finalizeEngineValuationPostPayload(context);

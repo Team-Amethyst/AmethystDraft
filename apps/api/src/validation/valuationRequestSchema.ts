@@ -67,6 +67,11 @@ const teamPlayersSectionSchema = z.object({
   players: z.array(rosteredPlayerSchema),
 });
 
+export const positionOverrideEntrySchema = z.object({
+  player_id: z.string().min(1),
+  positions: z.array(z.string()),
+});
+
 const preDraftRostersFlexibleSchema = z.union([
   z.array(teamPlayersSectionSchema),
   z.record(z.string(), z.array(rosteredPlayerSchema)),
@@ -99,6 +104,7 @@ export const valuationRequestSchema = z.object({
   minors: z.array(teamPlayersSectionSchema).optional(),
   taxi: z.array(teamPlayersSectionSchema).optional(),
   player_ids: z.array(z.string().min(1)).optional(),
+  position_overrides: z.array(positionOverrideEntrySchema).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),
@@ -128,6 +134,7 @@ export const valuationFlatRequestSchema = z.object({
   taxi: z.array(teamPlayersSectionSchema).optional(),
   pre_draft_rosters: preDraftRostersFlexibleSchema.optional(),
   player_ids: z.array(z.string().min(1)).optional(),
+  position_overrides: z.array(positionOverrideEntrySchema).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),

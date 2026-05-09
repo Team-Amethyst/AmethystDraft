@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("./catalogPlayerFetch", () => ({
+  getOrRefreshCatalogPlayers: vi.fn(),
+}));
+
 import type { ILeague } from "../models/League";
+import { getOrRefreshCatalogPlayers } from "./catalogPlayerFetch";
 import {
   buildValuationContext,
   finalizeEngineValuationPostPayload,
@@ -23,6 +29,10 @@ const DEFAULT_ROSTER_RECORD: Record<string, number> = {
 
 const SLOT_SUM = 21;
 
+beforeEach(() => {
+  vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([]);
+});
+
 function freshLeague(teams: number): ILeague {
   return {
     rosterSlots: DEFAULT_ROSTER_RECORD,
@@ -35,8 +45,8 @@ function freshLeague(teams: number): ILeague {
   } as unknown as ILeague;
 }
 
-function payloadSummary(teams: number) {
-  const ctx = buildValuationContext(freshLeague(teams), [], {});
+async function payloadSummary(teams: number) {
+  const ctx = await buildValuationContext(freshLeague(teams), [], {});
   const payload = finalizeEngineValuationPostPayload(ctx) as Record<
     string,
     unknown
@@ -45,8 +55,8 @@ function payloadSummary(teams: number) {
 }
 
 describe("fresh league valuation POST payload (normalized roster_slots)", () => {
-  it("6-team: roster geometry and budget pool for Command Center verification", () => {
-    const s = payloadSummary(6);
+  it("6-team: roster geometry and budget pool for Command Center verification", async () => {
+    const s = await payloadSummary(6);
     expect(s.roster_slot_count_sum).toBe(SLOT_SUM);
     expect(s.num_teams).toBe(6);
     expect(s.drafted_players_length).toBe(0);
@@ -58,8 +68,8 @@ describe("fresh league valuation POST payload (normalized roster_slots)", () => 
     console.info("[verify-fresh-6-team]", JSON.stringify(s, null, 2));
   });
 
-  it("12-team: roster geometry and budget pool", () => {
-    const s = payloadSummary(12);
+  it("12-team: roster geometry and budget pool", async () => {
+    const s = await payloadSummary(12);
     expect(s.roster_slot_count_sum).toBe(SLOT_SUM);
     expect(s.num_teams).toBe(12);
     expect(s.drafted_players_length).toBe(0);
@@ -67,7 +77,7 @@ describe("fresh league valuation POST payload (normalized roster_slots)", () => 
     console.info("[verify-fresh-12-team]", JSON.stringify(s, null, 2));
   });
 
-  it("array-shaped rosterSlots (Mongo Mixed) still yields correct slot sum", () => {
+  it("array-shaped rosterSlots (Mongo Mixed) still yields correct slot sum", async () => {
     const league = {
       ...freshLeague(6),
       rosterSlots: [
@@ -76,7 +86,7 @@ describe("fresh league valuation POST payload (normalized roster_slots)", () => 
         { position: "BN", count: 5 },
       ],
     } as unknown as ILeague;
-    const ctx = buildValuationContext(league, [], {});
+    const ctx = await buildValuationContext(league, [], {});
     const s = summarizeEngineValuationPayload(
       finalizeEngineValuationPostPayload(ctx) as Record<string, unknown>,
     );

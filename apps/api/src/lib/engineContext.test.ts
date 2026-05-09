@@ -1,7 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("./catalogPlayerFetch", () => ({
+  getOrRefreshCatalogPlayers: vi.fn(),
+}));
+
 import mongoose from "mongoose";
 import type { ILeague } from "../models/League";
 import type { IRosterEntry } from "../models/RosterEntry";
+import type { PlayerData } from "./playerCatalog";
+import { getOrRefreshCatalogPlayers } from "./catalogPlayerFetch";
 import {
   computeBudgetByTeamRemaining,
   buildValuationContext,
@@ -153,7 +160,11 @@ describe("resolveLeagueNumTeams", () => {
 });
 
 describe("buildValuationContext", () => {
-  it("maps league and roster entries including context parity fields", () => {
+  beforeEach(() => {
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([]);
+  });
+
+  it("maps league and roster entries including context parity fields", async () => {
     const league = {
       rosterSlots: { OF: 2 },
       scoringCategories: [{ name: "HR", type: "batting" as const }],
@@ -208,7 +219,42 @@ describe("buildValuationContext", () => {
       },
     ] as unknown as IRosterEntry[];
 
-    const ctx = buildValuationContext(league, entries, { userTeamId: "team_2" });
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([
+      {
+        id: "660272",
+        mlbId: 660272,
+        name: "Auction Pick",
+        team: "BOS",
+        position: "OF",
+        positions: ["LF", "OF"],
+        age: 28,
+        adp: 1,
+        value: 10,
+        tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+      {
+        id: "660273",
+        mlbId: 660273,
+        name: "Minor Stash",
+        team: "SEA",
+        position: "SP",
+        positions: ["SP"],
+        age: 22,
+        adp: 2,
+        value: 5,
+        tier: 4,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+    ]);
+
+    const ctx = await buildValuationContext(league, entries, { userTeamId: "team_2" });
 
     expect(ctx.roster_slots).toEqual([{ position: "OF", count: 2 }]);
     expect(ctx.drafted_players).toEqual([
@@ -248,6 +294,67 @@ describe("buildValuationContext", () => {
     expect(ctx.pos_eligibility_threshold).toBe(15);
     expect(ctx.user_team_id).toBe("team_2");
     expect(ctx.inflation_model).toBe("replacement_slots_v2");
+
+    expect(ctx.position_overrides).toEqual([
+      { player_id: "660272", positions: ["LF", "OF"] },
+      { player_id: "660273", positions: ["SP"] },
+    ]);
+
+    const draftedOverride = ctx.position_overrides?.find(
+      (o) => o.player_id === "660272",
+    );
+    const draftedRow = ctx.drafted_players.find((p) => p.player_id === "660272");
+    expect(draftedRow?.positions).toEqual(["OF"]);
+    expect(draftedOverride?.positions).toEqual(["LF", "OF"]);
+
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(15);
+  });
+
+  it("passes League.posEligibilityThreshold into catalog fetch", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+      posEligibilityThreshold: 7,
+    } as unknown as ILeague;
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([
+      {
+        id: "1",
+        mlbId: 1,
+        name: "X",
+        team: "NYY",
+        position: "SS",
+        positions: ["SS"],
+        age: 25,
+        adp: 1,
+        value: 8,
+        tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+    ]);
+
+    await buildValuationContext(league, [], {});
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(7);
+  });
+
+  it("uses threshold 20 when league omits posEligibilityThreshold", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([]);
+    await buildValuationContext(league, [], {});
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(20);
   });
 });
 
