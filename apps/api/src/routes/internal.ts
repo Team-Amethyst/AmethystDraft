@@ -1,6 +1,9 @@
 import type { Request } from "express";
 import { Router } from "express";
-import { forcePollFromWebhook } from "../realtime/newsSignalsPoller";
+import {
+  emitNewsSignalsWebhookTestPing,
+  forcePollFromWebhook,
+} from "../realtime/newsSignalsPoller";
 
 const router: Router = Router();
 
@@ -50,6 +53,12 @@ router.post("/news-signals/hook", (req, res): void => {
   }
 
   forcePollFromWebhook();
+
+  const body = req.body as { event?: string; message?: string } | undefined;
+  if (body?.event === "custom") {
+    emitNewsSignalsWebhookTestPing(body.message);
+  }
+
   res.status(204).send();
 });
 

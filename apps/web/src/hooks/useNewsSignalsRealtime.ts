@@ -1,8 +1,16 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
+import { toast } from "sonner";
 import { getApiOrigin } from "../api/client";
 
 export const NEWS_SIGNALS_UPDATED_EVENT = "news_signals_updated";
+
+type NewsSignalsSocketPayload = {
+  ping?: boolean;
+  message?: string;
+  count?: number;
+  fingerprint?: string;
+};
 
 /**
  * Subscribes to BFF Socket.IO pushes when Engine news/injury signals change.
@@ -41,9 +49,20 @@ export function useNewsSignalsRealtime(
         autoConnect: true,
       });
 
-      socket.on(NEWS_SIGNALS_UPDATED_EVENT, () => {
-        cbRef.current();
-      });
+      socket.on(
+        NEWS_SIGNALS_UPDATED_EVENT,
+        (payload?: NewsSignalsSocketPayload) => {
+          if (payload?.ping) {
+            toast.message(
+              payload.message?.trim() ||
+                "Webhook test received — live connection OK.",
+              { duration: 6000 },
+            );
+            return;
+          }
+          cbRef.current();
+        },
+      );
     })();
 
     return () => {

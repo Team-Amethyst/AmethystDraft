@@ -86,6 +86,15 @@ export function forcePollFromWebhook(): void {
   void pollOnce();
 }
 
+/** Engine developer-portal test webhook (`event: "custom"`) — signals unchanged, so poll alone emits nothing. */
+export function emitNewsSignalsWebhookTestPing(message?: string): void {
+  if (!ioRef) return;
+  ioRef.emit(NEWS_SIGNALS_UPDATED_EVENT, {
+    ping: true,
+    message: message?.trim() || undefined,
+  });
+}
+
 function startPoller(): void {
   if (pollTimer !== null || !ioRef) return;
   void pollOnce();
