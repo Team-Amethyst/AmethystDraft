@@ -14,6 +14,7 @@ import {
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
   BASELINE_STRENGTH_TOOLTIP,
+  REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
   RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
   ROSTER_EDGE_TOOLTIP,
   valuationExplainHasRiskRoleContent,
@@ -154,7 +155,9 @@ function ValuationExplainSections({
               <dl className="pdm-explain-kv-dl">
                 {explain.replacement_key_used ? (
                   <>
-                    <dt>Replacement slot</dt>
+                    <dt title={REPLACEMENT_COMPARISON_SLOT_TOOLTIP}>
+                      Replacement comparison slot
+                    </dt>
                     <dd>{explain.replacement_key_used}</dd>
                   </>
                 ) : null}

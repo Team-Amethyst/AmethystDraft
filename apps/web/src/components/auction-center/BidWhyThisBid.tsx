@@ -2,6 +2,7 @@ import type { ValuationExplain, ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import {
   BASELINE_STRENGTH_TOOLTIP,
+  REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
   formatCurrencyWhole,
   formatExplainRiskMultiplier,
   formatInflationFactorMultiple,
@@ -53,13 +54,19 @@ function WhyRow({
   );
 }
 
-function buildContextRows(explain: ValuationExplain): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [];
+function buildContextRows(
+  explain: ValuationExplain,
+): { label: string; value: string; labelTitle?: string }[] {
+  const rows: { label: string; value: string; labelTitle?: string }[] = [];
   if (explain.effective_positions?.length) {
     rows.push({ label: "Effective positions", value: explain.effective_positions.join(", ") });
   }
   if (explain.replacement_key_used) {
-    rows.push({ label: "Replacement slot", value: explain.replacement_key_used });
+    rows.push({
+      label: "Replacement comparison slot",
+      value: explain.replacement_key_used,
+      labelTitle: REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
+    });
   }
   if (explain.replacement_value_used != null) {
     rows.push({
@@ -235,7 +242,12 @@ export function BidWhyThisBid({
                     <h4 className="bdc-why-panel__title">Auction context</h4>
                     <div className="bdc-why-rows">
                       {contextRows.map((r) => (
-                        <WhyRow key={r.label} label={r.label} value={r.value} />
+                        <WhyRow
+                          key={r.label}
+                          label={r.label}
+                          value={r.value}
+                          labelTitle={r.labelTitle}
+                        />
                       ))}
                     </div>
                   </section>

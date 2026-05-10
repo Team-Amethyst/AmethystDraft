@@ -75,6 +75,12 @@ export const ROSTER_EDGE_TOOLTIP =
 export const BASELINE_STRENGTH_TOOLTIP =
   "Baseline Strength is the player's pre-auction model strength before replacement levels and budget allocation.";
 
+/**
+ * `valuation_explain.replacement_key_used`: surplus comparison slot from Engine, not role label.
+ */
+export const REPLACEMENT_COMPARISON_SLOT_TOOLTIP =
+  "The roster slot whose replacement value is used to calculate this player's surplus. This is not necessarily the player's real-life role.";
+
 export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
   "auction_value",
   "team_adjusted_value",

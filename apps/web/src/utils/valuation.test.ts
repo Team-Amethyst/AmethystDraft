@@ -20,6 +20,7 @@ import {
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
   BID_EDGE_TOOLTIP,
+  REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
   playerBidEdgeDollars,
   playerRosterEdgeDollars,
   playerValuationEdgeOrDiff,
@@ -181,6 +182,15 @@ describe("valuation helpers", () => {
     it("Roster Edge tooltip is Team Value minus Auction Value", () => {
       expect(ROSTER_EDGE_TOOLTIP).toBe(
         "Roster Edge = Team Value minus Auction Value.",
+      );
+    });
+
+    it("Replacement comparison slot tooltip distinguishes surplus slot from role", () => {
+      expect(REPLACEMENT_COMPARISON_SLOT_TOOLTIP).toContain(
+        "replacement value is used to calculate",
+      );
+      expect(REPLACEMENT_COMPARISON_SLOT_TOOLTIP).toContain(
+        "not necessarily the player's real-life role",
       );
     });
 
