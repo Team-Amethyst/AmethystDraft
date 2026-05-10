@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import http from "node:http";
 import cors from "cors";
 import helmet from "helmet";
 import mongoose from "mongoose";
@@ -7,11 +8,13 @@ import authRoutes from "./routes/auth";
 import playersRoutes from "./routes/players";
 import engineRoutes from "./routes/engine";
 import leaguesRoutes from "./routes/leagues";
+import internalRoutes from "./routes/internal";
 import errorHandler from "./middleware/errorHandler";
 import { NotFoundError } from "./lib/appError";
 import customPlayerRoutes from "./routes/customPlayers";
 import { assignRequestId } from "./lib/requestContext";
 import { corsOptionsFromEnv } from "./lib/corsConfig";
+import { attachSocketServer } from "./realtime/socketServer";
 
 dotenv.config();
 
@@ -52,6 +55,7 @@ app.use("/api/players/custom", customPlayerRoutes);
 app.use("/api/players", playersRoutes);
 app.use("/api/engine", engineRoutes);
 app.use("/api/leagues", leaguesRoutes);
+app.use("/api/internal", internalRoutes);
 
 
 app.get("/api/health", (req, res) => {
@@ -68,11 +72,14 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 
+const httpServer = http.createServer(app);
+attachSocketServer(httpServer);
+
 mongoose
   .connect(process.env.MONGO_URI as string)
   .then(() => {
     console.log("Connected to MongoDB");
-    app.listen(PORT, () =>
+    httpServer.listen(PORT, () =>
       console.log("API running on http://localhost:" + PORT),
     );
   })

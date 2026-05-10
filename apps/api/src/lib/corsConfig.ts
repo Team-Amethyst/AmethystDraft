@@ -8,6 +8,13 @@ import type { CorsOptions } from "cors";
  * - Requests with no `Origin` (same-origin, curl, health checks) are allowed.
  * - With `credentials: true`, only listed origins receive `Access-Control-Allow-Credentials`.
  */
+/**
+ * Socket.IO uses the same browser origin rules as Express CORS for the handshake.
+ */
+export function socketIoServerCors(): Pick<CorsOptions, "origin" | "credentials"> {
+  return corsOptionsFromEnv();
+}
+
 export function corsOptionsFromEnv(): Pick<CorsOptions, "origin" | "credentials"> {
   const raw = process.env.CORS_ORIGIN?.trim();
   const isProduction = process.env.NODE_ENV === "production";

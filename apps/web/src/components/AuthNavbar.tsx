@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Zap,
@@ -10,9 +10,11 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { getNewsSignals, type NewsSignal } from "../api/engine";
+import { useNewsSignalsRealtime } from "../hooks/useNewsSignalsRealtime";
 import "./AuthNavbar.css";
 
 const NEWS_LOOKBACK_DAYS = 7;
@@ -61,6 +63,10 @@ function formatAlertType(signalType: string): string {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
+function signalFingerprint(s: NewsSignal): string {
+  return `${s.player_name}|${s.effective_date}|${s.signal_type}|${s.description}|${s.source}`;
+}
+
 export default function AuthNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,9 +79,60 @@ export default function AuthNavbar() {
   const [alertSignals, setAlertSignals] = useState<NewsSignal[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [realtimeNonce, setRealtimeNonce] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
+  const baselineEstablishedRef = useRef(false);
+  const knownKeysRef = useRef<Set<string>>(new Set());
+
+  const applySignals = useCallback(
+    (signals: NewsSignal[], source: "dropdown" | "push") => {
+      setAlertSignals(signals);
+
+      if (source === "dropdown") {
+        knownKeysRef.current = new Set(signals.map(signalFingerprint));
+        baselineEstablishedRef.current = true;
+        return;
+      }
+
+      if (!baselineEstablishedRef.current) {
+        knownKeysRef.current = new Set(signals.map(signalFingerprint));
+        baselineEstablishedRef.current = true;
+        return;
+      }
+
+      const prev = knownKeysRef.current;
+      let newInjury = false;
+      let anyNew = false;
+      for (const s of signals) {
+        const k = signalFingerprint(s);
+        if (!prev.has(k)) {
+          anyNew = true;
+          if (s.signal_type === "injury") {
+            newInjury = true;
+          }
+        }
+      }
+      knownKeysRef.current = new Set(signals.map(signalFingerprint));
+
+      if (newInjury) {
+        toast.warning(
+          "New injury alert — open Intelligence Alerts for details.",
+          { duration: 10_000 },
+        );
+      } else if (anyNew) {
+        toast.message("Intelligence alerts updated.", { duration: 6000 });
+      }
+    },
+    [],
+  );
+
+  const bumpRealtimeFromPush = useCallback(() => {
+    setRealtimeNonce((n) => n + 1);
+  }, []);
+
+  useNewsSignalsRealtime(token, Boolean(league), bumpRealtimeFromPush);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -135,7 +192,7 @@ export default function AuthNavbar() {
     })
       .then((response) => {
         if (!active) return;
-        setAlertSignals(response.signals);
+        applySignals(response.signals, "dropdown");
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -154,7 +211,29 @@ export default function AuthNavbar() {
     return () => {
       active = false;
     };
-  }, [alertsOpen, token, alertTab]);
+  }, [alertsOpen, token, alertTab, applySignals]);
+
+  useEffect(() => {
+    if (!token || realtimeNonce === 0) return;
+    const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
+    let active = true;
+
+    getNewsSignals(token, {
+      days: NEWS_LOOKBACK_DAYS,
+      signal_type: selectedTab?.signalType,
+    })
+      .then((response) => {
+        if (!active) return;
+        applySignals(response.signals, "push");
+      })
+      .catch(() => {
+        /* push refresh is best-effort */
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [realtimeNonce, token, alertTab, applySignals]);
 
   const leagueBase = league ? `/leagues/${league.id}` : "";
   const isActive = (path: string) => location.pathname === path;

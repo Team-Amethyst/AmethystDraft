@@ -21,7 +21,8 @@
         "PLAYER_API_TEST_KEY",
         "AMETHYST_CONTRACT_TEST",
         "AMETHYST_ENGINE_TIMEOUT_MS",
-        "LOG_ENGINE_VALUATION_DEBUG"
+        "LOG_ENGINE_VALUATION_DEBUG",
+        "INTERNAL_WEBHOOK_SECRET"
       ]
     },
     "check-types": {

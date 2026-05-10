@@ -17,6 +17,14 @@ export const DRAFT_BFF_ENGINE_PATHS: readonly { bff: string; engine: string; met
   { bff: "GET /api/engine/signals/news", engine: "GET /signals/news", method: "GET" },
 ];
 
+/**
+ * News/injury signals: Engine implements ETag + If-None-Match (304), Redis-backed fast path,
+ * and POST to Draft when the fingerprint changes. Draft exposes ingest hook + polls Engine from BFF.
+ * See NEWS_SIGNALS_REALTIME_ENGINE_PROMPT.md (alignment doc, not a live prompt).
+ */
+export const ENGINE_NEWS_SIGNALS_WEBHOOK_DRAFT_PATH =
+  "POST /api/internal/news-signals/hook (Bearer INTERNAL_WEBHOOK_SECRET | AMETHYST_API_KEY)";
+
 export const AMETHYST_ENGINE_REPO_CHECKLIST: readonly string[] = [
   "POST /valuation/calculate: accept flat body (no wrapper). Draft sends finalizeEngineValuationPostPayload(): drafted_players = auction picks only; pre_draft_rosters optional (keepers); both schema_version and schemaVersion when version set; optional player_ids, minors, taxi, deterministic, seed; budget_by_team_id; scoring_format; hitter_budget_pct; pos_eligibility_threshold; position_overrides (catalog eligibility by MLB player_id); injury_overrides (catalog injury_severity 0–3 by MLB player_id).",
   "Validate request bodies against valuation-request.v1.schema.json (or generated OpenAPI) and return 400 or 422 with { errors: [{ field, message }] } on failure (422 = output sanity per OpenAPI).",

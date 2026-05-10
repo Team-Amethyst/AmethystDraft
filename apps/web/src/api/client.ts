@@ -133,6 +133,11 @@ async function resolveApiBase(): Promise<string> {
   }
 }
 
+/** Resolved BFF origin (no path), for Socket.IO and non-fetch callers. */
+export async function getApiOrigin(): Promise<string> {
+  return resolveApiBase();
+}
+
 export async function requestJson<T>(
   path: string,
   init: RequestInit,
