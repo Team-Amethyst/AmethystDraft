@@ -36,8 +36,8 @@ import {
   formatCurrencyWhole,
   formatMaybeDelta,
   leagueWideAuctionDollars,
-  playerEdgeDisplayClass,
   playerValuationEdgeOrDiff,
+  researchTableEdgeVsMaxToneClass,
   RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
@@ -645,7 +645,7 @@ export default function PlayerTable({
                     <td
                       className={[
                         "td-valdiff",
-                        playerEdgeDisplayClass(player, edgeVsMaxDollars),
+                        researchTableEdgeVsMaxToneClass(edgeVsMaxDollars),
                       ]
                         .filter(Boolean)
                         .join(" ")}

@@ -584,21 +584,17 @@
   font-weight: 500;
 }
 
-/* ── Val diff (Edge vs Max): neutral base; pos/neg/bid-relative modifiers only ── */
-.td-valdiff {
-  color: #b0a0cc;
+/* ── Edge vs Max: scope to tbody so tone colors beat .pt-table td { color } and stay unambiguous on dark UI ── */
+.pt-table tbody td.td-valdiff {
+  color: #9a8bb0;
   font-variant-numeric: tabular-nums;
 }
-.td-valdiff.td-valdiff--positive {
-  color: #22c55e;
+.pt-table tbody td.td-valdiff.td-valdiff--positive {
+  color: #4ade80;
   font-weight: 600;
 }
-.td-valdiff.td-valdiff--negative {
-  color: #f87171;
-  font-weight: 600;
-}
-.td-valdiff.td-valdiff--bid-relative {
-  color: color-mix(in srgb, #94a3b8 88%, #fbbf24);
+.pt-table tbody td.td-valdiff.td-valdiff--negative {
+  color: #fb7185;
   font-weight: 600;
 }
 

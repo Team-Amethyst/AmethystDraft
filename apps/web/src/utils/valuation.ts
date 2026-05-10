@@ -45,7 +45,7 @@ export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
 
 /** Research `PlayerTable` edge / surplus column header `title`. */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP =
-  "Edge vs Max = Team Value minus Max Bid (Team − Max). Uses the Engine edge field when present; otherwise team_adjusted_value minus recommended_bid. On tier 1–2 stars, negative edge is often normal because Max is an aggressive anchor.";
+  "Edge vs Max = Team Value minus Max Bid. Negative values mean Team Value is below Max Bid. For elite players, this can be normal because Max Bid is an aggressive bid anchor.";
 
 /**
  * Research table secondary line under the primary auction $ (compact scan layout).
@@ -94,39 +94,22 @@ function readFiniteScalar(v: unknown): number | undefined {
   return undefined;
 }
 
-/** Integer tier for Edge vs Max star styling (catalog may stringify). */
-function tierAsInteger(tier: unknown): number | undefined {
-  const n = readFiniteScalar(tier);
-  if (n === undefined) return undefined;
-  return Math.trunc(n);
-}
-
-/**
- * Edge column for tables: prefer engine `edge` when present; otherwise TA minus suggested bid.
- * Matches prior PlayerTable behavior in one place for reuse.
- */
-/** BEM modifiers on `.td-valdiff` — avoids short names like `pos` colliding with global CSS. */
-export type PlayerTableEdgeToneClass =
+/** BEM modifier on `.td-valdiff` for Research Edge vs Max (sign-only coloring). */
+export type ResearchTableEdgeVsMaxToneClass =
   | ""
   | "td-valdiff--positive"
-  | "td-valdiff--negative"
-  | "td-valdiff--bid-relative";
+  | "td-valdiff--negative";
 
 /**
- * Edge column CSS for Research `PlayerTable`.
- * Stars (tier 1–2) with negative edge use bid-relative tone, not danger red.
- * Zero surplus uses default (neutral) cell styling.
+ * Research `PlayerTable` Edge vs Max cell tone: follows the sign of the surplus only.
+ * Elite / star caveats belong in tooltips, not alternate row colors.
  */
-export function playerEdgeDisplayClass(
-  player: Pick<Player, "tier">,
+export function researchTableEdgeVsMaxToneClass(
   valDiff: number | null | undefined,
-): PlayerTableEdgeToneClass {
+): ResearchTableEdgeVsMaxToneClass {
   if (valDiff == null || !Number.isFinite(valDiff)) return "";
   if (valDiff > 0) return "td-valdiff--positive";
   if (valDiff === 0) return "";
-  const tier = tierAsInteger(player.tier);
-  const starTier = tier !== undefined && tier >= 1 && tier <= 2;
-  if (starTier) return "td-valdiff--bid-relative";
   return "td-valdiff--negative";
 }
 
