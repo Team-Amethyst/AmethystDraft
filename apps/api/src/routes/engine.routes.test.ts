@@ -289,6 +289,7 @@ describe("engine routes (BFF → Amethyst)", () => {
           league_scope: "Mixed",
           user_team_id: "team_1",
           inflation_model: "replacement_slots_v2",
+          injury_overrides: [{ player_id: "660271", injury_severity: 2 }],
         }),
       );
     });

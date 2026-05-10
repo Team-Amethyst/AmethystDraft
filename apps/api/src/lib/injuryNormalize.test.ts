@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   injurySeverityFrom40ManStatus,
+  injuryStatusDisplayFrom40ManStatus,
   injuryStatusLabelFromRosterCode,
 } from "./injuryNormalize";
 
@@ -39,9 +40,35 @@ describe("injurySeverityFrom40ManStatus", () => {
     expect(injurySeverityFrom40ManStatus("BRV", "Bereavement List")).toBe(1);
   });
 
+  it("maps MIN roster code with blank description to severity 1 (sparse roster dumps)", () => {
+    expect(injurySeverityFrom40ManStatus("MIN", "")).toBe(1);
+  });
+
   it("matches catalog: D10 → IL10 label and severity 2", () => {
     expect(injuryStatusLabelFromRosterCode("D10")).toBe("IL10");
     expect(injurySeverityFrom40ManStatus("D10", "10-Day Injured List")).toBe(2);
+  });
+});
+
+describe("injuryStatusDisplayFrom40ManStatus", () => {
+  it("infers IL chips from description when roster code is absent", () => {
+    expect(
+      injuryStatusDisplayFrom40ManStatus("", "10-Day Injured List"),
+    ).toBe("IL10");
+    expect(injuryStatusDisplayFrom40ManStatus(undefined, "15-Day IL")).toBe(
+      "IL15",
+    );
+    expect(
+      injuryStatusDisplayFrom40ManStatus("", "Rehab — 60-Day Injured List"),
+    ).toBe("IL60");
+  });
+
+  it("still prefers standard roster codes as IL7…IL60 labels", () => {
+    expect(injuryStatusDisplayFrom40ManStatus("D10", "anything")).toBe("IL10");
+  });
+
+  it("maps uncertain language to DTD when no IL roster code", () => {
+    expect(injuryStatusDisplayFrom40ManStatus("", "Day-To-Day")).toBe("DTD");
   });
 });
 

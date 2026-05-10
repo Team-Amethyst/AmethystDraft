@@ -22,7 +22,7 @@ import { mergeTwoWayPlayers, type PlayerData } from "./playerCatalog";
 import { UpstreamError } from "./appError";
 import {
   injurySeverityFrom40ManStatus,
-  injuryStatusLabelFromRosterCode,
+  injuryStatusDisplayFrom40ManStatus,
 } from "./injuryNormalize";
 
 const MLB_API = "https://statsapi.mlb.com/api/v1";
@@ -172,7 +172,6 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
     number,
     { code: string; description: string }
   >();
-  const injuryStatusMap = new Map<number, string>();
   try {
     const rosterResults = await Promise.all(
       MLB_TEAM_IDS.map((id) =>
@@ -189,8 +188,6 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
         const description =
           entry.status?.description ?? entry.status?.code ?? "";
         fortyManStatusByPid.set(pid, { code, description });
-        const label = injuryStatusLabelFromRosterCode(code);
-        if (label) injuryStatusMap.set(pid, label);
       }
     }
   } catch {
@@ -302,7 +299,9 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
           ),
         },
         outlook: "",
-        injuryStatus: injuryStatusMap.get(pid),
+        injuryStatus: fm
+          ? injuryStatusDisplayFrom40ManStatus(fm.code, fm.description)
+          : undefined,
         injurySeverity,
         springStats:
           springStat && Number(springStat.atBats ?? 0) >= 5
@@ -385,7 +384,9 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
           ),
         },
         outlook: "",
-        injuryStatus: injuryStatusMap.get(pid),
+        injuryStatus: fm
+          ? injuryStatusDisplayFrom40ManStatus(fm.code, fm.description)
+          : undefined,
         injurySeverity,
         springStats:
           springStat &&
