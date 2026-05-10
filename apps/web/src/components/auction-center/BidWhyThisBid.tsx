@@ -1,6 +1,8 @@
 import type { ValuationExplain, ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import {
+  BASELINE_STRENGTH_TOOLTIP,
+  formatCurrencyWhole,
   formatExplainRiskMultiplier,
   formatInflationFactorMultiple,
   formatMaybeDollar,
@@ -10,6 +12,7 @@ import {
   valuationExplainHasRiskRoleContent,
 } from "../../utils/valuation";
 import {
+  engineFiniteOrNull,
   mergeDisplayValuationRow,
   valuationExplainHasBidContextTable,
 } from "../../domain/auctionCenterValuation";
@@ -31,10 +34,20 @@ function injurySeverityText(v: string | number | undefined): string | undefined 
   return undefined;
 }
 
-function WhyRow({ label, value }: { label: string; value: string }) {
+function WhyRow({
+  label,
+  value,
+  labelTitle,
+}: {
+  label: string;
+  value: string;
+  labelTitle?: string;
+}) {
   return (
     <div className="bdc-why-row">
-      <span className="bdc-why-row__k">{label}</span>
+      <span className="bdc-why-row__k" title={labelTitle}>
+        {label}
+      </span>
       <span className="bdc-why-row__v">{value}</span>
     </div>
   );
@@ -133,6 +146,11 @@ export function BidWhyThisBid({
   const merged = mergeDisplayValuationRow(valuationRow ?? undefined, selectedPlayer);
   const row = merged ?? valuationRow ?? undefined;
 
+  const baselineForWhy =
+    engineFiniteOrNull(merged?.baseline_value) ??
+    engineFiniteOrNull(row?.baseline_value) ??
+    engineFiniteOrNull(selectedPlayer.baseline_value);
+
   const rbNote =
     (typeof row?.recommended_bid_note === "string" ? row.recommended_bid_note.trim() : "") ||
     (typeof selectedPlayer.recommended_bid_note === "string"
@@ -164,6 +182,15 @@ export function BidWhyThisBid({
     hasV2 ||
     hasWhy;
 
+  const showFallback =
+    baselineForWhy == null &&
+    rbNote === "" &&
+    edgeNote === "" &&
+    contextRows.length === 0 &&
+    riskRows.length === 0 &&
+    !hasV2 &&
+    !hasWhy;
+
   return (
     <details className="bdc-why-bid">
       <summary className="bdc-why-bid__summary">
@@ -177,6 +204,15 @@ export function BidWhyThisBid({
         </span>
       </summary>
       <div className="bdc-why-bid__body">
+        {baselineForWhy != null ? (
+          <section className="bdc-why-panel bdc-why-panel--baseline" aria-label="Baseline strength">
+            <WhyRow
+              label="Baseline Strength"
+              value={formatCurrencyWhole(baselineForWhy)}
+              labelTitle={BASELINE_STRENGTH_TOOLTIP}
+            />
+          </section>
+        ) : null}
         {hasEngine ? (
           <>
             {(rbNote !== "" || edgeNote !== "") && (
@@ -286,9 +322,9 @@ export function BidWhyThisBid({
               </section>
             ) : null}
           </>
-        ) : (
+        ) : showFallback ? (
           <p className="bdc-why-fallback">Open player details for model explanation.</p>
-        )}
+        ) : null}
       </div>
     </details>
   );

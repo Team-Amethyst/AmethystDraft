@@ -19,9 +19,13 @@ import {
   mergePlayerWithFocusedExplainEnrichment,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
+  BID_EDGE_TOOLTIP,
+  playerBidEdgeDollars,
+  playerRosterEdgeDollars,
   playerValuationEdgeOrDiff,
   RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
+  ROSTER_EDGE_TOOLTIP,
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   resolveValuationNumber,
   valuationExplainHasRiskRoleContent,
@@ -173,25 +177,34 @@ describe("valuation helpers", () => {
     });
   });
 
-  describe("Edge vs Max (detail views + helpers)", () => {
-    it("Edge vs Max tooltip explains Team − Max and elite caveat", () => {
-      expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain(
-        "Team Value minus Max Bid",
-      );
-      expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain(
-        "Negative values mean Team Value is below Max Bid",
-      );
-      expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain(
-        "For elite players, this can be normal because Max Bid is an aggressive bid anchor",
+  describe("Roster Edge and Bid Edge helpers", () => {
+    it("Roster Edge tooltip is Team Value minus Auction Value", () => {
+      expect(ROSTER_EDGE_TOOLTIP).toBe(
+        "Roster Edge = Team Value minus Auction Value.",
       );
     });
 
-    it("Research footer points to Player Detail for the full valuation ladder", () => {
+    it("Bid Edge tooltip explains Team − Max and elite caveat", () => {
+      expect(BID_EDGE_TOOLTIP).toContain("Team Value minus Max Bid");
+      expect(BID_EDGE_TOOLTIP).toContain(
+        "Negative values mean Team Value is below Max Bid",
+      );
+      expect(BID_EDGE_TOOLTIP).toContain(
+        "For elite players, this can be normal because Max Bid is an aggressive bid anchor",
+      );
+      expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toBe(BID_EDGE_TOOLTIP);
+    });
+
+    it("Research footer directs users to Player Detail for non-table metrics", () => {
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
         "Open a player",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "Max Bid",
+        "Roster Edge",
+      );
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain("Bid Edge");
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
+        "Baseline Strength",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
         "Team Value",
@@ -233,6 +246,28 @@ describe("valuation helpers", () => {
           team_adjusted_value: "26",
         } as unknown as Player),
       ).toBe(-4);
+    });
+
+    it("playerBidEdgeDollars matches playerValuationEdgeOrDiff", () => {
+      const p = { recommended_bid: 30, team_adjusted_value: 44 };
+      expect(playerBidEdgeDollars(p)).toBe(playerValuationEdgeOrDiff(p));
+    });
+
+    it("playerRosterEdgeDollars is Team Value minus Auction Value", () => {
+      expect(
+        playerRosterEdgeDollars({
+          team_adjusted_value: 40,
+          auction_value: 35,
+          adjusted_value: 99,
+        }),
+      ).toBe(5);
+      expect(
+        playerRosterEdgeDollars({
+          team_adjusted_value: 40,
+          adjusted_value: 45,
+        }),
+      ).toBe(-5);
+      expect(playerRosterEdgeDollars({})).toBeUndefined();
     });
   });
 
@@ -471,26 +506,28 @@ describe("valuation helpers", () => {
 
   it("exposes compact labels and tooltip copy", () => {
     expect(valuationSortLabel("auction_value")).toBe("Auction value");
-    expect(valuationSortLabel("team_adjusted_value")).toBe("Value to Your Roster");
+    expect(valuationSortLabel("team_adjusted_value")).toBe("Team Value");
     expect(valuationSortLabel("recommended_bid")).toBe("Max Bid");
     expect(valuationSortLabel("adjusted_value")).toBe("League context $");
-    expect(valuationSortLabel("baseline_value")).toBe("Player strength");
+    expect(valuationSortLabel("baseline_value")).toBe("Baseline Strength");
     expect(valuationTooltip("auction_value")).toContain("league-wide");
     expect(valuationTooltip("auction_value")).toContain("not your bid cap");
-    expect(valuationTooltip("team_adjusted_value")).toContain("Roster-specific");
+    expect(valuationTooltip("team_adjusted_value")).toContain("Team Value");
     expect(valuationTooltip("recommended_bid")).toContain("Strategic bid");
     expect(valuationTooltip("recommended_bid")).toContain("recommended_bid");
     expect(valuationTooltip("recommended_bid")).toContain(
       RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
     );
     expect(valuationTooltip("adjusted_value")).toContain("adjusted_value");
-    expect(valuationTooltip("baseline_value")).toContain("Pre-auction");
-    expect(valuationTooltip("baseline_value")).toContain("baseline_value");
+    expect(valuationTooltip("baseline_value")).toContain("Baseline Strength");
+    expect(valuationTooltip("baseline_value")).toContain(
+      "pre-auction model strength",
+    );
   });
 
-  it("Command Center / Player Detail ladder: Max Bid label, edge delta, and anchor tooltip", () => {
+  it("Command Center / Player Detail ladder: Max Bid label, Bid Edge delta, and tooltips", () => {
     expect(valuationSortLabel("recommended_bid")).toBe("Max Bid");
-    expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain("Team Value minus Max Bid");
+    expect(BID_EDGE_TOOLTIP).toContain("Team Value minus Max Bid");
     expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_adjusted_value: 23, recommended_bid: 44 }))).toBe(
       "-21",
     );

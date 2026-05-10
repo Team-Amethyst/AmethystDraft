@@ -47,7 +47,7 @@ export function valueMinusBidDeltaRounded(yourValue: number, bid: number): numbe
 }
 
 /**
- * Command Center `BidDecisionCard` “Edge vs Max” dollars: always **Team Value − Max Bid**
+ * Command Center `BidDecisionCard` Bid Edge dollars: always **Team Value − Max Bid**
  * (rounded), matching `verdictFromValueMinusBid` / `cleanedYourValueAndRecommendedBid`.
  * Intentionally ignores Engine `edge` so ladder numbers cannot diverge from card tone when
  * the Engine sends a different surplus definition.

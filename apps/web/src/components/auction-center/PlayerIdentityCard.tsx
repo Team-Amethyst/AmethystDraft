@@ -1,6 +1,7 @@
 import PosBadge from "../PosBadge";
 import CustomPlayerHeadshot from "../CustomPlayerHeadshot";
 import type { Player } from "../../types/player";
+import { BID_EDGE_TOOLTIP } from "../../utils/valuation";
 
 export function PlayerIdentityCard({
   selectedPlayer,
@@ -111,7 +112,7 @@ export function PlayerIdentityCard({
                         "pic-vb-badge pic-vb-badge--inline pic-vb-badge--" +
                         valueVsBidBadge.tone
                       }
-                      title="Team Value minus Max Bid (rounded): matches Command Center ladder Edge vs Max and card tone."
+                      title={`${BID_EDGE_TOOLTIP} (rounded; matches Command Center Bid Edge).`}
                     >
                       <span className="pic-vb-badge-delta">
                         {valueVsBidBadge.deltaText}

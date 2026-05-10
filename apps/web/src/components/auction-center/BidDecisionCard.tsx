@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import {
+  formatCurrencyWhole,
   formatDollar,
-  formatMaybeDelta,
+  BID_EDGE_TOOLTIP,
   leagueWideAuctionDollars,
-  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   valuationSortLabel,
   valuationTooltip,
 } from "../../utils/valuation";
@@ -117,9 +117,6 @@ export function BidDecisionCard({
   const displayLeagueAuction =
     (row ? leagueWideAuctionDollars(row) : undefined) ??
     leagueWideAuctionDollars(selectedPlayer);
-  const displayBaseValue =
-    decisionData.baseline_value ??
-    engineFiniteOrNull(selectedPlayer.baseline_value);
 
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
@@ -138,8 +135,8 @@ export function BidDecisionCard({
         <div className="bdc-grid">
           <div className="bdc-metric-row">
             <div
-              className="bdc-metric-grid bdc-metric-grid--ladder5 bdc-metric-grid--focus-boxes"
-              aria-label="Auction value, max bid, team value, player strength, edge vs max"
+              className="bdc-metric-grid bdc-metric-grid--ladder4 bdc-metric-grid--focus-boxes"
+              aria-label="Auction value, max bid, team value, bid edge"
             >
               <AuctionMetricTile
                 label="Auction Value"
@@ -184,18 +181,11 @@ export function BidDecisionCard({
                 }
               />
               <AuctionMetricTile
-                label="Player Strength"
-                title={valuationTooltip("baseline_value")}
-                value={
-                  <span className="bdc-focus-value">{fmtMoney(displayBaseValue)}</span>
-                }
-              />
-              <AuctionMetricTile
-                label="Edge vs Max"
-                title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
+                label="Bid Edge"
+                title={BID_EDGE_TOOLTIP}
                 value={
                   <span className="bdc-focus-value">
-                    {formatMaybeDelta(edgeVsMaxDisplay)}
+                    {formatCurrencyWhole(edgeVsMaxDisplay)}
                   </span>
                 }
               />

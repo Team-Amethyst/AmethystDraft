@@ -68,9 +68,9 @@
   column-gap: var(--cc-space-12);
 }
 
-/* Five-metric ladder: Auction Value, Max Bid, Team Value, Player Strength, Edge vs Max */
-.bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder5 {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+/* Four-metric ladder: Auction Value, Max Bid, Team Value, Bid Edge */
+.bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   column-gap: var(--cc-space-8);
   align-items: stretch;
 }
@@ -87,33 +87,33 @@
   justify-content: center;
 }
 
-.bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile {
+.bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile {
   width: auto;
 }
 
-.bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile-label {
+.bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile-label {
   font-weight: 700;
   letter-spacing: 0.09em;
   color: color-mix(in srgb, var(--cc-heading-color) 74%, white);
 }
 
-.bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile-value {
+.bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile-value {
   color: color-mix(in srgb, white 94%, var(--cc-heading-color));
 }
 
 @media (max-width: 1280px) {
-  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder5 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--cc-space-12);
   }
 
-  .bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile {
+  .bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile {
     width: auto;
   }
 }
 
 @media (max-width: 720px) {
-  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder5 {
+  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--cc-space-10);
   }

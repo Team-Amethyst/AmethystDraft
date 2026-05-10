@@ -27,8 +27,7 @@ const SAMPLE = {
     { label: "Auction Value", value: "$38" },
     { label: "Max Bid", value: "$41" },
     { label: "Team Value", value: "$36" },
-    { label: "Player Strength", value: "$40" },
-    { label: "Edge vs Max", value: "−$5" },
+    { label: "Roster Edge", value: "−$2" },
   ],
   notes:
     "Ceiling chase only under $36; if early nominators anchor power OFs past $42, fade and bank " +

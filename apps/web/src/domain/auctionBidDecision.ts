@@ -23,8 +23,7 @@ export type AuctionDecisionSignal =
   | "Price sensitive";
 
 /**
- * UI label for the bid / value gap. Uses the same value-diff definition as research tables
- * (`playerValuationEdgeOrDiff`).
+ * UI label for the bid / value gap (`playerValuationEdgeOrDiff` / Bid Edge).
  */
 export function auctionDecisionSignalFromPlayer(
   player: Pick<Player, "edge" | "recommended_bid" | "team_adjusted_value">,

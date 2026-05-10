@@ -34,8 +34,7 @@ const METRICS: { label: string; value: string }[] = [
   { label: "Auction Value", value: "$45" },
   { label: "Max Bid", value: "$52" },
   { label: "Team Value", value: "$42" },
-  { label: "Player Strength", value: "$48" },
-  { label: "Edge vs Max", value: "−$10" },
+  { label: "Roster Edge", value: "−$3" },
 ];
 
 export default function PlayerDetailModalMock() {

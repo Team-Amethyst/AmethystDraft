@@ -1,6 +1,5 @@
 import { type StatBasis, statBasisFooterDescription } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
-import { auctionTargetBidDollars } from "../domain/auctionBidDecision";
 import {
   formatCurrencyWhole,
   formatExplainRiskMultiplier,
@@ -11,11 +10,12 @@ import {
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
   leagueWideAuctionDollars,
-  playerValuationEdgeOrDiff,
-  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
+  playerRosterEdgeDollars,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
+  BASELINE_STRENGTH_TOOLTIP,
   RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
+  ROSTER_EDGE_TOOLTIP,
   valuationExplainHasRiskRoleContent,
 } from "../utils/valuation";
 import {
@@ -114,11 +114,15 @@ function explainSectionCHasContent(
 function whyThisValueHasExpandableContent(
   explain: ValuationExplain | null | undefined,
   boardWarnings: readonly string[] | undefined,
+  baselineValue?: number | null,
 ): boolean {
+  const hasBaseline =
+    typeof baselineValue === "number" && Number.isFinite(baselineValue);
   return (
     explainSectionAHasContent(explain) ||
     explainSectionBHasContent(explain) ||
-    explainSectionCHasContent(explain, boardWarnings)
+    explainSectionCHasContent(explain, boardWarnings) ||
+    hasBaseline
   );
 }
 
@@ -315,7 +319,7 @@ export default function PlayerDetailModal({
   const projectionPit = player.projection.pitching;
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
-  const valuationDiff = playerValuationEdgeOrDiff(player);
+  const rosterEdge = playerRosterEdgeDollars(player);
   const yourValue =
     typeof player.team_adjusted_value === "number" &&
     Number.isFinite(player.team_adjusted_value)
@@ -326,7 +330,11 @@ export default function PlayerDetailModal({
     typeof leagueAuction === "number" && Number.isFinite(leagueAuction)
       ? leagueAuction
       : null;
-  const targetBid = auctionTargetBidDollars(player);
+  const maxBid =
+    typeof player.recommended_bid === "number" &&
+    Number.isFinite(player.recommended_bid)
+      ? player.recommended_bid
+      : null;
 
   const showValuationContextDebug =
     isValuationContextDebugEnabled() &&
@@ -342,6 +350,7 @@ export default function PlayerDetailModal({
   const showWhyThisValue = whyThisValueHasExpandableContent(
     player.valuation_explain ?? null,
     valuationContextWarnings,
+    player.baseline_value,
   );
 
   return (
@@ -507,7 +516,7 @@ export default function PlayerDetailModal({
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
                     Max Bid
                   </span>
-                  <span className="pdm-metric-value">{formatCurrencyWhole(targetBid)}</span>
+                  <span className="pdm-metric-value">{formatCurrencyWhole(maxBid)}</span>
                 </div>
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
@@ -516,21 +525,10 @@ export default function PlayerDetailModal({
                   <span className="pdm-metric-value">{formatCurrencyWhole(yourValue)}</span>
                 </div>
                 <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label">Player Strength</span>
-                  <span className="pdm-metric-value">
-                    {formatCurrencyWhole(
-                      typeof player.baseline_value === "number" &&
-                        Number.isFinite(player.baseline_value)
-                        ? player.baseline_value
-                        : undefined,
-                    )}
+                  <span className="pdm-metric-label" title={ROSTER_EDGE_TOOLTIP}>
+                    Roster Edge
                   </span>
-                </div>
-                <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}>
-                    Edge vs Max
-                  </span>
-                  <span className="pdm-metric-value">{formatMaybeDelta(valuationDiff)}</span>
+                  <span className="pdm-metric-value">{formatMaybeDelta(rosterEdge)}</span>
                 </div>
               </div>
               {player.recommended_bid_note?.trim() ? (
@@ -594,6 +592,13 @@ export default function PlayerDetailModal({
               {showWhyThisValue ? (
                 <details className="pdm-lower-details pdm-valuation-explain">
                   <summary className="pdm-lower-summary">Why this value?</summary>
+                  {typeof player.baseline_value === "number" &&
+                  Number.isFinite(player.baseline_value) ? (
+                    <dl className="pdm-explain-kv-dl pdm-baseline-strength-dl">
+                      <dt title={BASELINE_STRENGTH_TOOLTIP}>Baseline Strength</dt>
+                      <dd>{formatCurrencyWhole(player.baseline_value)}</dd>
+                    </dl>
+                  ) : null}
                   <ValuationExplainSections
                     explain={player.valuation_explain ?? null}
                     boardWarnings={valuationContextWarnings}

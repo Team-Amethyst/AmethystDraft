@@ -63,12 +63,8 @@ export function MockValuationMetrics({
         <span className="pdlm-metrics__value">$42</span>
       </div>
       <div className="pdlm-metrics__cell" role="listitem">
-        <span className="pdlm-metrics__label">Player Strength</span>
-        <span className="pdlm-metrics__value">$48</span>
-      </div>
-      <div className="pdlm-metrics__cell" role="listitem">
-        <span className="pdlm-metrics__label">Edge vs Max</span>
-        <span className="pdlm-metrics__value">−$10</span>
+        <span className="pdlm-metrics__label">Roster Edge</span>
+        <span className="pdlm-metrics__value">−$3</span>
       </div>
     </div>
   );
@@ -194,7 +190,8 @@ export function MockDisclosuresFooter() {
       <details className="pdlm-disclosures__item">
         <summary>Why this value?</summary>
         <p className="pdlm-disclosures__body">
-          Replacement key, surplus basis, and roster-adjusted replacement values appear here in production.
+          Baseline Strength, replacement key, surplus basis, and roster-adjusted values appear here in
+          production.
         </p>
       </details>
       <details className="pdlm-disclosures__item">

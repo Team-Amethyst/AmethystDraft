@@ -46,9 +46,9 @@ export interface ValuationShape {
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
   "Max bid is a strategic anchor and may exceed auction value on elite players.";
 
-/** Research `PlayerTable` footer: where to see Max Bid, Team Value, and explain surfaces. */
+/** Research `PlayerTable` footer: Research rows show Auction Value only; open a player for the rest. */
 export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
-  "Open a player for Max Bid, Team Value, and model explanation.";
+  "Open a player for Team Value, Max Bid, Roster Edge, Bid Edge, and Baseline Strength under Why this value.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
@@ -58,11 +58,22 @@ export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
   "Max Bid: strategic bid anchor; may be higher than auction value for elite players.";
 
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
-  "Team Value: value to your roster.";
+  "Team Value: roster-specific value (engine team_adjusted_value).";
 
-/** Edge vs Max: used in Player Detail, Command Center, and Auction Center (not the Research table row). */
-export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP =
-  "Edge vs Max = Team Value minus Max Bid. Negative values mean Team Value is below Max Bid. For elite players, this can be normal because Max Bid is an aggressive bid anchor.";
+/** Bid Edge (Team Value − Max Bid). Used in Command Center / Auction Center (not the Research table row). */
+export const BID_EDGE_TOOLTIP =
+  "Bid Edge = Team Value minus Max Bid. Negative values mean Team Value is below Max Bid. For elite players, this can be normal because Max Bid is an aggressive bid anchor.";
+
+/** @deprecated Use {@link BID_EDGE_TOOLTIP}. */
+export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP = BID_EDGE_TOOLTIP;
+
+/** Roster Edge (Team Value − Auction Value). Used in Player Detail. */
+export const ROSTER_EDGE_TOOLTIP =
+  "Roster Edge = Team Value minus Auction Value.";
+
+/** Pre-auction strength basis (`baseline_value`); not a spendable bid value. */
+export const BASELINE_STRENGTH_TOOLTIP =
+  "Baseline Strength is the player's pre-auction model strength before replacement levels and budget allocation.";
 
 export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
   "auction_value",
@@ -121,7 +132,7 @@ function preferFiniteNumber(
 }
 
 /**
- * Edge vs Max dollars: prefer Engine `edge` when present (same surplus definition when in sync);
+ * Bid Edge dollars: prefer Engine `edge` when present (same surplus definition when in sync);
  * else `team_adjusted_value - recommended_bid` (Team Value minus Max Bid).
  */
 export function playerValuationEdgeOrDiff(player: {
@@ -137,6 +148,23 @@ export function playerValuationEdgeOrDiff(player: {
     return yourValue - likelyBid;
   }
   return undefined;
+}
+
+/** Team Value minus Auction Value (`auction_value ?? adjusted_value`). */
+export function playerRosterEdgeDollars(
+  player: Pick<Player, "team_adjusted_value" | "auction_value" | "adjusted_value">,
+): number | undefined {
+  const ta = readFiniteScalar(player.team_adjusted_value);
+  const auction = leagueWideAuctionDollars(player);
+  if (ta === undefined || auction === undefined) return undefined;
+  return ta - auction;
+}
+
+/** Bid Edge (same semantics as {@link playerValuationEdgeOrDiff}). */
+export function playerBidEdgeDollars(
+  player: Parameters<typeof playerValuationEdgeOrDiff>[0],
+): ReturnType<typeof playerValuationEdgeOrDiff> {
+  return playerValuationEdgeOrDiff(player);
 }
 
 export function formatCurrencyWhole(value: number | null | undefined): string {
@@ -682,10 +710,10 @@ export function mergeCatalogPlayersWithValuations(
 
 export function valuationSortLabel(field: ValuationSortField): string {
   if (field === "auction_value") return "Auction value";
-  if (field === "team_adjusted_value") return "Value to Your Roster";
+  if (field === "team_adjusted_value") return "Team Value";
   if (field === "recommended_bid") return "Max Bid";
   if (field === "adjusted_value") return "League context $";
-  return "Player strength";
+  return "Baseline Strength";
 }
 
 export function valuationTooltip(field: ValuationSortField): string {
@@ -693,7 +721,7 @@ export function valuationTooltip(field: ValuationSortField): string {
     return "Fair league-wide auction value (not your roster-specific value and not your bid cap). Uses engine auction_value, or adjusted_value when auction_value is omitted.";
   }
   if (field === "team_adjusted_value") {
-    return "Roster-specific: dollars of value to your team (engine team_adjusted_value), not the league-wide list price.";
+    return "Team Value: roster-specific dollars of value to your team (engine team_adjusted_value), not the league-wide list price.";
   }
   if (field === "recommended_bid") {
     return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Strategic bid ceiling / anchor (engine recommended_bid), not fair market list value.`;
@@ -701,7 +729,7 @@ export function valuationTooltip(field: ValuationSortField): string {
   if (field === "adjusted_value") {
     return "Engine adjusted_value — same semantic as auction_value when the Engine mirrors compatibility fields.";
   }
-  return "Pre-auction / list strength: neutral projection before roster, scarcity, and risk adjustments (engine baseline_value; valuation ladder step 1).";
+  return BASELINE_STRENGTH_TOOLTIP;
 }
 
 export function defaultValuationSortForPage(
