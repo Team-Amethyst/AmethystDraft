@@ -33,6 +33,10 @@ export interface ValuationShape {
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
   "Max bid is a strategic anchor and may exceed auction value on elite players.";
 
+/** Research `PlayerTable` footer: one quiet line (Max ≠ auction $). */
+export const RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY =
+  "Max is a strategic bid anchor, not auction value.";
+
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
   "Auction Value: fair league-wide auction value.";
@@ -43,7 +47,7 @@ export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
   "Team Value: value to your roster.";
 
-/** Research `PlayerTable` edge / surplus column header `title`. */
+/** Edge vs Max: used in Player Detail, Command Center, and Auction Center (not the Research table row). */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP =
   "Edge vs Max = Team Value minus Max Bid. Negative values mean Team Value is below Max Bid. For elite players, this can be normal because Max Bid is an aggressive bid anchor.";
 
@@ -92,25 +96,6 @@ function readFiniteScalar(v: unknown): number | undefined {
     if (Number.isFinite(n)) return n;
   }
   return undefined;
-}
-
-/** BEM modifier on `.td-valdiff` for Research Edge vs Max (sign-only coloring). */
-export type ResearchTableEdgeVsMaxToneClass =
-  | ""
-  | "td-valdiff--positive"
-  | "td-valdiff--negative";
-
-/**
- * Research `PlayerTable` Edge vs Max cell tone: follows the sign of the surplus only.
- * Elite / star caveats belong in tooltips, not alternate row colors.
- */
-export function researchTableEdgeVsMaxToneClass(
-  valDiff: number | null | undefined,
-): ResearchTableEdgeVsMaxToneClass {
-  if (valDiff == null || !Number.isFinite(valDiff)) return "";
-  if (valDiff > 0) return "td-valdiff--positive";
-  if (valDiff === 0) return "";
-  return "td-valdiff--negative";
 }
 
 /**

@@ -14,7 +14,7 @@ import {
   normalizeValuationPlayerId,
   playerValuationEdgeOrDiff,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
-  researchTableEdgeVsMaxToneClass,
+  RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY,
   researchTableSecondaryMaxTeamLine,
   resolveValuationNumber,
   valuationSortLabel,
@@ -81,8 +81,8 @@ describe("valuation helpers", () => {
     expect(merged.valuation_explain?.replacement_key_used).toBe("OF5");
   });
 
-  describe("Edge vs Max (Research table: dollars + CSS class)", () => {
-    it("Research edge tooltip explains Team − Max and elite caveat", () => {
+  describe("Edge vs Max (detail views + helpers)", () => {
+    it("Edge vs Max tooltip explains Team − Max and elite caveat", () => {
       expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain(
         "Team Value minus Max Bid",
       );
@@ -92,6 +92,13 @@ describe("valuation helpers", () => {
       expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain(
         "For elite players, this can be normal because Max Bid is an aggressive bid anchor",
       );
+    });
+
+    it("Research footer copy distinguishes Max from auction value", () => {
+      expect(RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY).toContain(
+        "strategic bid anchor",
+      );
+      expect(RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY).toContain("auction value");
     });
 
     it("playerValuationEdgeOrDiff prefers Engine edge when present", () => {
@@ -117,25 +124,6 @@ describe("valuation helpers", () => {
       expect(playerValuationEdgeOrDiff({})).toBeUndefined();
       expect(playerValuationEdgeOrDiff({ recommended_bid: 5 })).toBeUndefined();
       expect(playerValuationEdgeOrDiff({ team_adjusted_value: 5 })).toBeUndefined();
-    });
-
-    it("researchTableEdgeVsMaxToneClass maps positive edge to td-valdiff--positive", () => {
-      expect(researchTableEdgeVsMaxToneClass(3)).toBe("td-valdiff--positive");
-    });
-
-    it("researchTableEdgeVsMaxToneClass maps zero edge to neutral (no modifier)", () => {
-      expect(researchTableEdgeVsMaxToneClass(0)).toBe("");
-    });
-
-    it("researchTableEdgeVsMaxToneClass maps missing edge to neutral", () => {
-      expect(researchTableEdgeVsMaxToneClass(undefined)).toBe("");
-      expect(researchTableEdgeVsMaxToneClass(null)).toBe("");
-    });
-
-    it("researchTableEdgeVsMaxToneClass maps negative edge to td-valdiff--negative (all tiers)", () => {
-      expect(researchTableEdgeVsMaxToneClass(-5)).toBe("td-valdiff--negative");
-      expect(researchTableEdgeVsMaxToneClass(-1)).toBe("td-valdiff--negative");
-      expect(researchTableEdgeVsMaxToneClass(-4)).toBe("td-valdiff--negative");
     });
 
     it("playerValuationEdgeOrDiff reads numeric strings for edge and Team − Max inputs", () => {

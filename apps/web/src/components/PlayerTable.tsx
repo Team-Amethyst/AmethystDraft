@@ -34,12 +34,8 @@ import {
 } from "./PlayerTableParts";
 import {
   formatCurrencyWhole,
-  formatMaybeDelta,
   leagueWideAuctionDollars,
-  playerValuationEdgeOrDiff,
-  researchTableEdgeVsMaxToneClass,
-  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
-  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
+  RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
   RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
@@ -156,11 +152,14 @@ export default function PlayerTable({
   }>(() => {
     try {
       const s = localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.sort);
-      return s
-        ? (JSON.parse(s) as { col: string; dir: "asc" | "desc" })
-        : { col: "adp", dir: "asc" };
+      if (!s) return { col: "adp", dir: "asc" as const };
+      const parsed = JSON.parse(s) as { col?: unknown; dir?: unknown };
+      const col = typeof parsed.col === "string" ? parsed.col : "adp";
+      const dir = parsed.dir === "desc" ? ("desc" as const) : ("asc" as const);
+      if (col === "valdiff") return { col: "adp", dir: "asc" };
+      return { col, dir };
     } catch {
-      return { col: "adp", dir: "asc" };
+      return { col: "adp", dir: "asc" as const };
     }
   });
   const valuationSortField: ValuationSortField = defaultValuationSortField;
@@ -346,7 +345,6 @@ export default function PlayerTable({
           pit,
           isBatter: !!bat || !pit,
           tags: getCategoryTags(bat, pit),
-          valDiff: playerValuationEdgeOrDiff(player),
         };
       }),
     [displayed, statBasis],
@@ -447,13 +445,6 @@ export default function PlayerTable({
                 {valuationSortLabel("auction_value")}{" "}
                 <SortArrow col="value" sort={clientSort} />
               </th>
-              <th
-                className="th-valdiff th-sortable"
-                onClick={() => handleColSort("valdiff")}
-                title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
-              >
-                Edge vs Max <SortArrow col="valdiff" sort={clientSort} />
-              </th>
               {focusedCols
                 ? focusedCols.map((col, i) => (
                     <th
@@ -485,14 +476,13 @@ export default function PlayerTable({
           <tbody>
             {filteredRowData.length === 0 && (
               <tr>
-                <td colSpan={10 + numActiveCols} className="pt-empty">
+                <td colSpan={9 + numActiveCols} className="pt-empty">
                   No players found.
                 </td>
               </tr>
             )}
             {rowData.map(
               ({ player, bat, pit, isBatter, tags }, index) => {
-                const edgeVsMaxDollars = playerValuationEdgeOrDiff(player);
                 const isStarred = isInWatchlist(player.id);
                 const eng = engineCatalogByPlayerId?.get(player.id);
                 const primaryValue = leagueWideAuctionDollars(player);
@@ -642,18 +632,6 @@ export default function PlayerTable({
                       </div>
                     </td>
 
-                    <td
-                      className={[
-                        "td-valdiff",
-                        researchTableEdgeVsMaxToneClass(edgeVsMaxDollars),
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
-                    >
-                      {formatMaybeDelta(edgeVsMaxDollars)}
-                    </td>
-
                     {focusedCols
                       ? focusedCols.map((col, i) => (
                           <td key={i} className="td-stat">
@@ -721,7 +699,7 @@ export default function PlayerTable({
           MLB Stats API
         </span>
         <span className="pt-footer-line pt-footer-line--subtle">
-          {RECOMMENDED_BID_VS_AUCTION_VALUE_COPY}
+          {RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY}
         </span>
       </div>
     </div>
