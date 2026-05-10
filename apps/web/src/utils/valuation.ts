@@ -31,7 +31,7 @@ export interface ValuationShape {
 
 /** Shown near max-bid guidance / modals to separate bid anchor from league auction FMV. */
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
-  "Max bid is a strategic bid anchor and may be higher than Auction Value for elite players.";
+  "Max bid is a strategic anchor and may exceed auction value on elite players.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
@@ -45,7 +45,7 @@ export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
 
 /** Research `PlayerTable` edge / surplus column header `title`. */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP =
-  "Surplus vs Max: team_adjusted_value minus recommended_bid (or Engine edge). Negative on stars can be normal when the bid anchor sits above auction value.";
+  "Edge vs Max = Team Value minus Max Bid (Team − Max). Uses the Engine edge field when present; otherwise team_adjusted_value minus recommended_bid. On tier 1–2 stars, negative edge is often normal because Max is an aggressive anchor.";
 
 /**
  * Research table secondary line under the primary auction $ (compact scan layout).
@@ -84,33 +84,65 @@ function coerceNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/** Finite number or numeric string (engine / JSON may stringify). */
+function readFiniteScalar(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v.trim());
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+/** Integer tier for Edge vs Max star styling (catalog may stringify). */
+function tierAsInteger(tier: unknown): number | undefined {
+  const n = readFiniteScalar(tier);
+  if (n === undefined) return undefined;
+  return Math.trunc(n);
+}
+
 /**
  * Edge column for tables: prefer engine `edge` when present; otherwise TA minus suggested bid.
  * Matches prior PlayerTable behavior in one place for reuse.
  */
-/** Edge column CSS: stars (tier 1–2) with negative edge use bid-relative tone, not error red. */
+/** BEM modifiers on `.td-valdiff` — avoids short names like `pos` colliding with global CSS. */
+export type PlayerTableEdgeToneClass =
+  | ""
+  | "td-valdiff--positive"
+  | "td-valdiff--negative"
+  | "td-valdiff--bid-relative";
+
+/**
+ * Edge column CSS for Research `PlayerTable`.
+ * Stars (tier 1–2) with negative edge use bid-relative tone, not danger red.
+ * Zero surplus uses default (neutral) cell styling.
+ */
 export function playerEdgeDisplayClass(
   player: Pick<Player, "tier">,
   valDiff: number | null | undefined,
-): "" | "pos" | "neg" | "bid-relative" {
+): PlayerTableEdgeToneClass {
   if (valDiff == null || !Number.isFinite(valDiff)) return "";
-  if (valDiff >= 0) return "pos";
-  const tier = player.tier;
-  const starTier =
-    typeof tier === "number" && tier >= 1 && tier <= 2 && Number.isFinite(tier);
-  if (starTier) return "bid-relative";
-  return "neg";
+  if (valDiff > 0) return "td-valdiff--positive";
+  if (valDiff === 0) return "";
+  const tier = tierAsInteger(player.tier);
+  const starTier = tier !== undefined && tier >= 1 && tier <= 2;
+  if (starTier) return "td-valdiff--bid-relative";
+  return "td-valdiff--negative";
 }
 
+/**
+ * Edge vs Max dollars: prefer Engine `edge` when present (same surplus definition when in sync);
+ * else `team_adjusted_value - recommended_bid` (Team Value minus Max Bid).
+ */
 export function playerValuationEdgeOrDiff(player: {
   edge?: number | null;
   recommended_bid?: number | null;
   team_adjusted_value?: number | null;
 }): number | undefined {
-  const edge = coerceNumber(player.edge);
+  const edge = readFiniteScalar(player.edge);
   if (edge !== undefined) return edge;
-  const likelyBid = coerceNumber(player.recommended_bid);
-  const yourValue = coerceNumber(player.team_adjusted_value);
+  const likelyBid = readFiniteScalar(player.recommended_bid);
+  const yourValue = readFiniteScalar(player.team_adjusted_value);
   if (likelyBid !== undefined && yourValue !== undefined) {
     return yourValue - likelyBid;
   }

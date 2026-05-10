@@ -491,7 +491,8 @@ export default function PlayerTable({
               </tr>
             )}
             {rowData.map(
-              ({ player, bat, pit, isBatter, tags, valDiff }, index) => {
+              ({ player, bat, pit, isBatter, tags }, index) => {
+                const edgeVsMaxDollars = playerValuationEdgeOrDiff(player);
                 const isStarred = isInWatchlist(player.id);
                 const eng = engineCatalogByPlayerId?.get(player.id);
                 const primaryValue = leagueWideAuctionDollars(player);
@@ -642,13 +643,15 @@ export default function PlayerTable({
                     </td>
 
                     <td
-                      className={
-                        "td-valdiff " +
-                        (valDiff == null ? "" : playerEdgeDisplayClass(player, valDiff))
-                      }
+                      className={[
+                        "td-valdiff",
+                        playerEdgeDisplayClass(player, edgeVsMaxDollars),
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                       title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
                     >
-                      {formatMaybeDelta(valDiff)}
+                      {formatMaybeDelta(edgeVsMaxDollars)}
                     </td>
 
                     {focusedCols

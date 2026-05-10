@@ -13,6 +13,8 @@ import {
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
   playerEdgeDisplayClass,
+  playerValuationEdgeOrDiff,
+  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   researchTableSecondaryMaxTeamLine,
   resolveValuationNumber,
   valuationSortLabel,
@@ -79,12 +81,86 @@ describe("valuation helpers", () => {
     expect(merged.valuation_explain?.replacement_key_used).toBe("OF5");
   });
 
-  it("playerEdgeDisplayClass uses bid-relative for negative edge on star tiers", () => {
-    const star = { ...basePlayer(), tier: 1 };
-    expect(playerEdgeDisplayClass(star, -5)).toBe("bid-relative");
-    expect(playerEdgeDisplayClass(star, 3)).toBe("pos");
-    const deep = { ...basePlayer(), tier: 5 };
-    expect(playerEdgeDisplayClass(deep, -5)).toBe("neg");
+  describe("Edge vs Max (Research table: dollars + CSS class)", () => {
+    it("Research edge tooltip states Team Value minus Max Bid", () => {
+      expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain(
+        "Team Value minus Max Bid",
+      );
+    });
+
+    it("playerValuationEdgeOrDiff prefers Engine edge when present", () => {
+      expect(
+        playerValuationEdgeOrDiff({
+          edge: 12,
+          recommended_bid: 50,
+          team_adjusted_value: 10,
+        }),
+      ).toBe(12);
+    });
+
+    it("playerValuationEdgeOrDiff falls back to Team Value minus Max Bid", () => {
+      expect(
+        playerValuationEdgeOrDiff({
+          recommended_bid: 30,
+          team_adjusted_value: 40,
+        }),
+      ).toBe(10);
+    });
+
+    it("playerValuationEdgeOrDiff returns undefined when surplus cannot be derived", () => {
+      expect(playerValuationEdgeOrDiff({})).toBeUndefined();
+      expect(playerValuationEdgeOrDiff({ recommended_bid: 5 })).toBeUndefined();
+      expect(playerValuationEdgeOrDiff({ team_adjusted_value: 5 })).toBeUndefined();
+    });
+
+    it("playerEdgeDisplayClass maps positive edge to td-valdiff--positive (green)", () => {
+      expect(playerEdgeDisplayClass(basePlayer(), 3)).toBe("td-valdiff--positive");
+    });
+
+    it("playerEdgeDisplayClass maps zero edge to neutral (no modifier)", () => {
+      expect(playerEdgeDisplayClass(basePlayer(), 0)).toBe("");
+    });
+
+    it("playerEdgeDisplayClass maps missing edge to neutral", () => {
+      expect(playerEdgeDisplayClass(basePlayer(), undefined)).toBe("");
+      expect(playerEdgeDisplayClass(basePlayer(), null)).toBe("");
+    });
+
+    it("playerEdgeDisplayClass maps negative non-star edge to td-valdiff--negative", () => {
+      expect(playerEdgeDisplayClass({ ...basePlayer(), tier: 5 }, -5)).toBe(
+        "td-valdiff--negative",
+      );
+      expect(playerEdgeDisplayClass({ ...basePlayer(), tier: 3 }, -1)).toBe(
+        "td-valdiff--negative",
+      );
+      expect(
+        playerEdgeDisplayClass({ ...basePlayer(), tier: "3" } as unknown as Player, -4),
+      ).toBe("td-valdiff--negative");
+    });
+
+    it("playerEdgeDisplayClass maps negative tier 1–2 star edge to bid-relative (not positive)", () => {
+      expect(playerEdgeDisplayClass({ ...basePlayer(), tier: 1 }, -5)).toBe(
+        "td-valdiff--bid-relative",
+      );
+      expect(playerEdgeDisplayClass({ ...basePlayer(), tier: 2 }, -5)).toBe(
+        "td-valdiff--bid-relative",
+      );
+      expect(
+        playerEdgeDisplayClass({ ...basePlayer(), tier: "1" } as unknown as Player, -4),
+      ).toBe("td-valdiff--bid-relative");
+    });
+
+    it("playerValuationEdgeOrDiff reads numeric strings for edge and Team − Max inputs", () => {
+      expect(
+        playerValuationEdgeOrDiff({ edge: "-4" } as unknown as Player),
+      ).toBe(-4);
+      expect(
+        playerValuationEdgeOrDiff({
+          recommended_bid: "30",
+          team_adjusted_value: "26",
+        } as unknown as Player),
+      ).toBe(-4);
+    });
   });
 
   it("verdictFromValueMinusBid softens negative delta for star bid-relative mode", () => {

@@ -589,9 +589,15 @@
   color: #b0a0cc;
   font-variant-numeric: tabular-nums;
 }
-.td-valdiff.pos { color: #22c55e; font-weight: 600; }
-.td-valdiff.neg { color: #f87171; font-weight: 600; }
-.td-valdiff.bid-relative {
+.td-valdiff.td-valdiff--positive {
+  color: #22c55e;
+  font-weight: 600;
+}
+.td-valdiff.td-valdiff--negative {
+  color: #f87171;
+  font-weight: 600;
+}
+.td-valdiff.td-valdiff--bid-relative {
   color: color-mix(in srgb, #94a3b8 88%, #fbbf24);
   font-weight: 600;
 }
