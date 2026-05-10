@@ -39,7 +39,8 @@
   overflow: hidden;
   container-type: inline-size;
   container-name: pdm;
-  --pdm-rail-track-pct: 22%;
+  /* Legacy reference — desktop rail uses `.pdm-split` grid track (~19–21%). */
+  --pdm-rail-track-pct: 19%;
   /* Draftroom reference (Command Center center) */
   --pdm-canvas: #0c0a11;
   --pdm-panel: #15121e;
@@ -64,6 +65,8 @@
   --cc-space-20: 20px;
   --pdm-stack-gap: var(--cc-gap-md);
   --pdm-stack-gap-lg: var(--cc-gap-md);
+  /* ~9% tighter vertical rhythm between valuation / stats / disclosures (desktop `.pdm-main`) */
+  --pdm-workspace-section-gap: calc(var(--cc-gap-lg) * 0.91);
 }
 
 @media (min-width: 761px) {
@@ -254,7 +257,8 @@
 @media (min-width: 761px) {
   .pdm-split {
     display: grid;
-    grid-template-columns: minmax(20%, 24%) minmax(0, 1fr);
+    /* Narrower rail (~10% vs prior max track) → more width for workspace */
+    grid-template-columns: minmax(17%, 21.5%) minmax(0, 1fr);
     column-gap: var(--cc-gap-md);
     align-items: start;
     align-content: start;
@@ -271,7 +275,7 @@
 }
 
 .pdm-rail__head {
-  margin-bottom: 0.26rem;
+  margin-bottom: 0.12rem;
 }
 
 .pdm-rail__group {
@@ -280,7 +284,7 @@
 
 @media (min-width: 761px) {
   .pdm-rail__group {
-    padding: var(--cc-space-20) var(--cc-space-20) var(--cc-space-20);
+    padding: 0.875rem var(--cc-space-20) 0.875rem;
     border-radius: 0;
     border: none;
     background: transparent;
@@ -313,8 +317,8 @@
 
 .pdm-profile__title,
 .pdm-section-heading {
-  margin: 0.36rem 0 0.26rem;
-  padding-top: 0.22rem;
+  margin: 0.22rem 0 0.18rem;
+  padding-top: 0.14rem;
   border-top: 1px solid var(--pdm-rule);
   font-size: 0.62rem;
   font-weight: 800;
@@ -369,7 +373,7 @@
 @media (min-width: 761px) {
   .pdm-main {
     gap: 0;
-    padding: calc(var(--cc-space-20) + 4px) var(--cc-space-20) var(--cc-space-20);
+    padding: calc(var(--cc-space-16) + 2px) var(--cc-space-20) var(--cc-space-16);
     border-radius: 0;
     border: none;
     background: transparent;
@@ -377,13 +381,13 @@
   }
 
   .pdm-main > .pdm-snapshot-section {
-    padding-top: var(--cc-gap-lg);
-    margin-top: var(--cc-gap-lg);
+    padding-top: var(--pdm-workspace-section-gap);
+    margin-top: var(--pdm-workspace-section-gap);
     border-top: none;
   }
 
   .pdm-main > .pdm-lower-disclosures {
-    margin-top: var(--cc-gap-lg);
+    margin-top: var(--pdm-workspace-section-gap);
   }
 }
 
@@ -484,7 +488,7 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--pdm-label) 88%, white 12%);
+  color: color-mix(in srgb, var(--pdm-label) 92%, white 8%);
   line-height: 1.18;
   max-width: 100%;
   text-wrap: balance;
@@ -498,7 +502,7 @@
 }
 
 .pdm-valuation-metric-grid .pdm-metric-label {
-  color: color-mix(in srgb, var(--pdm-label) 82%, white 18%);
+  color: color-mix(in srgb, var(--pdm-label) 87%, white 13%);
 }
 
 /* Metric values — high-contrast primary (BDC-style) */
@@ -549,7 +553,7 @@
 .pdm-player-notes {
   width: 100%;
   max-width: 100%;
-  margin: var(--cc-gap-md) 0 calc(var(--cc-gap-lg) + 0.45rem);
+  margin: calc(var(--cc-gap-md) * 0.92) 0 calc(var(--cc-gap-lg) * 0.91 + 0.38rem);
   padding: 0;
   box-sizing: border-box;
 }
@@ -724,7 +728,7 @@
   min-width: 0;
   box-sizing: border-box;
   margin-top: var(--cc-gap-lg);
-  padding-top: var(--cc-gap-md);
+  padding-top: calc(var(--cc-gap-md) * 0.92);
   border-top: 1px solid var(--pdm-rule);
   background: transparent;
   display: flex;

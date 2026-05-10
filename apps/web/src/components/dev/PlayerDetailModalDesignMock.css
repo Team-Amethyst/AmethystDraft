@@ -1,0 +1,499 @@
+/**
+ * Dev-only design mock — scoped to `.pdm-design-*`.
+ * Dark surfaces aligned with Draftroom; no gradients; no icon fonts.
+ */
+
+.pdm-design-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: rgba(4, 2, 10, 0.72);
+  backdrop-filter: blur(6px);
+  box-sizing: border-box;
+}
+
+.pdm-design-shell {
+  --pd-canvas: #0c0a11;
+  --pd-rule: #2a2438;
+  --pd-label: #9d8cc4;
+  --pd-text: #e8e4f2;
+  --pd-muted: color-mix(in srgb, var(--pd-text) 52%, #6b6280 48%);
+  --pd-subtle-fill: rgba(255, 255, 255, 0.03);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: calc(100vw - 40px);
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--pd-rule);
+  background: var(--pd-canvas);
+  color: var(--pd-text);
+  font-family: var(--app-font-family, system-ui, sans-serif);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.58);
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-shell {
+    width: min(calc(1200px * 0.88), calc(100vw - 64px));
+    max-height: calc(100vh - 80px);
+  }
+}
+
+.pdm-design-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.85rem 1rem 0.75rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-body {
+    padding: 1rem 1.25rem 0.85rem;
+  }
+}
+
+/* Option C: rail ~26–30% */
+.pdm-design-split {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-split {
+    display: grid;
+    grid-template-columns: minmax(0, 28%) minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: start;
+  }
+}
+
+/* ─── Left rail: image + identity + profile in one band ─── */
+.pdm-design-rail {
+  min-width: 0;
+}
+
+.pdm-design-rail-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem 0.85rem;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .pdm-design-rail-inner {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .pdm-design-rail-copy {
+    width: 100%;
+    align-items: center;
+  }
+
+  .pdm-design-meta {
+    justify-content: center;
+  }
+
+  .pdm-design-chips {
+    justify-content: center;
+  }
+
+  .pdm-design-dl {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .pdm-design-dl dd {
+    text-align: center;
+  }
+}
+
+.pdm-design-headshot {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid color-mix(in srgb, var(--pd-rule) 85%, transparent);
+  background: #141022;
+  flex-shrink: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-headshot {
+    width: 132px;
+    height: 132px;
+  }
+}
+
+.pdm-design-rail-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.pdm-design-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: color-mix(in srgb, var(--pd-text) 96%, var(--pd-label) 4%);
+}
+
+@media (min-width: 761px) {
+  .pdm-design-name {
+    font-size: 1.5rem;
+  }
+}
+
+.pdm-design-meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pd-muted);
+}
+
+.pdm-design-meta-sep {
+  color: color-mix(in srgb, var(--pd-muted) 65%, transparent);
+  font-weight: 500;
+}
+
+.pdm-design-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin-top: 0.15rem;
+}
+
+.pdm-design-chip {
+  display: inline-block;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  border: 1px solid var(--pd-rule);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--pd-muted);
+  background: var(--pd-subtle-fill);
+}
+
+.pdm-design-profile {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--pd-rule);
+  width: 100%;
+}
+
+.pdm-design-profile-heading {
+  margin: 0 0 0.35rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--pd-label);
+}
+
+.pdm-design-dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.12rem 0.45rem;
+  margin: 0;
+  align-items: baseline;
+  font-size: 0.78rem;
+}
+
+.pdm-design-dl dt {
+  margin: 0;
+  color: var(--pd-muted);
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+.pdm-design-dl dd {
+  margin: 0;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--pd-text) 88%, var(--pd-muted) 12%);
+  text-align: right;
+}
+
+/* ─── Workspace ─── */
+.pdm-design-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-workspace {
+    gap: 0.68rem;
+  }
+}
+
+.pdm-design-card {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.pdm-design-section-kicker {
+  margin: 0 0 0.42rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pd-label) 92%, white 8%);
+}
+
+.pdm-design-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.38rem 0.45rem;
+}
+
+@media (min-width: 900px) {
+  .pdm-design-metrics {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem 0.5rem;
+  }
+}
+
+.pdm-design-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.18rem;
+  padding: 0.42rem 0.28rem;
+  border-left: 1px solid var(--pd-rule);
+  min-width: 0;
+}
+
+.pdm-design-metric:first-child {
+  border-left: none;
+}
+
+@media (max-width: 899px) {
+  .pdm-design-metric:nth-child(3n + 1) {
+    border-left: none;
+  }
+}
+
+.pdm-design-metric-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pd-label) 90%, white 10%);
+  line-height: 1.15;
+}
+
+.pdm-design-metric-value {
+  font-size: clamp(1.15rem, 2.4vw, 1.42rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  color: color-mix(in srgb, white 96%, var(--pd-label) 4%);
+}
+
+/* Draft notes — visually weighted */
+.pdm-design-card--notes .pdm-design-section-kicker {
+  margin-bottom: 0.38rem;
+}
+
+.pdm-design-notes {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 7.5rem;
+  max-height: min(30vh, 220px);
+  resize: vertical;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--pd-text) 92%, var(--pd-muted) 8%);
+  background: var(--pd-subtle-fill);
+  border: 1px solid var(--pd-rule);
+  border-radius: 8px;
+}
+
+.pdm-design-notes:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--pd-label) 35%, var(--pd-rule) 65%);
+}
+
+/* Performance tables */
+.pdm-design-snap-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-snap-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.25rem;
+  }
+}
+
+.pdm-design-snap-block-title {
+  margin: 0 0 0.32rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pd-label);
+}
+
+.pdm-design-table {
+  border: 1px solid var(--pd-rule);
+  border-radius: 8px;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdm-design-row {
+  display: grid;
+  grid-template-columns: minmax(2rem, 0.55fr) repeat(3, minmax(0, 1fr));
+  gap: 0.2rem 0.35rem;
+  padding: 0.26rem 0.42rem;
+  font-size: 0.78rem;
+  border-top: 1px solid var(--pd-rule);
+  color: color-mix(in srgb, var(--pd-text) 94%, var(--pd-label) 6%);
+}
+
+.pdm-design-row:first-child {
+  border-top: none;
+}
+
+.pdm-design-row--head {
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pd-label) 88%, white 12%);
+}
+
+.pdm-design-row span:first-child {
+  color: var(--pd-muted);
+  font-weight: 600;
+}
+
+/* Collapsed disclosures */
+.pdm-design-details {
+  margin: 0;
+  border: 1px solid var(--pd-rule);
+  border-radius: 8px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.pdm-design-details-summary {
+  list-style: none;
+  cursor: default;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pd-label) 88%, white 12%);
+}
+
+.pdm-design-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pdm-design-details[open] > .pdm-design-details-summary {
+  border-bottom: 1px solid var(--pd-rule);
+}
+
+.pdm-design-details-body {
+  padding: 0.55rem 0.65rem 0.65rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--pd-muted);
+}
+
+.pdm-design-details-body p {
+  margin: 0;
+}
+
+/* Footer */
+.pdm-design-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 1rem 0.85rem;
+  border-top: 1px solid var(--pd-rule);
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-design-footer {
+    padding: 0.65rem 1.25rem 0.9rem;
+  }
+}
+
+.pdm-design-foot-note {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.56rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--pd-muted) 85%, transparent);
+}
+
+.pdm-design-foot-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pdm-design-btn {
+  border-radius: 8px;
+  padding: 0.32rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.pdm-design-btn--ghost {
+  border: 1px solid var(--pd-rule);
+  background: var(--pd-subtle-fill);
+  color: var(--pd-muted);
+}
+
+.pdm-design-btn--primary {
+  border: 1px solid color-mix(in srgb, var(--pd-label) 38%, var(--pd-rule) 62%);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pd-text);
+}

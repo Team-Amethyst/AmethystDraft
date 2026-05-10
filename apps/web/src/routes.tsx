@@ -31,6 +31,13 @@ const devOnlyRoutes = import.meta.env.DEV
             Component: m.default,
           })),
       },
+      {
+        path: "/dev/player-detail-modal-design",
+        lazy: () =>
+          import("./pages/dev/PlayerDetailModalDesignMockPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
     ]
   : [];
 
