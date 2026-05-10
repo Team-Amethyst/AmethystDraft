@@ -1,6 +1,9 @@
-import type { ValuationResult } from "../api/engine";
+import type { ValuationExplain, ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
-import { formatDollar } from "../utils/valuation";
+import {
+  formatDollar,
+  valuationExplainHasRiskRoleContent,
+} from "../utils/valuation";
 
 /** Finite engine/catalog number, or null. */
 export function engineFiniteOrNull(
@@ -120,5 +123,46 @@ export function mergeDisplayValuationRow(
     recommended_bid_note: row.recommended_bid_note ?? player.recommended_bid_note,
     edge_note: row.edge_note ?? player.edge_note,
     valuation_explain: row.valuation_explain ?? player.valuation_explain,
+    explain_v2: row.explain_v2 ?? player.explain_v2,
+    why: row.why ?? player.why,
   };
+}
+
+/** Replacement / inflation / warnings block inside `valuation_explain` (Command Center bid reason). */
+export function valuationExplainHasBidContextTable(ve: ValuationExplain): boolean {
+  return Boolean(
+    ve.effective_positions?.length ||
+      ve.replacement_key_used ||
+      ve.replacement_value_used != null ||
+      ve.surplus_basis ||
+      ve.inflation_factor != null ||
+      ve.pool_to_slot_ratio != null ||
+      (ve.scoring_category_warnings?.length ?? 0) > 0,
+  );
+}
+
+/** True when any Engine field should populate the “Why this bid?” disclosure (merged row + catalog). */
+export function bidReasonDisclosureHasEngineContent(
+  row: ValuationResult | undefined | null,
+  player: Player,
+): boolean {
+  const merged = mergeDisplayValuationRow(row ?? undefined, player);
+  const base = merged ?? row ?? undefined;
+  const rb =
+    (typeof base?.recommended_bid_note === "string" ? base.recommended_bid_note.trim() : "") ||
+    (typeof player.recommended_bid_note === "string" ? player.recommended_bid_note.trim() : "");
+  const en =
+    (typeof base?.edge_note === "string" ? base.edge_note.trim() : "") ||
+    (typeof player.edge_note === "string" ? player.edge_note.trim() : "");
+  if (rb !== "" || en !== "") return true;
+  const ve = base?.valuation_explain ?? player.valuation_explain;
+  if (ve && (valuationExplainHasBidContextTable(ve) || valuationExplainHasRiskRoleContent(ve))) {
+    return true;
+  }
+  const v2 = base?.explain_v2 ?? player.explain_v2;
+  if (v2 && (v2.drivers?.length ?? 0) > 0) return true;
+  if (v2 && v2.indicator) return true;
+  const why = base?.why ?? player.why;
+  if (why && why.length > 0) return true;
+  return false;
 }
