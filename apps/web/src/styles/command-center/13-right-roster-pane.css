@@ -1,10 +1,16 @@
 /* ─── Right roster pane: liquidity + standings (flush with surface card) ───── */
 
+/* Override 02-shared-panels (all right rail surface cards flex-shrink: 0) so the
+   roster block can shrink on short viewports; import order lets this win. */
+.cc-right > .cc-surface-card.cc-right-roster-pane {
+  flex-shrink: 1;
+}
+
 .cc-right-roster-pane {
-  /* Let standings/liquidity use natural height instead of consuming full rail. */
+  /* Natural height when the window is tall (no arbitrary 390px cap). Shrink +
+     inner scroll when the right rail runs out of vertical space. */
   flex: 0 1 auto;
   min-height: 0;
-  max-height: clamp(210px, 42vh, 390px);
   display: flex;
   flex-direction: column;
   overflow: hidden;

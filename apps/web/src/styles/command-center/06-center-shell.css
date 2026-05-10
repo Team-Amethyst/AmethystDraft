@@ -9,20 +9,32 @@
   overflow-y: hidden;
 }
 
+/* Outer column: dock stays in flow below main so expanding accordions are not covered. */
 .cc-content-scroll {
   flex: 1;
-  overflow-y: auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
+  padding-bottom: var(--cc-rail-bottom-gap);
+  box-sizing: border-box;
+}
+
+.cc-content-scroll-main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   scrollbar-width: thin;
   scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
-.cc-content-scroll::-webkit-scrollbar {
+
+.cc-content-scroll-main::-webkit-scrollbar {
   width: 6px;
 }
-.cc-content-scroll::-webkit-scrollbar-track {
+.cc-content-scroll-main::-webkit-scrollbar-track {
   background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
   border-radius: 3px;
   box-shadow: var(
@@ -31,11 +43,11 @@
     inset 0 0 0 1px var(--app-accent-border-faint)
   );
 }
-.cc-content-scroll::-webkit-scrollbar-thumb {
+.cc-content-scroll-main::-webkit-scrollbar-thumb {
   background: #9070b8;
   border-radius: 3px;
 }
-.cc-content-scroll::-webkit-scrollbar-thumb:hover {
+.cc-content-scroll-main::-webkit-scrollbar-thumb:hover {
   background: #a855f7;
 }
 
