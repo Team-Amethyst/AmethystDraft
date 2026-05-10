@@ -48,7 +48,7 @@ import {
   valuationResultStableKey,
 } from "../utils/valuationDeps";
 import {
-  actionableBidFromRecommendedAndMaxBid,
+  auctionValueForCommandCenterPrefill,
   cleanedYourValueAndRecommendedBid,
   engineFiniteOrNull,
   formatEdgeLine,
@@ -435,22 +435,20 @@ export function AuctionCenter({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when selected player id changes
   }, [selectedPlayer?.id]);
 
-  // When valuations refresh, update bid default from Engine if user has not edited the field
+  // When valuations refresh, prefill final price with league auction $ (not max-bid-capped bid)
   useEffect(() => {
     if (!selectedPlayer || bidPriceTouchedRef.current) return;
     if (playerEngineFetchPending) return;
-    const actionable = actionableBidFromRecommendedAndMaxBid(
+    const prefill = auctionValueForCommandCenterPrefill(
       rowForValuationUi ?? undefined,
-      myWalletCaps?.maxBid ?? null,
     );
-    if (actionable != null) {
-      setFinalPrice(String(Math.max(1, Math.round(actionable))));
+    if (prefill != null) {
+      setFinalPrice(String(Math.max(1, Math.round(prefill))));
     }
   }, [
     selectedPlayer?.id,
     selectedPlayer?.value,
     rowForValuationUi,
-    myWalletCaps,
     playerEngineFetchPending,
   ]);
 

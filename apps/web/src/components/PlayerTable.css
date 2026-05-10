@@ -498,13 +498,34 @@
 }
 
 .player-name-col {
+  position: relative;
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.35rem 0.4rem;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+/* Custom / category / drafted chips share remaining width — adaptive layout in JS */
+.pt-meta-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pt-category-tags,
+.pt-draft-tags {
+  flex-shrink: 0;
+}
+
+.player-name-col .custom-badge {
+  flex-shrink: 0;
 }
 
 .player-headshot {
@@ -542,14 +563,6 @@
   max-width: 14rem;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Category tags wrap inside the cell instead of one endless horizontal strip */
-.player-name-col .tag-list {
-  flex-wrap: wrap;
-  overflow-x: visible;
-  row-gap: 0.22rem;
-  max-width: 100%;
 }
 
 /* ── Tier badge ── */
@@ -590,16 +603,10 @@
 .td-stat { color: #b0a0cc; font-variant-numeric: tabular-nums; }
 .td-rank { color: #6b4fa0; font-weight: 700; }
 
-/* Pos column: keep badges on one row; scroll horizontally only if needed (narrow layouts). */
+/* Pos column: one row, never clipped — table horizontal scroll handles narrow viewports. */
 .td-pos {
   vertical-align: middle;
-  max-width: 7.5rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.td-pos::-webkit-scrollbar {
-  display: none;
+  white-space: nowrap;
 }
 
 .pt-pos-badges {
@@ -998,9 +1005,11 @@
   }
 
   .player-name {
-    white-space: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 1.25;
-    word-break: break-word;
+    word-break: normal;
   }
 
   .tag-list {

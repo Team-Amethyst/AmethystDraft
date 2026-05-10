@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
+  auctionValueForCommandCenterPrefill,
   bidReasonDisclosureHasEngineContent,
   commandCenterEdgeVsMaxBidRounded,
   mergeDisplayValuationRow,
@@ -27,6 +28,23 @@ function minimalPlayer(over: Partial<Player> = {}): Player {
     ...over,
   };
 }
+
+describe("auctionValueForCommandCenterPrefill", () => {
+  it("returns rounded auction_value from the valuation row", () => {
+    const row = {
+      player_id: "p1",
+      auction_value: 42.7,
+    } as ValuationResult;
+    expect(auctionValueForCommandCenterPrefill(row)).toBe(42.7);
+  });
+
+  it("returns null when auction_value is missing", () => {
+    expect(auctionValueForCommandCenterPrefill(undefined)).toBeNull();
+    expect(
+      auctionValueForCommandCenterPrefill({ player_id: "p1" } as ValuationResult),
+    ).toBeNull();
+  });
+});
 
 describe("commandCenterEdgeVsMaxBidRounded (BidDecisionCard ladder)", () => {
   it("is Team Value − Max Bid even when Engine edge would differ", () => {

@@ -107,6 +107,17 @@ export function actionableBidFromRecommendedAndMaxBid(
   return r;
 }
 
+/**
+ * League-wide auction $ for Command Center "Log result" price default.
+ * Not wallet-capped (submit still validates vs winning team max bid).
+ */
+export function auctionValueForCommandCenterPrefill(
+  row: ValuationResult | undefined,
+): number | null {
+  if (!row) return null;
+  return engineFiniteOrNull(row.auction_value);
+}
+
 /** Merge engine row with catalog `Player` optional valuation fields when the row omits them. */
 export function mergeDisplayValuationRow(
   row: ValuationResult | undefined,

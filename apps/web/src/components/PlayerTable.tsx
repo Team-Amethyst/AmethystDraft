@@ -11,10 +11,10 @@ import {
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
+import { ResearchPlayerMetaTags } from "./ResearchPlayerMetaTags";
 import "./PlayerTable.css";
 import {
   catalogPlayerIdInStringSet,
-  hasRosterMapEntryForCatalogPlayer,
   lookupRosterMapForCatalogPlayer,
 } from "../domain/catalogPlayerKeys";
 import {
@@ -51,9 +51,6 @@ import {
   displayAuctionTier,
   poolHasMarketAdp,
 } from "../domain/playerRankTier";
-
-/** Stat category badges (HR+, AVG+, …) — cap visible chips to keep the Research row compact. */
-const MAX_VISIBLE_CATEGORY_TAGS = 3;
 
 interface PlayerTableProps {
   players: Player[];
@@ -606,41 +603,12 @@ export default function PlayerTable({
                               </span>
                             )}
                           </span>
-                          {isCustomPlayer?.(player.id) && (
-                            <span className="custom-badge">Custom</span>
-                          )}
-                          {(tags.length > 0 ||
-                            hasRosterMapEntryForCatalogPlayer(draftedByTeam, player) ||
-                            hasRosterMapEntryForCatalogPlayer(
-                              draftedContractByPlayerId,
-                              player,
-                            )) && (
-                            <div className="tag-list">
-                              {tags.slice(0, MAX_VISIBLE_CATEGORY_TAGS).map((t) => (
-                                <span key={t} className="tag">
-                                  {t}
-                                </span>
-                              ))}
-                              {tags.length > MAX_VISIBLE_CATEGORY_TAGS ? (
-                                <span
-                                  className="tag tag--overflow"
-                                  title={tags.slice(MAX_VISIBLE_CATEGORY_TAGS).join(", ")}
-                                >
-                                  +{tags.length - MAX_VISIBLE_CATEGORY_TAGS}
-                                </span>
-                              ) : null}
-                              {draftedTeamName && (
-                                <span className="tag pt-drafted-tag">
-                                  ▶ {draftedTeamName}
-                                </span>
-                              )}
-                              {draftedContractLabel && (
-                                <span className="tag pt-drafted-contract-tag">
-                                  {draftedContractLabel}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <ResearchPlayerMetaTags
+                            tags={tags}
+                            showCustom={Boolean(isCustomPlayer?.(player.id))}
+                            draftedTeamName={draftedTeamName}
+                            draftedContractLabel={draftedContractLabel}
+                          />
                         </div>
                       </div>
                     </td>

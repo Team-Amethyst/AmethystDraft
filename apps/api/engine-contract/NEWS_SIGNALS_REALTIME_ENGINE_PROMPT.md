@@ -59,6 +59,35 @@ If the URL is set but the secret is missing, Engine logs a warning and does not 
 
 ---
 
+## Troubleshooting
+
+### `405 Method Not Allowed` on `draftroom.uk`
+
+The SPA is served from **S3** (`draftroom.uk` / `www`). That hostname is **not** the Draft API unless you explicitly reverse-proxy **`/api/*`** to App Runner.
+
+**Engine must POST to the same origin the SPA uses as `VITE_API_URL`** — typically your **App Runner** URL (e.g. `https://xxxx.us-east-1.awsapprunner.com`), **not** `https://draftroom.uk`.
+
+Correct webhook URL shape:
+
+`https://<API-host-from-VITE_API_URL>/api/internal/news-signals/hook`
+
+Requirements:
+
+- **`POST`** only (GET returns **405** from Express for this route).
+- **`Authorization: Bearer &lt;AMETHYST_API_KEY&gt;`** or **`Bearer &lt;INTERNAL_WEBHOOK_SECRET&gt;`** — exact match, single space after `Bearer`.
+
+Sanity check (replace host and token):
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" -X POST \
+  "https://<API_HOST>/api/internal/news-signals/hook" \
+  -H "Authorization: Bearer <same_value_as_Draft_AMETHYST_API_KEY>"
+```
+
+Expect **`204`**. **`401`** = wrong Bearer. **`503`** = Draft missing both `AMETHYST_API_KEY` and `INTERNAL_WEBHOOK_SECRET`. **`405`** on the **site** domain → wrong host (static frontend).
+
+---
+
 ## Original ask (historical)
 
 Draft originally requested ETag/304 + webhook so singleton polls stay cheap and ingest can trigger instant fan-out. The contract above matches that intent.
