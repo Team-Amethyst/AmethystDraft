@@ -13,7 +13,6 @@ export type PlayerTableSortableRow = {
   bat?: DisplayBatting;
   pit?: DisplayPitching;
   isBatter: boolean;
-  valDiff: number | undefined;
   tags: string[];
 };
 
@@ -48,11 +47,6 @@ export function sortPlayerTableRows(
       return mult * (sortKey(a.player) - sortKey(b.player));
     }
     if (col === "tier") return mult * (a.player.tier - b.player.tier);
-    if (col === "valdiff") {
-      const av = a.valDiff ?? -Infinity;
-      const bv = b.valDiff ?? -Infinity;
-      return mult * (av - bv);
-    }
     if (col.startsWith("stat-")) {
       const i = parseInt(col.slice(5), 10);
       const aStat = a.isBatter ? batCols[i] : pitCols[i];

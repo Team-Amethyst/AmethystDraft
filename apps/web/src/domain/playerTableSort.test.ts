@@ -30,13 +30,11 @@ describe("sortPlayerTableRows", () => {
       {
         player: player("a", { name: "A", adp: 50, tier: 1 }),
         isBatter: true,
-        valDiff: 0,
         tags: [],
       },
       {
         player: player("b", { name: "B", adp: 10, tier: 1 }),
         isBatter: true,
-        valDiff: 0,
         tags: [],
       },
     ];
@@ -49,13 +47,11 @@ describe("sortPlayerTableRows", () => {
       {
         player: player("a", { name: "A", adp: 1, tier: 1 }),
         isBatter: true,
-        valDiff: 0,
         tags: [],
       },
       {
         player: player("b", { name: "B", adp: 2, tier: 3 }),
         isBatter: true,
-        valDiff: 0,
         tags: [],
       },
     ];
@@ -74,7 +70,6 @@ describe("sortPlayerTableRows", () => {
           adjusted_value: 10,
         }),
         isBatter: true,
-        valDiff: 0,
         tags: [],
       },
       {
@@ -85,7 +80,6 @@ describe("sortPlayerTableRows", () => {
           adjusted_value: 50,
         }),
         isBatter: true,
-        valDiff: 0,
         tags: [],
       },
     ];
