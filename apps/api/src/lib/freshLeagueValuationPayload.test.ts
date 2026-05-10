@@ -12,19 +12,20 @@ import {
   summarizeEngineValuationPayload,
 } from "./engineContext";
 
-/** Same totals as League model defaults (21 slots / team). */
+/** Same shape as `DRAFTROOM_DEFAULT_ROSTER_SLOTS` / web-mobile create (21 slots / team). */
 const DEFAULT_ROSTER_RECORD: Record<string, number> = {
   C: 1,
   "1B": 1,
   "2B": 1,
-  "3B": 1,
   SS: 1,
+  "3B": 1,
+  MI: 1,
+  CI: 1,
   OF: 3,
   UTIL: 1,
-  SP: 2,
+  SP: 5,
   RP: 2,
-  P: 3,
-  BN: 5,
+  BN: 3,
 };
 
 const SLOT_SUM = 21;

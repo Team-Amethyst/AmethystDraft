@@ -199,11 +199,19 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -214,7 +222,7 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -223,10 +231,6 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -1039,11 +1043,19 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -1054,7 +1066,7 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -1063,10 +1075,6 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -2579,11 +2587,19 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -2594,7 +2610,7 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -2603,10 +2619,6 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -4539,11 +4551,19 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -4554,7 +4574,7 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -4563,10 +4583,6 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -4678,11 +4694,19 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -4693,7 +4717,7 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -4702,10 +4726,6 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
