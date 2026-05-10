@@ -32,7 +32,9 @@
 .pdm-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .pdm-identity {
@@ -475,11 +477,6 @@
     max-height: 72px;
   }
 
-  .pdm-body {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
   .pdm-compare-head,
   .pdm-compare-row {
     grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -530,6 +527,13 @@
 
 .pdm-valuation-dl--dense dt {
   font-size: 0.72rem;
+}
+
+.pdm-valuation-explain .pdm-valuation-dl--dense dd {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--app-text);
+  word-break: break-word;
 }
 
 .pdm-explain-warnings {
