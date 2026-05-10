@@ -4,13 +4,13 @@ import {
   formatCurrencyWhole,
   formatExplainRiskMultiplier,
   formatInflationFactorMultiple,
-  formatMaybeDelta,
   formatMaybeDollar,
   formatPoolToSlotRatio,
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
   leagueWideAuctionDollars,
   playerRosterEdgeDollars,
+  formatSignedDollarWhole,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
   BASELINE_STRENGTH_TOOLTIP,
@@ -389,10 +389,29 @@ export default function PlayerDetailModal({
                 <div className="pdm-rail__identity">
                   <img className="pdm-headshot" src={player.headshot} alt={player.name} />
                   <div className="pdm-identity-text">
-                    <h2 className="pdm-title">{gluePlayerNameSuffixForDisplay(player.name)}</h2>
-                    <div className="pdm-meta-rail" aria-label="Team, ranks, and tiers">
+                    <h2 className="pdm-title pdm-title--rail">
+                      {gluePlayerNameSuffixForDisplay(player.name)}
+                    </h2>
+                    <div className="pdm-rail-team-row">
                       <span className="pdm-meta-team-abbr">{player.team}</span>
-                      <dl className="pdm-meta-stats-dl">
+                      <div
+                        className="pdm-header-positions pdm-header-positions--rail"
+                        role="list"
+                        aria-label="Eligible positions"
+                      >
+                        {positions.map((pos) => (
+                          <PosBadge key={pos} pos={pos} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="pdm-header-context">
+                      {player.injuryStatus && <span className="pdm-chip pdm-chip--inj">{player.injuryStatus}</span>}
+                      {isCustomPlayer && <span className="pdm-chip">Custom</span>}
+                      {draftedByTeam && <span className="pdm-chip pdm-chip--drafted">Drafted by {draftedByTeam}</span>}
+                      {draftedContract && <span className="pdm-chip">{draftedContract}</span>}
+                    </div>
+                    <div className="pdm-rail-kv-stack">
+                      <dl className="pdm-rail-kv-dl" aria-label="Ranks and tiers">
                         <dt title={MODEL_RANK_TOOLTIP}>Model rank</dt>
                         <dd>{valueOrDash(player.catalog_rank)}</dd>
                         {typeof player.auction_rank === "number" &&
@@ -435,40 +454,29 @@ export default function PlayerDetailModal({
                           </>
                         ) : null}
                       </dl>
-                    </div>
-                    <div className="pdm-header-positions">
-                      {positions.map((pos) => (
-                        <PosBadge key={pos} pos={pos} />
-                      ))}
-                    </div>
-                    <div className="pdm-header-context">
-                      {player.injuryStatus && <span className="pdm-chip pdm-chip--inj">{player.injuryStatus}</span>}
-                      {isCustomPlayer && <span className="pdm-chip">Custom</span>}
-                      {draftedByTeam && <span className="pdm-chip pdm-chip--drafted">Drafted by {draftedByTeam}</span>}
-                      {draftedContract && <span className="pdm-chip">{draftedContract}</span>}
+                      <h3 className="pdm-rail-section-title">Profile</h3>
+                      <dl className="pdm-rail-kv-dl" aria-label="Profile">
+                        <dt>Age</dt>
+                        <dd>
+                          {typeof player.age === "number" && Number.isFinite(player.age)
+                            ? String(player.age)
+                            : "—"}
+                        </dd>
+                        <dt>MLB ID</dt>
+                        <dd>
+                          {typeof player.mlbId === "number" && Number.isFinite(player.mlbId)
+                            ? String(player.mlbId)
+                            : "—"}
+                        </dd>
+                        <dt>Indicator</dt>
+                        <dd>{valueOrDash(player.indicator)}</dd>
+                        <dt>Drafted</dt>
+                        <dd>{draftedByTeam ? `Yes - ${draftedByTeam}` : "Available"}</dd>
+                      </dl>
                     </div>
                   </div>
                 </div>
               </div>
-              <h3 className="pdm-profile__title">Profile</h3>
-              <dl className="pdm-profile-meta-dl">
-                <dt>Age</dt>
-                <dd>
-                  {typeof player.age === "number" && Number.isFinite(player.age)
-                    ? String(player.age)
-                    : "—"}
-                </dd>
-                <dt>MLB ID</dt>
-                <dd>
-                  {typeof player.mlbId === "number" && Number.isFinite(player.mlbId)
-                    ? String(player.mlbId)
-                    : "—"}
-                </dd>
-                <dt>Indicator</dt>
-                <dd>{valueOrDash(player.indicator)}</dd>
-                <dt>Drafted</dt>
-                <dd>{draftedByTeam ? `Yes - ${draftedByTeam}` : "Available"}</dd>
-              </dl>
             </div>
           </aside>
 
@@ -491,7 +499,7 @@ export default function PlayerDetailModal({
                   <span className="pdm-metric-label" title={ROSTER_EDGE_TOOLTIP}>
                     Roster Edge
                   </span>
-                  <span className="pdm-metric-value">{formatMaybeDelta(rosterEdge)}</span>
+                  <span className="pdm-metric-value">{formatSignedDollarWhole(rosterEdge)}</span>
                 </div>
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>

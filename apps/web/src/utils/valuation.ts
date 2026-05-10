@@ -195,6 +195,20 @@ export function formatMaybeDelta(value: number | null | undefined): string {
   return formatDeltaWhole(value);
 }
 
+/**
+ * Signed whole-dollar deltas (e.g. Roster Edge): `+$4`, `-$2`, `$0`, `—`.
+ * Minus precedes the dollar sign (`-$4`), matching {@link formatCurrencyWhole}.
+ */
+export function formatSignedDollarWhole(value: number | null | undefined): string {
+  const n = coerceNumber(value);
+  if (n === undefined) return "—";
+  const r = Math.round(n);
+  const body = `$${Math.abs(r)}`;
+  if (r > 0) return `+${body}`;
+  if (r < 0) return `-${body}`;
+  return "$0";
+}
+
 export function formatMaybeDollar(
   value: number | null | undefined,
   options?: { oneDecimal?: boolean },

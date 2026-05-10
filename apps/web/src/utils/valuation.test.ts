@@ -13,6 +13,7 @@ import {
   formatInflationFactorMultiple,
   formatMaybeDelta,
   formatMaybeDollar,
+  formatSignedDollarWhole,
   formatPoolToSlotRatio,
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
@@ -184,6 +185,13 @@ describe("valuation helpers", () => {
       expect(ROSTER_EDGE_TOOLTIP).toBe(
         "Roster Edge = Team Value minus Auction Value.",
       );
+    });
+
+    it("formatSignedDollarWhole formats roster-style dollar deltas", () => {
+      expect(formatSignedDollarWhole(4)).toBe("+$4");
+      expect(formatSignedDollarWhole(-3)).toBe("-$3");
+      expect(formatSignedDollarWhole(0)).toBe("$0");
+      expect(formatSignedDollarWhole(undefined)).toBe("—");
     });
 
     it("Replacement comparison slot tooltip distinguishes surplus slot from role", () => {
