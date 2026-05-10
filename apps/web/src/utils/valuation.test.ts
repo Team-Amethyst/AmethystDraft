@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ValuationResult } from "../api/engine";
+import type { ValuationExplain, ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
   commandCenterBidDecision,
@@ -9,18 +9,28 @@ import {
   commandCenterWalletCapsFromMyTeam,
   defaultValuationSortForPage,
   formatCurrencyWhole,
+  formatExplainRiskMultiplier,
+  formatInflationFactorMultiple,
+  formatMaybeDelta,
+  formatPoolToSlotRatio,
+  formatValuationExplainAgeDepthComponent,
+  isMeaningfulExplainMultiplier,
   leagueWideAuctionDollars,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
   playerValuationEdgeOrDiff,
+  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
-  RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY,
-  researchTableSecondaryMaxTeamLine,
+  RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   resolveValuationNumber,
+  valuationExplainHasRiskRoleContent,
   valuationSortLabel,
   valuationTooltip,
 } from "./valuation";
-import { verdictFromValueMinusBid } from "../domain/auctionCenterValuation";
+import {
+  actionableBidFromRecommendedAndMaxBid,
+  verdictFromValueMinusBid,
+} from "../domain/auctionCenterValuation";
 import type { League } from "../contexts/LeagueContext";
 
 function basePlayer(): Player {
@@ -94,11 +104,16 @@ describe("valuation helpers", () => {
       );
     });
 
-    it("Research footer copy distinguishes Max from auction value", () => {
-      expect(RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY).toContain(
-        "strategic bid anchor",
+    it("Research footer points to Player Detail for the full valuation ladder", () => {
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
+        "Open a player",
       );
-      expect(RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY).toContain("auction value");
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
+        "Max Bid",
+      );
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
+        "Team Value",
+      );
     });
 
     it("playerValuationEdgeOrDiff prefers Engine edge when present", () => {
@@ -144,6 +159,53 @@ describe("valuation helpers", () => {
     expect(v.danger).toBe(false);
     expect(v.label).toBe("Bid-relative");
     expect(v.cardTone).toBe("fair");
+  });
+
+  it("formats valuation_explain inflation_factor as multiplier not dollars", () => {
+    expect(formatInflationFactorMultiple(0.923)).toBe("0.92×");
+    expect(formatInflationFactorMultiple(0.9)).toBe("0.9×");
+    expect(formatInflationFactorMultiple(1)).toBe("1×");
+  });
+
+  it("formats valuation_explain pool_to_slot_ratio as plain number", () => {
+    expect(formatPoolToSlotRatio(2.3)).toBe("2.3");
+    expect(formatPoolToSlotRatio(2)).toBe("2");
+    expect(formatPoolToSlotRatio(2.345)).toBe("2.35");
+  });
+
+  it("isMeaningfulExplainMultiplier hides neutral 1", () => {
+    expect(isMeaningfulExplainMultiplier(1)).toBe(false);
+    expect(isMeaningfulExplainMultiplier(1.0000001)).toBe(false);
+    expect(isMeaningfulExplainMultiplier(0.92)).toBe(true);
+    expect(isMeaningfulExplainMultiplier(1.04)).toBe(true);
+  });
+
+  it("formatExplainRiskMultiplier matches inflation multiple style", () => {
+    expect(formatExplainRiskMultiplier(0.89)).toBe("0.89×");
+    expect(formatExplainRiskMultiplier(1)).toBe("1×");
+  });
+
+  it("formatValuationExplainAgeDepthComponent uses × for (0,1) and dollars otherwise", () => {
+    expect(formatValuationExplainAgeDepthComponent(0.91)).toBe("0.91×");
+    expect(formatValuationExplainAgeDepthComponent(-3)).toBe("$-3");
+    expect(formatValuationExplainAgeDepthComponent(12)).toBe("$12");
+    expect(formatValuationExplainAgeDepthComponent(0)).toBeUndefined();
+    expect(formatValuationExplainAgeDepthComponent(undefined)).toBeUndefined();
+  });
+
+  it("valuationExplainHasRiskRoleContent is false when no risk fields", () => {
+    expect(valuationExplainHasRiskRoleContent({})).toBe(false);
+    expect(valuationExplainHasRiskRoleContent({ age_multiplier: 1 })).toBe(false);
+    expect(
+      valuationExplainHasRiskRoleContent({
+        age_years: 29,
+        age_multiplier: 0.9,
+        injury_severity: "low",
+      }),
+    ).toBe(true);
+    expect(
+      valuationExplainHasRiskRoleContent({ injury_severity: 0 } satisfies ValuationExplain),
+    ).toBe(true);
   });
 
   it("preserves player tier when valuation tier is missing", () => {
@@ -327,14 +389,40 @@ describe("valuation helpers", () => {
   it("exposes compact labels and tooltip copy", () => {
     expect(valuationSortLabel("auction_value")).toBe("Auction value");
     expect(valuationSortLabel("team_adjusted_value")).toBe("Value to Your Roster");
-    expect(valuationSortLabel("recommended_bid")).toBe("Recommended Bid");
+    expect(valuationSortLabel("recommended_bid")).toBe("Max Bid");
     expect(valuationSortLabel("adjusted_value")).toBe("League context $");
     expect(valuationSortLabel("baseline_value")).toBe("Player strength");
-    expect(valuationTooltip("auction_value")).toContain("auction_value");
-    expect(valuationTooltip("team_adjusted_value")).toContain("team_adjusted_value");
+    expect(valuationTooltip("auction_value")).toContain("league-wide");
+    expect(valuationTooltip("auction_value")).toContain("not your bid cap");
+    expect(valuationTooltip("team_adjusted_value")).toContain("Roster-specific");
+    expect(valuationTooltip("recommended_bid")).toContain("Strategic bid");
     expect(valuationTooltip("recommended_bid")).toContain("recommended_bid");
+    expect(valuationTooltip("recommended_bid")).toContain(
+      RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
+    );
     expect(valuationTooltip("adjusted_value")).toContain("adjusted_value");
+    expect(valuationTooltip("baseline_value")).toContain("Pre-auction");
     expect(valuationTooltip("baseline_value")).toContain("baseline_value");
+  });
+
+  it("Command Center / Player Detail ladder: Max Bid label, edge delta, and anchor tooltip", () => {
+    expect(valuationSortLabel("recommended_bid")).toBe("Max Bid");
+    expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toContain("Team Value minus Max Bid");
+    expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_adjusted_value: 23, recommended_bid: 44 }))).toBe(
+      "-21",
+    );
+  });
+
+  it("actionable log bid default uses recommended_bid (capped), not auction_value", () => {
+    const row = {
+      player_id: "x",
+      recommended_bid: 44,
+      auction_value: 19,
+      team_adjusted_value: 23,
+    } as ValuationResult;
+    expect(actionableBidFromRecommendedAndMaxBid(row, 100)).toBe(44);
+    expect(actionableBidFromRecommendedAndMaxBid(row, 30)).toBe(30);
+    expect(actionableBidFromRecommendedAndMaxBid(row, null)).toBe(44);
   });
 
   it("leagueWideAuctionDollars prefers auction_value over adjusted_value", () => {
@@ -359,27 +447,15 @@ describe("valuation helpers", () => {
       expect(formatCurrencyWhole(row.baseline_value)).toBe("$99");
     });
 
-    it("secondary Max uses recommended_bid and Team uses team_adjusted_value", () => {
-      expect(
-        researchTableSecondaryMaxTeamLine({
-          recommended_bid: 51,
-          team_adjusted_value: 29,
-        }),
-      ).toBe("Max $51 · Team $29");
-    });
-
-    it("uses dashes when Max or Team inputs are missing", () => {
-      expect(researchTableSecondaryMaxTeamLine({})).toBe("Max — · Team —");
-    });
-
-    it("labels Max from recommended_bid, not as the league-wide auction anchor", () => {
-      const line = researchTableSecondaryMaxTeamLine({
+    it("does not use recommended_bid or team_adjusted_value for the table primary $", () => {
+      const row = {
+        auction_value: 30,
+        adjusted_value: 99,
         recommended_bid: 60,
         team_adjusted_value: 45,
-      });
-      expect(line).toMatch(/^Max \$60/);
-      expect(line).toContain("Team $45");
-      expect(line).not.toMatch(/Recommended/i);
+      };
+      expect(leagueWideAuctionDollars(row)).toBe(30);
+      expect(formatCurrencyWhole(leagueWideAuctionDollars(row))).toBe("$30");
     });
   });
 });

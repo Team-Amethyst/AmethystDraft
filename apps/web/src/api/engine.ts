@@ -70,6 +70,16 @@ export interface ValuationExplain {
   inflation_factor?: number;
   pool_to_slot_ratio?: number;
   scoring_category_warnings?: string[];
+  /** Baseline / risk explain (mirrors `baseline_components` when `explain_valuation_rows`). */
+  age_years?: number;
+  age_multiplier?: number;
+  depth_chart_position_resolved?: string;
+  depth_multiplier?: number;
+  age_depth_combined_multiplier?: number;
+  injury_severity?: string | number;
+  injury_multiplier?: number;
+  age_component?: number;
+  depth_component?: number;
 }
 
 export interface ValuationContextV2 {

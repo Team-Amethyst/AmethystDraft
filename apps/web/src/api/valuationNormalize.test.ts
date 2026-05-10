@@ -200,6 +200,15 @@ describe("valuationNormalize", () => {
         inflationFactor: 1.05,
         poolToSlotRatio: 2.5,
         scoringCategoryWarnings: ["SV thin"],
+        ageYears: 27,
+        ageMultiplier: 0.94,
+        depthChartPositionResolved: "LF4",
+        depthMultiplier: 0.88,
+        ageDepthCombinedMultiplier: 0.83,
+        injurySeverity: "moderate",
+        injuryMultiplier: 0.95,
+        ageComponent: -2,
+        depthComponent: 0.91,
       },
     });
     expect(row.recommended_bid_note).toBe("anchor high");
@@ -211,6 +220,15 @@ describe("valuationNormalize", () => {
     expect(row.valuation_explain?.inflation_factor).toBe(1.05);
     expect(row.valuation_explain?.pool_to_slot_ratio).toBe(2.5);
     expect(row.valuation_explain?.scoring_category_warnings).toEqual(["SV thin"]);
+    expect(row.valuation_explain?.age_years).toBe(27);
+    expect(row.valuation_explain?.age_multiplier).toBe(0.94);
+    expect(row.valuation_explain?.depth_chart_position_resolved).toBe("LF4");
+    expect(row.valuation_explain?.depth_multiplier).toBe(0.88);
+    expect(row.valuation_explain?.age_depth_combined_multiplier).toBe(0.83);
+    expect(row.valuation_explain?.injury_severity).toBe("moderate");
+    expect(row.valuation_explain?.injury_multiplier).toBe(0.95);
+    expect(row.valuation_explain?.age_component).toBe(-2);
+    expect(row.valuation_explain?.depth_component).toBe(0.91);
   });
 
   it("mergeValuationBoardRowIntoPrevious keeps explain when board omits it", () => {

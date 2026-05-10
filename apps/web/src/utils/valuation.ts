@@ -1,5 +1,5 @@
 import type { Player } from "../types/player";
-import type { ValuationResult } from "../api/engine";
+import type { ValuationExplain, ValuationResult } from "../api/engine";
 import type { League } from "../contexts/LeagueContext";
 import type { RosterEntry } from "../api/roster";
 
@@ -33,9 +33,9 @@ export interface ValuationShape {
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
   "Max bid is a strategic anchor and may exceed auction value on elite players.";
 
-/** Research `PlayerTable` footer: one quiet line (Max ≠ auction $). */
-export const RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY =
-  "Max is a strategic bid anchor, not auction value.";
+/** Research `PlayerTable` footer: where to see Max Bid, Team Value, and explain surfaces. */
+export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
+  "Open a player for Max Bid, Team Value, and model explanation.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
@@ -50,19 +50,6 @@ export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
 /** Edge vs Max: used in Player Detail, Command Center, and Auction Center (not the Research table row). */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP =
   "Edge vs Max = Team Value minus Max Bid. Negative values mean Team Value is below Max Bid. For elite players, this can be normal because Max Bid is an aggressive bid anchor.";
-
-/**
- * Research table secondary line under the primary auction $ (compact scan layout).
- * Max = `recommended_bid`, Team = `team_adjusted_value` (does not surface `baseline_value`).
- */
-export function researchTableSecondaryMaxTeamLine(player: {
-  recommended_bid?: number | null;
-  team_adjusted_value?: number | null;
-}): string {
-  const max = formatCurrencyWhole(coerceNumber(player.recommended_bid));
-  const team = formatCurrencyWhole(coerceNumber(player.team_adjusted_value));
-  return `Max ${max} · Team ${team}`;
-}
 
 export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
   "auction_value",
@@ -145,6 +132,104 @@ export function formatMaybeDollar(
   const rounded = Math.round(n * 10) / 10;
   if (Number.isInteger(rounded)) return `$${rounded}`;
   return `$${rounded.toFixed(1)}`;
+}
+
+function stripTrailingZerosFromDecimalString(s: string): string {
+  if (!s.includes(".")) return s;
+  return s.replace(/\.?0+$/, "");
+}
+
+/**
+ * `valuation_explain.inflation_factor` — unitless multiplier (not dollars).
+ */
+export function formatInflationFactorMultiple(
+  value: number | null | undefined,
+): string {
+  const n = coerceNumber(value);
+  if (n === undefined) return "—";
+  const s = stripTrailingZerosFromDecimalString(n.toFixed(2));
+  return `${s}×`;
+}
+
+/**
+ * `valuation_explain.pool_to_slot_ratio` — plain scalar (not dollars).
+ */
+export function formatPoolToSlotRatio(
+  value: number | null | undefined,
+): string {
+  const n = coerceNumber(value);
+  if (n === undefined) return "—";
+  return stripTrailingZerosFromDecimalString(n.toFixed(2));
+}
+
+const EXPLAIN_MULT_NEUTRAL_EPS = 1e-6;
+
+/** True when a unitless multiplier differs from 1 (hide neutral rows in explain UI). */
+export function isMeaningfulExplainMultiplier(
+  value: number | null | undefined,
+): value is number {
+  const n = coerceNumber(value);
+  if (n === undefined) return false;
+  return Math.abs(n - 1) > EXPLAIN_MULT_NEUTRAL_EPS;
+}
+
+/** Risk/role explain multipliers (e.g. `0.89×`, same rules as inflation_factor). */
+export function formatExplainRiskMultiplier(
+  value: number | null | undefined,
+): string {
+  return formatInflationFactorMultiple(value);
+}
+
+/**
+ * `age_component` / `depth_component`: dollars when Engine sends additive $ deltas;
+ * values strictly in (0, 1) are treated as unitless multipliers (`0.89×`).
+ */
+export function formatValuationExplainAgeDepthComponent(
+  value: number | null | undefined,
+): string | undefined {
+  const n = coerceNumber(value);
+  if (n === undefined) return undefined;
+  if (Math.abs(n) < EXPLAIN_MULT_NEUTRAL_EPS) return undefined;
+  if (n > 0 && n < 1) {
+    return formatInflationFactorMultiple(n);
+  }
+  return formatMaybeDollar(n, {
+    oneDecimal: Math.abs(n) < 20 && !Number.isInteger(n),
+  });
+}
+
+function hasNonEmptyInjurySeverity(
+  v: ValuationExplain["injury_severity"],
+): boolean {
+  if (v === undefined || v === null) return false;
+  if (typeof v === "number" && Number.isFinite(v)) return true;
+  if (typeof v === "string") return v.trim() !== "";
+  return false;
+}
+
+/** Any field rendered under “Risk / role adjustments.” in Player Detail. */
+export function valuationExplainHasRiskRoleContent(
+  ve: ValuationExplain | null | undefined,
+): boolean {
+  if (!ve) return false;
+  if (typeof ve.age_years === "number" && Number.isFinite(ve.age_years) && ve.age_years > 0) {
+    return true;
+  }
+  if (isMeaningfulExplainMultiplier(ve.age_multiplier)) return true;
+  if (ve.depth_chart_position_resolved) return true;
+  if (isMeaningfulExplainMultiplier(ve.depth_multiplier)) return true;
+  if (isMeaningfulExplainMultiplier(ve.age_depth_combined_multiplier)) {
+    return true;
+  }
+  if (hasNonEmptyInjurySeverity(ve.injury_severity)) return true;
+  if (isMeaningfulExplainMultiplier(ve.injury_multiplier)) return true;
+  if (formatValuationExplainAgeDepthComponent(ve.age_component) !== undefined) {
+    return true;
+  }
+  if (formatValuationExplainAgeDepthComponent(ve.depth_component) !== undefined) {
+    return true;
+  }
+  return false;
 }
 
 // Back-compat aliases during migration to semantic formatter names.
@@ -454,25 +539,25 @@ export function mergeCatalogPlayersWithValuations(
 export function valuationSortLabel(field: ValuationSortField): string {
   if (field === "auction_value") return "Auction value";
   if (field === "team_adjusted_value") return "Value to Your Roster";
-  if (field === "recommended_bid") return "Recommended Bid";
+  if (field === "recommended_bid") return "Max Bid";
   if (field === "adjusted_value") return "League context $";
   return "Player strength";
 }
 
 export function valuationTooltip(field: ValuationSortField): string {
   if (field === "auction_value") {
-    return "Engine auction_value — canonical league-wide player value (falls back to adjusted_value when omitted).";
+    return "Fair league-wide auction value (not your roster-specific value and not your bid cap). Uses engine auction_value, or adjusted_value when auction_value is omitted.";
   }
   if (field === "team_adjusted_value") {
-    return "Engine team_adjusted_value — dollars to your roster for user_team_id (not the league-wide list value).";
+    return "Roster-specific: dollars of value to your team (engine team_adjusted_value), not the league-wide list price.";
   }
   if (field === "recommended_bid") {
-    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Engine recommended_bid is the bid anchor, not league-wide FMV.`;
+    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Strategic bid ceiling / anchor (engine recommended_bid), not fair market list value.`;
   }
   if (field === "adjusted_value") {
     return "Engine adjusted_value — same semantic as auction_value when the Engine mirrors compatibility fields.";
   }
-  return "Engine baseline_value — neutral projection before roster-specific adjustments (ladder step 1).";
+  return "Pre-auction / list strength: neutral projection before roster, scarcity, and risk adjustments (engine baseline_value; valuation ladder step 1).";
 }
 
 export function defaultValuationSortForPage(

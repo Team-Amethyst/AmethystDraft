@@ -72,6 +72,32 @@ function normalizeValuationExplain(raw: unknown): ValuationExplain | undefined {
     "scoring_category_warnings",
     "scoringCategoryWarnings",
   );
+  const age_years = readFiniteScalar(e.age_years ?? e.ageYears);
+  const age_multiplier = readFiniteScalar(
+    e.age_multiplier ?? e.ageMultiplier,
+  );
+  const depth_chart_position_resolved = readNonEmptyString(
+    e.depth_chart_position_resolved ?? e.depthChartPositionResolved,
+  );
+  const depth_multiplier = readFiniteScalar(
+    e.depth_multiplier ?? e.depthMultiplier,
+  );
+  const age_depth_combined_multiplier = readFiniteScalar(
+    e.age_depth_combined_multiplier ?? e.ageDepthCombinedMultiplier,
+  );
+  const injurySevRaw = e.injury_severity ?? e.injurySeverity;
+  const injury_severity =
+    typeof injurySevRaw === "string"
+      ? readNonEmptyString(injurySevRaw)
+      : readFiniteScalar(injurySevRaw);
+  const injury_multiplier = readFiniteScalar(
+    e.injury_multiplier ?? e.injuryMultiplier,
+  );
+  const age_component = readFiniteScalar(e.age_component ?? e.ageComponent);
+  const depth_component = readFiniteScalar(
+    e.depth_component ?? e.depthComponent,
+  );
+
   const out: ValuationExplain = {};
   if (effective_positions?.length) out.effective_positions = effective_positions;
   if (replacement_key_used !== undefined)
@@ -83,6 +109,19 @@ function normalizeValuationExplain(raw: unknown): ValuationExplain | undefined {
   if (pool_to_slot_ratio !== undefined) out.pool_to_slot_ratio = pool_to_slot_ratio;
   if (scoring_category_warnings?.length)
     out.scoring_category_warnings = scoring_category_warnings;
+  if (age_years !== undefined) out.age_years = age_years;
+  if (age_multiplier !== undefined) out.age_multiplier = age_multiplier;
+  if (depth_chart_position_resolved !== undefined) {
+    out.depth_chart_position_resolved = depth_chart_position_resolved;
+  }
+  if (depth_multiplier !== undefined) out.depth_multiplier = depth_multiplier;
+  if (age_depth_combined_multiplier !== undefined) {
+    out.age_depth_combined_multiplier = age_depth_combined_multiplier;
+  }
+  if (injury_severity !== undefined) out.injury_severity = injury_severity;
+  if (injury_multiplier !== undefined) out.injury_multiplier = injury_multiplier;
+  if (age_component !== undefined) out.age_component = age_component;
+  if (depth_component !== undefined) out.depth_component = depth_component;
   return Object.keys(out).length ? out : undefined;
 }
 
