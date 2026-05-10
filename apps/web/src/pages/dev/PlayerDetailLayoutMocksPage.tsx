@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import PlayerDetailMockOptionA from "../../components/player-detail-layout-mocks/PlayerDetailMockOptionA";
 import PlayerDetailMockOptionB from "../../components/player-detail-layout-mocks/PlayerDetailMockOptionB";
 import PlayerDetailMockOptionC from "../../components/player-detail-layout-mocks/PlayerDetailMockOptionC";
@@ -22,6 +23,9 @@ export default function PlayerDetailLayoutMocksPage() {
           Three non-production mocks using the same static player payload. These are for visual
           comparison only; the live modal is unchanged. Open each section in a wide viewport for
           the intended desktop hierarchy.
+        </p>
+        <p>
+          <Link to="/dev/player-detail-modal-mock">Full-screen Option C modal mock →</Link>
         </p>
       </header>
 

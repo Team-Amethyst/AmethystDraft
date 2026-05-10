@@ -20,6 +20,10 @@ import {
 import { teamAbbrev } from "./mlbTeams";
 import { mergeTwoWayPlayers, type PlayerData } from "./playerCatalog";
 import { UpstreamError } from "./appError";
+import {
+  injurySeverityFrom40ManStatus,
+  injuryStatusLabelFromRosterCode,
+} from "./injuryNormalize";
 
 const MLB_API = "https://statsapi.mlb.com/api/v1";
 
@@ -44,7 +48,7 @@ interface MlbStatSplit {
 
 interface Mlb40ManRosterRow {
   person: { id: number };
-  status?: { code?: string };
+  status?: { code?: string; description?: string };
 }
 
 /**
@@ -164,12 +168,10 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
     108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 133,
     134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 158,
   ];
-  const IL_STATUS_MAP: Record<string, string> = {
-    D10: "IL10",
-    D15: "IL15",
-    D60: "IL60",
-    D7: "IL7",
-  };
+  const fortyManStatusByPid = new Map<
+    number,
+    { code: string; description: string }
+  >();
   const injuryStatusMap = new Map<number, string>();
   try {
     const rosterResults = await Promise.all(
@@ -181,10 +183,14 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
     );
     for (const rj of rosterResults) {
       for (const entry of rj.roster ?? []) {
-        const code = entry.status?.code;
-        if (code && IL_STATUS_MAP[code]) {
-          injuryStatusMap.set(entry.person.id, IL_STATUS_MAP[code]);
-        }
+        const pid = entry.person?.id;
+        if (!pid) continue;
+        const code = entry.status?.code ?? "";
+        const description =
+          entry.status?.description ?? entry.status?.code ?? "";
+        fortyManStatusByPid.set(pid, { code, description });
+        const label = injuryStatusLabelFromRosterCode(code);
+        if (label) injuryStatusMap.set(pid, label);
       }
     }
   } catch {
@@ -244,6 +250,10 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
       const stat = s.stat;
       const pid = s.player.id;
       const springStat = batSpringMap.get(pid);
+      const fm = fortyManStatusByPid.get(pid);
+      const injurySeverity = fm
+        ? injurySeverityFrom40ManStatus(fm.code, fm.description)
+        : 0;
       return {
         id: String(pid),
         mlbId: pid,
@@ -293,6 +303,7 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
         },
         outlook: "",
         injuryStatus: injuryStatusMap.get(pid),
+        injurySeverity,
         springStats:
           springStat && Number(springStat.atBats ?? 0) >= 5
             ? {
@@ -321,6 +332,10 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
       const stat = s.stat;
       const pid = s.player.id;
       const springStat = pitSpringMap.get(pid);
+      const fm = fortyManStatusByPid.get(pid);
+      const injurySeverity = fm
+        ? injurySeverityFrom40ManStatus(fm.code, fm.description)
+        : 0;
       return {
         id: String(pid),
         mlbId: pid,
@@ -371,6 +386,7 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
         },
         outlook: "",
         injuryStatus: injuryStatusMap.get(pid),
+        injurySeverity,
         springStats:
           springStat &&
           parseFloat(String(springStat.inningsPitched ?? "0")) >= 1

@@ -99,6 +99,8 @@ describe("engine routes (BFF → Amethyst)", () => {
         stats: {},
         projection: {},
         outlook: "",
+        injuryStatus: "IL10",
+        injurySeverity: 2,
       } as PlayerData,
     ]);
   });
@@ -150,6 +152,7 @@ describe("engine routes (BFF → Amethyst)", () => {
         drafted_players?: unknown[];
         budget_by_team_id?: Record<string, number>;
         position_overrides?: Array<{ player_id: string; positions: string[] }>;
+        injury_overrides?: Array<{ player_id: string; injury_severity: number }>;
       };
       expect(payload.num_teams).toBe(2);
       expect(payload.league_scope).toBe("Mixed");
@@ -164,6 +167,9 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(payload.budget_by_team_id).toEqual({ team_1: 260, team_2: 260 });
       expect(payload.position_overrides).toEqual([
         { player_id: "660271", positions: ["SS", "2B"] },
+      ]);
+      expect(payload.injury_overrides).toEqual([
+        { player_id: "660271", injury_severity: 2 },
       ]);
     });
 

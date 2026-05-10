@@ -18,7 +18,7 @@ export const DRAFT_BFF_ENGINE_PATHS: readonly { bff: string; engine: string; met
 ];
 
 export const AMETHYST_ENGINE_REPO_CHECKLIST: readonly string[] = [
-  "POST /valuation/calculate: accept flat body (no wrapper). Draft sends finalizeEngineValuationPostPayload(): drafted_players = auction picks only; pre_draft_rosters optional (keepers); both schema_version and schemaVersion when version set; optional player_ids, minors, taxi, deterministic, seed; budget_by_team_id; scoring_format; hitter_budget_pct; pos_eligibility_threshold; position_overrides (catalog eligibility by MLB player_id).",
+  "POST /valuation/calculate: accept flat body (no wrapper). Draft sends finalizeEngineValuationPostPayload(): drafted_players = auction picks only; pre_draft_rosters optional (keepers); both schema_version and schemaVersion when version set; optional player_ids, minors, taxi, deterministic, seed; budget_by_team_id; scoring_format; hitter_budget_pct; pos_eligibility_threshold; position_overrides (catalog eligibility by MLB player_id); injury_overrides (catalog injury_severity 0–3 by MLB player_id).",
   "Validate request bodies against valuation-request.v1.schema.json (or generated OpenAPI) and return 400 or 422 with { errors: [{ field, message }] } on failure (422 = output sanity per OpenAPI).",
   "Document player_id as MLB Stats API person id (string), matching Draft externalPlayerId.",
   "Honor deterministic + seed when present for reproducible Activity #9 grading.",

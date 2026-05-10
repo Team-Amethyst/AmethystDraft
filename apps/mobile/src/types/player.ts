@@ -73,6 +73,7 @@ export interface Player {
   };
   outlook: string;
   injuryStatus?: string;
+  injurySeverity?: number;
   springStats?: {
     batting?: {
       avg: string;

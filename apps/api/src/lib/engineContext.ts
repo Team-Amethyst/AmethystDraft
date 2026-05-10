@@ -40,6 +40,13 @@ export interface EnginePositionOverride {
   positions: string[];
 }
 
+/** Catalog-derived injury severity for Engine (full player pool). */
+export interface EngineInjuryOverride {
+  player_id: string;
+  /** 0 = healthy … 3 = long-term / IL60-class (see `injuryNormalize`). */
+  injury_severity: number;
+}
+
 /** Payload for POST /valuation/calculate (extends legacy fields; engine may ignore unknown keys). */
 export interface EngineValuationContext {
   roster_slots: EngineRosterSlot[];
@@ -59,6 +66,8 @@ export interface EngineValuationContext {
    * Engine should treat this as canonical fantasy positions for valuation universe ids.
    */
   position_overrides?: EnginePositionOverride[];
+  /** Full-pool injury severity from Draftroom catalog (`injuryNormalize` + 40-man roster). */
+  injury_overrides?: EngineInjuryOverride[];
   minors?: EngineTeamPlayersSection[];
   taxi?: EngineTeamPlayersSection[];
   /** Engine: optional subset of undrafted ids to value. */
@@ -272,11 +281,14 @@ export function summarizeEngineValuationPayload(
 
   const po = payload.position_overrides;
   const position_overrides_count = Array.isArray(po) ? po.length : 0;
+  const io = payload.injury_overrides;
+  const injury_overrides_count = Array.isArray(io) ? io.length : 0;
 
   return {
     drafted_players_length: drafted.length,
     drafted_players_first_20: drafted.slice(0, 20),
     position_overrides_count,
+    injury_overrides_count,
     pre_draft_rosters_player_count: countSectionPlayers(
       payload.pre_draft_rosters as EngineTeamPlayersSection[] | undefined,
     ),
@@ -370,6 +382,21 @@ export function playerDataToPositionOverrides(
   }));
 }
 
+function clampInjurySeverity(n: number | undefined): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return 0;
+  return Math.min(3, Math.max(0, Math.trunc(n)));
+}
+
+/** One row per catalog player for Engine catalog merge (includes healthy zeros). */
+export function playerDataToInjuryOverrides(
+  players: PlayerData[],
+): EngineInjuryOverride[] {
+  return players.map((p) => ({
+    player_id: String(p.id),
+    injury_severity: clampInjurySeverity(p.injurySeverity),
+  }));
+}
+
 /**
  * Builds the full context object for /valuation/calculate and /analysis/scarcity.
  *
@@ -397,6 +424,7 @@ export async function buildValuationContext(
   const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
   const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
   const position_overrides = playerDataToPositionOverrides(catalogPlayers);
+  const injury_overrides = playerDataToInjuryOverrides(catalogPlayers);
 
   return {
     roster_slots: rosterSlots,
@@ -420,6 +448,7 @@ export async function buildValuationContext(
       ? { pos_eligibility_threshold: league.posEligibilityThreshold }
       : {}),
     position_overrides,
+    injury_overrides,
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
     pre_draft_rosters: toTeamPlayersSections(keeperEntries),
@@ -631,6 +660,9 @@ export function buildEngineValuationCalculateBodyFromFixture(
     ...(fixture.position_overrides !== undefined
       ? { position_overrides: fixture.position_overrides }
       : {}),
+    ...(fixture.injury_overrides !== undefined
+      ? { injury_overrides: fixture.injury_overrides }
+      : {}),
     ...(fixture.deterministic !== undefined
       ? { deterministic: fixture.deterministic }
       : {}),
@@ -694,6 +726,9 @@ export function buildEngineValuationCalculateBodyFromFlat(
     ...(flat.player_ids?.length ? { player_ids: flat.player_ids } : {}),
     ...(flat.position_overrides !== undefined
       ? { position_overrides: flat.position_overrides }
+      : {}),
+    ...(flat.injury_overrides !== undefined
+      ? { injury_overrides: flat.injury_overrides }
       : {}),
     ...(flat.deterministic !== undefined
       ? { deterministic: flat.deterministic }

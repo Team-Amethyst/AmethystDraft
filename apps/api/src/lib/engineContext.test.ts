@@ -16,6 +16,7 @@ import {
   buildEngineValuationCalculateBodyFromFlat,
   finalizeEngineValuationPostPayload,
   leagueRosterSlotsForEngine,
+  playerDataToInjuryOverrides,
   resolveLeagueNumTeams,
 } from "./engineContext";
 import {
@@ -131,6 +132,22 @@ describe("leagueRosterSlotsForEngine", () => {
   });
 });
 
+describe("playerDataToInjuryOverrides", () => {
+  it("clamps severity to 0–3 and defaults missing to 0", () => {
+    expect(
+      playerDataToInjuryOverrides([
+        { id: "1", injurySeverity: 99 } as PlayerData,
+        { id: "2" } as PlayerData,
+        { id: "3", injurySeverity: -5 } as PlayerData,
+      ]),
+    ).toEqual([
+      { player_id: "1", injury_severity: 3 },
+      { player_id: "2", injury_severity: 0 },
+      { player_id: "3", injury_severity: 0 },
+    ]);
+  });
+});
+
 describe("resolveLeagueNumTeams", () => {
   it("uses explicit teams when valid", () => {
     const league = {
@@ -235,6 +252,7 @@ describe("buildValuationContext", () => {
         stats: {},
         projection: {},
         outlook: "",
+        injurySeverity: 0,
       } as PlayerData,
       {
         id: "660273",
@@ -251,6 +269,8 @@ describe("buildValuationContext", () => {
         stats: {},
         projection: {},
         outlook: "",
+        injurySeverity: 2,
+        injuryStatus: "IL10",
       } as PlayerData,
     ]);
 
@@ -298,6 +318,10 @@ describe("buildValuationContext", () => {
     expect(ctx.position_overrides).toEqual([
       { player_id: "660272", positions: ["LF", "OF"] },
       { player_id: "660273", positions: ["SP"] },
+    ]);
+    expect(ctx.injury_overrides).toEqual([
+      { player_id: "660272", injury_severity: 0 },
+      { player_id: "660273", injury_severity: 2 },
     ]);
 
     const draftedOverride = ctx.position_overrides?.find(

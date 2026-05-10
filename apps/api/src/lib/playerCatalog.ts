@@ -79,6 +79,11 @@ export interface PlayerData {
   };
   outlook: string;
   injuryStatus?: string;
+  /**
+   * Draftroom canonical severity for Engine (`injury_overrides`); 0 = healthy.
+   * Populated from MLB 40-man roster code + description in catalog fetch.
+   */
+  injurySeverity?: number;
   springStats?: {
     batting?: {
       avg: string;
@@ -112,10 +117,21 @@ export function mergeTwoWayPlayers(players: PlayerData[]): PlayerData[] {
     ];
     const pitchingPos = mergedPositions.find((pos) => ["SP", "RP", "P"].includes(pos));
     const winnerByValue = p.value > existing.value ? p : existing;
+    const es = existing.injurySeverity ?? 0;
+    const ps = p.injurySeverity ?? 0;
+    const mergedSev = Math.max(es, ps);
+    const mergedStatus =
+      ps > es
+        ? p.injuryStatus
+        : es > ps
+          ? existing.injuryStatus
+          : (existing.injuryStatus ?? p.injuryStatus);
     allMap.set(p.id, {
       ...winnerByValue,
       position: pitchingPos ?? winnerByValue.position,
       positions: mergedPositions,
+      injurySeverity: mergedSev,
+      injuryStatus: mergedStatus,
       stats: {
         ...existing.stats,
         ...p.stats,

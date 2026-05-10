@@ -107,6 +107,8 @@ export interface Player {
   };
   outlook: string;
   injuryStatus?: string;
+  /** 0–3 canonical severity from catalog (Engine `injury_overrides`). */
+  injurySeverity?: number;
   springStats?: {
     batting?: {
       avg: string;

@@ -104,6 +104,20 @@ describe("valuationRequestSchema", () => {
     });
     expect(parsed.position_overrides?.[0]?.player_id).toBe("660271");
   });
+
+  it("accepts optional injury_overrides", () => {
+    const parsed = valuationRequestSchema.parse({
+      schemaVersion: "1.0.0",
+      checkpoint: "pre_draft",
+      league: minimalLeague,
+      draft_state: [],
+      injury_overrides: [{ player_id: "660271", injury_severity: 2 }],
+    });
+    expect(parsed.injury_overrides?.[0]).toEqual({
+      player_id: "660271",
+      injury_severity: 2,
+    });
+  });
 });
 
 describe("valuationFlatRequestSchema", () => {

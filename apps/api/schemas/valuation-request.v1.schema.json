@@ -137,6 +137,18 @@
         }
       }
     },
+    "injury_overrides": {
+      "type": "array",
+      "description": "Full-pool injury severity 0–3 by MLB person id (Draftroom catalog / injuryNormalize).",
+      "items": {
+        "type": "object",
+        "required": ["player_id", "injury_severity"],
+        "properties": {
+          "player_id": { "type": "string", "minLength": 1 },
+          "injury_severity": { "type": "integer", "minimum": 0, "maximum": 3 }
+        }
+      }
+    },
     "deterministic": { "type": "boolean" },
     "seed": { "type": "integer" }
   },

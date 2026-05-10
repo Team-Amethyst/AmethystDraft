@@ -72,6 +72,11 @@ export const positionOverrideEntrySchema = z.object({
   positions: z.array(z.string()),
 });
 
+export const injuryOverrideEntrySchema = z.object({
+  player_id: z.string().min(1),
+  injury_severity: z.number().int().min(0).max(3),
+});
+
 const preDraftRostersFlexibleSchema = z.union([
   z.array(teamPlayersSectionSchema),
   z.record(z.string(), z.array(rosteredPlayerSchema)),
@@ -105,6 +110,7 @@ export const valuationRequestSchema = z.object({
   taxi: z.array(teamPlayersSectionSchema).optional(),
   player_ids: z.array(z.string().min(1)).optional(),
   position_overrides: z.array(positionOverrideEntrySchema).optional(),
+  injury_overrides: z.array(injuryOverrideEntrySchema).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),
@@ -135,6 +141,7 @@ export const valuationFlatRequestSchema = z.object({
   pre_draft_rosters: preDraftRostersFlexibleSchema.optional(),
   player_ids: z.array(z.string().min(1)).optional(),
   position_overrides: z.array(positionOverrideEntrySchema).optional(),
+  injury_overrides: z.array(injuryOverrideEntrySchema).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),

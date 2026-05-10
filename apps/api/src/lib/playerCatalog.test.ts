@@ -56,6 +56,28 @@ describe("mergeTwoWayPlayers", () => {
     expect(mergedPlayer?.stats.batting).toBeDefined();
     expect(mergedPlayer?.stats.pitching).toBeDefined();
   });
+
+  it("merges injurySeverity to max and prefers injuryStatus from higher severity", () => {
+    const hitter = makePlayer({
+      id: "42",
+      position: "DH",
+      positions: ["DH"],
+      value: 35,
+      injurySeverity: 1,
+      injuryStatus: undefined,
+    });
+    const pitcher = makePlayer({
+      id: "42",
+      position: "SP",
+      positions: ["SP"],
+      value: 40,
+      injurySeverity: 2,
+      injuryStatus: "IL10",
+    });
+    const merged = mergeTwoWayPlayers([hitter, pitcher])[0];
+    expect(merged?.injurySeverity).toBe(2);
+    expect(merged?.injuryStatus).toBe("IL10");
+  });
 });
 
 describe("filterByPlayerPool", () => {
