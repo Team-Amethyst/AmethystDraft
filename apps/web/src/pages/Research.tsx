@@ -27,6 +27,7 @@ import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
   defaultValuationSortForPage,
   mergeCatalogPlayersWithValuations,
+  mergePlayerWithFocusedExplainEnrichment,
   mergePlayerWithValuation,
   type ValuationShape,
 } from "../utils/valuation";
@@ -41,6 +42,10 @@ import {
 import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
 import TiersView from "./TiersView";
 import { resolveUserTeamId } from "../utils/team";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
 import {
   type StatBasis,
   parseStatBasis,
@@ -187,6 +192,31 @@ export default function Research() {
     [customPlayers],
   );
 
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  const researchBoardCacheExtras = useMemo(() => {
+    const ids = [...customPlayerIds].sort().join(",");
+    return ids ? `custom:${ids}` : "";
+  }, [customPlayerIds]);
+
   useEffect(() => {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries);
@@ -245,7 +275,11 @@ export default function Research() {
     void (async () => {
       try {
         const userTeamId = resolveUserTeamId(league, user?.id);
-        const res = await getValuation(leagueId, token, userTeamId);
+        const res = await getValuation(leagueId, token, userTeamId, null, {
+          leagueConfigKey: leagueValuationKey,
+          rosterFingerprint: rosterValuationKey,
+          extras: researchBoardCacheExtras || undefined,
+        });
         const merged = researchValuationRowMapFromEngine(
           res.valuations,
           customPlayerIds,
@@ -267,7 +301,16 @@ export default function Research() {
     return () => {
       cancelled = true;
     };
-  }, [token, leagueId, players.length, customPlayerIds, league, user?.id]);
+  }, [
+    token,
+    leagueId,
+    players.length,
+    customPlayerIds,
+    user?.id,
+    rosterValuationKey,
+    leagueValuationKey,
+    researchBoardCacheExtras,
+  ]);
 
   useEffect(() => {
     if (!selectedModalPlayer || !token || !leagueId) {
@@ -279,6 +322,11 @@ export default function Research() {
     const pid = String(selectedModalPlayer.id).trim();
     void getValuationPlayer(leagueId, token, selectedModalPlayer.id, userTeamId, {
       explainValuationRows: true,
+      cacheContext: {
+        leagueConfigKey: leagueValuationKey,
+        rosterFingerprint: rosterValuationKey,
+        extras: researchBoardCacheExtras || undefined,
+      },
     })
       .then((res) => {
         if (cancelled) return;
@@ -293,7 +341,15 @@ export default function Research() {
     return () => {
       cancelled = true;
     };
-  }, [selectedModalPlayer?.id, token, leagueId, league, user?.id]);
+  }, [
+    selectedModalPlayer?.id,
+    token,
+    leagueId,
+    user?.id,
+    rosterValuationKey,
+    leagueValuationKey,
+    researchBoardCacheExtras,
+  ]);
 
   const loadDepthChart = useCallback(async (teamId: number, forceRefresh = false) => {
     const cached = getDepthChartCached(teamId);
@@ -357,12 +413,10 @@ export default function Research() {
 
   const displayModalPlayer = useMemo(() => {
     if (!selectedModalPlayer) return null;
-    let p = mergePlayerWithValuation(
-      selectedModalPlayer,
-      valuationsByPlayerId.get(selectedModalPlayer.id),
-    );
+    const boardRow = valuationsByPlayerId.get(selectedModalPlayer.id);
+    let p = mergePlayerWithValuation(selectedModalPlayer, boardRow);
     if (modalExplainRow) {
-      p = mergePlayerWithValuation(p, modalExplainRow);
+      p = mergePlayerWithFocusedExplainEnrichment(p, boardRow, modalExplainRow);
     }
     return p;
   }, [selectedModalPlayer, valuationsByPlayerId, modalExplainRow]);

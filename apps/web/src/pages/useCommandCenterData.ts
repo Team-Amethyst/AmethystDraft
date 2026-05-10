@@ -62,6 +62,10 @@ export function useCommandCenterData({
       token,
       userTeamIdForValuation,
       valuationBoardLogPlayerId ?? null,
+      {
+        leagueConfigKey: leagueValuationKey,
+        rosterFingerprint: rosterValuationKey,
+      },
     )
       .then((res) => {
         if (!cancelled) setEngineMarket(res);

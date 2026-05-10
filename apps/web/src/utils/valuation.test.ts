@@ -16,6 +16,7 @@ import {
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
   leagueWideAuctionDollars,
+  mergePlayerWithFocusedExplainEnrichment,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
   playerValuationEdgeOrDiff,
@@ -89,6 +90,87 @@ describe("valuation helpers", () => {
     expect(merged.recommended_bid_note).toBe("Strategic anchor");
     expect(merged.edge_note).toBe("Bid-relative");
     expect(merged.valuation_explain?.replacement_key_used).toBe("OF5");
+  });
+
+  describe("mergePlayerWithFocusedExplainEnrichment (Research modal)", () => {
+    const boardRow = {
+      player_id: "1",
+      auction_value: 30,
+      adjusted_value: 28,
+      recommended_bid: 32,
+      team_adjusted_value: 34,
+      baseline_value: 22,
+      edge: 2,
+    };
+
+    it("keeps board auction_value when focused sends a different finite auction_value", () => {
+      const afterBoard = mergePlayerWithValuation(basePlayer(), boardRow);
+      const merged = mergePlayerWithFocusedExplainEnrichment(
+        afterBoard,
+        boardRow,
+        {
+          player_id: "1",
+          auction_value: 31,
+        },
+      );
+      expect(merged.auction_value).toBe(30);
+    });
+
+    it("keeps board recommended_bid when focused sends a different bid anchor", () => {
+      const afterBoard = mergePlayerWithValuation(basePlayer(), boardRow);
+      const merged = mergePlayerWithFocusedExplainEnrichment(
+        afterBoard,
+        boardRow,
+        {
+          player_id: "1",
+          recommended_bid: 40,
+        },
+      );
+      expect(merged.recommended_bid).toBe(32);
+    });
+
+    it("adds valuation_explain from focused without changing preserved dollars", () => {
+      const afterBoard = mergePlayerWithValuation(basePlayer(), boardRow);
+      const explain: ValuationExplain = {
+        replacement_key_used: "SS3",
+        replacement_value_used: 4,
+      };
+      const merged = mergePlayerWithFocusedExplainEnrichment(
+        afterBoard,
+        boardRow,
+        {
+          player_id: "1",
+          auction_value: 99,
+          recommended_bid: 99,
+          valuation_explain: explain,
+        },
+      );
+      expect(merged.auction_value).toBe(30);
+      expect(merged.recommended_bid).toBe(32);
+      expect(merged.valuation_explain?.replacement_key_used).toBe("SS3");
+    });
+
+    it("fills a core dollar from focused when the board row omits that field", () => {
+      const partialBoard = {
+        player_id: "1",
+        adjusted_value: 26,
+        recommended_bid: 10,
+        team_adjusted_value: 20,
+        baseline_value: 15,
+        edge: 10,
+      };
+      const afterBoard = mergePlayerWithValuation(basePlayer(), partialBoard);
+      const merged = mergePlayerWithFocusedExplainEnrichment(
+        afterBoard,
+        partialBoard,
+        {
+          player_id: "1",
+          auction_value: 44,
+        },
+      );
+      expect(merged.auction_value).toBe(44);
+      expect(merged.adjusted_value).toBe(26);
+    });
   });
 
   describe("Edge vs Max (detail views + helpers)", () => {

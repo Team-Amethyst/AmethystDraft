@@ -15,7 +15,7 @@
  *   management and cross-component coordination; all rendering is delegated.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
@@ -39,6 +39,11 @@ import {
   type ValuationSortField,
 } from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
+import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import {
   readPositionTargetsFromStorage,
   writePositionTargetsToStorage,
@@ -109,6 +114,37 @@ export default function MyDraft() {
     Record<string, Priority>
   >(() => loadJsonFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}));
 
+  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
+    () => getRosterCached(leagueId ?? "") ?? [],
+  );
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  useEffect(() => {
+    if (!leagueId || !token) return;
+    void getRoster(leagueId, token).then(setRosterEntries).catch(() => {
+      /* non-fatal */
+    });
+  }, [leagueId, token]);
+
   // Raw string state for controlled inputs — committed on blur
   const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
@@ -169,7 +205,10 @@ export default function MyDraft() {
     void (async () => {
       try {
         const userTeamId = resolveUserTeamId(league, user?.id);
-        const res = await getValuation(leagueId, token, userTeamId);
+        const res = await getValuation(leagueId, token, userTeamId, null, {
+          leagueConfigKey: leagueValuationKey,
+          rosterFingerprint: rosterValuationKey,
+        });
         const merged = new Map<string, ValuationShape>();
         for (const row of res.valuations) merged.set(row.player_id, row);
         if (!cancelled) {
@@ -192,6 +231,8 @@ export default function MyDraft() {
     leagueId,
     league,
     user?.id,
+    rosterValuationKey,
+    leagueValuationKey,
   ]);
 
   const { effectiveWatchlist, watchlistTargetTotal, filteredWatchlist } =

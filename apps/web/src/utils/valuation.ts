@@ -526,6 +526,66 @@ export function mergePlayerWithValuation(
   };
 }
 
+/** Modal display dollars that stay pinned to the board row when the board already sent finite values. */
+const MODAL_PRESERVED_DOLLAR_FIELDS = [
+  "auction_value",
+  "adjusted_value",
+  "recommended_bid",
+  "team_adjusted_value",
+  "baseline_value",
+  "edge",
+] as const satisfies readonly (keyof ValuationShape)[];
+
+function boardHasFiniteScalar(
+  board: ValuationShape | undefined,
+  field: (typeof MODAL_PRESERVED_DOLLAR_FIELDS)[number],
+): boolean {
+  if (!board) return false;
+  return coerceNumber(board[field]) !== undefined;
+}
+
+/**
+ * After `mergePlayerWithValuation(..., boardRow)`, merges focused `/valuation/player` fields
+ * without overwriting board-backed dollar figures when the board row already had finite values.
+ * Focused row fills missing core dollars and always contributes explain / notes when present.
+ */
+export function mergePlayerWithFocusedExplainEnrichment(
+  playerAfterBoard: Player,
+  boardValuation: ValuationShape | undefined,
+  focused: ValuationShape | null,
+): Player {
+  if (!focused) return playerAfterBoard;
+
+  let next: Player = { ...playerAfterBoard };
+
+  for (const field of MODAL_PRESERVED_DOLLAR_FIELDS) {
+    if (boardHasFiniteScalar(boardValuation, field)) {
+      continue;
+    }
+    const fromFocused = coerceNumber(focused[field]);
+    if (fromFocused !== undefined) {
+      next = { ...next, [field]: fromFocused };
+    }
+  }
+
+  return {
+    ...next,
+    tier:
+      coerceNumber(boardValuation?.tier) !== undefined
+        ? next.tier
+        : coerceNumber(focused.tier) ?? next.tier,
+    inflation_model: focused.inflation_model ?? next.inflation_model,
+    indicator: focused.indicator ?? next.indicator,
+    explain_v2: focused.explain_v2 ?? next.explain_v2,
+    why: focused.why ?? next.why,
+    market_notes: focused.market_notes ?? next.market_notes,
+    valuation_explain: focused.valuation_explain ?? next.valuation_explain,
+    recommended_bid_note:
+      focused.recommended_bid_note ?? next.recommended_bid_note,
+    edge_note: focused.edge_note ?? next.edge_note,
+  };
+}
+
 export function mergeCatalogPlayersWithValuations(
   players: Player[],
   valuationsByPlayerId: ReadonlyMap<string, ValuationShape>,

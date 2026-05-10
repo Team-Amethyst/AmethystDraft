@@ -321,6 +321,10 @@ export function AuctionCenter({
     let cancelled = false;
     void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId, {
       explainValuationRows: true,
+      cacheContext: {
+        leagueConfigKey: leagueValuationKey,
+        rosterFingerprint: rosterValuationKey,
+      },
     })
       .then((res) => {
         if (cancelled) return;

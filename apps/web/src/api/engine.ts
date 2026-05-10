@@ -1,11 +1,14 @@
-import { requireAuthHeaders, requestJson, requestJsonParsed } from "./client";
+import { requireAuthHeaders, requestJson } from "./client";
 import {
-  findRawValuationEntry,
-  normalizeValuationPlayerResponseBody,
-  normalizeValuationResponseBody,
-  rawValuationRowPipelineSnapshot,
-  valuationRowPipelineSnapshot,
-} from "./valuationNormalize";
+  executeBoardValuationRequest,
+  executePlayerValuationRequest,
+} from "./engineValuationInternal";
+import {
+  fetchBoardValuationWithCache,
+  fetchPlayerValuationWithCache,
+  type ValuationBoardCacheContext,
+} from "./valuationCache";
+export type { ValuationBoardCacheContext } from "./valuationCache";
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
@@ -157,61 +160,32 @@ export interface ValuationResponse {
   valuation_context_warnings?: string[];
 }
 
-function logDraftroomValuationPipeline(
-  route: string,
-  raw: unknown,
-  normalized: ValuationResponse,
-  focusPlayerId?: string,
-): void {
-  if (!import.meta.env.DEV) return;
-  const focus = focusPlayerId?.trim();
-  const rawRow = focus ? findRawValuationEntry(raw, focus) : undefined;
-  const normRow = focus
-    ? normalized.valuations.find(
-        (v) => String(v.player_id).trim() === focus,
-      )
-    : undefined;
-  console.info("[valuation pipeline]", {
-    source: "api_client_http",
-    route,
-    user_team_id_used: normalized.user_team_id_used ?? null,
-    selected_player_id: focus ?? null,
-    valuation_context_warnings:
-      normalized.valuation_context_warnings ?? null,
-    A_board_raw_row: rawValuationRowPipelineSnapshot(rawRow),
-    B_getValuation_normalized_row: valuationRowPipelineSnapshot(normRow),
-    valuations_len: normalized.valuations.length,
-  });
-}
-
 export async function getValuation(
   leagueId: string,
   token: string,
   userTeamId = "team_1",
   /** When set (e.g. selected Draftroom player), DEV logs raw vs normalized row for that id. */
   devLogFocusPlayerId?: string | null,
+  /**
+   * When set, reuses the board valuation HTTP response for identical league draft/config state
+   * (see {@link ValuationBoardCacheContext}).
+   */
+  cacheContext?: ValuationBoardCacheContext | null,
 ): Promise<ValuationResponse> {
-  return requestJsonParsed<ValuationResponse>(
-    `/api/engine/leagues/${leagueId}/valuation`,
-    {
-      method: "POST",
-      headers: requireAuthHeaders(token),
-      body: JSON.stringify({
-        user_team_id: userTeamId,
-        inflation_model: "replacement_slots_v2",
-      }),
-    },
-    "Valuation request failed",
-    (raw) => {
-      const normalized = normalizeValuationResponseBody(raw);
-      logDraftroomValuationPipeline(
-        "POST /valuation (board)",
-        raw,
-        normalized,
-        devLogFocusPlayerId ?? undefined,
-      );
-      return normalized;
-    },
+  if (cacheContext) {
+    return fetchBoardValuationWithCache({
+      leagueId,
+      token,
+      userTeamId,
+      devLogFocusPlayerId,
+      cacheContext,
+    });
+  }
+  return executeBoardValuationRequest(
+    leagueId,
+    token,
+    userTeamId,
+    devLogFocusPlayerId,
   );
 }
 
@@ -226,6 +200,10 @@ export type GetValuationPlayerOptions = {
    * Omit or false for minimal payloads (board refresh paths should stay false).
    */
   explainValuationRows?: boolean;
+  /**
+   * When set with the same inputs used for board cache, dedupes explain calls and memoizes briefly.
+   */
+  cacheContext?: ValuationBoardCacheContext;
 };
 
 export async function getValuationPlayer(
@@ -235,47 +213,23 @@ export async function getValuationPlayer(
   userTeamId = "team_1",
   options?: GetValuationPlayerOptions,
 ): Promise<ValuationPlayerResponse> {
-  const pid = String(playerId).trim();
-  const explain = options?.explainValuationRows === true;
-  return requestJsonParsed<ValuationPlayerResponse>(
-    `/api/engine/leagues/${leagueId}/valuation/player`,
-    {
-      method: "POST",
-      headers: requireAuthHeaders(token),
-      body: JSON.stringify({
-        player_id: playerId,
-        user_team_id: userTeamId,
-        inflation_model: "replacement_slots_v2",
-        ...(explain ? { explain_valuation_rows: true } : {}),
-      }),
-    },
-    "Valuation (player) request failed",
-    (raw) => {
-      const normalized = normalizeValuationPlayerResponseBody(raw);
-      if (!import.meta.env.DEV) return normalized;
-      const rawRow =
-        findRawValuationEntry(raw, pid) ??
-        (raw &&
-        typeof raw === "object" &&
-        (raw as Record<string, unknown>).player &&
-        typeof (raw as Record<string, unknown>).player === "object"
-          ? (raw as Record<string, unknown>).player
-          : undefined);
-      const normRow =
-        normalized.player ??
-        normalized.valuations.find((v) => String(v.player_id).trim() === pid);
-      console.info("[valuation pipeline]", {
-        source: "api_client_http",
-        route: "POST /api/engine/leagues/:leagueId/valuation/player",
-        user_team_id_used: normalized.user_team_id_used ?? null,
-        selected_player_id: pid,
-        valuation_context_warnings:
-          normalized.valuation_context_warnings ?? null,
-        C_player_raw_row: rawValuationRowPipelineSnapshot(rawRow),
-        D_getValuationPlayer_normalized_row: valuationRowPipelineSnapshot(normRow),
-      });
-      return normalized;
-    },
+  const { cacheContext, ...playerOptions } = options ?? {};
+  if (cacheContext) {
+    return fetchPlayerValuationWithCache({
+      leagueId,
+      token,
+      playerId,
+      userTeamId,
+      options: playerOptions,
+      cacheContext,
+    });
+  }
+  return executePlayerValuationRequest(
+    leagueId,
+    token,
+    playerId,
+    userTeamId,
+    playerOptions,
   );
 }
 
