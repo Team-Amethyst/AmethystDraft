@@ -19,7 +19,7 @@ export default function Navbar() {
           Sign In
         </button>
         <button className="btn-primary" onClick={() => navigate("/signup")}>
-          Get Started
+          Register
         </button>
       </div>
     </nav>

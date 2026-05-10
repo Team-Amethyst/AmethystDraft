@@ -902,6 +902,25 @@
   box-sizing: border-box;
 }
 
+/* Baseline row is outside .pdm-explain-layout — match horizontal inset so $ doesn’t hug the card edge */
+.pdm-valuation-explain > .pdm-baseline-strength-dl {
+  padding: var(--cc-gap-md) var(--cc-space-16) var(--cc-gap-md);
+  margin: 0;
+  border-bottom: 1px solid var(--pdm-rule);
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-valuation-explain > .pdm-baseline-strength-dl {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
+}
+
+.pdm-valuation-explain .pdm-explain-kv-dl dd {
+  padding-inline-end: 0.15rem;
+}
+
 .pdm-explain-layout {
   display: flex;
   flex-direction: column;
