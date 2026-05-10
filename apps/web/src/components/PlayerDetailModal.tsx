@@ -516,12 +516,6 @@ export default function PlayerDetailModal({
                   <span className="pdm-metric-value">{formatCurrencyWhole(marketValue)}</span>
                 </div>
                 <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
-                    Max Bid
-                  </span>
-                  <span className="pdm-metric-value">{formatCurrencyWhole(maxBid)}</span>
-                </div>
-                <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
                     Team Value
                   </span>
@@ -532,6 +526,12 @@ export default function PlayerDetailModal({
                     Roster Edge
                   </span>
                   <span className="pdm-metric-value">{formatMaybeDelta(rosterEdge)}</span>
+                </div>
+                <div className="pdm-metric" role="listitem">
+                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
+                    Max Bid
+                  </span>
+                  <span className="pdm-metric-value">{formatCurrencyWhole(maxBid)}</span>
                 </div>
               </div>
               {player.recommended_bid_note?.trim() ? (

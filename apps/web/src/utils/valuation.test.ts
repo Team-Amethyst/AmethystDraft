@@ -219,6 +219,9 @@ describe("valuation helpers", () => {
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
         "Team Value",
       );
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
+        "Auction Value",
+      );
     });
 
     it("playerValuationEdgeOrDiff prefers Engine edge when present", () => {
@@ -522,7 +525,8 @@ describe("valuation helpers", () => {
     expect(valuationSortLabel("baseline_value")).toBe("Baseline Strength");
     expect(valuationTooltip("auction_value")).toContain("league-wide");
     expect(valuationTooltip("auction_value")).toContain("not your bid cap");
-    expect(valuationTooltip("team_adjusted_value")).toContain("Team Value");
+    expect(valuationTooltip("team_adjusted_value")).toContain("roster needs");
+    expect(valuationTooltip("team_adjusted_value")).toContain("draft start");
     expect(valuationTooltip("recommended_bid")).toContain("Strategic bid");
     expect(valuationTooltip("recommended_bid")).toContain("recommended_bid");
     expect(valuationTooltip("recommended_bid")).toContain(

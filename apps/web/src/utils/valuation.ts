@@ -48,17 +48,18 @@ export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
 
 /** Research `PlayerTable` footer: Research rows show Auction Value only; open a player for the rest. */
 export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
-  "Open a player for Team Value, Max Bid, Roster Edge, Bid Edge, and Baseline Strength under Why this value.";
+  "Open a player for Auction Value, Team Value, Roster Edge, Max Bid, Bid Edge, and Baseline Strength under Why this value.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
-  "Auction Value: fair league-wide auction value.";
+  "Auction Value: fair league-wide value—the roster-independent benchmark for this player.";
 
 export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
   "Max Bid: strategic bid anchor; may be higher than auction value for elite players.";
 
+/** Team Value (`team_adjusted_value`): complements Auction Value; neither replaces the other. */
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
-  "Team Value: roster-specific value (engine team_adjusted_value).";
+  "Value adjusted for your roster needs and budget. At draft start this may match Auction Value.";
 
 /** Bid Edge (Team Value − Max Bid). Used in Command Center / Auction Center (not the Research table row). */
 export const BID_EDGE_TOOLTIP =
@@ -724,10 +725,10 @@ export function valuationSortLabel(field: ValuationSortField): string {
 
 export function valuationTooltip(field: ValuationSortField): string {
   if (field === "auction_value") {
-    return "Fair league-wide auction value (not your roster-specific value and not your bid cap). Uses engine auction_value, or adjusted_value when auction_value is omitted.";
+    return "Fair league-wide auction value (Auction Value)—not roster-specific and not your bid cap. Uses engine auction_value, or adjusted_value when auction_value is omitted.";
   }
   if (field === "team_adjusted_value") {
-    return "Team Value: roster-specific dollars of value to your team (engine team_adjusted_value), not the league-wide list price.";
+    return RESEARCH_TABLE_TOOLTIP_TEAM_VALUE;
   }
   if (field === "recommended_bid") {
     return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Strategic bid ceiling / anchor (engine recommended_bid), not fair market list value.`;
