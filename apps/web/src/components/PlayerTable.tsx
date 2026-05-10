@@ -52,6 +52,9 @@ import {
   poolHasMarketAdp,
 } from "../domain/playerRankTier";
 
+/** Stat category badges (HR+, AVG+, …) — cap visible chips to keep the Research row compact. */
+const MAX_VISIBLE_CATEGORY_TAGS = 3;
+
 interface PlayerTableProps {
   players: Player[];
   searchQuery: string;
@@ -613,11 +616,19 @@ export default function PlayerTable({
                               player,
                             )) && (
                             <div className="tag-list">
-                              {tags.map((t) => (
+                              {tags.slice(0, MAX_VISIBLE_CATEGORY_TAGS).map((t) => (
                                 <span key={t} className="tag">
                                   {t}
                                 </span>
                               ))}
+                              {tags.length > MAX_VISIBLE_CATEGORY_TAGS ? (
+                                <span
+                                  className="tag tag--overflow"
+                                  title={tags.slice(MAX_VISIBLE_CATEGORY_TAGS).join(", ")}
+                                >
+                                  +{tags.length - MAX_VISIBLE_CATEGORY_TAGS}
+                                </span>
+                              ) : null}
                               {draftedTeamName && (
                                 <span className="tag pt-drafted-tag">
                                   ▶ {draftedTeamName}
@@ -636,13 +647,7 @@ export default function PlayerTable({
 
                     <td className="td-pos">
                       {player.positions && player.positions.length > 1 ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "2px",
-                            flexWrap: "wrap",
-                          }}
-                        >
+                        <div className="pt-pos-badges">
                           {player.positions.map((pos) => (
                             <PosBadge key={pos} pos={pos} />
                           ))}

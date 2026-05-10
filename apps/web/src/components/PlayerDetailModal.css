@@ -167,38 +167,57 @@
   }
 }
 
-.pdm-meta-line {
-  margin-top: 0.2rem;
+/* Rail: team + ranks/tiers — label/value grid (matches modal KV scanning pattern) */
+.pdm-meta-rail {
+  margin-top: 0.22rem;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.28rem;
-  color: color-mix(in srgb, var(--app-text-muted) 88%, var(--app-text) 12%);
-  font-size: 0.8rem;
-  line-height: 1.42;
+  flex-direction: column;
+  gap: 0.38rem;
+  min-width: 0;
 }
 
-.pdm-meta-line--header {
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 0.76rem;
+.pdm-meta-team-abbr {
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--app-text) 82%, var(--app-text-muted) 18%);
+  line-height: 1.2;
+}
+
+.pdm-meta-stats-dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.65rem;
+  margin: 0;
+  align-items: baseline;
+}
+
+.pdm-meta-stats-dl dt {
+  margin: 0;
+  font-size: 0.66rem;
   font-weight: 600;
+  color: var(--app-text-dim);
+  line-height: 1.35;
+}
+
+.pdm-meta-stats-dl dd {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--app-text) 88%, var(--app-text-muted) 12%);
 }
 
 @media (min-width: 761px) {
-  .pdm-rail .pdm-meta-line--header {
-    font-size: 0.8rem;
+  .pdm-rail .pdm-meta-stats-dl dt {
+    font-size: 0.68rem;
   }
-}
 
-.pdm-meta-sep {
-  color: color-mix(in srgb, var(--app-text-dim) 55%, transparent);
-  font-weight: 500;
-  user-select: none;
-}
-
-.pdm-meta-piece {
-  white-space: nowrap;
+  .pdm-rail .pdm-meta-stats-dl dd {
+    font-size: 0.76rem;
+  }
 }
 
 .pdm-header-positions {
@@ -413,7 +432,7 @@
 
 .pdm-valuation-strip__metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: 100%;
   min-width: 0;
   align-items: stretch;
@@ -423,23 +442,27 @@
 
 @media (min-width: 761px) {
   .pdm-valuation-strip__metrics {
-    column-gap: 0.68rem;
+    column-gap: 0.56rem;
   }
 }
 
 /* Metric tiles: equal footprint, vertically centered label + value */
 .pdm-valuation-metric-grid.pdm-valuation-strip__metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 0.5rem;
   row-gap: 0.4rem;
   align-items: stretch;
 }
 
-@container pdm (min-width: 720px) {
+@container pdm (min-width: 520px) {
   .pdm-valuation-metric-grid.pdm-valuation-strip__metrics {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     row-gap: 0.38rem;
-    column-gap: 0.72rem;
+    column-gap: 0.62rem;
+  }
+
+  .pdm-valuation-metric-grid .pdm-metric:first-child {
+    border-left: none;
   }
 }
 
@@ -466,14 +489,8 @@
   min-height: 4.1rem;
 }
 
-@container pdm (min-width: 720px) {
-  .pdm-valuation-metric-grid .pdm-metric:first-child {
-    border-left: none;
-  }
-}
-
-@container pdm (max-width: 719px) {
-  .pdm-valuation-metric-grid .pdm-metric:nth-child(3n + 1) {
+@container pdm (max-width: 519px) {
+  .pdm-valuation-metric-grid .pdm-metric:nth-child(2n + 1) {
     border-left: none;
   }
 }
@@ -926,8 +943,8 @@
 }
 
 .pdm-explain-block-title {
-  margin: 0 0 0.24rem;
-  padding-bottom: 0.18rem;
+  margin: 0 0 0.32rem;
+  padding-bottom: 0.22rem;
   border-bottom: 1px solid var(--pdm-rule);
   font-size: 0.58rem;
   font-weight: 700;
@@ -939,24 +956,25 @@
 
 .pdm-explain-kv-dl {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.1rem 0.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(4.25rem, max-content);
+  gap: 0.26rem 0.62rem;
   align-items: baseline;
   margin: 0;
 }
 
 .pdm-explain-kv-dl dt {
   margin: 0;
+  padding-right: 0.15rem;
   font-size: 0.66rem;
   font-weight: 600;
   color: var(--app-text-dim);
-  line-height: 1.28;
+  line-height: 1.35;
 }
 
 .pdm-explain-kv-dl dd {
   margin: 0;
   font-size: 0.72rem;
-  line-height: 1.28;
+  line-height: 1.35;
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--app-text-muted) 86%, var(--app-text) 14%);
@@ -1363,10 +1381,6 @@
 
   .pdm-rail__identity {
     min-width: 0;
-  }
-
-  .pdm-meta-line--header {
-    flex-wrap: wrap;
   }
 
   .pdm-valuation-strip__metrics {

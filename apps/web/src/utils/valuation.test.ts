@@ -12,6 +12,7 @@ import {
   formatExplainRiskMultiplier,
   formatInflationFactorMultiple,
   formatMaybeDelta,
+  formatMaybeDollar,
   formatPoolToSlotRatio,
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
@@ -317,7 +318,8 @@ describe("valuation helpers", () => {
 
   it("formatValuationExplainAgeDepthComponent uses × for (0,1) and dollars otherwise", () => {
     expect(formatValuationExplainAgeDepthComponent(0.91)).toBe("0.91×");
-    expect(formatValuationExplainAgeDepthComponent(-3)).toBe("$-3");
+    expect(formatValuationExplainAgeDepthComponent(-3)).toBe("-$3");
+    expect(formatValuationExplainAgeDepthComponent(-0.5)).toBe("-$0.5");
     expect(formatValuationExplainAgeDepthComponent(12)).toBe("$12");
     expect(formatValuationExplainAgeDepthComponent(0)).toBeUndefined();
     expect(formatValuationExplainAgeDepthComponent(undefined)).toBeUndefined();
@@ -515,6 +517,17 @@ describe("valuation helpers", () => {
     expect(caps!.openSpots).toBe(5);
     expect(caps!.budgetRemaining).toBe(260);
     expect(caps!.maxBid).toBe(256);
+  });
+
+  it("formatCurrencyWhole puts the minus before the dollar sign", () => {
+    expect(formatCurrencyWhole(-12)).toBe("-$12");
+    expect(formatCurrencyWhole(12)).toBe("$12");
+    expect(formatCurrencyWhole(0)).toBe("$0");
+  });
+
+  it("formatMaybeDollar oneDecimal uses leading minus for negatives", () => {
+    expect(formatMaybeDollar(-0.5, { oneDecimal: true })).toBe("-$0.5");
+    expect(formatMaybeDollar(1.3, { oneDecimal: true })).toBe("$1.3");
   });
 
   it("exposes compact labels and tooltip copy", () => {

@@ -174,10 +174,13 @@ export function playerBidEdgeDollars(
   return playerValuationEdgeOrDiff(player);
 }
 
+/** Whole dollars; negative amounts render as `-$12`, never `$-12`. */
 export function formatCurrencyWhole(value: number | null | undefined): string {
   const n = coerceNumber(value);
   if (n === undefined) return "—";
-  return `$${Math.round(n)}`;
+  const r = Math.round(n);
+  const body = `$${Math.abs(r)}`;
+  return r < 0 ? `-${body}` : body;
 }
 
 export function formatDeltaWhole(value: number | null | undefined): string {
@@ -200,8 +203,12 @@ export function formatMaybeDollar(
   if (n === undefined) return "—";
   if (!options?.oneDecimal) return formatCurrencyWhole(n);
   const rounded = Math.round(n * 10) / 10;
-  if (Number.isInteger(rounded)) return `$${rounded}`;
-  return `$${rounded.toFixed(1)}`;
+  const neg = rounded < 0;
+  const abs = Math.abs(rounded);
+  const body = Number.isInteger(abs)
+    ? `$${abs}`
+    : `$${abs.toFixed(1)}`;
+  return neg ? `-${body}` : body;
 }
 
 function stripTrailingZerosFromDecimalString(s: string): string {

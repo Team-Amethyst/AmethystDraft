@@ -571,7 +571,34 @@
 /* ── Stat cells ── */
 .td-stat { color: #b0a0cc; font-variant-numeric: tabular-nums; }
 .td-rank { color: #6b4fa0; font-weight: 700; }
-.td-pos { }
+
+/* Pos column: keep badges on one row; scroll horizontally only if needed (narrow layouts). */
+.td-pos {
+  vertical-align: middle;
+  max-width: 7.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.td-pos::-webkit-scrollbar {
+  display: none;
+}
+
+.pt-pos-badges {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+}
+
+.pt-table .pos-badge {
+  width: 2rem;
+  font-size: 0.58rem;
+  padding: 0.08rem 0;
+  border-radius: 3px;
+}
+
 .td-team { color: #9080b0; }
 .td-adp { color: #9080b0; }
 
@@ -632,19 +659,40 @@
 .pt-tag-clear:hover { color: #a78bfa; border-color: rgba(139, 92, 246, 0.4); }
 
 /* ── Tags ── */
-.tag-list { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.tag-list {
+  display: flex;
+  gap: 0.22rem;
+  flex-shrink: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tag-list::-webkit-scrollbar {
+  display: none;
+}
 
 .tag {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 0.15rem 0.4rem;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.32rem;
   border-radius: 4px;
   background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
   border: 1px solid rgba(139, 92, 246, 0.25);
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.tag.tag--overflow {
+  letter-spacing: 0;
+  padding: 0.1rem 0.28rem;
+  cursor: default;
+  color: #9280b8;
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.18);
 }
 
 .pt-drafted-tag {
@@ -938,8 +986,8 @@
   }
 
   .tag-list {
-    flex-wrap: wrap;
-    row-gap: 0.25rem;
+    flex-wrap: nowrap;
+    row-gap: 0;
     max-width: 100%;
   }
 
