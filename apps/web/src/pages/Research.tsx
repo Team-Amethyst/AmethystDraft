@@ -65,6 +65,16 @@ import {
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
+/** Must match `isValuationContextDebugEnabled` in PlayerDetailModal. */
+function isValuationContextDebugEnabled(): boolean {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return localStorage.getItem("showValuationDebug") === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function Research() {
   usePageTitle("Research");
 
@@ -724,7 +734,6 @@ export default function Research() {
       <PlayerDetailModal
         isOpen={selectedModalPlayer !== null}
         player={displayModalPlayer ?? selectedModalPlayer}
-        statBasis={statBasis}
         draftedByTeam={
           selectedModalPlayer
             ? lookupRosterMapForCatalogPlayer(draftedByTeam, selectedModalPlayer)
@@ -747,7 +756,9 @@ export default function Research() {
         onMoveToCommandCenter={handleMoveToCommandCenter}
         valuationContextWarnings={valuationBoardMeta?.warnings}
         valuationContextDev={
-          import.meta.env.DEV ? valuationBoardMeta?.context ?? null : undefined
+          isValuationContextDebugEnabled()
+            ? valuationBoardMeta?.context ?? null
+            : undefined
         }
       />
     </div>

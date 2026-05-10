@@ -553,12 +553,12 @@
   color: #a78bfa;
 }
 
-/* Research value column: one primary $ + compact Max / Team line */
+/* Research value column: league-wide auction $ only */
 .pt-value-stack {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.1rem;
+  gap: 0.12rem;
   line-height: 1.15;
 }
 
@@ -566,22 +566,6 @@
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-}
-
-.pt-value-stack__secondary {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #ddd0f2;
-  letter-spacing: 0.015em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  line-height: 1.25;
-  opacity: 0.92;
-}
-
-.pt-value-stack__sep {
-  color: rgba(200, 182, 228, 0.62);
-  font-weight: 500;
 }
 
 /* ── Stat cells ── */

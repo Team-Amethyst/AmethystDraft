@@ -26,7 +26,6 @@ import { playerTableRowsMatchingTagFilter } from "../domain/playerTableTagFilter
 import { PLAYER_TABLE_STORAGE_KEYS } from "../constants/playerTableStorage";
 import { PlayerTableControls } from "./PlayerTableControls";
 import {
-  asFinite,
   NoteCell,
   PlayerHeadshot,
   SortArrow,
@@ -35,10 +34,8 @@ import {
 import {
   formatCurrencyWhole,
   leagueWideAuctionDollars,
-  RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY,
+  RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
-  RESEARCH_TABLE_TOOLTIP_MAX_BID,
-  RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
   valuationSortLabel,
   type ValuationSortField,
 } from "../utils/valuation";
@@ -617,18 +614,6 @@ export default function PlayerTable({
                         >
                           {formatCurrencyWhole(primaryValue)}
                         </span>
-                        <div className="pt-value-stack__secondary">
-                          <span title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
-                            Max {formatCurrencyWhole(asFinite(player.recommended_bid))}
-                          </span>
-                          <span className="pt-value-stack__sep" aria-hidden="true">
-                            {" "}
-                            ·{" "}
-                          </span>
-                          <span title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
-                            Team {formatCurrencyWhole(asFinite(player.team_adjusted_value))}
-                          </span>
-                        </div>
                       </div>
                     </td>
 
@@ -699,7 +684,7 @@ export default function PlayerTable({
           MLB Stats API
         </span>
         <span className="pt-footer-line pt-footer-line--subtle">
-          {RESEARCH_TABLE_FOOTER_MAX_ANCHOR_COPY}
+          {RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY}
         </span>
       </div>
     </div>
