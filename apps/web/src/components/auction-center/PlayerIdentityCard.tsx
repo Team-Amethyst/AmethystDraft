@@ -109,7 +109,7 @@ export function PlayerIdentityCard({
                         "pic-vb-badge pic-vb-badge--inline pic-vb-badge--" +
                         valueVsBidBadge.tone
                       }
-                      title="Team surplus vs recommended bid: Engine edge when present, else value to your roster minus recommended bid."
+                      title="Team Value minus Max Bid (rounded): matches Command Center ladder Edge vs Max and card tone."
                     >
                       <span className="pic-vb-badge-delta">
                         {valueVsBidBadge.deltaText}

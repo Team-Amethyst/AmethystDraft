@@ -46,6 +46,22 @@ export function valueMinusBidDeltaRounded(yourValue: number, bid: number): numbe
   return Math.round(yourValue - bid);
 }
 
+/**
+ * Command Center `BidDecisionCard` “Edge vs Max” dollars: always **Team Value − Max Bid**
+ * (rounded), matching `verdictFromValueMinusBid` / `cleanedYourValueAndRecommendedBid`.
+ * Intentionally ignores Engine `edge` so ladder numbers cannot diverge from card tone when
+ * the Engine sends a different surplus definition.
+ */
+export function commandCenterEdgeVsMaxBidRounded(
+  teamAdjusted: number | null | undefined,
+  recommendedBid: number | null | undefined,
+): number | undefined {
+  const tv = engineFiniteOrNull(teamAdjusted ?? null);
+  const bid = engineFiniteOrNull(recommendedBid ?? null);
+  if (tv == null || bid == null) return undefined;
+  return valueMinusBidDeltaRounded(tv, bid);
+}
+
 export type ValueVsBidVerdict = {
   tone: "pos" | "neg" | "muted";
   cardTone: "overpay" | "value" | "fair";

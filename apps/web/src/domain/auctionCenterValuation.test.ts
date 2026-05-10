@@ -3,6 +3,7 @@ import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
   bidReasonDisclosureHasEngineContent,
+  commandCenterEdgeVsMaxBidRounded,
   mergeDisplayValuationRow,
   valuationExplainHasBidContextTable,
 } from "./auctionCenterValuation";
@@ -26,6 +27,27 @@ function minimalPlayer(over: Partial<Player> = {}): Player {
     ...over,
   };
 }
+
+describe("commandCenterEdgeVsMaxBidRounded (BidDecisionCard ladder)", () => {
+  it("is Team Value − Max Bid even when Engine edge would differ", () => {
+    expect(commandCenterEdgeVsMaxBidRounded(40, 30)).toBe(10);
+    expect(
+      commandCenterEdgeVsMaxBidRounded(12, 10),
+    ).toBe(2);
+  });
+
+  it("matches verdict delta (rounded TV − RB), ignoring Engine edge semantics", () => {
+    const tv = 40;
+    const rb = 35;
+    expect(commandCenterEdgeVsMaxBidRounded(tv, rb)).toBe(5);
+  });
+
+  it("returns undefined when either input is missing", () => {
+    expect(commandCenterEdgeVsMaxBidRounded(undefined, 10)).toBeUndefined();
+    expect(commandCenterEdgeVsMaxBidRounded(10, undefined)).toBeUndefined();
+    expect(commandCenterEdgeVsMaxBidRounded(null, null)).toBeUndefined();
+  });
+});
 
 describe("Command Center bid reasoning helpers", () => {
   it("valuationExplainHasBidContextTable is true when replacement context exists", () => {

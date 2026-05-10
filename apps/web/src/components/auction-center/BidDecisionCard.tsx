@@ -5,13 +5,13 @@ import {
   formatDollar,
   formatMaybeDelta,
   leagueWideAuctionDollars,
-  playerValuationEdgeOrDiff,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   valuationSortLabel,
   valuationTooltip,
 } from "../../utils/valuation";
 import {
   cleanedYourValueAndRecommendedBid,
+  commandCenterEdgeVsMaxBidRounded,
   engineFiniteOrNull,
   formatSuggestedBidLine,
   valueMinusBidDeltaRounded,
@@ -122,11 +122,10 @@ export function BidDecisionCard({
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
 
-  const edgeVsMax = playerValuationEdgeOrDiff({
-    edge: decisionData.edge ?? engineFiniteOrNull(selectedPlayer.edge),
-    recommended_bid: displayBid,
-    team_adjusted_value: displayYour,
-  });
+  const edgeVsMaxDisplay = commandCenterEdgeVsMaxBidRounded(
+    displayYour,
+    displayBid,
+  );
 
   return (
     <div className="bdc-decision-stack">
@@ -194,7 +193,7 @@ export function BidDecisionCard({
                 title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
                 value={
                   <span className="bdc-focus-value">
-                    {formatMaybeDelta(edgeVsMax)}
+                    {formatMaybeDelta(edgeVsMaxDisplay)}
                   </span>
                 }
               />
