@@ -1,5 +1,23 @@
 /* ========== BidDecisionCard (canonical; scope under .bid-decision-card only) ========== */
 
+.bdc-decision-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-12);
+  width: 100%;
+  min-width: 0;
+}
+
+/* Secondary disclosure — not a second valuation card */
+.bdc-why-wrap {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+  padding-inline: var(--cc-space-12);
+  padding-bottom: var(--cc-space-2);
+}
+
 .bid-decision-card {
   width: 100%;
   box-sizing: border-box;
@@ -50,8 +68,9 @@
   column-gap: var(--cc-space-12);
 }
 
-.bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--focus3 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+/* Five-metric ladder: Auction Value, Max Bid, Team Value, Player Strength, Edge vs Max */
+.bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   column-gap: var(--cc-space-8);
   align-items: stretch;
 }
@@ -68,28 +87,35 @@
   justify-content: center;
 }
 
-.bid-decision-card .bdc-metric-grid--focus3 .bdc-metric-tile {
+.bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile {
   width: auto;
 }
 
-.bid-decision-card .bdc-metric-grid--focus3 .bdc-metric-tile-label {
+.bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile-label {
   font-weight: 700;
   letter-spacing: 0.09em;
   color: color-mix(in srgb, var(--cc-heading-color) 74%, white);
 }
 
-.bid-decision-card .bdc-metric-grid--focus3 .bdc-metric-tile-value {
+.bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile-value {
   color: color-mix(in srgb, white 94%, var(--cc-heading-color));
 }
 
 @media (max-width: 1280px) {
-  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--focus3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--cc-space-16);
+  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--cc-space-12);
   }
 
-  .bid-decision-card .bdc-metric-grid--focus3 .bdc-metric-tile {
+  .bid-decision-card .bdc-metric-grid--ladder5 .bdc-metric-tile {
     width: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .bid-decision-card .bdc-metric-row > .bdc-metric-grid.bdc-metric-grid--ladder5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--cc-space-10);
   }
 }
 
@@ -204,6 +230,422 @@
 .bid-decision-card .bdc-recommended-value--strong {
   color: var(--cc-bdc-success-fg) !important;
   text-shadow: 0 0 var(--cc-space-8) var(--cc-bdc-success-glow);
+}
+
+/* Engine bid reasoning — lightweight disclosure (does not mirror the valuation card) */
+.bdc-decision-stack .bdc-why-bid {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-bid__summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.36rem 0.48rem 0.38rem 0.42rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 38%, transparent);
+  background: var(--cc-center-bg, #0d0a1a);
+  color: color-mix(in srgb, var(--cc-value-muted) 82%, var(--cc-heading-color) 18%);
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
+}
+
+.bdc-decision-stack .bdc-why-bid__summary::-webkit-details-marker {
+  display: none;
+}
+
+.bdc-decision-stack .bdc-why-bid__summary:hover {
+  border-color: color-mix(in srgb, var(--app-accent-hairline) 55%, transparent);
+  background: var(--cc-center-bg, #0d0a1a);
+  color: color-mix(in srgb, var(--cc-heading-color) 48%, var(--cc-value-muted) 52%);
+}
+
+.bdc-decision-stack .bdc-why-bid__summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--app-accent-border-strong) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.bdc-decision-stack .bdc-why-bid__chevron {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: 1px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  opacity: 0.62;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.bdc-decision-stack .bdc-why-bid[open] > .bdc-why-bid__summary .bdc-why-bid__chevron {
+  transform: rotate(45deg);
+  opacity: 0.78;
+}
+
+.bdc-decision-stack .bdc-why-bid__summary-text {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-bid__summary-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cc-heading-color) 58%, var(--cc-value-muted) 42%);
+}
+
+.bdc-decision-stack .bdc-why-bid__summary-hint {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: color-mix(in srgb, var(--cc-value-muted) 92%, var(--cc-heading-color) 8%);
+  opacity: 0.92;
+}
+
+.bdc-decision-stack .bdc-why-bid__hint-when-open {
+  display: none;
+}
+
+.bdc-decision-stack .bdc-why-bid[open] .bdc-why-bid__hint-when-open {
+  display: inline;
+}
+
+.bdc-decision-stack .bdc-why-bid[open] .bdc-why-bid__hint-when-closed {
+  display: none;
+}
+
+.bdc-decision-stack .bdc-why-bid[open] > .bdc-why-bid__summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.bdc-decision-stack .bdc-why-bid__body {
+  margin-top: 0;
+  padding: var(--cc-space-8) var(--cc-space-8) var(--cc-space-6);
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 38%, transparent);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--cc-center-bg, #0d0a1a);
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-notes {
+  margin-bottom: 0.45rem;
+}
+
+.bdc-decision-stack .bdc-why-note-line {
+  margin: 0 0 0.32rem;
+  font-size: 0.72rem;
+  line-height: 1.42;
+  color: color-mix(in srgb, var(--cc-heading-color) 82%, var(--cc-value-muted) 18%);
+}
+
+.bdc-decision-stack .bdc-why-note-line:last-child {
+  margin-bottom: 0;
+}
+
+.bdc-decision-stack .bdc-why-panels {
+  display: grid;
+  gap: 0.55rem 0.85rem;
+  margin-top: 0.15rem;
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .bdc-decision-stack .bdc-why-panels--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.bdc-decision-stack .bdc-why-panels--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.bdc-decision-stack .bdc-why-panel {
+  min-width: 0;
+  padding: 0.42rem 0.48rem 0.48rem;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 52%, transparent);
+  background: color-mix(in srgb, var(--app-bg-soft) 12%, transparent);
+  box-sizing: border-box;
+}
+
+.bdc-decision-stack .bdc-why-panel--full {
+  margin-top: 0.55rem;
+  width: 100%;
+}
+
+.bdc-decision-stack .bdc-why-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.42rem;
+  padding-bottom: 0.28rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-accent-hairline) 45%, transparent);
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-panel__title {
+  margin: 0 0 0.38rem;
+  padding-bottom: 0.22rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-accent-hairline) 45%, transparent);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, var(--cc-heading-color) 12%);
+}
+
+.bdc-decision-stack .bdc-why-panel__title--inline {
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-v2-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.45rem;
+  flex-shrink: 0;
+}
+
+.bdc-decision-stack .bdc-why-v2-adjustments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  margin: 0 0 0.48rem;
+  padding: 0.32rem 0.38rem;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--app-bg-soft) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 38%, transparent);
+}
+
+.bdc-decision-stack .bdc-why-v2-adj {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  font-size: 0.62rem;
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-v2-adj__k {
+  color: color-mix(in srgb, var(--cc-value-muted) 90%, var(--cc-heading-color) 10%);
+  font-weight: 600;
+}
+
+.bdc-decision-stack .bdc-why-v2-adj__v {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--cc-heading-color) 82%, var(--cc-value-muted) 18%);
+}
+
+.bdc-decision-stack .bdc-why-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.26rem;
+}
+
+.bdc-decision-stack .bdc-why-row {
+  display: grid;
+  grid-template-columns: minmax(0, 44%) minmax(0, 56%);
+  gap: 0.35rem 0.55rem;
+  align-items: start;
+  font-size: 0.68rem;
+  line-height: 1.32;
+}
+
+.bdc-decision-stack .bdc-why-row__k {
+  color: color-mix(in srgb, var(--cc-value-muted) 90%, var(--cc-heading-color) 10%);
+  font-weight: 600;
+}
+
+.bdc-decision-stack .bdc-why-row__v {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--cc-heading-color) 84%, var(--cc-value-muted) 16%);
+  word-break: break-word;
+}
+
+.bdc-decision-stack .bdc-why-v2-indicator {
+  display: inline-block;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cc-heading-color) 92%, var(--cc-value-muted) 8%);
+  background: color-mix(in srgb, var(--app-accent-hairline) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 70%, transparent);
+}
+
+.bdc-decision-stack .bdc-why-v2-confidence {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--cc-value-muted) 82%, var(--cc-heading-color) 18%);
+}
+
+/* One column: readable line length, not three skinny “spec columns”. */
+.bdc-decision-stack .bdc-why-driver-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-driver-card {
+  min-width: 0;
+  padding: 0.42rem 0.48rem 0.42rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 48%, transparent);
+  border-left-width: 3px;
+  background: color-mix(in srgb, var(--app-bg-soft) 10%, transparent);
+  box-sizing: border-box;
+}
+
+.bdc-decision-stack .bdc-why-driver-card--pos {
+  border-left-color: color-mix(in srgb, var(--cc-bdc-success-fg) 55%, var(--app-accent-hairline) 45%);
+}
+
+.bdc-decision-stack .bdc-why-driver-card--neg {
+  border-left-color: color-mix(in srgb, var(--cc-bdc-danger-fg) 52%, var(--app-accent-hairline) 48%);
+}
+
+.bdc-decision-stack .bdc-why-driver-card--neutral {
+  border-left-color: color-mix(in srgb, var(--cc-value-muted) 45%, var(--app-accent-hairline) 55%);
+}
+
+.bdc-decision-stack .bdc-why-driver-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.35rem 0.55rem;
+  min-width: 0;
+}
+
+.bdc-decision-stack .bdc-why-driver-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.28;
+  color: color-mix(in srgb, var(--cc-heading-color) 88%, var(--cc-value-muted) 12%);
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.bdc-decision-stack .bdc-why-driver-impact {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.1rem 0.38rem;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.bdc-decision-stack .bdc-why-driver-impact--pos {
+  color: color-mix(in srgb, var(--cc-bdc-success-fg) 88%, var(--cc-heading-color) 12%);
+  background: color-mix(in srgb, var(--cc-bdc-success-fg) 12%, transparent);
+}
+
+.bdc-decision-stack .bdc-why-driver-impact--neg {
+  color: color-mix(in srgb, var(--cc-bdc-danger-fg) 88%, var(--cc-heading-color) 12%);
+  background: color-mix(in srgb, var(--cc-bdc-danger-fg) 12%, transparent);
+}
+
+.bdc-decision-stack .bdc-why-driver-impact--neutral {
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, var(--cc-heading-color) 12%);
+  background: color-mix(in srgb, var(--app-accent-hairline) 35%, transparent);
+}
+
+.bdc-decision-stack .bdc-why-driver-preview {
+  margin: 0.32rem 0 0;
+  max-width: 100%;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--cc-heading-color) 78%, var(--cc-value-muted) 22%);
+}
+
+.bdc-decision-stack .bdc-why-driver-expand {
+  margin: 0.35rem 0 0;
+  max-width: 100%;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--app-bg-soft) 22%, transparent);
+}
+
+.bdc-decision-stack .bdc-why-driver-expand__summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, var(--cc-heading-color) 12%);
+  padding: 0.22rem 0.35rem;
+  user-select: none;
+}
+
+.bdc-decision-stack .bdc-why-driver-expand__summary::-webkit-details-marker {
+  display: none;
+}
+
+.bdc-decision-stack .bdc-why-driver-full {
+  margin: 0;
+  padding: 0 0.35rem 0.38rem;
+  font-size: 0.64rem;
+  line-height: 1.42;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--cc-value-muted) 90%, var(--cc-heading-color) 10%);
+}
+
+.bdc-decision-stack .bdc-why-bullets {
+  margin: 0.45rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.66rem;
+  line-height: 1.38;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, var(--cc-heading-color) 12%);
+}
+
+.bdc-decision-stack .bdc-why-bullets--primary {
+  margin-top: 0.38rem;
+  margin-bottom: 0.42rem;
+  font-size: 0.7rem;
+  line-height: 1.42;
+  color: color-mix(in srgb, var(--cc-heading-color) 80%, var(--cc-value-muted) 20%);
+}
+
+.bdc-decision-stack .bdc-why-fallback {
+  margin: 0;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, transparent);
 }
 
 .bid-decision-card .bdc-metric-grid--constraints,
@@ -391,7 +833,9 @@ textarea.pac-notes.pac-notes--always:focus {
   letter-spacing: 0.11em;
 }
 
-.pac-bid-section .bid-decision-card {
+.pac-bid-section .bid-decision-card,
+.pac-bid-section .bdc-decision-stack,
+.pac-bid-section .bdc-why-wrap {
   width: 100%;
   max-width: none;
   margin: 0;
@@ -816,14 +1260,3 @@ textarea.pac-notes.pac-notes--always:focus {
   font-size: 0.85rem;
   font-weight: 800;
 }
-
-.bid-decision-card .bdc-footnote {
-  margin: var(--cc-space-10) var(--cc-space-12) 0;
-  padding-top: var(--cc-space-8);
-  border-top: 1px solid color-mix(in srgb, var(--cc-heading-color) 14%, transparent);
-  font-size: var(--cc-bdc-sublabel-fs);
-  line-height: 1.45;
-  color: var(--cc-bdc-sublabel-fg);
-  font-weight: 500;
-}
-

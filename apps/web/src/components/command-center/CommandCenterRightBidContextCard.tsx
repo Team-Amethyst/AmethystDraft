@@ -25,7 +25,12 @@ export function CommandCenterRightBidContextCard({
           </div>
         </div>
         <div className="budget-card budget-card--row">
-          <div className="bc-label">Max Bid</div>
+          <div
+            className="bc-label"
+            title="Maximum legal next bid from your remaining budget and open roster spots (not the model Max Bid from the engine)."
+          >
+            Budget max
+          </div>
           <div className="bc-val">{maxBid != null ? `$${maxBid}` : "—"}</div>
         </div>
         <div className="budget-card budget-card--row">

@@ -55,7 +55,7 @@ export function AuctionCenterLogResultBar({
               className="log-price-input"
               value={finalPrice}
               onChange={(e) => onFinalPriceChange(e.target.value)}
-              title="Bid amount; defaults to suggested bid when available"
+              title="Winning bid amount; defaults to model Max Bid (capped by your Budget max), not Auction Value"
             />
           </div>
         </div>

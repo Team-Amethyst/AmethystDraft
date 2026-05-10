@@ -3,8 +3,10 @@ import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import {
   formatDollar,
+  formatMaybeDelta,
   leagueWideAuctionDollars,
-  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
+  playerValuationEdgeOrDiff,
+  RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   valuationSortLabel,
   valuationTooltip,
 } from "../../utils/valuation";
@@ -16,6 +18,7 @@ import {
   verdictFromValueMinusBid,
 } from "../../domain/auctionCenterValuation";
 import { AuctionMetricTile } from "./AuctionMetricTile";
+import { BidWhyThisBid } from "./BidWhyThisBid";
 
 function fmtMoney(n: number | null) {
   return n != null ? formatDollar(n) : "—";
@@ -119,69 +122,89 @@ export function BidDecisionCard({
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
 
+  const edgeVsMax = playerValuationEdgeOrDiff({
+    edge: decisionData.edge ?? engineFiniteOrNull(selectedPlayer.edge),
+    recommended_bid: displayBid,
+    team_adjusted_value: displayYour,
+  });
+
   return (
-    <div
-      className={"bid-decision-card bdc-tone--" + decisionTone}
-      aria-label="Valuation"
-    >
-      <div className="bdc-grid">
-        <div className="bdc-metric-row">
-          <div
-            className="bdc-metric-grid bdc-metric-grid--focus3 bdc-metric-grid--focus-boxes"
-            aria-label="Recommended bid, value to your roster, league auction value, player strength"
-          >
-            <AuctionMetricTile
-              label={valuationSortLabel("recommended_bid")}
-              title={valuationTooltip("recommended_bid")}
-              value={
-                recommendedBidDisplay != null ? (
-                  <span
-                    className={
-                      "bdc-focus-value bdc-recommended-value" +
-                      (decisionDanger ? " bdc-recommended-value--danger" : "") +
-                      (decisionStrong ? " bdc-recommended-value--strong" : "")
-                    }
-                  >
-                    {recommendedBidDisplay}
+    <div className="bdc-decision-stack">
+      <div
+        className={"bid-decision-card bdc-tone--" + decisionTone}
+        aria-label="Bid recommendation"
+      >
+        <div className="bdc-grid">
+          <div className="bdc-metric-row">
+            <div
+              className="bdc-metric-grid bdc-metric-grid--ladder5 bdc-metric-grid--focus-boxes"
+              aria-label="Auction value, max bid, team value, player strength, edge vs max"
+            >
+              <AuctionMetricTile
+                label="Auction Value"
+                title={valuationTooltip("auction_value")}
+                value={
+                  <span className="bdc-focus-value">
+                    {fmtMoney(
+                      displayLeagueAuction != null && Number.isFinite(displayLeagueAuction)
+                        ? displayLeagueAuction
+                        : null,
+                    )}
                   </span>
-                ) : (
-                  "—"
-                )
-              }
-            />
-            <AuctionMetricTile
-              label={valuationSortLabel("team_adjusted_value")}
-              title={valuationTooltip("team_adjusted_value")}
-              value={
-                <span className="bdc-focus-value">
-                  {fmtMoney(displayYour)}
-                </span>
-              }
-            />
-            <AuctionMetricTile
-              label={valuationSortLabel("auction_value")}
-              title={valuationTooltip("auction_value")}
-              value={
-                <span className="bdc-focus-value">
-                  {fmtMoney(
-                    displayLeagueAuction != null && Number.isFinite(displayLeagueAuction)
-                      ? displayLeagueAuction
-                      : null,
-                  )}
-                </span>
-              }
-            />
-            <AuctionMetricTile
-              label={valuationSortLabel("baseline_value")}
-              title={valuationTooltip("baseline_value")}
-              value={
-                <span className="bdc-focus-value">{fmtMoney(displayBaseValue)}</span>
-              }
-            />
+                }
+              />
+              <AuctionMetricTile
+                variant="primary"
+                label={valuationSortLabel("recommended_bid")}
+                title={valuationTooltip("recommended_bid")}
+                value={
+                  recommendedBidDisplay != null ? (
+                    <span
+                      className={
+                        "bdc-focus-value bdc-recommended-value" +
+                        (decisionDanger ? " bdc-recommended-value--danger" : "") +
+                        (decisionStrong ? " bdc-recommended-value--strong" : "")
+                      }
+                    >
+                      {recommendedBidDisplay}
+                    </span>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <AuctionMetricTile
+                label="Team Value"
+                title={valuationTooltip("team_adjusted_value")}
+                value={
+                  <span className="bdc-focus-value">
+                    {fmtMoney(displayYour)}
+                  </span>
+                }
+              />
+              <AuctionMetricTile
+                label="Player Strength"
+                title={valuationTooltip("baseline_value")}
+                value={
+                  <span className="bdc-focus-value">{fmtMoney(displayBaseValue)}</span>
+                }
+              />
+              <AuctionMetricTile
+                label="Edge vs Max"
+                title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}
+                value={
+                  <span className="bdc-focus-value">
+                    {formatMaybeDelta(edgeVsMax)}
+                  </span>
+                }
+              />
+            </div>
           </div>
         </div>
       </div>
-      <p className="bdc-footnote">{RECOMMENDED_BID_VS_AUCTION_VALUE_COPY}</p>
+      <div className="bdc-why-wrap">
+        <BidWhyThisBid valuationRow={row} selectedPlayer={selectedPlayer} />
+      </div>
     </div>
   );
 }

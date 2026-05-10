@@ -673,7 +673,8 @@ export function AuctionCenter({
       />
 
       <div ref={contentScrollRef} className="cc-content-scroll">
-        <div className="player-auction-card command-center-main">
+        <div className="cc-content-scroll-main">
+          <div className="player-auction-card command-center-main">
           {!selectedPlayer ? (
             <div className="cc-empty-state">
               <div className="cc-empty-icon">⊕</div>
@@ -718,6 +719,7 @@ export function AuctionCenter({
             />
             </>
           )}
+          </div>
         </div>
 
         <AuctionCenterNotesDock

@@ -10,14 +10,18 @@ export function AuctionMetricTile({
   label: string;
   value: ReactNode;
   delta?: ReactNode;
-  variant?: "default" | "primary";
+  variant?: "default" | "primary" | "reference";
   title?: string;
 }) {
   return (
     <div
       className={
         "bdc-metric-tile" +
-        (variant === "primary" ? " bdc-metric-tile--primary" : "")
+        (variant === "primary"
+          ? " bdc-metric-tile--primary"
+          : variant === "reference"
+            ? " bdc-metric-tile--reference"
+            : "")
       }
       title={title}
     >
