@@ -15,6 +15,18 @@ import Research from "./pages/Research";
 import MockDraftPage from "./pages/MockDraftPage";
 import TaxiDraft from "./pages/TaxiDraft";
 
+const devOnlyRoutes = import.meta.env.DEV
+  ? [
+      {
+        path: "/dev/player-detail-layout-mocks",
+        lazy: () =>
+          import("./pages/dev/PlayerDetailLayoutMocksPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
+    ]
+  : [];
+
 export const router = createBrowserRouter([
   { path: "/", Component: HomePage },
   { path: "/signup", Component: Signup },
@@ -37,4 +49,5 @@ export const router = createBrowserRouter([
       { path: "mock-draft", Component: MockDraftPage },
     ],
   },
+  ...devOnlyRoutes,
 ]);
