@@ -103,6 +103,18 @@ Expect **`204`**. **`401`** = wrong Bearer. **`503`** = Draft missing both `AMET
 
 **`405` on `draftroom.uk`** → wrong host (SPA / CDN), not a missing Draft route or Bearer on App Runner.
 
+### `401 Unauthorized` on App Runner (correct host)
+
+Draft compares the incoming token to **`INTERNAL_WEBHOOK_SECRET` first** if that env is set on the API service; **otherwise** it uses **`AMETHYST_API_KEY`**.
+
+So:
+
+1. If Draft App Runner has **`INTERNAL_WEBHOOK_SECRET`** set, the Engine portal’s **Dedicated Bearer** must be **exactly that string** — sending **`AMETHYST_API_KEY` alone will 401**.
+2. If you intend to use **only** the API key, **clear `INTERNAL_WEBHOOK_SECRET`** on Draft App Runner (remove the env var or empty it), then set Engine’s Bearer to **the same value as Draft’s `AMETHYST_API_KEY`**.
+3. After changing env on App Runner, **redeploy** or wait for the service to pick up new configuration.
+
+Draft also accepts the same token in **`x-api-key`** (useful if a client cannot send `Authorization: Bearer`).
+
 ---
 
 ## Original ask (historical)
