@@ -5,33 +5,6 @@ import {
   useState,
 } from "react";
 
-/** Visible stat-category chips (HR+, AVG+, …); overflow collapsed into +k. */
-const MAX_VISIBLE_CATEGORY_TAGS = 3;
-
-function CategoryTraitChips({ tags }: { tags: string[] }) {
-  const shown = tags.slice(0, MAX_VISIBLE_CATEGORY_TAGS);
-  const rest = tags.length - shown.length;
-  return (
-    <>
-      {shown.map((t) => (
-        <span key={t} className="tag">
-          {t}
-        </span>
-      ))}
-      {rest > 0 ? (
-        <span
-          className="tag tag--overflow"
-          title={tags.slice(MAX_VISIBLE_CATEGORY_TAGS).join(", ")}
-        >
-          +{rest}
-        </span>
-      ) : null}
-    </>
-  );
-}
-
-type TraitMode = "full" | "count" | "none";
-
 function parseGapPx(el: HTMLElement | null): number {
   if (!el) return 6;
   const g = getComputedStyle(el).gap;
@@ -47,25 +20,14 @@ function sumWithGaps(widths: number[], gapPx: number): number {
   return w.reduce((a, b) => a + b, 0) + gaps * gapPx;
 }
 
-function pickTraitMode(
-  avail: number,
-  customW: number,
-  draftW: number,
-  fullW: number,
-  countW: number,
-  tagsLen: number,
-  gapPx: number,
-): TraitMode {
-  if (tagsLen === 0 || avail <= 0) return "none";
-
-  const needFull = sumWithGaps([customW, fullW, draftW], gapPx);
-  if (needFull <= avail + 1) return "full";
-
-  const needCount = sumWithGaps([customW, countW, draftW], gapPx);
-  if (needCount <= avail + 1) return "count";
-
-  return "none";
-}
+/**
+ * How many leading category tags to show before a +x chip:
+ * - tags.length → all tags fit (no +x)
+ * - 1..tags.length-1 → first n tags + "+rest"
+ * - 0 → only "+total" fits
+ * - -1 → hide category row entirely (tooltip still on meta when tags exist)
+ */
+type VisibleTagFit = number;
 
 export function ResearchPlayerMetaTags({
   tags,
@@ -79,24 +41,22 @@ export function ResearchPlayerMetaTags({
   draftedContractLabel?: string;
 }) {
   const metaRef = useRef<HTMLDivElement>(null);
-  const fullMeasureRef = useRef<HTMLDivElement>(null);
-  const countMeasureRef = useRef<HTMLSpanElement>(null);
+  const probeHostRef = useRef<HTMLDivElement>(null);
   const customRef = useRef<HTMLSpanElement>(null);
   const draftRef = useRef<HTMLDivElement>(null);
 
-  const [traitMode, setTraitMode] = useState<TraitMode>(() =>
-    tags.length === 0 ? "none" : "full",
+  const [visibleFit, setVisibleFit] = useState<VisibleTagFit>(() =>
+    tags.length === 0 ? -1 : tags.length,
   );
 
   const recompute = useCallback(() => {
     const meta = metaRef.current;
-    const fullW = fullMeasureRef.current?.offsetWidth ?? 0;
-    const countW = countMeasureRef.current?.offsetWidth ?? 0;
+    const host = probeHostRef.current;
     const customW = showCustom ? (customRef.current?.offsetWidth ?? 0) : 0;
     const draftW = draftRef.current?.offsetWidth ?? 0;
 
     if (!meta || tags.length === 0) {
-      setTraitMode("none");
+      setVisibleFit(-1);
       return;
     }
 
@@ -105,9 +65,36 @@ export function ResearchPlayerMetaTags({
 
     const gapPx = parseGapPx(meta);
 
-    setTraitMode(
-      pickTraitMode(avail, customW, draftW, fullW, countW, tags.length, gapPx),
+    const rowWidth = (v: number): number => {
+      const el = host?.querySelector(
+        `[data-fit-v="${v}"]`,
+      ) as HTMLElement | null;
+      return el?.offsetWidth ?? 99999;
+    };
+
+    const overflowOnlyW =
+      (host?.querySelector("[data-fit-overflow-only]") as HTMLElement | null)
+        ?.offsetWidth ?? 99999;
+
+    for (let v = tags.length; v >= 1; v--) {
+      const rw = rowWidth(v);
+      const need = sumWithGaps([customW, rw, draftW], gapPx);
+      if (need <= avail + 1) {
+        setVisibleFit(v);
+        return;
+      }
+    }
+
+    const needOverflowOnly = sumWithGaps(
+      [customW, overflowOnlyW, draftW],
+      gapPx,
     );
+    if (needOverflowOnly <= avail + 1) {
+      setVisibleFit(0);
+      return;
+    }
+
+    setVisibleFit(-1);
   }, [showCustom, tags]);
 
   useLayoutEffect(() => {
@@ -130,7 +117,7 @@ export function ResearchPlayerMetaTags({
   }, [recompute]);
 
   const metaTitle =
-    tags.length > 0 && traitMode !== "full" ? tags.join(" · ") : undefined;
+    tags.length > 0 && visibleFit !== tags.length ? tags.join(" · ") : undefined;
 
   const hasDrafted =
     Boolean(draftedTeamName) || Boolean(draftedContractLabel);
@@ -139,7 +126,8 @@ export function ResearchPlayerMetaTags({
     <>
       {tags.length > 0 ? (
         <div
-          className="pt-trait-measure-host"
+          ref={probeHostRef}
+          className="pt-trait-fit-probes"
           aria-hidden
           style={{
             position: "absolute",
@@ -150,20 +138,35 @@ export function ResearchPlayerMetaTags({
             whiteSpace: "nowrap",
           }}
         >
+          {Array.from({ length: tags.length }, (_, i) => {
+            const v = i + 1;
+            return (
+              <div
+                key={v}
+                data-fit-v={v}
+                className="tag-list pt-category-tags"
+                style={{ display: "inline-flex", width: "max-content" }}
+              >
+                {tags.slice(0, v).map((t, ti) => (
+                  <span key={`${v}-${ti}`} className="tag">
+                    {t}
+                  </span>
+                ))}
+                {v < tags.length ? (
+                  <span className="tag tag--overflow">
+                    +{tags.length - v}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
           <div
-            ref={fullMeasureRef}
-            className="tag-list"
+            data-fit-overflow-only
+            className="tag-list pt-category-tags"
             style={{ display: "inline-flex", width: "max-content" }}
           >
-            <CategoryTraitChips tags={tags} />
+            <span className="tag tag--overflow">+{tags.length}</span>
           </div>
-          <span
-            ref={countMeasureRef}
-            className="tag tag--overflow pt-trait-count-only"
-            style={{ display: "inline-block" }}
-          >
-            +{tags.length}
-          </span>
         </div>
       ) : null}
 
@@ -174,13 +177,25 @@ export function ResearchPlayerMetaTags({
           </span>
         )}
 
-        {traitMode === "full" && tags.length > 0 && (
+        {tags.length > 0 && visibleFit > 0 && (
           <div className="tag-list pt-category-tags">
-            <CategoryTraitChips tags={tags} />
+            {tags.slice(0, visibleFit).map((t, i) => (
+              <span key={i} className="tag">
+                {t}
+              </span>
+            ))}
+            {visibleFit < tags.length ? (
+              <span
+                className="tag tag--overflow"
+                title={tags.slice(visibleFit).join(", ")}
+              >
+                +{tags.length - visibleFit}
+              </span>
+            ) : null}
           </div>
         )}
 
-        {traitMode === "count" && tags.length > 0 && (
+        {tags.length > 0 && visibleFit === 0 && (
           <span className="tag tag--overflow pt-trait-count-only" title={tags.join(", ")}>
             +{tags.length}
           </span>

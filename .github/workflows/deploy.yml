@@ -70,6 +70,10 @@ jobs:
         run: |
           echo "::notice title=App Runner Engine::Set AMETHYST_API_BASE_URL (or legacy AMETHYST_API_URL) and AMETHYST_API_KEY on the API service; never expose the key to the web build or VITE_*."
 
+      - name: Reminder — draftroom.uk is not the API host
+        run: |
+          echo "::notice title=Hostname vs API::The SPA build uses vars.VITE_API_URL (App Runner). draftroom.uk serves the static site only — there is no /api reverse-proxy in this workflow. Engine webhooks and curl tests must target the App Runner HTTPS origin (e.g. ...awsapprunner.com/api/internal/news-signals/hook), not https://draftroom.uk/api/..."
+
       - name: Trigger App Runner Deployment
         env:
           APP_RUNNER_SERVICE_NAME: amethyst-api-prod

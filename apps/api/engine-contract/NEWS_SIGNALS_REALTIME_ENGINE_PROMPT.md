@@ -63,9 +63,24 @@ If the URL is set but the secret is missing, Engine logs a warning and does not 
 
 ### `405 Method Not Allowed` on `draftroom.uk`
 
-The SPA is served from **S3** (`draftroom.uk` / `www`). That hostname is **not** the Draft API unless you explicitly reverse-proxy **`/api/*`** to App Runner.
+**Nothing is missing in Express for this route.** `POST /api/internal/news-signals/hook` is registered ([`routes/internal.ts`](../src/routes/internal.ts)). What’s missing is a **hostname that reaches App Runner**.
 
-**Engine must POST to the same origin the SPA uses as `VITE_API_URL`** — typically your **App Runner** URL (e.g. `https://xxxx.us-east-1.awsapprunner.com`), **not** `https://draftroom.uk`.
+This repo’s deploy pipeline ([`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)) does **two separate things**:
+
+1. **Static site** → S3 (`draftroom.uk` / `www` in DNS — marketing domain / SPA).
+2. **API** → App Runner (`amethyst-api-prod` — distinct HTTPS hostname).
+
+There is **no** CloudFront/API Gateway/nginx layer **in this repo** that maps **`draftroom.uk/api/*`** to App Runner. So **`https://draftroom.uk/.../api/...`** is **not** your Express server; it hits whatever serves the SPA (often **S3 website + Cloudflare**). Those stacks commonly respond with **`405`**, **`403`**, or **`404`** for **`POST`** to arbitrary paths — **not** `401`/`204` from Draft.
+
+**Fix (no infra change):** Point **`DRAFT_NEWS_SIGNALS_WEBHOOK_URL`** at the **App Runner** URL (same host as GitHub **`VITE_API_URL`**):
+
+`https://<your-apprunner-host>/api/internal/news-signals/hook`
+
+**Fix (same-domain API later):** Add a reverse proxy (e.g. CloudFront behaviors: default → S3, `/api/*` and `/socket.io/*` → App Runner origin).
+
+---
+
+### Same webhook on the **correct** API host
 
 Correct webhook URL shape:
 
@@ -73,7 +88,7 @@ Correct webhook URL shape:
 
 Requirements:
 
-- **`POST`** only (GET returns **405** from Express for this route).
+- **`POST`** (only `POST` is registered on this path).
 - **`Authorization: Bearer &lt;AMETHYST_API_KEY&gt;`** or **`Bearer &lt;INTERNAL_WEBHOOK_SECRET&gt;`** — exact match, single space after `Bearer`.
 
 Sanity check (replace host and token):
@@ -84,7 +99,9 @@ curl -sS -o /dev/null -w "%{http_code}\n" -X POST \
   -H "Authorization: Bearer <same_value_as_Draft_AMETHYST_API_KEY>"
 ```
 
-Expect **`204`**. **`401`** = wrong Bearer. **`503`** = Draft missing both `AMETHYST_API_KEY` and `INTERNAL_WEBHOOK_SECRET`. **`405`** on the **site** domain → wrong host (static frontend).
+Expect **`204`**. **`401`** = wrong Bearer. **`503`** = Draft missing both `AMETHYST_API_KEY` and `INTERNAL_WEBHOOK_SECRET`. **`GET`** the hook URL on App Runner typically falls through to **404** (`ROUTE_NOT_FOUND`), not the webhook handler.
+
+**`405` on `draftroom.uk`** → wrong host (SPA / CDN), not a missing Draft route or Bearer on App Runner.
 
 ---
 
