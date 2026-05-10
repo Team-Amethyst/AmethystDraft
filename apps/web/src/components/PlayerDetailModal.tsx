@@ -1,25 +1,41 @@
 import { type StatBasis, statBasisFooterDescription } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
-import {
-  auctionDecisionSignalFromPlayer,
-  auctionTargetBidDollars,
-} from "../domain/auctionBidDecision";
+import { auctionTargetBidDollars } from "../domain/auctionBidDecision";
 import {
   formatCurrencyWhole,
+  formatExplainRiskMultiplier,
+  formatInflationFactorMultiple,
   formatMaybeDelta,
   formatMaybeDollar,
+  formatPoolToSlotRatio,
+  formatValuationExplainAgeDepthComponent,
+  isMeaningfulExplainMultiplier,
   leagueWideAuctionDollars,
   playerValuationEdgeOrDiff,
-  RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
   RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
-  valuationSortLabel,
-  valuationTooltip,
+  valuationExplainHasRiskRoleContent,
 } from "../utils/valuation";
+import {
+  formatSignedWhole,
+  summarizeDriverReason,
+  truncateExplainText,
+} from "../utils/explainV2Ui";
+import { useEffect } from "react";
 import PosBadge from "./PosBadge";
 import "./PlayerDetailModal.css";
+
+/** Must match `isValuationContextDebugEnabled` in Research.tsx (`valuationContextDev` prop). */
+function isValuationContextDebugEnabled(): boolean {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return localStorage.getItem("showValuationDebug") === "1";
+  } catch {
+    return false;
+  }
+}
 
 interface PlayerDetailModalProps {
   isOpen: boolean;
@@ -35,13 +51,225 @@ interface PlayerDetailModalProps {
   onMoveToCommandCenter: (player: Player) => void;
   /** Latest board valuation response warnings (same payload as Command Center). */
   valuationContextWarnings?: readonly string[];
-  /** DEV-only: opaque `valuation_context` JSON for support / diagnostics. */
+  /**
+   * Opaque `valuation_context` JSON when present.
+   * Shown only when `import.meta.env.DEV` and `localStorage.getItem("showValuationDebug") === "1"`.
+   */
   valuationContextDev?: Record<string, unknown> | null;
 }
 
 function valueOrDash(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
+}
+
+function formatInjurySeverityExplain(
+  v: string | number | undefined,
+): string | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  if (typeof v === "string") {
+    const t = v.trim();
+    return t === "" ? undefined : t;
+  }
+  return undefined;
+}
+
+type ValuationExplain = NonNullable<Player["valuation_explain"]>;
+
+function explainSectionAHasContent(explain: ValuationExplain | null | undefined): boolean {
+  if (!explain) return false;
+  return Boolean(
+    explain.replacement_key_used ||
+      explain.replacement_value_used != null ||
+      explain.surplus_basis ||
+      explain.inflation_factor != null ||
+      explain.pool_to_slot_ratio != null,
+  );
+}
+
+function explainSectionBHasContent(explain: ValuationExplain | null | undefined): boolean {
+  return Boolean(explain && valuationExplainHasRiskRoleContent(explain));
+}
+
+function explainSectionCHasContent(
+  explain: ValuationExplain | null | undefined,
+  boardWarnings: readonly string[] | undefined,
+): boolean {
+  const scoring = (explain?.scoring_category_warnings?.length ?? 0) > 0;
+  const board = (boardWarnings?.length ?? 0) > 0;
+  return scoring || board;
+}
+
+/** Drives visibility of the “Why this value?” `<details>` (collapsed by default). */
+function whyThisValueHasExpandableContent(
+  explain: ValuationExplain | null | undefined,
+  boardWarnings: readonly string[] | undefined,
+): boolean {
+  return (
+    explainSectionAHasContent(explain) ||
+    explainSectionBHasContent(explain) ||
+    explainSectionCHasContent(explain, boardWarnings)
+  );
+}
+
+function ValuationExplainSections({
+  explain,
+  boardWarnings,
+}: {
+  explain: ValuationExplain | null | undefined;
+  boardWarnings?: readonly string[];
+}) {
+  const hasA = explainSectionAHasContent(explain);
+  const hasB = explainSectionBHasContent(explain);
+  const hasC = explainSectionCHasContent(explain, boardWarnings);
+  const splitColumns = hasA && hasB;
+
+  if (!hasA && !hasB && !hasC) return null;
+
+  return (
+    <div className="pdm-explain-layout">
+      {hasA || hasB ? (
+        <div
+          className={
+            "pdm-explain-columns" + (splitColumns ? " pdm-explain-columns--split" : "")
+          }
+        >
+          {hasA && explain ? (
+            <section className="pdm-explain-col" aria-label="Auction context">
+              <h4 className="pdm-explain-block-title">Auction context</h4>
+              <dl className="pdm-explain-kv-dl">
+                {explain.replacement_key_used ? (
+                  <>
+                    <dt>Replacement slot</dt>
+                    <dd>{explain.replacement_key_used}</dd>
+                  </>
+                ) : null}
+                {explain.replacement_value_used != null ? (
+                  <>
+                    <dt>Replacement value</dt>
+                    <dd>{formatMaybeDollar(explain.replacement_value_used)}</dd>
+                  </>
+                ) : null}
+                {explain.surplus_basis ? (
+                  <>
+                    <dt>Surplus basis</dt>
+                    <dd>{explain.surplus_basis}</dd>
+                  </>
+                ) : null}
+                {explain.inflation_factor != null ? (
+                  <>
+                    <dt>Inflation factor</dt>
+                    <dd>{formatInflationFactorMultiple(explain.inflation_factor)}</dd>
+                  </>
+                ) : null}
+                {explain.pool_to_slot_ratio != null ? (
+                  <>
+                    <dt>Pool / slot ratio</dt>
+                    <dd>{formatPoolToSlotRatio(explain.pool_to_slot_ratio)}</dd>
+                  </>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
+          {hasB && explain ? (
+            <section className="pdm-explain-col" aria-label="Risk and role">
+              <h4 className="pdm-explain-block-title">Risk / role</h4>
+              <dl className="pdm-explain-kv-dl">
+                {typeof explain.age_years === "number" &&
+                Number.isFinite(explain.age_years) &&
+                explain.age_years > 0 ? (
+                  <>
+                    <dt>Age</dt>
+                    <dd>{String(Math.round(explain.age_years))}</dd>
+                  </>
+                ) : null}
+                {isMeaningfulExplainMultiplier(explain.age_multiplier) ? (
+                  <>
+                    <dt>Age multiplier</dt>
+                    <dd>{formatExplainRiskMultiplier(explain.age_multiplier)}</dd>
+                  </>
+                ) : null}
+                {explain.depth_chart_position_resolved ? (
+                  <>
+                    <dt>Depth slot</dt>
+                    <dd>{explain.depth_chart_position_resolved}</dd>
+                  </>
+                ) : null}
+                {isMeaningfulExplainMultiplier(explain.depth_multiplier) ? (
+                  <>
+                    <dt>Depth multiplier</dt>
+                    <dd>{formatExplainRiskMultiplier(explain.depth_multiplier)}</dd>
+                  </>
+                ) : null}
+                {isMeaningfulExplainMultiplier(explain.age_depth_combined_multiplier) ? (
+                  <>
+                    <dt>Age + role multiplier</dt>
+                    <dd>{formatExplainRiskMultiplier(explain.age_depth_combined_multiplier)}</dd>
+                  </>
+                ) : null}
+                {formatInjurySeverityExplain(explain.injury_severity) ? (
+                  <>
+                    <dt>Injury severity</dt>
+                    <dd>{formatInjurySeverityExplain(explain.injury_severity)}</dd>
+                  </>
+                ) : null}
+                {isMeaningfulExplainMultiplier(explain.injury_multiplier) ? (
+                  <>
+                    <dt>Injury multiplier</dt>
+                    <dd>{formatExplainRiskMultiplier(explain.injury_multiplier)}</dd>
+                  </>
+                ) : null}
+                {formatValuationExplainAgeDepthComponent(explain.age_component) ? (
+                  <>
+                    <dt>Age adjustment</dt>
+                    <dd>{formatValuationExplainAgeDepthComponent(explain.age_component)}</dd>
+                  </>
+                ) : null}
+                {formatValuationExplainAgeDepthComponent(explain.depth_component) ? (
+                  <>
+                    <dt>Depth adjustment</dt>
+                    <dd>{formatValuationExplainAgeDepthComponent(explain.depth_component)}</dd>
+                  </>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+      {hasC ? (
+        <section className="pdm-explain-col pdm-explain-col--full" aria-label="Notes and warnings">
+          <h4 className="pdm-explain-block-title">Notes / Warnings</h4>
+          <dl className="pdm-explain-kv-dl pdm-explain-kv-dl--warnings">
+            {explain?.scoring_category_warnings?.length ? (
+              <>
+                <dt>Scoring category warnings</dt>
+                <dd>
+                  <ul className="pdm-explain-warnings pdm-explain-warnings--compact">
+                    {explain.scoring_category_warnings.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </dd>
+              </>
+            ) : null}
+            {boardWarnings && boardWarnings.length > 0 ? (
+              <>
+                <dt>Valuation context</dt>
+                <dd>
+                  <ul className="pdm-explain-warnings pdm-explain-warnings--compact">
+                    {boardWarnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </dd>
+              </>
+            ) : null}
+          </dl>
+        </section>
+      ) : null}
+    </div>
+  );
 }
 
 export default function PlayerDetailModal({
@@ -58,6 +286,17 @@ export default function PlayerDetailModal({
   valuationContextWarnings,
   valuationContextDev,
 }: PlayerDetailModalProps) {
+  useEffect(() => {
+    if (!isOpen || !player) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, player, onClose]);
+
   if (!isOpen || !player) return null;
 
   const positions = player.positions?.length ? player.positions : [player.position];
@@ -79,7 +318,22 @@ export default function PlayerDetailModal({
       ? leagueAuction
       : null;
   const targetBid = auctionTargetBidDollars(player);
-  const decisionSignal = auctionDecisionSignalFromPlayer(player);
+
+  const showValuationContextDebug =
+    isValuationContextDebugEnabled() &&
+    valuationContextDev != null &&
+    Object.keys(valuationContextDev).length > 0;
+
+  const showModelNotesBody =
+    Boolean(player.outlook?.trim()) ||
+    Boolean(player.why?.length) ||
+    Boolean(player.market_notes?.length) ||
+    Boolean(player.explain_v2);
+
+  const showWhyThisValue = whyThisValueHasExpandableContent(
+    player.valuation_explain ?? null,
+    valuationContextWarnings,
+  );
 
   return (
     <div className="pdm-overlay" onClick={onClose}>
@@ -90,31 +344,6 @@ export default function PlayerDetailModal({
         aria-modal="true"
         aria-label={`${player.name} details`}
       >
-        <div className="pdm-header">
-          <div className="pdm-identity">
-            <img className="pdm-headshot" src={player.headshot} alt={player.name} />
-            <div>
-              <h2 className="pdm-title">{player.name}</h2>
-              <div className="pdm-meta-line">
-                <span>{player.team}</span>
-                <span>ADP {valueOrDash(player.adp)}</span>
-                <span>Tier {valueOrDash(player.tier)}</span>
-              </div>
-            </div>
-          </div>
-          <div className="pdm-header-right">
-            <div className="pdm-subtitle">
-              {player.injuryStatus && <span className="pdm-chip pdm-chip--inj">{player.injuryStatus}</span>}
-              {isCustomPlayer && <span className="pdm-chip">Custom</span>}
-              {draftedByTeam && <span className="pdm-chip pdm-chip--drafted">Drafted by {draftedByTeam}</span>}
-              {draftedContract && <span className="pdm-chip">{draftedContract}</span>}
-            </div>
-            <button className="pdm-close" type="button" onClick={onClose} aria-label="Close player details">
-              ×
-            </button>
-          </div>
-        </div>
-
         <div className="pdm-body">
         {valuationContextWarnings && valuationContextWarnings.length > 0 ? (
           <div className="pdm-inline-warnings" role="status">
@@ -126,269 +355,308 @@ export default function PlayerDetailModal({
             </ul>
           </div>
         ) : null}
-        <div className="pdm-grid">
-          <section className="pdm-card cc-surface-inset pdm-card--hero">
-            <h3>Player profile</h3>
-            <div className="pdm-positions">
-              {positions.map((pos) => (
-                <PosBadge key={pos} pos={pos} />
-              ))}
-            </div>
-            <dl>
-              <dt>Age</dt>
-              <dd>
-                {typeof player.age === "number" && Number.isFinite(player.age)
-                  ? String(player.age)
-                  : "—"}
-              </dd>
-              <dt>MLB ID</dt>
-              <dd>
-                {typeof player.mlbId === "number" && Number.isFinite(player.mlbId)
-                  ? String(player.mlbId)
-                  : "—"}
-              </dd>
-              <dt>Indicator</dt>
-              <dd>{valueOrDash(player.indicator)}</dd>
-              <dt>Drafted</dt>
-              <dd>{draftedByTeam ? `Yes - ${draftedByTeam}` : "Available"}</dd>
-            </dl>
-          </section>
 
-          <section className="pdm-card cc-surface-inset pdm-card--decision">
-            <h3>Bid decision</h3>
-            <div className="pdm-decision-signal">{decisionSignal}</div>
-            <dl className="pdm-valuation-dl">
-              <dt title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
-                {valuationSortLabel("auction_value")}
-              </dt>
-              <dd>{formatCurrencyWhole(marketValue)}</dd>
-              <dt title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>Max bid</dt>
-              <dd>{formatCurrencyWhole(targetBid)}</dd>
-              <dt title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
-                {valuationSortLabel("team_adjusted_value")}
-              </dt>
-              <dd>{formatCurrencyWhole(yourValue)}</dd>
-              <dt title={valuationTooltip("baseline_value")}>
-                {valuationSortLabel("baseline_value")}
-              </dt>
-              <dd>
-                {formatCurrencyWhole(
-                  typeof player.baseline_value === "number" &&
-                    Number.isFinite(player.baseline_value)
-                    ? player.baseline_value
-                    : undefined,
-                )}
-              </dd>
-              <dt title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}>Edge vs Max</dt>
-              <dd>{formatMaybeDelta(valuationDiff)}</dd>
-            </dl>
-            <p className="pdm-anchor-help">{RECOMMENDED_BID_VS_AUCTION_VALUE_COPY}</p>
-            {player.recommended_bid_note?.trim() ? (
-              <p className="pdm-engine-note">{player.recommended_bid_note.trim()}</p>
-            ) : null}
-            {player.edge_note?.trim() ? (
-              <p className="pdm-engine-note">{player.edge_note.trim()}</p>
-            ) : null}
-            {player.valuation_explain ? (
-              <details className="pdm-valuation-explain">
-                <summary>Valuation explain</summary>
-                <dl className="pdm-valuation-dl pdm-valuation-dl--dense">
-                  {player.valuation_explain.effective_positions?.length ? (
-                    <>
-                      <dt>Effective positions</dt>
-                      <dd>{player.valuation_explain.effective_positions.join(", ")}</dd>
-                    </>
+        <div className="pdm-split">
+          <aside className="pdm-rail" aria-label="Player profile">
+            <div className="pdm-rail__group">
+              <div className="pdm-rail__head">
+                <div className="pdm-rail__identity">
+                  <img className="pdm-headshot" src={player.headshot} alt={player.name} />
+                  <div className="pdm-identity-text">
+                    <h2 className="pdm-title">{player.name}</h2>
+                    <div className="pdm-meta-line pdm-meta-line--header">
+                      <span className="pdm-meta-piece">{player.team}</span>
+                      <span className="pdm-meta-sep" aria-hidden="true">
+                        ·
+                      </span>
+                      <span className="pdm-meta-piece">ADP {valueOrDash(player.adp)}</span>
+                      <span className="pdm-meta-sep" aria-hidden="true">
+                        ·
+                      </span>
+                      <span className="pdm-meta-piece">Tier {valueOrDash(player.tier)}</span>
+                    </div>
+                    <div className="pdm-header-positions">
+                      {positions.map((pos) => (
+                        <PosBadge key={pos} pos={pos} />
+                      ))}
+                    </div>
+                    <div className="pdm-header-context">
+                      {player.injuryStatus && <span className="pdm-chip pdm-chip--inj">{player.injuryStatus}</span>}
+                      {isCustomPlayer && <span className="pdm-chip">Custom</span>}
+                      {draftedByTeam && <span className="pdm-chip pdm-chip--drafted">Drafted by {draftedByTeam}</span>}
+                      {draftedContract && <span className="pdm-chip">{draftedContract}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <h3 className="pdm-profile__title">Profile</h3>
+              <dl className="pdm-profile-meta-dl">
+                <dt>Age</dt>
+                <dd>
+                  {typeof player.age === "number" && Number.isFinite(player.age)
+                    ? String(player.age)
+                    : "—"}
+                </dd>
+                <dt>MLB ID</dt>
+                <dd>
+                  {typeof player.mlbId === "number" && Number.isFinite(player.mlbId)
+                    ? String(player.mlbId)
+                    : "—"}
+                </dd>
+                <dt>Indicator</dt>
+                <dd>{valueOrDash(player.indicator)}</dd>
+                <dt>Drafted</dt>
+                <dd>{draftedByTeam ? `Yes - ${draftedByTeam}` : "Available"}</dd>
+              </dl>
+            </div>
+          </aside>
+
+          <div className="pdm-main">
+            <section className="pdm-valuation-card" aria-label="Valuation summary">
+              <div className="pdm-valuation-metric-grid pdm-valuation-strip__metrics" role="list">
+                <div className="pdm-metric" role="listitem">
+                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
+                    Auction Value
+                  </span>
+                  <span className="pdm-metric-value">{formatCurrencyWhole(marketValue)}</span>
+                </div>
+                <div className="pdm-metric" role="listitem">
+                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
+                    Max Bid
+                  </span>
+                  <span className="pdm-metric-value">{formatCurrencyWhole(targetBid)}</span>
+                </div>
+                <div className="pdm-metric" role="listitem">
+                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
+                    Team Value
+                  </span>
+                  <span className="pdm-metric-value">{formatCurrencyWhole(yourValue)}</span>
+                </div>
+                <div className="pdm-metric" role="listitem">
+                  <span className="pdm-metric-label">Player Strength</span>
+                  <span className="pdm-metric-value">
+                    {formatCurrencyWhole(
+                      typeof player.baseline_value === "number" &&
+                        Number.isFinite(player.baseline_value)
+                        ? player.baseline_value
+                        : undefined,
+                    )}
+                  </span>
+                </div>
+                <div className="pdm-metric" role="listitem">
+                  <span className="pdm-metric-label" title={RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP}>
+                    Edge vs Max
+                  </span>
+                  <span className="pdm-metric-value">{formatMaybeDelta(valuationDiff)}</span>
+                </div>
+              </div>
+              {player.recommended_bid_note?.trim() ? (
+                <p className="pdm-engine-note">{player.recommended_bid_note.trim()}</p>
+              ) : null}
+              {player.edge_note?.trim() ? (
+                <p className="pdm-engine-note">{player.edge_note.trim()}</p>
+              ) : null}
+            </section>
+
+            <section className="pdm-snapshot-section" aria-label="Performance snapshot">
+              {batting || pitching ? (
+                <div
+                  className={
+                    batting && pitching ? "pdm-snapshot-split" : "pdm-snapshot-single"
+                  }
+                >
+                  {batting ? (
+                    <div className="pdm-stat-group">
+                      <h4>Batting</h4>
+                      <div className="pdm-compare">
+                        <div className="pdm-compare-head">
+                          <span className="pdm-compare-corner">Stat</span>
+                          <span>PROJ</span>
+                          <span>1Y</span>
+                          <span>3Y</span>
+                        </div>
+                        <div className="pdm-compare-row"><span>AVG</span><span>{valueOrDash(projectionBat?.avg)}</span><span>{valueOrDash(batting.avg)}</span><span>{valueOrDash(stats3yrBat?.avg)}</span></div>
+                        <div className="pdm-compare-row"><span>HR</span><span>{valueOrDash(projectionBat?.hr)}</span><span>{valueOrDash(batting.hr)}</span><span>{valueOrDash(stats3yrBat?.hr)}</span></div>
+                        <div className="pdm-compare-row"><span>RBI</span><span>{valueOrDash(projectionBat?.rbi)}</span><span>{valueOrDash(batting.rbi)}</span><span>{valueOrDash(stats3yrBat?.rbi)}</span></div>
+                        <div className="pdm-compare-row"><span>R</span><span>{valueOrDash(projectionBat?.runs)}</span><span>{valueOrDash(batting.runs)}</span><span>{valueOrDash(stats3yrBat?.runs)}</span></div>
+                        <div className="pdm-compare-row"><span>SB</span><span>{valueOrDash(projectionBat?.sb)}</span><span>{valueOrDash(batting.sb)}</span><span>{valueOrDash(stats3yrBat?.sb)}</span></div>
+                      </div>
+                    </div>
                   ) : null}
-                  {player.valuation_explain.replacement_key_used ? (
-                    <>
-                      <dt>Replacement key</dt>
-                      <dd>{player.valuation_explain.replacement_key_used}</dd>
-                    </>
+                  {pitching ? (
+                    <div className="pdm-stat-group">
+                      <h4>Pitching</h4>
+                      <div className="pdm-compare">
+                        <div className="pdm-compare-head">
+                          <span className="pdm-compare-corner">Stat</span>
+                          <span>PROJ</span>
+                          <span>1Y</span>
+                          <span>3Y</span>
+                        </div>
+                        <div className="pdm-compare-row"><span>ERA</span><span>{valueOrDash(projectionPit?.era)}</span><span>{valueOrDash(pitching.era)}</span><span>{valueOrDash(stats3yrPit?.era)}</span></div>
+                        <div className="pdm-compare-row"><span>WHIP</span><span>{valueOrDash(projectionPit?.whip)}</span><span>{valueOrDash(pitching.whip)}</span><span>{valueOrDash(stats3yrPit?.whip)}</span></div>
+                        <div className="pdm-compare-row"><span>W</span><span>{valueOrDash(projectionPit?.wins)}</span><span>{valueOrDash(pitching.wins)}</span><span>{valueOrDash(stats3yrPit?.wins)}</span></div>
+                        <div className="pdm-compare-row"><span>SV</span><span>{valueOrDash(projectionPit?.saves)}</span><span>{valueOrDash(pitching.saves)}</span><span>{valueOrDash(stats3yrPit?.saves)}</span></div>
+                        <div className="pdm-compare-row"><span>K</span><span>{valueOrDash(projectionPit?.strikeouts)}</span><span>{valueOrDash(pitching.strikeouts)}</span><span>{valueOrDash(stats3yrPit?.strikeouts)}</span></div>
+                      </div>
+                    </div>
                   ) : null}
-                  {player.valuation_explain.replacement_value_used != null ? (
-                    <>
-                      <dt>Replacement value</dt>
-                      <dd>
-                        {formatMaybeDollar(player.valuation_explain.replacement_value_used)}
-                      </dd>
-                    </>
-                  ) : null}
-                  {player.valuation_explain.surplus_basis ? (
-                    <>
-                      <dt>Surplus basis</dt>
-                      <dd>{player.valuation_explain.surplus_basis}</dd>
-                    </>
-                  ) : null}
-                  {player.valuation_explain.inflation_factor != null ? (
-                    <>
-                      <dt>Inflation factor</dt>
-                      <dd>
-                        {formatMaybeDollar(player.valuation_explain.inflation_factor, {
-                          oneDecimal: true,
-                        })}
-                      </dd>
-                    </>
-                  ) : null}
-                  {player.valuation_explain.pool_to_slot_ratio != null ? (
-                    <>
-                      <dt>Pool to slot ratio</dt>
-                      <dd>
-                        {formatMaybeDollar(player.valuation_explain.pool_to_slot_ratio, {
-                          oneDecimal: true,
-                        })}
-                      </dd>
-                    </>
-                  ) : null}
-                  {player.valuation_explain.scoring_category_warnings?.length ? (
-                    <>
-                      <dt>Scoring warnings</dt>
-                      <dd>
-                        <ul className="pdm-explain-warnings">
-                          {player.valuation_explain.scoring_category_warnings.map((x) => (
-                            <li key={x}>{x}</li>
+                </div>
+              ) : (
+                <p className="pdm-empty">No stat lines available for this player.</p>
+              )}
+            </section>
+
+            <div className="pdm-lower-disclosures">
+              {showWhyThisValue ? (
+                <details className="pdm-lower-details pdm-valuation-explain">
+                  <summary className="pdm-lower-summary">Why this value?</summary>
+                  <ValuationExplainSections
+                    explain={player.valuation_explain ?? null}
+                    boardWarnings={valuationContextWarnings}
+                  />
+                </details>
+              ) : null}
+              {showValuationContextDebug ? (
+                <details className="pdm-lower-details pdm-valuation-context-dev">
+                  <summary className="pdm-lower-summary">valuation_context (debug)</summary>
+                  <pre className="pdm-valuation-context-pre">
+                    {JSON.stringify(valuationContextDev, null, 2)}
+                  </pre>
+                </details>
+              ) : null}
+              {showModelNotesBody ? (
+                <details className="pdm-lower-details pdm-model-details">
+                  <summary className="pdm-lower-summary">Model notes</summary>
+                    {player.outlook?.trim() ? (
+                      <div className="pdm-note-block">
+                        <h4>Outlook</h4>
+                        <p className="pdm-outlook pdm-outlook--expanded">{player.outlook.trim()}</p>
+                      </div>
+                    ) : null}
+                    {player.why?.length ? (
+                      <div className="pdm-note-block">
+                        <ul className="pdm-why-lines">
+                          {player.why.map((line, i) => (
+                            <li key={i}>{truncateExplainText(line, 220)}</li>
                           ))}
                         </ul>
-                      </dd>
-                    </>
-                  ) : null}
-                </dl>
-              </details>
-            ) : null}
-            {import.meta.env.DEV && valuationContextDev && Object.keys(valuationContextDev).length > 0 ? (
-              <details className="pdm-valuation-context-dev">
-                <summary>valuation_context (dev)</summary>
-                <pre className="pdm-valuation-context-pre">
-                  {JSON.stringify(valuationContextDev, null, 2)}
-                </pre>
-              </details>
-            ) : null}
-            {player.outlook?.trim() ? (
-              <p className="pdm-outlook">{player.outlook.trim()}</p>
-            ) : null}
-          </section>
-
-          <section className="pdm-card cc-surface-inset pdm-card--wide">
-            <h3>Performance Snapshot</h3>
-            {batting || pitching ? (
-              <div
-                className={
-                  batting && pitching ? "pdm-snapshot-split" : "pdm-snapshot-single"
-                }
-              >
-                {batting ? (
-                  <div className="pdm-stat-group">
-                    <h4>Batting</h4>
-                    <div className="pdm-compare">
-                      <div className="pdm-compare-head">
-                        <span className="pdm-compare-corner">Stat</span>
-                        <span>Last</span>
-                        <span>Proj</span>
-                        <span>3Y</span>
                       </div>
-                      <div className="pdm-compare-row"><span>AVG</span><span>{valueOrDash(batting.avg)}</span><span>{valueOrDash(projectionBat?.avg)}</span><span>{valueOrDash(stats3yrBat?.avg)}</span></div>
-                      <div className="pdm-compare-row"><span>HR</span><span>{valueOrDash(batting.hr)}</span><span>{valueOrDash(projectionBat?.hr)}</span><span>{valueOrDash(stats3yrBat?.hr)}</span></div>
-                      <div className="pdm-compare-row"><span>RBI</span><span>{valueOrDash(batting.rbi)}</span><span>{valueOrDash(projectionBat?.rbi)}</span><span>{valueOrDash(stats3yrBat?.rbi)}</span></div>
-                      <div className="pdm-compare-row"><span>R</span><span>{valueOrDash(batting.runs)}</span><span>{valueOrDash(projectionBat?.runs)}</span><span>{valueOrDash(stats3yrBat?.runs)}</span></div>
-                      <div className="pdm-compare-row"><span>SB</span><span>{valueOrDash(batting.sb)}</span><span>{valueOrDash(projectionBat?.sb)}</span><span>{valueOrDash(stats3yrBat?.sb)}</span></div>
-                    </div>
-                  </div>
-                ) : null}
-                {pitching ? (
-                  <div className="pdm-stat-group">
-                    <h4>Pitching</h4>
-                    <div className="pdm-compare">
-                      <div className="pdm-compare-head">
-                        <span className="pdm-compare-corner">Stat</span>
-                        <span>Last</span>
-                        <span>Proj</span>
-                        <span>3Y</span>
+                    ) : null}
+                    {player.explain_v2 ? (
+                      <div className="pdm-note-block pdm-note-block--explain-v2">
+                        <div className="pdm-explain-v2-head">
+                          <h4 className="pdm-explain-v2-title">Model read</h4>
+                          <div className="pdm-explain-v2-badges">
+                            <span className="pdm-explain-v2-indicator">{player.explain_v2.indicator}</span>
+                            {typeof player.explain_v2.confidence === "number" &&
+                            Number.isFinite(player.explain_v2.confidence) ? (
+                              <span className="pdm-explain-v2-confidence">
+                                {Math.round(player.explain_v2.confidence * 100)}% confidence
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        {player.explain_v2.adjustments ? (
+                          <div className="pdm-explain-v2-adjustments" aria-label="Model adjustment totals">
+                            <span className="pdm-explain-v2-adj">
+                              <span className="pdm-explain-v2-adj__k">League inflation</span>
+                              <span className="pdm-explain-v2-adj__v">
+                                {formatSignedWhole(player.explain_v2.adjustments.inflation)}
+                              </span>
+                            </span>
+                            <span className="pdm-explain-v2-adj">
+                              <span className="pdm-explain-v2-adj__k">Scarcity</span>
+                              <span className="pdm-explain-v2-adj__v">
+                                {formatSignedWhole(player.explain_v2.adjustments.scarcity)}
+                              </span>
+                            </span>
+                            <span className="pdm-explain-v2-adj">
+                              <span className="pdm-explain-v2-adj__k">Other</span>
+                              <span className="pdm-explain-v2-adj__v">
+                                {formatSignedWhole(player.explain_v2.adjustments.other)}
+                              </span>
+                            </span>
+                          </div>
+                        ) : null}
+                        {player.explain_v2.drivers?.length ? (
+                          <div className="pdm-explain-v2-drivers">
+                            {player.explain_v2.drivers.slice(0, 4).map((d, i) => {
+                              const { preview, full } = summarizeDriverReason(d.reason);
+                              const showMore = preview !== full;
+                              const tone = d.impact > 0 ? "pos" : d.impact < 0 ? "neg" : "neutral";
+                              return (
+                                <div
+                                  key={`${i}-${d.label}`}
+                                  className={`pdm-explain-v2-driver pdm-explain-v2-driver--${tone}`}
+                                >
+                                  <div className="pdm-explain-v2-driver__top">
+                                    <span className="pdm-explain-v2-driver-name">{d.label}</span>
+                                    <span className={`pdm-explain-v2-impact pdm-explain-v2-impact--${tone}`}>
+                                      {formatSignedWhole(d.impact)}
+                                    </span>
+                                  </div>
+                                  <p className="pdm-explain-v2-preview">{preview}</p>
+                                  {showMore ? (
+                                    <details className="pdm-explain-v2-expand">
+                                      <summary className="pdm-explain-v2-expand__summary">Full engine note</summary>
+                                      <p className="pdm-explain-v2-full">
+                                        {truncateExplainText(full, 520)}
+                                      </p>
+                                    </details>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="pdm-compare-row"><span>ERA</span><span>{valueOrDash(pitching.era)}</span><span>{valueOrDash(projectionPit?.era)}</span><span>{valueOrDash(stats3yrPit?.era)}</span></div>
-                      <div className="pdm-compare-row"><span>WHIP</span><span>{valueOrDash(pitching.whip)}</span><span>{valueOrDash(projectionPit?.whip)}</span><span>{valueOrDash(stats3yrPit?.whip)}</span></div>
-                      <div className="pdm-compare-row"><span>W</span><span>{valueOrDash(pitching.wins)}</span><span>{valueOrDash(projectionPit?.wins)}</span><span>{valueOrDash(stats3yrPit?.wins)}</span></div>
-                      <div className="pdm-compare-row"><span>SV</span><span>{valueOrDash(pitching.saves)}</span><span>{valueOrDash(projectionPit?.saves)}</span><span>{valueOrDash(stats3yrPit?.saves)}</span></div>
-                      <div className="pdm-compare-row"><span>K</span><span>{valueOrDash(pitching.strikeouts)}</span><span>{valueOrDash(projectionPit?.strikeouts)}</span><span>{valueOrDash(stats3yrPit?.strikeouts)}</span></div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <p className="pdm-empty">No stat lines available for this player.</p>
-            )}
-          </section>
+                    ) : null}
+                    {player.market_notes?.length ? (
+                      <div className="pdm-note-block">
+                        <h4>Market notes</h4>
+                        <ul>
+                          {player.market_notes.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                </details>
+              ) : null}
+            </div>
+          </div>
+        </div>
 
-          <section className="pdm-card cc-surface-inset pdm-card--wide">
-            <h3>Your Player Notes</h3>
-            <p className="pdm-note-help">Notes save automatically as you type.</p>
+        <section className="pdm-player-notes" aria-labelledby="pdm-player-notes-heading">
+          <h3 id="pdm-player-notes-heading" className="pdm-section-heading">
+            Player notes
+          </h3>
+          <div className="pdm-draft-notes-field">
             <textarea
-              className="pdm-note-editor"
+              className="pdm-draft-notes__textarea"
+              aria-labelledby="pdm-player-notes-heading"
               value={note ?? ""}
-              placeholder="Capture target bid, fallback options, roster fit, and risk notes..."
+              placeholder="Capture target bid, fallback options, roster fit, and risk notes…"
               onChange={(event) => {
                 onNoteChange?.(player.id, event.target.value);
               }}
             />
-          </section>
+          </div>
+        </section>
 
-          {(player.why?.length ||
-            player.market_notes?.length ||
-            player.explain_v2) && (
-            <section className="pdm-card cc-surface-inset pdm-card--wide pdm-card--details">
-              <details className="pdm-model-details">
-                <summary className="pdm-model-summary">Model notes</summary>
-                {player.explain_v2 ? (
-                  <div className="pdm-note-block">
-                    <h4>Valuation detail (explain_v2)</h4>
-                    <p className="pdm-explain-meta">
-                      Indicator {player.explain_v2.indicator} · confidence{" "}
-                      {Math.round(player.explain_v2.confidence * 100)}%
-                    </p>
-                    <ul className="pdm-explain-drivers">
-                      {player.explain_v2.drivers.slice(0, 6).map((d) => (
-                        <li key={d.label + d.reason}>
-                          <strong>{d.label}</strong> ({d.impact >= 0 ? "+" : ""}
-                          {d.impact}): {d.reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {player.why?.length ? (
-                  <div className="pdm-note-block">
-                    <h4>Why</h4>
-                    <ul>
-                      {player.why.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {player.market_notes?.length ? (
-                  <div className="pdm-note-block">
-                    <h4>Market Notes</h4>
-                    <ul>
-                      {player.market_notes.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </details>
-            </section>
-          )}
-        </div>
-        </div>
-
-        <p className="pdm-basis-foot">{statBasisFooterDescription(statBasis)}</p>
-
-        <div className="pdm-actions">
-          <button type="button" className="pdm-btn pdm-btn--secondary" onClick={onClose}>
-            Close
-          </button>
-          <button type="button" className="pdm-btn pdm-btn--primary" onClick={() => onMoveToCommandCenter(player)}>
-            Draft in Command Center
-          </button>
-        </div>
+        <footer className="pdm-modal-footer">
+          <p className="pdm-basis-foot">{statBasisFooterDescription(statBasis)}</p>
+          <div className="pdm-actions">
+            <button type="button" className="pdm-btn pdm-btn--secondary" onClick={onClose}>
+              Close
+            </button>
+            <button type="button" className="pdm-btn pdm-btn--primary" onClick={() => onMoveToCommandCenter(player)}>
+              Draft in Command Center
+            </button>
+          </div>
+        </footer>
+      </div>
       </div>
     </div>
   );
