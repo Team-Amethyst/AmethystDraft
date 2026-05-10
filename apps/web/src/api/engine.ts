@@ -16,7 +16,26 @@ export interface ValuationResult {
   player_id: string;
   name: string;
   position: string;
+  /**
+   * Legacy Engine field: tier by auction value within this valuation response.
+   * Prefer `auction_tier` when present; normalized rows mirror into both.
+   */
   tier: number;
+  /** Tier by auction value (canonical). */
+  auction_tier?: number;
+  /** Tier by baseline strength (pre-auction economics). */
+  baseline_tier?: number;
+  /** Rank by league auction value among pool in this response. */
+  auction_rank?: number;
+  /** Rank by baseline strength. */
+  baseline_rank?: number;
+  /** External average draft position when Engine attaches a real market source. */
+  market_adp?: number;
+  market_adp_source?: string;
+  market_adp_updated_at?: string;
+  market_adp_min?: number;
+  market_adp_max?: number;
+  market_pick_count?: number;
   baseline_value: number;
   /** League-wide canonical auction dollars when Engine sends it (else infer from adjusted_value). */
   auction_value?: number;
@@ -33,7 +52,10 @@ export interface ValuationResult {
   indicator: "Steal" | "Reach" | "Fair Value";
   /** Engine explainability; safe to ignore in UI. */
   why?: string[];
-  /** When Engine sends catalog-style ADP on the valuation row. */
+  /**
+   * Legacy: some responses used `adp` for auction-rank-like ordering on the row.
+   * Prefer `auction_rank`.
+   */
   adp?: number;
   inflation_factor?: number;
   team?: string;
@@ -247,6 +269,10 @@ export interface CatalogBatchPlayer {
   value: number;
   tier: number;
   adp: number;
+  catalog_tier?: number;
+  catalog_rank?: number;
+  auction_tier?: number;
+  auction_rank?: number;
 }
 
 export interface CatalogBatchValuesResponse {

@@ -431,9 +431,9 @@ const getWatchlist: RequestHandler = async (
         team: e.playerTeam,
         position: e.playerPosition,
         positions: e.playerPositions,
-        adp: e.adp,
+        catalog_rank: e.adp,
+        catalog_tier: e.tier,
         value: e.value,
-        tier: e.tier,
         baseline_value: e.baselineValue,
         adjusted_value: e.adjustedValue,
         recommended_bid: e.recommendedBid,
@@ -458,9 +458,11 @@ const upsertWatchlistEntry: RequestHandler = async (
       team,
       position,
       positions,
+      catalog_rank,
+      catalog_tier,
       adp,
-      value,
       tier,
+      value,
       baseline_value,
       adjusted_value,
       recommended_bid,
@@ -470,6 +472,8 @@ const upsertWatchlistEntry: RequestHandler = async (
       team?: string;
       position?: string;
       positions?: string[];
+      catalog_rank?: number;
+      catalog_tier?: number;
       adp?: number;
       value?: number;
       tier?: number;
@@ -489,9 +493,9 @@ const upsertWatchlistEntry: RequestHandler = async (
         playerTeam: team ?? "",
         playerPosition: position ?? "",
         playerPositions: positions ?? [],
-        adp: adp ?? 0,
+        adp: catalog_rank ?? adp ?? 0,
         value: value ?? 0,
-        tier: tier ?? 5,
+        tier: catalog_tier ?? tier ?? 5,
         baselineValue: baseline_value,
         adjustedValue: adjusted_value,
         recommendedBid: recommended_bid,

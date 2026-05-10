@@ -38,6 +38,7 @@ import {
   type LeagueCreateStep,
 } from "../features/leagues/createFlow";
 import "./LeaguesCreate.css";
+import { MODEL_RANK_TOOLTIP } from "../domain/rankTierLabels";
 
 export default function LeagueCreate() {
   usePageTitle("Create League");
@@ -49,14 +50,14 @@ export default function LeagueCreate() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
-    const cached = getPlayersCached("adp");
+    const cached = getPlayersCached("catalog_rank");
     return cached
       ? cached.map((p: ApiPlayer) => toLeagueFormPlayer(p))
       : [];
   });
 
   useEffect(() => {
-    void getPlayers("adp").then((apiPlayers: ApiPlayer[]) =>
+    void getPlayers("catalog_rank").then((apiPlayers: ApiPlayer[]) =>
       setKeeperPlayers(apiPlayers.map((p) => toLeagueFormPlayer(p))),
     );
   }, []);
@@ -549,8 +550,11 @@ export default function LeagueCreate() {
                           <div className="lc-available-th lc-available-th--pos">
                             Pos
                           </div>
-                          <div className="lc-available-th lc-available-th--adp">
-                            ADP
+                          <div
+                            className="lc-available-th lc-available-th--adp"
+                            title={MODEL_RANK_TOOLTIP}
+                          >
+                            Model rank
                           </div>
                           <span
                             className="lc-available-th lc-available-th--action lc-available-th--action-spacer"
@@ -611,7 +615,7 @@ export default function LeagueCreate() {
                                   ))}
                               </div>
                               <div className="league-create-player-adp">
-                                {player.adp ?? "—"}
+                                {player.catalog_rank ?? "—"}
                               </div>
 
                               <div className="lc-keeper-draft-trigger-cell">
@@ -652,7 +656,7 @@ export default function LeagueCreate() {
                                 assignableSlots={openSlots}
                                 defaultCost={
                                   player.value ??
-                                  Math.floor(player.adp * 2 + 10)
+                                  Math.floor(player.catalog_rank * 2 + 10)
                                 }
                                 onCancel={() => setKeeperDraftPlayerId(null)}
                                 onDraft={(slot, cost, contract) => {

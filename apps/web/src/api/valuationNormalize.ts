@@ -253,7 +253,43 @@ export function normalizeValuationResultRow(
   ).trim();
   const name = String(row.name ?? "");
   const position = String(row.position ?? "");
-  const tier = readFiniteFromRecord(row, ["tier"]) ?? 0;
+  const tierLegacy = readFiniteFromRecord(row, ["tier"]);
+  const auction_tierExplicit = readFiniteFromRecord(row, [
+    "auction_tier",
+    "auctionTier",
+  ]);
+  const auction_tier =
+    auction_tierExplicit ?? tierLegacy ?? 0;
+  const baseline_tier = readFiniteFromRecord(row, [
+    "baseline_tier",
+    "baselineTier",
+  ]);
+  const auction_rank =
+    readFiniteFromRecord(row, ["auction_rank", "auctionRank"]) ??
+    readFiniteFromRecord(row, ["adp"]);
+  const baseline_rank = readFiniteFromRecord(row, [
+    "baseline_rank",
+    "baselineRank",
+  ]);
+  const market_adp = readFiniteFromRecord(row, ["market_adp", "marketAdp"]);
+  const market_adp_source = readNonEmptyString(
+    row.market_adp_source ?? row.marketAdpSource,
+  );
+  const market_adp_updated_at = readNonEmptyString(
+    row.market_adp_updated_at ?? row.marketAdpUpdatedAt,
+  );
+  const market_adp_min = readFiniteFromRecord(row, [
+    "market_adp_min",
+    "marketAdpMin",
+  ]);
+  const market_adp_max = readFiniteFromRecord(row, [
+    "market_adp_max",
+    "marketAdpMax",
+  ]);
+  const market_pick_count = readFiniteFromRecord(row, [
+    "market_pick_count",
+    "marketPickCount",
+  ]);
   const baseline_value =
     readFiniteFromRecord(row, ["baseline_value", "baselineValue"]) ?? 0;
   const auctionVal = readFiniteFromRecord(row, ["auction_value", "auctionValue"]);
@@ -279,19 +315,29 @@ export function normalizeValuationResultRow(
     player_id,
     name,
     position,
-    tier,
+    tier: auction_tier,
     baseline_value,
     adjusted_value,
     indicator,
   };
+  out.auction_tier = auction_tier;
+  if (baseline_tier !== undefined) out.baseline_tier = baseline_tier;
+  if (auction_rank !== undefined) out.auction_rank = auction_rank;
+  if (baseline_rank !== undefined) out.baseline_rank = baseline_rank;
+  if (market_adp !== undefined) out.market_adp = market_adp;
+  if (market_adp_source !== undefined) out.market_adp_source = market_adp_source;
+  if (market_adp_updated_at !== undefined)
+    out.market_adp_updated_at = market_adp_updated_at;
+  if (market_adp_min !== undefined) out.market_adp_min = market_adp_min;
+  if (market_adp_max !== undefined) out.market_adp_max = market_adp_max;
+  if (market_pick_count !== undefined) out.market_pick_count = market_pick_count;
   if (auctionVal !== undefined) out.auction_value = auctionVal;
   else if (adjVal !== undefined) out.auction_value = adjVal;
   if (recommended_bid !== undefined) out.recommended_bid = recommended_bid;
   if (team_adjusted_value !== undefined) out.team_adjusted_value = team_adjusted_value;
   if (edge !== undefined) out.edge = edge;
 
-  const adp = readFiniteFromRecord(row, ["adp"]);
-  if (adp !== undefined) out.adp = adp;
+  if (auction_rank !== undefined) out.adp = auction_rank;
 
   const inflation_model = row.inflation_model;
   if (inflation_model === "replacement_slots_v2") {
@@ -356,6 +402,28 @@ export function mergeValuationBoardRowIntoPrevious(
     firstFinite(incoming.adjusted_value, previous.adjusted_value) ??
     previous.adjusted_value;
   merged.auction_value = firstFinite(incoming.auction_value, previous.auction_value);
+  merged.auction_rank = firstFinite(incoming.auction_rank, previous.auction_rank);
+  merged.auction_tier = firstFinite(incoming.auction_tier, previous.auction_tier);
+  merged.baseline_rank = firstFinite(incoming.baseline_rank, previous.baseline_rank);
+  merged.baseline_tier = firstFinite(incoming.baseline_tier, previous.baseline_tier);
+  merged.market_adp = firstFinite(incoming.market_adp, previous.market_adp);
+  merged.adp = firstFinite(incoming.adp, previous.adp);
+  merged.market_adp_source =
+    incoming.market_adp_source ?? previous.market_adp_source;
+  merged.market_adp_updated_at =
+    incoming.market_adp_updated_at ?? previous.market_adp_updated_at;
+  merged.market_adp_min = firstFinite(
+    incoming.market_adp_min,
+    previous.market_adp_min,
+  );
+  merged.market_adp_max = firstFinite(
+    incoming.market_adp_max,
+    previous.market_adp_max,
+  );
+  merged.market_pick_count = firstFinite(
+    incoming.market_pick_count,
+    previous.market_pick_count,
+  );
 
   merged.recommended_bid_note =
     incoming.recommended_bid_note ?? previous.recommended_bid_note;

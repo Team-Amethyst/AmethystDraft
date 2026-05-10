@@ -1,4 +1,5 @@
 import type { Player } from "../types/player";
+import { displayAuctionTier } from "../domain/playerRankTier";
 import { leagueWideAuctionDollars } from "./valuation";
 
 export type TierGroup = { tier: string | number; players: Player[] };
@@ -21,7 +22,7 @@ export function groupPlayersByTier(
   const map = new Map<string | number, Player[]>();
 
   for (const p of players) {
-    const key = p.tier ?? "unassigned";
+    const key = displayAuctionTier(p) ?? p.catalog_tier ?? "unassigned";
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(p);
   }

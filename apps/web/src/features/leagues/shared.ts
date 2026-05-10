@@ -64,7 +64,7 @@ export function toLeagueFormPlayer(p: ApiPlayer): Player {
     name: p.name,
     team: p.team,
     pos: p.positions?.join("/") || p.position,
-    adp: p.adp,
+    catalog_rank: p.catalog_rank,
     value: p.value,
     headshot: p.headshot,
     positions: p.positions,

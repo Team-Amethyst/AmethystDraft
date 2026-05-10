@@ -8,9 +8,11 @@ export interface PlayerData {
   position: string;
   positions: string[];
   age: number;
-  adp: number;
+  catalog_rank: number;
   value: number;
-  tier: number;
+  catalog_tier: number;
+  /** Present when a real external ADP source exists (optional on catalog build). */
+  market_adp?: number;
   headshot: string;
   stats: {
     batting?: {
@@ -154,19 +156,36 @@ export function filterByPlayerPool(
   return players;
 }
 
-export function applyAdpByValue(players: PlayerData[]): PlayerData[] {
+export function applyCatalogRankByValue(players: PlayerData[]): PlayerData[] {
   return [...players]
     .sort((a, b) => b.value - a.value)
-    .map((p, i) => ({ ...p, adp: i + 1 }));
+    .map((p, i) => ({ ...p, catalog_rank: i + 1 }));
 }
+
+/** @deprecated Use {@link applyCatalogRankByValue}. */
+export const applyAdpByValue = applyCatalogRankByValue;
 
 export function sortPlayers(
   players: PlayerData[],
-  sortBy: "value" | "adp" | "name",
+  sortBy: "value" | "catalog_rank" | "name" | "market_adp" | "adp",
 ): PlayerData[] {
+  const mode =
+    sortBy === "adp" ? "catalog_rank" : sortBy;
   const result = [...players];
-  if (sortBy === "name") result.sort((a, b) => a.name.localeCompare(b.name));
-  else if (sortBy === "adp") result.sort((a, b) => a.adp - b.adp);
-  else result.sort((a, b) => b.value - a.value);
+  if (mode === "name") result.sort((a, b) => a.name.localeCompare(b.name));
+  else if (mode === "catalog_rank")
+    result.sort((a, b) => a.catalog_rank - b.catalog_rank);
+  else if (mode === "market_adp") {
+    result.sort((a, b) => {
+      const ma = a.market_adp;
+      const mb = b.market_adp;
+      const fa = typeof ma === "number" && Number.isFinite(ma);
+      const fb = typeof mb === "number" && Number.isFinite(mb);
+      if (!fa && !fb) return 0;
+      if (!fa) return 1;
+      if (!fb) return -1;
+      return ma - mb;
+    });
+  } else result.sort((a, b) => b.value - a.value);
   return result;
 }

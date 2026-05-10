@@ -10,12 +10,13 @@ function minimalPlayer(
     team: "TST",
     positions: overrides.positions ?? [overrides.position],
     age: 28,
-    adp: 100,
+    catalog_rank: 100,
     value: 1,
-    tier: 3,
+    catalog_tier: 3,
     headshot: "",
     stats: {} as Player["stats"],
     projection: {} as Player["projection"],
+    outlook: "",
     ...overrides,
   } as Player;
 }

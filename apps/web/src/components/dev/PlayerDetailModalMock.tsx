@@ -16,8 +16,8 @@ const SAMPLE_PLAYER = {
       </svg>`,
     ),
   team: "LAD",
-  adp: 3,
-  tier: 1,
+  modelRank: 3,
+  modelTier: 1,
   positions: ["DH", "SP"] as const,
   age: 30,
   mlbId: 660271,
@@ -57,7 +57,7 @@ export default function PlayerDetailModalMock() {
                 <div>
                   <h2 className="pdm-mock-name">{p.name}</h2>
                   <p className="pdm-mock-meta">
-                    {p.team} · ADP {p.adp} · Tier {p.tier}
+                    {p.team} · Model rank {p.modelRank} · Model tier {p.modelTier}
                   </p>
                   <div className="pdm-mock-pos-row" aria-label="Positions">
                     {p.positions.map((pos) => (

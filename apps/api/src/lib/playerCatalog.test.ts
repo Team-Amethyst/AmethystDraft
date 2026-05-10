@@ -16,9 +16,9 @@ function makePlayer(overrides: Partial<PlayerData>): PlayerData {
     position: "OF",
     positions: ["OF"],
     age: 27,
-    adp: 0,
+    catalog_rank: 0,
     value: 10,
-    tier: 3,
+    catalog_tier: 3,
     headshot: "",
     stats: {},
     projection: {},
@@ -101,10 +101,10 @@ describe("applyAdpByValue and sortPlayers", () => {
     makePlayer({ id: "b", name: "A", value: 30 }),
   ];
 
-  it("assigns adp based on descending value", () => {
+  it("assigns catalog_rank based on descending value", () => {
     const withAdp = applyAdpByValue(players);
-    expect(withAdp.find((p) => p.id === "b")?.adp).toBe(1);
-    expect(withAdp.find((p) => p.id === "a")?.adp).toBe(2);
+    expect(withAdp.find((p) => p.id === "b")?.catalog_rank).toBe(1);
+    expect(withAdp.find((p) => p.id === "a")?.catalog_rank).toBe(2);
   });
 
   it("sorts by name when requested", () => {

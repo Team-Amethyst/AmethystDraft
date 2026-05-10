@@ -1,15 +1,22 @@
 import { describe, it, expect } from "vitest";
 import { groupPlayersByTier, calculateTierStats } from "./tiers";
 
-type Player = { id: string; mlbId?: number; name?: string; tier?: number; position?: string; recommended_bid?: number };
+type Player = {
+  id: string;
+  mlbId?: number;
+  name?: string;
+  catalog_tier?: number;
+  position?: string;
+  recommended_bid?: number;
+};
 
 describe("groupPlayersByTier", () => {
   it("groups players by tier and sorts numeric tiers ascending with unassigned last", () => {
     const players = [
-      { id: "p1", name: "A", tier: 2 },
-      { id: "p2", name: "B", tier: 1 },
+      { id: "p1", name: "A", catalog_tier: 2 },
+      { id: "p2", name: "B", catalog_tier: 1 },
       { id: "p3", name: "C" },
-      { id: "p4", name: "D", tier: 3 },
+      { id: "p4", name: "D", catalog_tier: 3 },
     ] as unknown as Player[];
 
     const groups = groupPlayersByTier(players as any);
@@ -33,9 +40,27 @@ describe("groupPlayersByTier", () => {
 describe("calculateTierStats", () => {
   it("calculates position counts and value metrics per tier", () => {
     const players = [
-      { id: "p1", name: "A", tier: 1, position: "SS", recommended_bid: 50 },
-      { id: "p2", name: "B", tier: 1, position: "SS", recommended_bid: 48 },
-      { id: "p3", name: "C", tier: 2, position: "C", recommended_bid: 30 },
+      {
+        id: "p1",
+        name: "A",
+        catalog_tier: 1,
+        position: "SS",
+        recommended_bid: 50,
+      },
+      {
+        id: "p2",
+        name: "B",
+        catalog_tier: 1,
+        position: "SS",
+        recommended_bid: 48,
+      },
+      {
+        id: "p3",
+        name: "C",
+        catalog_tier: 2,
+        position: "C",
+        recommended_bid: 30,
+      },
     ] as unknown as Player[];
 
     const groups = groupPlayersByTier(players as any);
@@ -50,8 +75,18 @@ describe("calculateTierStats", () => {
 
   it("tracks drafted players and calculates value cliff", () => {
     const players = [
-      { id: "p1", tier: 1, position: "SS", recommended_bid: 50 },
-      { id: "p2", tier: 2, position: "SS", recommended_bid: 30 },
+      {
+        id: "p1",
+        catalog_tier: 1,
+        position: "SS",
+        recommended_bid: 50,
+      },
+      {
+        id: "p2",
+        catalog_tier: 2,
+        position: "SS",
+        recommended_bid: 30,
+      },
     ] as unknown as Player[];
 
     const groups = groupPlayersByTier(players as any);

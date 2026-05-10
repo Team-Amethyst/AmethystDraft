@@ -5,7 +5,7 @@ import type { Player } from "../types/player";
 function p(
   id: string,
   name: string,
-  adp: number,
+  catalogRank: number,
   overrides: Partial<Player> = {},
 ): Player {
   return {
@@ -16,7 +16,7 @@ function p(
     positions: ["OF"],
     tier: 1,
     value: 10,
-    adp,
+    catalog_rank: catalogRank,
     ...overrides,
   } as Player;
 }
@@ -36,7 +36,7 @@ describe("searchRankedAvailablePlayers", () => {
     );
   });
 
-  it("prefers full-name prefix over token-only prefix, then ADP", () => {
+  it("prefers full-name prefix over token-only prefix, then model rank", () => {
     const r = searchRankedAvailablePlayers(players, drafted, "judge", { limit: 8 });
     expect(r[0]?.name).toBe("Judge Judy");
     const r2 = searchRankedAvailablePlayers(players, drafted, "aaron", { limit: 8 });

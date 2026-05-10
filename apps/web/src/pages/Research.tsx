@@ -126,10 +126,10 @@ export default function Research() {
   });
 
   const [players, setPlayers] = useState<Player[]>(
-    () => getPlayersCached("adp") ?? [],
+    () => getPlayersCached("catalog_rank") ?? [],
   );
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(
-    () => getPlayersCached("adp") === null,
+    () => getPlayersCached("catalog_rank") === null,
   );
   const [playersError, setPlayersError] = useState("");
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
@@ -237,7 +237,7 @@ export default function Research() {
   useEffect(() => {
     const loadPlayers = async () => {
       const cached = getPlayersCached(
-        "adp",
+        "catalog_rank",
         league?.posEligibilityThreshold,
         league?.playerPool,
       );
@@ -246,7 +246,7 @@ export default function Research() {
 
       try {
         const playersFromApi = await getPlayers(
-          "adp",
+          "catalog_rank",
           league?.posEligibilityThreshold,
           league?.playerPool,
         );
@@ -436,7 +436,7 @@ export default function Research() {
     if (fromLoaded) return fromLoaded;
 
     const playersFromApi = await getPlayers(
-      "adp",
+      "catalog_rank",
       league?.posEligibilityThreshold,
       league?.playerPool,
     );

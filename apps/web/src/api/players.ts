@@ -1,5 +1,18 @@
 import type { Player } from "../types/player";
+import { normalizeCatalogPlayer } from "../domain/normalizeCatalogPlayer";
 import { requestJson } from "./client";
+
+/** Catalog list ordering for `/api/players`. `adp` is accepted as an alias of `catalog_rank`. */
+export type PlayersCatalogSortBy =
+  | "adp"
+  | "catalog_rank"
+  | "value"
+  | "name"
+  | "market_adp";
+
+function sortKeyForApi(sortBy: PlayersCatalogSortBy): string {
+  return sortBy === "adp" ? "catalog_rank" : sortBy;
+}
 
 interface PlayersResponse {
   players: Player[];
@@ -59,11 +72,11 @@ const depthChartCache = new Map<string, DepthChartResponse>();
 const depthChartCacheTime = new Map<string, number>();
 
 export function getPlayersCached(
-  sortBy: "adp" | "value" | "name" = "value",
+  sortBy: PlayersCatalogSortBy = "value",
   posEligibilityThreshold?: number,
   playerPool?: "Mixed" | "AL" | "NL",
 ): Player[] | null {
-  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
+  const cacheKey = `${sortKeyForApi(sortBy)}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
   const ts = playersCacheTime.get(cacheKey);
   if (ts && Date.now() - ts < CACHE_TTL_MS) {
     return playersCache.get(cacheKey) ?? null;
@@ -72,16 +85,17 @@ export function getPlayersCached(
 }
 
 export async function getPlayers(
-  sortBy: "adp" | "value" | "name" = "value",
+  sortBy: PlayersCatalogSortBy = "value",
   posEligibilityThreshold?: number,
   playerPool?: "Mixed" | "AL" | "NL",
 ): Promise<Player[]> {
-  const cacheKey = `${sortBy}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
+  const apiSort = sortKeyForApi(sortBy);
+  const cacheKey = `${apiSort}-${posEligibilityThreshold ?? 20}-${playerPool ?? "Mixed"}`;
   const ts = playersCacheTime.get(cacheKey);
   if (ts && Date.now() - ts < CACHE_TTL_MS && playersCache.has(cacheKey)) {
     return playersCache.get(cacheKey)!;
   }
-  const query = new URLSearchParams({ sortBy });
+  const query = new URLSearchParams({ sortBy: apiSort });
   if (posEligibilityThreshold !== undefined) {
     query.set("posEligibilityThreshold", String(posEligibilityThreshold));
   }
@@ -93,7 +107,9 @@ export async function getPlayers(
     {},
     "Failed to fetch players",
   );
-  const players = data.players ?? [];
+  const players = (data.players ?? []).map((p) =>
+    normalizeCatalogPlayer(p as unknown as Record<string, unknown>),
+  );
   playersCache.set(cacheKey, players);
   playersCacheTime.set(cacheKey, Date.now());
   return players;

@@ -124,7 +124,9 @@ export const catalogBatchValuesBodySchema = z.object({
 });
 
 export const playersQuerySchema = z.object({
-  sortBy: z.enum(["adp", "value", "name"]).optional(),
+  sortBy: z
+    .enum(["adp", "catalog_rank", "value", "name", "market_adp"])
+    .optional(),
   playerPool: playerPoolQuerySchema,
   posEligibilityThreshold: z.coerce.number().int().min(0).max(162).optional(),
 });

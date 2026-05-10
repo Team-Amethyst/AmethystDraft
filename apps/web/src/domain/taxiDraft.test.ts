@@ -14,9 +14,9 @@ import type { TaxiRosters } from "../types/taxiDraft";
 import type { Player } from "../types/player";
 
 const samplePlayers: Player[] = [
-  { id: "p1", mlbId: 1, name: "Alpha", team: "ATL", position: "1B", age: 25, adp: 10, value: 50, tier: 1, headshot: "", stats: {}, projection: {}, outlook: "" },
-  { id: "p2", mlbId: 2, name: "Bravo", team: "BOS", position: "2B", age: 26, adp: 20, value: 40, tier: 2, headshot: "", stats: {}, projection: {}, outlook: "" },
-  { id: "p3", mlbId: 3, name: "Charlie", team: "CHC", position: "3B", age: 27, adp: 30, value: 30, tier: 3, headshot: "", stats: {}, projection: {}, outlook: "" },
+  { id: "p1", mlbId: 1, name: "Alpha", team: "ATL", position: "1B", age: 25, catalog_rank: 10, value: 50, catalog_tier: 1, headshot: "", stats: {}, projection: {}, outlook: "" },
+  { id: "p2", mlbId: 2, name: "Bravo", team: "BOS", position: "2B", age: 26, catalog_rank: 20, value: 40, catalog_tier: 2, headshot: "", stats: {}, projection: {}, outlook: "" },
+  { id: "p3", mlbId: 3, name: "Charlie", team: "CHC", position: "3B", age: 27, catalog_rank: 30, value: 30, catalog_tier: 3, headshot: "", stats: {}, projection: {}, outlook: "" },
 ];
 
 const sampleRosters: TaxiRosters = {

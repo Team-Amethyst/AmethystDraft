@@ -30,6 +30,7 @@ import {
   toLeagueFormPlayer,
 } from "../features/leagues/shared";
 import "./LeagueSettings.css";
+import { MODEL_RANK_TOOLTIP } from "../domain/rankTierLabels";
 
 type Section = "setup" | "scoring" | "teams" | "keepers";
 
@@ -101,7 +102,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
   );
   const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
     const cached = getPlayersCached(
-      "adp",
+      "catalog_rank",
       league.posEligibilityThreshold,
       league.playerPool,
     );
@@ -197,7 +198,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
         /* non-fatal */
       });
     void getPlayers(
-      "adp",
+      "catalog_rank",
       league.posEligibilityThreshold,
       league.playerPool,
     ).then((apiPlayers: ApiPlayer[]) =>
@@ -209,7 +210,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
   // Re-fetch keeper player list when the form's playerPool or posEligibilityThreshold changes
   useEffect(() => {
     const apiPool = poolFormToApi(playerPool);
-    void getPlayers("adp", posEligibilityThreshold, apiPool).then(
+    void getPlayers("catalog_rank", posEligibilityThreshold, apiPool).then(
       (apiPlayers: ApiPlayer[]) =>
         setKeeperPlayers(apiPlayers.map((p) => toLeagueFormPlayer(p))),
     );
@@ -539,8 +540,11 @@ function LeagueSettingsForm({ league }: { league: League }) {
                             <div className="ls-available-th ls-available-th--pos">
                               Pos
                             </div>
-                            <div className="ls-available-th ls-available-th--adp">
-                              ADP
+                            <div
+                              className="ls-available-th ls-available-th--adp"
+                              title={MODEL_RANK_TOOLTIP}
+                            >
+                              Model rank
                             </div>
                             <span
                               className="ls-available-th ls-available-th--action ls-available-th--action-spacer"
@@ -586,7 +590,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                                     ))}
                                 </div>
                                 <div className="ls-player-adp">
-                                  {player.adp ?? "—"}
+                                  {player.catalog_rank ?? "—"}
                                 </div>
                                 <div className="keeper-draft-popover-anchor ls-keeper-draft-trigger-cell">
                                   {openSlots.length === 0 ? (
@@ -632,7 +636,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                                       assignableSlots={openSlots}
                                       defaultCost={
                                         player.value ??
-                                        Math.floor(player.adp * 2 + 10)
+                                        Math.floor(player.catalog_rank * 2 + 10)
                                       }
                                       onClose={() =>
                                         setKeeperDraftPlayerId(null)

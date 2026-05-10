@@ -241,4 +241,70 @@ describe("valuationNormalize", () => {
     expect(merged.valuation_explain).toEqual({ surplus_basis: "x" });
     expect(merged.recommended_bid_note).toBe("keep me");
   });
+
+  it("normalizeValuationResultRow maps market_adp metadata snake and camel", () => {
+    const snake = normalizeValuationResultRow({
+      player_id: "1",
+      name: "S",
+      position: "P",
+      tier: 1,
+      baseline_value: 1,
+      adjusted_value: 10,
+      indicator: "Fair Value",
+      market_adp: 42,
+      market_adp_source: " NFBC ",
+      market_adp_updated_at: "2026-01-02",
+      market_adp_min: 38,
+      market_adp_max: 46,
+      market_pick_count: 100,
+    });
+    expect(snake.market_adp).toBe(42);
+    expect(snake.market_adp_source).toBe("NFBC");
+    expect(snake.market_adp_updated_at).toBe("2026-01-02");
+    expect(snake.market_adp_min).toBe(38);
+    expect(snake.market_adp_max).toBe(46);
+    expect(snake.market_pick_count).toBe(100);
+
+    const camel = normalizeValuationResultRow({
+      playerId: "2",
+      name: "T",
+      position: "C",
+      tier: 1,
+      baselineValue: 2,
+      adjustedValue: 3,
+      indicator: "Fair Value",
+      marketAdp: 8,
+      marketAdpSource: "Source",
+      marketAdpUpdatedAt: "2026-03-04",
+      marketAdpMin: 6,
+      marketAdpMax: 11,
+      marketPickCount: 50,
+    });
+    expect(camel.market_adp).toBe(8);
+    expect(camel.market_adp_source).toBe("Source");
+    expect(camel.market_adp_updated_at).toBe("2026-03-04");
+    expect(camel.market_adp_min).toBe(6);
+    expect(camel.market_adp_max).toBe(11);
+    expect(camel.market_pick_count).toBe(50);
+  });
+
+  it("mergeValuationBoardRowIntoPrevious keeps prior market metadata when board omits", () => {
+    const prev = baseRow({
+      market_adp: 15,
+      market_adp_source: "NFBC",
+      market_adp_updated_at: "2026-02-01",
+      market_adp_min: 12,
+      market_adp_max: 18,
+      market_pick_count: 40,
+    });
+    const board = baseRow({ adjusted_value: 99 });
+    const merged = mergeValuationBoardRowIntoPrevious(prev, board);
+    expect(merged.market_adp).toBe(15);
+    expect(merged.market_adp_source).toBe("NFBC");
+    expect(merged.market_adp_updated_at).toBe("2026-02-01");
+    expect(merged.market_adp_min).toBe(12);
+    expect(merged.market_adp_max).toBe(18);
+    expect(merged.market_pick_count).toBe(40);
+    expect(merged.adjusted_value).toBe(99);
+  });
 });

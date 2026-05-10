@@ -8,9 +8,31 @@ export interface Player {
   position: string;
   positions?: string[];
   age: number;
-  adp: number;
+  /** Internal catalog model rank (not market ADP). */
+  catalog_rank: number;
+  /** Internal catalog model tier grouping. */
+  catalog_tier: number;
+  /** External draft-site ADP when Engine provides a real source. */
+  market_adp?: number;
+  /** Identifies the external ADP feed (e.g. site or vendor name). */
+  market_adp_source?: string;
+  /** ISO timestamp when market ADP was last refreshed. */
+  market_adp_updated_at?: string;
+  /** Lower bound of reported market ADP range when Engine provides it. */
+  market_adp_min?: number;
+  /** Upper bound of reported market ADP range when Engine provides it. */
+  market_adp_max?: number;
+  /** Sample size or draft count behind the market ADP aggregate when Engine provides it. */
+  market_pick_count?: number;
   value: number;
-  tier: number;
+  /** Rank by league auction value from latest valuation row (optional until merged). */
+  auction_rank?: number;
+  /** Tier by auction value within valuation response (optional until merged). */
+  auction_tier?: number;
+  /** Rank by baseline strength before auction economics. */
+  baseline_rank?: number;
+  /** Tier by baseline strength. */
+  baseline_tier?: number;
   baseline_value?: number;
   /** Engine league-wide auction list dollars when present (canonical with adjusted_value). */
   auction_value?: number;

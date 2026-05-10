@@ -5,8 +5,9 @@ import type { Player } from "../../types/player";
 export function PlayerIdentityCard({
   selectedPlayer,
   tierValue,
-  adpValue,
-  adpTitle,
+  rankLabel,
+  rankValue,
+  rankTitle,
   valueVsBidBadge,
   isInWatchlist,
   playerNote,
@@ -14,8 +15,9 @@ export function PlayerIdentityCard({
 }: {
   selectedPlayer: Player;
   tierValue: number;
-  adpValue: number;
-  adpTitle: string;
+  rankLabel: string;
+  rankValue: number;
+  rankTitle: string;
   valueVsBidBadge: {
     deltaText: string;
     label: string;
@@ -96,8 +98,8 @@ export function PlayerIdentityCard({
                 <span className="pac-meta-dot" aria-hidden>
                   ·
                 </span>
-                <span className="pac-meta-inline-adp" title={adpTitle}>
-                  ADP {adpValue}
+                <span className="pac-meta-inline-adp" title={rankTitle}>
+                  {rankLabel} {rankValue}
                 </span>
                 {valueVsBidBadge ? (
                   <>

@@ -96,9 +96,9 @@ function buildPlayer(form: FormState): Player {
     team:     form.team.trim().toUpperCase(),
     position: form.position,
     age:      parseInt(form.age) || 0,
-    adp:      999,         // custom players go to the bottom of ADP rankings
+    catalog_rank: 999,
     value:    0,
-    tier:     5,
+    catalog_tier: 5,
     headshot: "",          // no headshot for custom players
     outlook:  "",
     stats: {

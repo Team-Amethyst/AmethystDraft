@@ -4,7 +4,8 @@ import type { Player } from "../types/player";
 
 function player(
   id: string,
-  overrides: Partial<Player> & Pick<Player, "name" | "adp" | "tier">,
+  overrides: Partial<Player> &
+    Pick<Player, "name" | "catalog_rank" | "catalog_tier">,
 ): Player {
   return {
     id,
@@ -25,37 +26,51 @@ describe("sortPlayerTableRows", () => {
   const pitCols = ["ERA", "K"];
   const basis = "projections" as const;
 
-  it("sorts by adp ascending", () => {
+  it("sorts by catalog rank ascending", () => {
     const rows = [
       {
-        player: player("a", { name: "A", adp: 50, tier: 1 }),
+        player: player("a", { name: "A", catalog_rank: 50, catalog_tier: 1 }),
         isBatter: true,
         tags: [],
       },
       {
-        player: player("b", { name: "B", adp: 10, tier: 1 }),
+        player: player("b", { name: "B", catalog_rank: 10, catalog_tier: 1 }),
         isBatter: true,
         tags: [],
       },
     ];
-    const out = sortPlayerTableRows(rows, { col: "adp", dir: "asc" }, batCols, pitCols, "recommended_bid", basis);
+    const out = sortPlayerTableRows(
+      rows,
+      { col: "catalog_rank", dir: "asc" },
+      batCols,
+      pitCols,
+      "recommended_bid",
+      basis,
+    );
     expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);
   });
 
   it("sorts by tier descending", () => {
     const rows = [
       {
-        player: player("a", { name: "A", adp: 1, tier: 1 }),
+        player: player("a", { name: "A", catalog_rank: 1, catalog_tier: 1 }),
         isBatter: true,
         tags: [],
       },
       {
-        player: player("b", { name: "B", adp: 2, tier: 3 }),
+        player: player("b", { name: "B", catalog_rank: 2, catalog_tier: 3 }),
         isBatter: true,
         tags: [],
       },
     ];
-    const out = sortPlayerTableRows(rows, { col: "tier", dir: "desc" }, batCols, pitCols, "recommended_bid", basis);
+    const out = sortPlayerTableRows(
+      rows,
+      { col: "tier", dir: "desc" },
+      batCols,
+      pitCols,
+      "recommended_bid",
+      basis,
+    );
     expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);
   });
 
@@ -64,8 +79,8 @@ describe("sortPlayerTableRows", () => {
       {
         player: player("a", {
           name: "A",
-          adp: 1,
-          tier: 1,
+          catalog_rank: 1,
+          catalog_tier: 1,
           auction_value: 10,
           adjusted_value: 10,
         }),
@@ -75,8 +90,8 @@ describe("sortPlayerTableRows", () => {
       {
         player: player("b", {
           name: "B",
-          adp: 2,
-          tier: 1,
+          catalog_rank: 2,
+          catalog_tier: 1,
           adjusted_value: 50,
         }),
         isBatter: true,

@@ -19,6 +19,7 @@ import {
 } from "../../domain/auctionCenterValuation";
 import { AuctionMetricTile } from "./AuctionMetricTile";
 import { BidWhyThisBid } from "./BidWhyThisBid";
+import { displayAuctionTier } from "../../domain/playerRankTier";
 
 function fmtMoney(n: number | null) {
   return n != null ? formatDollar(n) : "—";
@@ -38,10 +39,11 @@ export function BidDecisionCard({
     cleanedPair != null
       ? valueMinusBidDeltaRounded(cleanedPair.yourValue, cleanedPair.bid)
       : null;
+  const auctionTier = displayAuctionTier(selectedPlayer);
   const bidRelativeStar =
-    typeof selectedPlayer.tier === "number" &&
-    selectedPlayer.tier >= 1 &&
-    selectedPlayer.tier <= 2;
+    typeof auctionTier === "number" &&
+    auctionTier >= 1 &&
+    auctionTier <= 2;
   const computedVerdict =
     computedDelta != null
       ? verdictFromValueMinusBid(computedDelta, {

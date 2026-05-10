@@ -1,4 +1,5 @@
 import type { Player } from "../../types/player";
+import { displayAuctionTier } from "../../domain/playerRankTier";
 import PosBadge from "../PosBadge";
 
 function dash(v: unknown): string {
@@ -22,9 +23,9 @@ export function MockIdentityBlock({
         <div className="pdlm-identity__meta">
           <span>{player.team}</span>
           <span className="pdlm-identity__sep">·</span>
-          <span>ADP {dash(player.adp)}</span>
+          <span>Model rank {dash(player.catalog_rank)}</span>
           <span className="pdlm-identity__sep">·</span>
-          <span>Tier {dash(player.tier)}</span>
+          <span>Tier {dash(displayAuctionTier(player))}</span>
         </div>
         <div className="pdlm-identity__pos">
           {positions.map((p) => (

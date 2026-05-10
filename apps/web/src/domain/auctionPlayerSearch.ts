@@ -30,7 +30,11 @@ export function searchRankedAvailablePlayers(
     return [{ p, score }];
   });
   return scored
-    .sort((a, b) => a.score - b.score || (a.p.adp ?? 999) - (b.p.adp ?? 999))
+    .sort(
+      (a, b) =>
+        a.score - b.score ||
+        (a.p.catalog_rank ?? 999) - (b.p.catalog_rank ?? 999),
+    )
     .map((x) => x.p)
     .slice(0, limit);
 }

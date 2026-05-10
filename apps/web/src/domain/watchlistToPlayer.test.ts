@@ -10,9 +10,9 @@ describe("playerFromWatchlistEntry", () => {
       team: "TST",
       position: "OF",
       positions: ["OF"],
-      adp: 12,
+      catalog_rank: 12,
       value: 5,
-      tier: 2,
+      catalog_tier: 2,
       recommended_bid: 10,
     };
     const pl = playerFromWatchlistEntry(w);

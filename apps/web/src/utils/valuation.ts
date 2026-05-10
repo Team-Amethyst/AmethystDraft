@@ -12,7 +12,20 @@ export type ValuationSortField =
 
 export interface ValuationShape {
   player_id: string;
+  /** Legacy Engine row tier (auction-relative); prefer auction_tier when present. */
   tier?: number;
+  auction_tier?: number;
+  baseline_tier?: number;
+  auction_rank?: number;
+  baseline_rank?: number;
+  market_adp?: number;
+  market_adp_source?: string;
+  market_adp_updated_at?: string;
+  market_adp_min?: number;
+  market_adp_max?: number;
+  market_pick_count?: number;
+  /** Legacy auction-rank slot on some payloads; prefer auction_rank. */
+  adp?: number;
   baseline_value?: number;
   auction_value?: number;
   adjusted_value?: number;
@@ -83,6 +96,28 @@ function readFiniteScalar(v: unknown): number | undefined {
     if (Number.isFinite(n)) return n;
   }
   return undefined;
+}
+
+/** Prefer trimmed non-empty incoming string; otherwise keep fallback (catalog / prior merge). */
+function mergeOptionalTrimmedString(
+  incoming: string | undefined | null,
+  fallback: string | undefined,
+): string | undefined {
+  if (typeof incoming === "string") {
+    const t = incoming.trim();
+    if (t !== "") return t;
+  }
+  return fallback;
+}
+
+/** Prefer primary when finite; used for optional numeric metadata from valuation rows. */
+function preferFiniteNumber(
+  primary: number | undefined,
+  fallback: number | undefined,
+): number | undefined {
+  const p = coerceNumber(primary);
+  if (p !== undefined) return p;
+  return coerceNumber(fallback);
 }
 
 /**
@@ -355,13 +390,13 @@ export function commandCenterBidDecision(
   const edgeFromRow =
     typeof row?.edge === "number" && Number.isFinite(row.edge) ? row.edge : undefined;
 
-  const tier = row?.tier;
+  const auctionTier = row?.auction_tier ?? row?.tier;
   const aggressive =
     (typeof edgeFromRow === "number" &&
       edgeFromRow > COMMAND_CENTER_EDGE_AGGRESSIVE_USD) ||
-    (typeof tier === "number" &&
-      tier >= 1 &&
-      tier <= COMMAND_CENTER_TOP_TIER_MAX);
+    (typeof auctionTier === "number" &&
+      auctionTier >= 1 &&
+      auctionTier <= COMMAND_CENTER_TOP_TIER_MAX);
 
   const baseAgg = firstFiniteDollar([rawTA, rawR, rawA, rawB, playerValue]);
   const baseCon = firstFiniteDollar([rawR, rawTA, rawA, rawB, playerValue]);
@@ -503,9 +538,40 @@ export function mergePlayerWithValuation(
   valuation?: ValuationShape,
 ): Player {
   if (!valuation) return player;
+  const auctionTier =
+    coerceNumber(valuation.auction_tier) ?? coerceNumber(valuation.tier);
+  const auctionRank =
+    coerceNumber(valuation.auction_rank) ?? coerceNumber(valuation.adp);
+  const baselineTier = coerceNumber(valuation.baseline_tier);
+  const baselineRank = coerceNumber(valuation.baseline_rank);
+  const marketAdp = coerceNumber(valuation.market_adp);
   return {
     ...player,
-    tier: coerceNumber(valuation.tier) ?? player.tier,
+    auction_tier: auctionTier ?? player.auction_tier,
+    auction_rank: auctionRank ?? player.auction_rank,
+    baseline_tier: baselineTier ?? player.baseline_tier,
+    baseline_rank: baselineRank ?? player.baseline_rank,
+    market_adp: marketAdp ?? player.market_adp,
+    market_adp_source: mergeOptionalTrimmedString(
+      valuation.market_adp_source,
+      player.market_adp_source,
+    ),
+    market_adp_updated_at: mergeOptionalTrimmedString(
+      valuation.market_adp_updated_at,
+      player.market_adp_updated_at,
+    ),
+    market_adp_min: preferFiniteNumber(
+      valuation.market_adp_min,
+      player.market_adp_min,
+    ),
+    market_adp_max: preferFiniteNumber(
+      valuation.market_adp_max,
+      player.market_adp_max,
+    ),
+    market_pick_count: preferFiniteNumber(
+      valuation.market_pick_count,
+      player.market_pick_count,
+    ),
     baseline_value: coerceNumber(valuation.baseline_value) ?? player.baseline_value,
     auction_value: coerceNumber(valuation.auction_value) ?? player.auction_value,
     adjusted_value: coerceNumber(valuation.adjusted_value) ?? player.adjusted_value,
@@ -568,12 +634,30 @@ export function mergePlayerWithFocusedExplainEnrichment(
     }
   }
 
+  const boardAuctionTier =
+    coerceNumber(boardValuation?.auction_tier) ??
+    coerceNumber(boardValuation?.tier);
+  const focusedAuctionTier =
+    coerceNumber(focused.auction_tier) ?? coerceNumber(focused.tier);
+
   return {
     ...next,
-    tier:
-      coerceNumber(boardValuation?.tier) !== undefined
-        ? next.tier
-        : coerceNumber(focused.tier) ?? next.tier,
+    auction_tier:
+      boardAuctionTier !== undefined ? next.auction_tier : focusedAuctionTier ?? next.auction_tier,
+    market_adp_source: mergeOptionalTrimmedString(
+      focused.market_adp_source,
+      next.market_adp_source,
+    ),
+    market_adp_updated_at: mergeOptionalTrimmedString(
+      focused.market_adp_updated_at,
+      next.market_adp_updated_at,
+    ),
+    market_adp_min: preferFiniteNumber(focused.market_adp_min, next.market_adp_min),
+    market_adp_max: preferFiniteNumber(focused.market_adp_max, next.market_adp_max),
+    market_pick_count: preferFiniteNumber(
+      focused.market_pick_count,
+      next.market_pick_count,
+    ),
     inflation_model: focused.inflation_model ?? next.inflation_model,
     indicator: focused.indicator ?? next.indicator,
     explain_v2: focused.explain_v2 ?? next.explain_v2,

@@ -15,7 +15,7 @@ import { amethyst } from "../lib/amethyst";
 import { forwardEngineCorrelationHeaders } from "../lib/engineResponseMeta";
 import { playerApiTestKeyAuth } from "../middleware/playerApiTestKeyAuth";
 import {
-  applyAdpByValue,
+  applyCatalogRankByValue,
   filterByPlayerPool,
   sortPlayers,
 } from "../lib/playerCatalog";
@@ -873,7 +873,15 @@ const getPlayers: RequestHandler = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const sortBy = (req.query.sortBy as string) || "value";
+    const rawSort = (req.query.sortBy as string) || "value";
+    const sortKey =
+      rawSort === "adp" || rawSort === "catalog_rank"
+        ? "catalog_rank"
+        : rawSort === "market_adp"
+          ? "market_adp"
+          : rawSort === "name"
+            ? "name"
+            : "value";
     const playerPool = (req.query.playerPool as string) || "Mixed";
     const threshold = Number(req.query.posEligibilityThreshold ?? 20);
 
@@ -882,10 +890,19 @@ const getPlayers: RequestHandler = async (
       valueFiltered,
       playerPool as "Mixed" | "AL" | "NL",
     );
-    const withAdp = applyAdpByValue(poolFiltered);
-    const players = sortPlayers(withAdp, sortBy as "value" | "adp" | "name");
+    const withRank = applyCatalogRankByValue(poolFiltered);
+    const players = sortPlayers(withRank, sortKey);
 
-    res.json({ players, count: players.length });
+    res.json({
+      players: players.map((p) => ({
+        ...p,
+        /** @deprecated Use `catalog_rank`. Mirrored for older clients. */
+        adp: p.catalog_rank,
+        /** @deprecated Use `catalog_tier`. Mirrored for older clients. */
+        tier: p.catalog_tier,
+      })),
+      count: players.length,
+    });
   } catch (err) {
     if (err instanceof AppError) {
       next(err);

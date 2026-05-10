@@ -72,7 +72,11 @@ export default function TaxiDraft() {
 
   // Load players for search
   useEffect(() => {
-    const cached = getPlayersCached("adp", league?.posEligibilityThreshold, league?.playerPool);
+    const cached = getPlayersCached(
+      "catalog_rank",
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+    );
     if (cached) {
       setAllPlayers(cached);
     }

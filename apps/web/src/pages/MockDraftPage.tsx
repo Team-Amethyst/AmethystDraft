@@ -49,7 +49,7 @@ export default function MockDraftPage() {
 
   // Get players from cache (already loaded by Research page)
   const allPlayers = useMemo(() => {
-    const cached = getPlayersCached("adp") ?? [];
+    const cached = getPlayersCached("catalog_rank") ?? [];
     return [...customPlayers, ...cached];
   }, [customPlayers]);
 

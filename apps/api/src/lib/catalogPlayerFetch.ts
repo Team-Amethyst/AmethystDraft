@@ -270,9 +270,9 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
           "hitting",
         ),
         age: calcAge(bio?.birthDate),
-        adp: 0,
+        catalog_rank: 0,
         value,
-        tier: assignTier(value),
+        catalog_tier: assignTier(value),
         headshot:
           "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" +
           pid +
@@ -354,9 +354,9 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
           "pitching",
         ),
         age: calcAge(bio?.birthDate),
-        adp: 0,
+        catalog_rank: 0,
         value,
-        tier: assignTier(value),
+        catalog_tier: assignTier(value),
         headshot:
           "https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/" +
           pid +

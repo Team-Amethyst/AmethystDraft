@@ -40,9 +40,9 @@ export function valuationResultNumbersEqual(
     a.recommended_bid === b.recommended_bid &&
     a.team_adjusted_value === b.team_adjusted_value &&
     a.edge === b.edge &&
-    a.tier === b.tier &&
+    (a.auction_tier ?? a.tier) === (b.auction_tier ?? b.tier) &&
     a.indicator === b.indicator &&
-    a.adp === b.adp
+    (a.auction_rank ?? a.adp) === (b.auction_rank ?? b.adp)
   );
 }
 
@@ -55,8 +55,8 @@ export function valuationResultStableKey(v: ValuationResult): string {
     v.recommended_bid ?? "",
     v.team_adjusted_value ?? "",
     v.edge ?? "",
-    v.tier,
+    v.auction_tier ?? v.tier,
     v.indicator,
-    v.adp ?? "",
+    v.auction_rank ?? v.adp ?? "",
   ].join("|");
 }

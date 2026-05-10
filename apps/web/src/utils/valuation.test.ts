@@ -43,9 +43,9 @@ function basePlayer(): Player {
     position: "OF",
     positions: ["OF"],
     age: 28,
-    adp: 20,
+    catalog_rank: 20,
     value: 24,
-    tier: 3,
+    catalog_tier: 3,
     headshot: "",
     stats: {},
     projection: {},
@@ -57,7 +57,7 @@ describe("valuation helpers", () => {
   it("merges all new valuation fields from engine row", () => {
     const merged = mergePlayerWithValuation(basePlayer(), {
       player_id: "1",
-      tier: 2,
+      auction_tier: 2,
       baseline_value: 20,
       auction_value: 28,
       adjusted_value: 26,
@@ -66,7 +66,7 @@ describe("valuation helpers", () => {
       inflation_model: "replacement_slots_v2",
       indicator: "Steal",
     });
-    expect(merged.tier).toBe(2);
+    expect(merged.auction_tier).toBe(2);
     expect(merged.baseline_value).toBe(20);
     expect(merged.auction_value).toBe(28);
     expect(merged.adjusted_value).toBe(26);
@@ -290,12 +290,13 @@ describe("valuation helpers", () => {
     ).toBe(true);
   });
 
-  it("preserves player tier when valuation tier is missing", () => {
+  it("preserves catalog tier when valuation omits auction tier", () => {
     const merged = mergePlayerWithValuation(basePlayer(), {
       player_id: "1",
       baseline_value: 20,
     });
-    expect(merged.tier).toBe(3);
+    expect(merged.catalog_tier).toBe(3);
+    expect(merged.auction_tier).toBeUndefined();
   });
 
   it("uses strict fallback order for valuation numbers (league auction before roster fields)", () => {

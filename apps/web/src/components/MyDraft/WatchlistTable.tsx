@@ -194,7 +194,7 @@ export default function WatchlistTable({
 function derivePriority(player: WatchlistPlayer): Priority {
   // TODO(logic): Replace with backend scoring/recommendation priority.
   const decisionValue = resolveValuationNumber(player, "team_adjusted_value");
-  if (decisionValue >= 45 || player.tier <= 2) return "High";
-  if (decisionValue >= 28 || player.tier === 3) return "Medium";
+  if (decisionValue >= 45 || player.catalog_tier <= 2) return "High";
+  if (decisionValue >= 28 || player.catalog_tier === 3) return "Medium";
   return "Low";
 }

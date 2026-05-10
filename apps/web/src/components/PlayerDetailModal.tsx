@@ -26,6 +26,15 @@ import {
 import { useEffect } from "react";
 import PosBadge from "./PosBadge";
 import "./PlayerDetailModal.css";
+import {
+  AUCTION_RANK_TOOLTIP,
+  AUCTION_TIER_TOOLTIP,
+  marketAdpDetailTooltip,
+  MODEL_RANK_TOOLTIP,
+  MODEL_TIER_TOOLTIP,
+  STRENGTH_RANK_TOOLTIP,
+  STRENGTH_TIER_TOOLTIP,
+} from "../domain/rankTierLabels";
 
 /** Must match `isValuationContextDebugEnabled` in Research.tsx (`valuationContextDev` prop). */
 function isValuationContextDebugEnabled(): boolean {
@@ -369,11 +378,85 @@ export default function PlayerDetailModal({
                       <span className="pdm-meta-sep" aria-hidden="true">
                         ·
                       </span>
-                      <span className="pdm-meta-piece">ADP {valueOrDash(player.adp)}</span>
+                      <span className="pdm-meta-piece" title={MODEL_RANK_TOOLTIP}>
+                        Model rank {valueOrDash(player.catalog_rank)}
+                      </span>
+                      {typeof player.auction_rank === "number" &&
+                        Number.isFinite(player.auction_rank) && (
+                          <>
+                            <span className="pdm-meta-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span
+                              className="pdm-meta-piece"
+                              title={AUCTION_RANK_TOOLTIP}
+                            >
+                              Auction rank {player.auction_rank}
+                            </span>
+                          </>
+                        )}
+                      {typeof player.baseline_rank === "number" &&
+                        Number.isFinite(player.baseline_rank) && (
+                          <>
+                            <span className="pdm-meta-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span
+                              className="pdm-meta-piece"
+                              title={STRENGTH_RANK_TOOLTIP}
+                            >
+                              Strength rank {player.baseline_rank}
+                            </span>
+                          </>
+                        )}
+                      {typeof player.market_adp === "number" &&
+                        Number.isFinite(player.market_adp) && (
+                          <>
+                            <span className="pdm-meta-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span
+                              className="pdm-meta-piece"
+                              title={marketAdpDetailTooltip(player)}
+                            >
+                              Market ADP {player.market_adp}
+                            </span>
+                          </>
+                        )}
                       <span className="pdm-meta-sep" aria-hidden="true">
                         ·
                       </span>
-                      <span className="pdm-meta-piece">Tier {valueOrDash(player.tier)}</span>
+                      <span className="pdm-meta-piece" title={MODEL_TIER_TOOLTIP}>
+                        Model tier {valueOrDash(player.catalog_tier)}
+                      </span>
+                      {typeof player.auction_tier === "number" &&
+                        Number.isFinite(player.auction_tier) && (
+                          <>
+                            <span className="pdm-meta-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span
+                              className="pdm-meta-piece"
+                              title={AUCTION_TIER_TOOLTIP}
+                            >
+                              Auction tier {player.auction_tier}
+                            </span>
+                          </>
+                        )}
+                      {typeof player.baseline_tier === "number" &&
+                        Number.isFinite(player.baseline_tier) && (
+                          <>
+                            <span className="pdm-meta-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span
+                              className="pdm-meta-piece"
+                              title={STRENGTH_TIER_TOOLTIP}
+                            >
+                              Strength tier {player.baseline_tier}
+                            </span>
+                          </>
+                        )}
                     </div>
                     <div className="pdm-header-positions">
                       {positions.map((pos) => (

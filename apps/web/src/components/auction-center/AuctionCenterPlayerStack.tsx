@@ -1,6 +1,12 @@
 import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import type { AuctionCenterCategoryImpactRow } from "../../pages/command-center-utils/categoryImpactRows";
+import {
+  AUCTION_RANK_TOOLTIP,
+  marketAdpDetailTooltip,
+  MODEL_RANK_TOOLTIP,
+} from "../../domain/rankTierLabels";
+import { displayAuctionTier } from "../../domain/playerRankTier";
 import { AuctionCenterPlayerImpact } from "./AuctionCenterPlayerImpact";
 import { BidDecisionCard } from "./BidDecisionCard";
 import { PlayerIdentityCard } from "./PlayerIdentityCard";
@@ -39,20 +45,50 @@ export function AuctionCenterPlayerStack({
   hittingCats,
 }: AuctionCenterPlayerStackProps) {
   const rowUi = mergedValuationRow;
-  const tierValue = rowUi?.tier ?? selectedPlayer.tier;
-  const adpValue = rowUi?.adp ?? selectedPlayer.adp;
-  const adpTitle =
-    rowUi?.adp != null
-      ? `Engine ADP (valuation row): ${rowUi.adp}`
-      : "Catalog ADP";
+  const tierValue =
+    rowUi?.auction_tier ??
+    rowUi?.tier ??
+    displayAuctionTier(selectedPlayer) ??
+    selectedPlayer.catalog_tier;
+
+  const marketAdp = rowUi?.market_adp ?? selectedPlayer.market_adp;
+  const auctionRank =
+    rowUi?.auction_rank ?? rowUi?.adp ?? selectedPlayer.auction_rank;
+
+  let rankLabel: string;
+  let rankValue: number;
+  let rankTitle: string;
+  if (typeof marketAdp === "number" && Number.isFinite(marketAdp)) {
+    rankLabel = "Market ADP";
+    rankValue = marketAdp;
+    rankTitle = marketAdpDetailTooltip({
+      market_adp_source:
+        rowUi?.market_adp_source ?? selectedPlayer.market_adp_source,
+      market_adp_updated_at:
+        rowUi?.market_adp_updated_at ?? selectedPlayer.market_adp_updated_at,
+      market_adp_min: rowUi?.market_adp_min ?? selectedPlayer.market_adp_min,
+      market_adp_max: rowUi?.market_adp_max ?? selectedPlayer.market_adp_max,
+      market_pick_count:
+        rowUi?.market_pick_count ?? selectedPlayer.market_pick_count,
+    });
+  } else if (typeof auctionRank === "number" && Number.isFinite(auctionRank)) {
+    rankLabel = "Auction rank";
+    rankValue = auctionRank;
+    rankTitle = AUCTION_RANK_TOOLTIP;
+  } else {
+    rankLabel = "Model rank";
+    rankValue = selectedPlayer.catalog_rank;
+    rankTitle = MODEL_RANK_TOOLTIP;
+  }
 
   return (
     <>
       <PlayerIdentityCard
         selectedPlayer={selectedPlayer}
         tierValue={tierValue}
-        adpValue={adpValue}
-        adpTitle={adpTitle}
+        rankLabel={rankLabel}
+        rankValue={rankValue}
+        rankTitle={rankTitle}
         valueVsBidBadge={identityValueVsBidBadge}
         isInWatchlist={isInWatchlist}
         playerNote={

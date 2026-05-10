@@ -16,9 +16,9 @@ describe("depthLeagueContext", () => {
     team: "NYY",
     position: "RF",
     age: 32,
-    adp: 1.5,
+    catalog_rank: 1.5,
     value: 85,
-    tier: 1,
+    catalog_tier: 1,
     headshot: "https://example.com/photo.jpg",
     stats: {},
     projection: {},
@@ -49,9 +49,9 @@ describe("depthLeagueContext", () => {
     name: "Shohei Ohtani",
     team: "LAA",
     position: "DH",
-    adp: 0,
+    catalog_rank: 0,
     value: 0,
-    tier: 1,
+    catalog_tier: 1,
     ...overrides,
   });
 

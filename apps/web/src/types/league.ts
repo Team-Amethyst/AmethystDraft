@@ -11,7 +11,8 @@ export type Player = {
   name: string;
   team: string;
   pos: string;
-  adp: number;
+  /** Catalog model rank (not market ADP). */
+  catalog_rank: number;
   /** Projected auction value (from API) */
   value?: number;
   /** URL to MLB headshot */
@@ -49,14 +50,14 @@ export const rosterDefaults: RosterSlot[] = [
 ];
 
 export const availablePlayers: Player[] = [
-  { id: 1, name: "Ronald Acuña Jr.", team: "ATL", pos: "OF", adp: 1.2 },
-  { id: 2, name: "Shohei Ohtani", team: "LAD", pos: "TWP", adp: 2.5 },
-  { id: 3, name: "Julio Rodríguez", team: "SEA", pos: "OF", adp: 3.8 },
-  { id: 4, name: "Bobby Witt Jr.", team: "KC", pos: "SS", adp: 4.1 },
-  { id: 5, name: "Corbin Carroll", team: "ARI", pos: "OF", adp: 5.4 },
-  { id: 6, name: "Mookie Betts", team: "LAD", pos: "2B/OF", adp: 6.2 },
-  { id: 7, name: "Freddie Freeman", team: "LAD", pos: "1B", adp: 7.0 },
-  { id: 8, name: "Kyle Tucker", team: "HOU", pos: "OF", adp: 8.5 },
+  { id: 1, name: "Ronald Acuña Jr.", team: "ATL", pos: "OF", catalog_rank: 1.2 },
+  { id: 2, name: "Shohei Ohtani", team: "LAD", pos: "TWP", catalog_rank: 2.5 },
+  { id: 3, name: "Julio Rodríguez", team: "SEA", pos: "OF", catalog_rank: 3.8 },
+  { id: 4, name: "Bobby Witt Jr.", team: "KC", pos: "SS", catalog_rank: 4.1 },
+  { id: 5, name: "Corbin Carroll", team: "ARI", pos: "OF", catalog_rank: 5.4 },
+  { id: 6, name: "Mookie Betts", team: "LAD", pos: "2B/OF", catalog_rank: 6.2 },
+  { id: 7, name: "Freddie Freeman", team: "LAD", pos: "1B", catalog_rank: 7.0 },
+  { id: 8, name: "Kyle Tucker", team: "HOU", pos: "OF", catalog_rank: 8.5 },
 ];
 
 export const hittingStats = [

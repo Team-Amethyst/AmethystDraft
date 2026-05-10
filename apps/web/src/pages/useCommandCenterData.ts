@@ -86,7 +86,11 @@ export function useCommandCenterData({
   ]);
 
   useEffect(() => {
-    void getPlayers("adp", league?.posEligibilityThreshold, league?.playerPool)
+    void getPlayers(
+      "catalog_rank",
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+    )
       .then(setMlbPlayers)
       .catch(console.error);
   }, [league?.posEligibilityThreshold, league?.playerPool]);

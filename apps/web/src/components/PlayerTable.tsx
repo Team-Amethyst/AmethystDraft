@@ -39,6 +39,18 @@ import {
   valuationSortLabel,
   type ValuationSortField,
 } from "../utils/valuation";
+import {
+  AUCTION_RANK_TOOLTIP,
+  AUCTION_TIER_TOOLTIP,
+  MARKET_ADP_COLUMN_TOOLTIP,
+  MODEL_RANK_TOOLTIP,
+  marketAdpDetailTooltip,
+  MODEL_TIER_TOOLTIP,
+} from "../domain/rankTierLabels";
+import {
+  displayAuctionTier,
+  poolHasMarketAdp,
+} from "../domain/playerRankTier";
 
 interface PlayerTableProps {
   players: Player[];
@@ -56,11 +68,6 @@ interface PlayerTableProps {
   draftedByTeam?: Map<string, string>;
   draftedContractByPlayerId?: Map<string, string>;
   isCustomPlayer?: (id: string) => boolean;
-  /** League-scoped Engine catalog batch (e.g. Research); optional second line under Proj $. */
-  engineCatalogByPlayerId?: ReadonlyMap<
-    string,
-    { value: number; tier: number }
-  >;
   defaultValuationSortField?: ValuationSortField;
 }
 
@@ -80,7 +87,6 @@ export default function PlayerTable({
   draftedByTeam,
   draftedContractByPlayerId,
   isCustomPlayer,
-  engineCatalogByPlayerId,
   defaultValuationSortField = "auction_value",
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
@@ -149,14 +155,15 @@ export default function PlayerTable({
   }>(() => {
     try {
       const s = localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.sort);
-      if (!s) return { col: "adp", dir: "asc" as const };
+      if (!s) return { col: "catalog_rank", dir: "asc" as const };
       const parsed = JSON.parse(s) as { col?: unknown; dir?: unknown };
-      const col = typeof parsed.col === "string" ? parsed.col : "adp";
+      let col = typeof parsed.col === "string" ? parsed.col : "catalog_rank";
+      if (col === "adp") col = "catalog_rank";
       const dir = parsed.dir === "desc" ? ("desc" as const) : ("asc" as const);
-      if (col === "valdiff") return { col: "adp", dir: "asc" };
+      if (col === "valdiff") return { col: "catalog_rank", dir: "asc" };
       return { col, dir };
     } catch {
-      return { col: "adp", dir: "asc" as const };
+      return { col: "catalog_rank", dir: "asc" as const };
     }
   });
   const valuationSortField: ValuationSortField = defaultValuationSortField;
@@ -242,7 +249,13 @@ export default function PlayerTable({
     setClientSort((prev) => {
       if (prev?.col === col)
         return { col, dir: prev.dir === "asc" ? "desc" : "asc" };
-      const defaultAsc = col === "adp" || col === "tier";
+      const defaultAsc =
+        col === "catalog_rank" ||
+        col === "adp" ||
+        col === "auction_rank" ||
+        col === "market_adp" ||
+        col === "tier" ||
+        col === "auction_tier";
       return { col, dir: defaultAsc ? "asc" : "desc" };
     });
   }
@@ -378,6 +391,27 @@ export default function PlayerTable({
     [sortedRowData, fullyRendered],
   );
 
+  const showAuctionRankCol = useMemo(
+    () =>
+      players.some(
+        (p) =>
+          typeof p.auction_rank === "number" && Number.isFinite(p.auction_rank),
+      ),
+    [players],
+  );
+  const showMarketAdpCol = useMemo(() => poolHasMarketAdp(players), [players]);
+  const tierHeaderUsesAuction = useMemo(
+    () =>
+      players.some(
+        (p) =>
+          typeof p.auction_tier === "number" &&
+          Number.isFinite(p.auction_tier),
+      ),
+    [players],
+  );
+  const tableFixedCols =
+    9 + (showAuctionRankCol ? 1 : 0) + (showMarketAdpCol ? 1 : 0);
+
   return (
     <div className="pt-container">
       <PlayerTableControls
@@ -424,16 +458,43 @@ export default function PlayerTable({
               <th className="th-team">Team</th>
               <th
                 className="th-tier th-sortable"
+                title={
+                  tierHeaderUsesAuction
+                    ? AUCTION_TIER_TOOLTIP
+                    : MODEL_TIER_TOOLTIP
+                }
                 onClick={() => handleColSort("tier")}
               >
-                Tier <SortArrow col="tier" sort={clientSort} />
+                {tierHeaderUsesAuction ? "Auction tier" : "Model tier"}{" "}
+                <SortArrow col="tier" sort={clientSort} />
               </th>
               <th
                 className="th-adp th-sortable"
-                onClick={() => handleColSort("adp")}
+                title={MODEL_RANK_TOOLTIP}
+                onClick={() => handleColSort("catalog_rank")}
               >
-                ADP <SortArrow col="adp" sort={clientSort} />
+                Model rank <SortArrow col="catalog_rank" sort={clientSort} />
               </th>
+              {showAuctionRankCol && (
+                <th
+                  className="th-sortable"
+                  title={AUCTION_RANK_TOOLTIP}
+                  onClick={() => handleColSort("auction_rank")}
+                >
+                  Auction rank{" "}
+                  <SortArrow col="auction_rank" sort={clientSort} />
+                </th>
+              )}
+              {showMarketAdpCol && (
+                <th
+                  className="th-sortable"
+                  title={MARKET_ADP_COLUMN_TOOLTIP}
+                  onClick={() => handleColSort("market_adp")}
+                >
+                  Market ADP{" "}
+                  <SortArrow col="market_adp" sort={clientSort} />
+                </th>
+              )}
               <th
                 className="th-value th-sortable"
                 onClick={() => handleColSort("value")}
@@ -473,7 +534,7 @@ export default function PlayerTable({
           <tbody>
             {filteredRowData.length === 0 && (
               <tr>
-                <td colSpan={9 + numActiveCols} className="pt-empty">
+                <td colSpan={tableFixedCols + numActiveCols} className="pt-empty">
                   No players found.
                 </td>
               </tr>
@@ -481,7 +542,6 @@ export default function PlayerTable({
             {rowData.map(
               ({ player, bat, pit, isBatter, tags }, index) => {
                 const isStarred = isInWatchlist(player.id);
-                const eng = engineCatalogByPlayerId?.get(player.id);
                 const primaryValue = leagueWideAuctionDollars(player);
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
@@ -596,15 +656,35 @@ export default function PlayerTable({
                     <td
                       className="td-tier"
                       title={
-                        eng && eng.tier !== player.tier
-                          ? `List tier ${player.tier}`
+                        typeof player.auction_tier === "number" &&
+                        player.auction_tier !== player.catalog_tier
+                          ? `Model tier ${player.catalog_tier}`
                           : undefined
                       }
                     >
-                      <TierBadge tier={eng?.tier ?? player.tier} />
+                      <TierBadge tier={displayAuctionTier(player) ?? 1} />
                     </td>
 
-                    <td className="td-adp">{player.adp}</td>
+                    <td className="td-adp">{player.catalog_rank}</td>
+                    {showAuctionRankCol && (
+                      <td className="td-stat">
+                        {typeof player.auction_rank === "number" &&
+                        Number.isFinite(player.auction_rank)
+                          ? player.auction_rank
+                          : "—"}
+                      </td>
+                    )}
+                    {showMarketAdpCol && (
+                      <td
+                        className="td-stat"
+                        title={marketAdpDetailTooltip(player)}
+                      >
+                        {typeof player.market_adp === "number" &&
+                        Number.isFinite(player.market_adp)
+                          ? player.market_adp
+                          : "—"}
+                      </td>
+                    )}
 
                     <td className="td-value">
                       <div className="pt-value-stack">

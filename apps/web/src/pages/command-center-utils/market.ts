@@ -1,4 +1,5 @@
 import type { Player } from "../../types/player";
+import { displayAuctionTier } from "../../domain/playerRankTier";
 import type { RosterEntry } from "../../api/roster";
 import { getEffectiveTierValue, type TierValueOverride } from "../../utils/effectiveTierValue";
 import { normalizeCatName } from "./categories";
@@ -76,7 +77,10 @@ export function computePositionMarket(
             s +
             getEffectiveTierValue(
               p.id,
-              { tier: p.tier, value: p.value },
+              {
+                tier: displayAuctionTier(p) ?? p.catalog_tier,
+                value: p.value,
+              },
               tierValueOverrides,
             ).value,
           0,
@@ -94,7 +98,10 @@ export function computePositionMarket(
         (p) =>
           getEffectiveTierValue(
             p.id,
-            { tier: p.tier, value: p.value },
+            {
+              tier: displayAuctionTier(p) ?? p.catalog_tier,
+              value: p.value,
+            },
             tierValueOverrides,
           ).tier,
       ),
@@ -108,7 +115,10 @@ export function computePositionMarket(
               s +
               getEffectiveTierValue(
                 p.id,
-                { tier: p.tier, value: p.value },
+                {
+                tier: displayAuctionTier(p) ?? p.catalog_tier,
+                value: p.value,
+              },
                 tierValueOverrides,
               ).value,
             0,
@@ -126,7 +136,10 @@ export function computePositionMarket(
         (p) =>
           getEffectiveTierValue(
             p.id,
-            { tier: p.tier, value: p.value },
+            {
+              tier: displayAuctionTier(p) ?? p.catalog_tier,
+              value: p.value,
+            },
             tierValueOverrides,
           ).tier === tier,
       );
