@@ -1,13 +1,34 @@
 /**
- * Playwright webServer entry: start E2E stub API, then `vite preview`.
+ * Playwright webServer entry: `vite build` (E2E API URL), stub API, then `vite preview`.
  * Keeps both processes until SIGTERM (Playwright teardown).
+ *
+ * Build runs here — not only in globalSetup — because Playwright starts webServer
+ * before globalSetup, so `vite preview` would otherwise see no `dist/` on CI.
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(__dirname, "..");
+
+/** Must match `E2E_API_ORIGIN` in `e2e/constants.ts`. */
+const E2E_API_ORIGIN = "http://127.0.0.1:3099";
+
+function runE2eViteBuild() {
+  const r = spawnSync("pnpm", ["exec", "vite", "build"], {
+    cwd: webRoot,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      VITE_API_URL: process.env.VITE_API_URL?.trim() || E2E_API_ORIGIN,
+    },
+  });
+  if (r.error) throw r.error;
+  if (r.status !== 0) process.exit(r.status ?? 1);
+}
+
+runE2eViteBuild();
 
 async function waitForHealth(url, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs;

@@ -1,4 +1,4 @@
-/** Must match `stub-api.ts` and `global-setup.ts` / Playwright web preview port. */
+/** Must match `stub-api.ts` and `run-preview-with-stub.mjs` / Playwright preview port. */
 export const E2E_STUB_PORT = 3099;
 export const E2E_PREVIEW_PORT = 4173;
 export const E2E_API_ORIGIN = `http://127.0.0.1:${E2E_STUB_PORT}`;
