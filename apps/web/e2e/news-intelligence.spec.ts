@@ -105,10 +105,12 @@ test.describe("Intelligence alerts (news webhook → Socket.IO)", () => {
       socketIoConnections: number;
       newsSignalsPollerRefcount: number;
       pollerIntervalActive: boolean;
+      redisUrlConfigured: boolean;
       postWebhookPath: string;
       socketIoPath: string;
     };
 
+    expect(body.redisUrlConfigured).toBe(false);
     expect(body.socketIoConnections, "signed-in tab should hold a Socket.IO client").toBeGreaterThanOrEqual(1);
     expect(body.newsSignalsPollerRefcount).toBeGreaterThanOrEqual(1);
     expect(body.pollerIntervalActive).toBe(true);

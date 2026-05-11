@@ -69,14 +69,12 @@ export function useNewsSignalsRealtime(
 
       connRef.current?.(null);
 
-      // Long-polling only: many proxies (including some AWS App Runner / Envoy setups)
-      // accept Engine.IO HTTP polling but fail WebSocket upgrade — then custom webhook
-      // pings never reach the tab. Polling is fine for infrequent news pushes.
+      // Polling first: App Runner / Envoy often rejects WS upgrade; Engine.IO then stays
+      // on HTTP long-polling. When upgrade succeeds, traffic moves to WebSocket.
       socket = io(origin, {
         auth: { token: token.trim() },
         path: "/socket.io",
-        transports: ["polling"],
-        upgrade: false,
+        transports: ["polling", "websocket"],
         autoConnect: true,
         timeout: 20_000,
         reconnectionAttempts: 10,

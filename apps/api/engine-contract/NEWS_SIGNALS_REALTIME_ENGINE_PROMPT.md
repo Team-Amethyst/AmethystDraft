@@ -25,6 +25,19 @@ After a cold MLB fetch, Engine compares the new fingerprint to the previous valu
 { "event": "signals_updated", "occurred_at": "<ISO8601>" }
 ```
 
+**Recommended (lower latency, less load on Draft):** include the same **64-char hex SHA-256** snapshot fingerprint Draft computes from `GET /signals/news` (canonical `{ count, signals }` only — same algorithm as Draft’s `fingerprintNewsSignalsPayload`) plus optional **`count`**:
+
+```json
+{
+  "event": "signals_updated",
+  "occurred_at": "<ISO8601>",
+  "fingerprint": "<64-char-hex>",
+  "count": 42
+}
+```
+
+Draft will **emit `news_signals_updated` immediately** when `fingerprint` is present and differs from the in-process poller baseline, then still **`GET /signals/news`** in the background to sync **ETag** / internal state. If `fingerprint` is omitted, behaviour is unchanged (poll-only path).
+
 Header: **`Authorization: Bearer …`** — Draft accepts **`INTERNAL_WEBHOOK_SECRET`** if set, otherwise **`AMETHYST_API_KEY`** (same key Draft already uses for Engine HTTP). Engine can send Bearer **`AMETHYST_API_KEY`** with no extra Draft env.
 
 If the URL is set but the secret is missing, Engine logs a warning and does not send. Failures are logged only; they do not fail the signals response.
@@ -45,8 +58,9 @@ If the URL is set but the secret is missing, Engine logs a warning and does not 
 | Draft piece | Behaviour |
 |-------------|-----------|
 | **`apps/api/src/realtime/newsSignalsPoller.ts`** | Polls Engine **`GET /signals/news`** (7-day window). Sends **`If-None-Match`** from last **`ETag`** when present; treats **304** as unchanged (no Socket.IO emit). |
-| **`POST /api/internal/news-signals/hook`** | Validates **`Authorization: Bearer`** vs **`INTERNAL_WEBHOOK_SECRET`** or **`AMETHYST_API_KEY`**, then **`forcePollFromWebhook()`**. Returns **503** only if neither env is set (Draft normally always has **`AMETHYST_API_KEY`**). |
-| **Browsers** | Socket.IO event **`news_signals_updated`** when the poller detects a snapshot change (after **200** with new body). |
+| **`POST /api/internal/news-signals/hook`** | Validates **`Authorization: Bearer`**, applies optional **`fingerprint`/`count`** fast path (see above), then **`forcePollFromWebhook()`** (Engine **GET** for ETag sync). Returns **503** only if neither env is set (Draft normally always has **`AMETHYST_API_KEY`**). |
+| **Browsers** | Socket.IO **`news_signals_updated`** on snapshot change (poller **200** and new fingerprint, **or** webhook **`fingerprint`** hint). Client uses **polling-first** Engine.IO (`polling` → optional **`websocket`** upgrade). |
+| **`REDIS_URL` (Draft)** | If set, Draft attaches **`@socket.io/redis-adapter`** so **multiple App Runner / API tasks** share Socket.IO broadcasts (webhook on task A can reach sockets on task B). |
 
 ---
 
@@ -55,7 +69,7 @@ If the URL is set but the secret is missing, Engine logs a warning and does not 
 1. **Bearer token:** Easiest path — Engine sends **`Authorization: Bearer <AMETHYST_API_KEY>`** (same value Draft already sends to Engine as **`x-api-key`**). Optional: use a dedicated **`INTERNAL_WEBHOOK_SECRET`** on both sides instead.
 2. **Webhook URL:** Engine **`DRAFT_NEWS_SIGNALS_WEBHOOK_URL`** = full Draft URL **`https://<host>/api/internal/news-signals/hook`** (must reach the Draft API over HTTPS in prod).
 3. **IP allowlisting:** If Draft sits behind a WAF / API gateway, allow Engine egress IPs (or use a private link / tunnel). Optional; depends on hosting.
-4. **Multi-instance Draft API:** Socket.IO fan-out across replicas still requires **Redis** (pub/sub or adapter) — not automatic with multiple tasks yet.
+4. **Multi-instance Draft API:** Set **`REDIS_URL`** on every Draft API task and provision Redis (Elastache / MemoryDB / managed Redis). Draft auto-enables **`@socket.io/redis-adapter`** when the variable is non-empty. Without it, each task only sees its own in-memory sockets (webhook **204** but no in-app toast if the hit task ≠ socket task).
 
 ---
 

@@ -1,6 +1,7 @@
 import type { Server } from "socket.io";
 import { AxiosError } from "axios";
 import { amethyst } from "../lib/amethyst";
+import { extractEngineNewsWebhookSnapshotHint } from "../lib/engineNewsWebhookHint";
 import {
   fingerprintNewsSignalsPayload,
   type NewsSignalsPayload,
@@ -84,6 +85,29 @@ async function pollOnce(): Promise<void> {
 
 export function forcePollFromWebhook(): void {
   void pollOnce();
+}
+
+/**
+ * Fast path: Engine includes the same snapshot fingerprint Draft computes from
+ * `GET /signals/news`, so we can emit before `pollOnce` finishes (still run
+ * pollOnce afterward to sync ETag / lastFingerprint with Engine).
+ */
+export function applyEngineNewsWebhookSnapshotHint(body: unknown): void {
+  const hint = extractEngineNewsWebhookSnapshotHint(body);
+  if (!hint || !ioRef) return;
+  const { fingerprint: fp, count: n } = hint;
+
+  if (lastFingerprint === null) {
+    lastFingerprint = fp;
+    return;
+  }
+  if (lastFingerprint === fp) return;
+
+  lastFingerprint = fp;
+  ioRef.emit(NEWS_SIGNALS_UPDATED_EVENT, {
+    count: n,
+    fingerprint: fp,
+  });
 }
 
 /** Engine developer-portal test webhook (`event: "custom"`) — signals unchanged, so poll alone emits nothing. */

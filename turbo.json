@@ -24,7 +24,8 @@
         "LOG_ENGINE_VALUATION_DEBUG",
         "INTERNAL_WEBHOOK_SECRET",
         "MONGODB_MAX_POOL_SIZE",
-        "DRAFTROOM_E2E_STUB"
+        "DRAFTROOM_E2E_STUB",
+        "REDIS_URL"
       ]
     },
     "check-types": {

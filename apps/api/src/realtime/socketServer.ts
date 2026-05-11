@@ -9,6 +9,7 @@ import {
   resetNewsSignalsPoller,
   unregisterNewsSignalsSubscriber,
 } from "./newsSignalsPoller";
+import { shutdownRedisAdapter } from "./socketIoRedisAdapter";
 
 /** Set when Socket.IO attaches; used for diagnostics only. */
 let ioSingleton: SocketIoServer | null = null;
@@ -29,7 +30,8 @@ export function attachSocketServer(httpServer: HttpServer): SocketIoServer {
   const io = new Server(httpServer, {
     path: "/socket.io",
     cors: socketIoServerCors(),
-    transports: ["websocket", "polling"],
+    /** Polling first: App Runner / Envoy often breaks WS upgrade; upgrade when it works. */
+    transports: ["polling", "websocket"],
   });
 
   ioSingleton = io;
@@ -95,4 +97,5 @@ export async function shutdownSocketServer(): Promise<void> {
   const io = ioSingleton;
   ioSingleton = null;
   await io.close();
+  await shutdownRedisAdapter();
 }

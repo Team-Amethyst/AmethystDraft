@@ -18,6 +18,7 @@ import {
   attachSocketServer,
   shutdownSocketServer,
 } from "./realtime/socketServer";
+import { attachRedisAdapterIfConfigured } from "./realtime/socketIoRedisAdapter";
 import { mongoConnectionOptionsFromEnv } from "./lib/mongoConnectionOptions";
 
 dotenv.config();
@@ -77,7 +78,6 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 
 const httpServer = http.createServer(app);
-attachSocketServer(httpServer);
 
 const mongoOpts = mongoConnectionOptionsFromEnv();
 const mongoUri = process.env.MONGO_URI as string;
@@ -136,6 +136,9 @@ async function bootstrap(): Promise<void> {
     console.error("MongoDB connection error:", err);
     process.exit(1);
   }
+
+  const io = attachSocketServer(httpServer);
+  await attachRedisAdapterIfConfigured(io);
 
   await new Promise<void>((resolve, reject) => {
     httpServer.listen(Number(PORT), () => {

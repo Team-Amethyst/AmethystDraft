@@ -6,12 +6,15 @@ import errorHandler from "../middleware/errorHandler";
 
 const forcePollMock = vi.fn();
 const pingMock = vi.fn();
+const snapshotHintMock = vi.fn();
 
 vi.mock("../realtime/socketServer", () => ({
   getSocketIoConnectionsCount: () => 7,
 }));
 
 vi.mock("../realtime/newsSignalsPoller", () => ({
+  applyEngineNewsWebhookSnapshotHint: (...a: unknown[]) =>
+    snapshotHintMock(...a),
   forcePollFromWebhook: (...a: unknown[]) => forcePollMock(...a),
   emitNewsSignalsWebhookTestPing: (...a: unknown[]) => pingMock(...a),
   getNewsSignalsPollerSubscriberCount: () => 4,
@@ -34,6 +37,7 @@ describe("internal news-signals routes", () => {
   beforeEach(() => {
     forcePollMock.mockClear();
     pingMock.mockClear();
+    snapshotHintMock.mockClear();
     process.env.AMETHYST_API_KEY = "test-webhook-key";
     delete process.env.INTERNAL_WEBHOOK_SECRET;
   });
@@ -55,6 +59,7 @@ describe("internal news-signals routes", () => {
     expect(res.body.socketIoConnections).toBe(7);
     expect(res.body.newsSignalsPollerRefcount).toBe(4);
     expect(res.body.pollerIntervalActive).toBe(true);
+    expect(res.body.redisUrlConfigured).toBe(false);
   });
 
   it("POST /news-signals/hook returns 204 and pings on event=custom", async () => {
@@ -64,6 +69,7 @@ describe("internal news-signals routes", () => {
       .send({ event: "custom", message: "portal test" })
       .expect(204);
     expect(res.headers["x-draftroom-socket-connections"]).toBe("7");
+    expect(snapshotHintMock).toHaveBeenCalledTimes(1);
     expect(forcePollMock).toHaveBeenCalledTimes(1);
     expect(pingMock).toHaveBeenCalledWith("portal test");
   });
@@ -75,5 +81,21 @@ describe("internal news-signals routes", () => {
       .send({ event: "signals_updated", occurred_at: "2026-01-01T00:00:00Z" })
       .expect(204);
     expect(pingMock).not.toHaveBeenCalled();
+    expect(snapshotHintMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST hook forwards body to snapshot hint before force poll", async () => {
+    const fp = "b".repeat(64);
+    await request(app)
+      .post("/api/internal/news-signals/hook")
+      .set("Authorization", "Bearer test-webhook-key")
+      .send({ event: "signals_updated", fingerprint: fp, count: 3 })
+      .expect(204);
+    expect(snapshotHintMock).toHaveBeenCalledWith({
+      event: "signals_updated",
+      fingerprint: fp,
+      count: 3,
+    });
+    expect(forcePollMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Router } from "express";
 import {
+  applyEngineNewsWebhookSnapshotHint,
   emitNewsSignalsWebhookTestPing,
   forcePollFromWebhook,
   getNewsSignalsPollerSubscriberCount,
@@ -60,6 +61,7 @@ router.get("/news-signals/debug", (req, res): void => {
     socketIoConnections: getSocketIoConnectionsCount(),
     newsSignalsPollerRefcount: getNewsSignalsPollerSubscriberCount(),
     pollerIntervalActive: isNewsSignalsPollerIntervalRunning(),
+    redisUrlConfigured: Boolean(process.env.REDIS_URL?.trim()),
     postWebhookPath: "/api/internal/news-signals/hook",
     socketIoPath: "/socket.io",
     hint:
@@ -75,9 +77,10 @@ router.get("/news-signals/debug", (req, res): void => {
 router.post("/news-signals/hook", (req, res): void => {
   if (!assertWebhookAuth(req, res)) return;
 
+  const body = req.body as { event?: string; message?: string } | undefined;
+  applyEngineNewsWebhookSnapshotHint(req.body);
   forcePollFromWebhook();
 
-  const body = req.body as { event?: string; message?: string } | undefined;
   if (body?.event === "custom") {
     emitNewsSignalsWebhookTestPing(body.message);
   }
