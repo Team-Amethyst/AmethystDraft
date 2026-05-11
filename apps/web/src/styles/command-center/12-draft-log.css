@@ -71,23 +71,14 @@
   white-space: nowrap;
 }
 
-/* Scroll region card chrome (restores pre-modal inline scroll) */
+/* Scroll region — no card-in-card border; the rail's outer surface card already frames it */
 .cc-draft-log-panel {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(139, 92, 246, 0.18);
-  border-radius: 12px;
-  background: linear-gradient(
-    165deg,
-    rgba(22, 14, 38, 0.92) 0%,
-    rgba(15, 10, 28, 0.88) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 6px 22px rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(139, 92, 246, 0.12);
 }
 
 .cc-draft-log-inline-empty {
@@ -110,15 +101,21 @@
     var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
-/* Slight inset so rows don't hug the panel edge */
+/* Tight inset for the compact rows so more picks fit per page */
 .cc-draft-log-panel .draft-log-list {
-  padding: 0.15rem 0.25rem 0.35rem;
+  padding: 0.1rem 0.15rem 0.3rem;
 }
 
+/*
+ * Counter sits inside `.market-section-label` which sets uppercase + 800 weight.
+ * Override both so the count reads as supporting metadata, not a second heading.
+ */
 .cc-draft-log-count {
-  color: #a78bfa;
-  font-weight: 700;
-  font-size: 0.72rem;
+  color: rgba(167, 139, 250, 0.72);
+  font-weight: 500;
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .cc-draft-log-modal-overlay {

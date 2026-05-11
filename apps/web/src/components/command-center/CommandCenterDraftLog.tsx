@@ -144,7 +144,7 @@ export function CommandCenterDraftLog({
   );
 
   const draftCountLabel =
-    sorted.length === 1 ? "1 pick made" : `${sorted.length} picks made`;
+    sorted.length === 1 ? "1 pick" : `${sorted.length} picks`;
 
   return (
     <div className="cc-draft-log-root">
@@ -198,6 +198,7 @@ export function CommandCenterDraftLog({
                   teamName={teamName}
                   isMyTeamPick={isMyTeamPick}
                   headshot={player?.headshot}
+                  variant="compact"
                   {...sharedRowProps}
                 />
               ),

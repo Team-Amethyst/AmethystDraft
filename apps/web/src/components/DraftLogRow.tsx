@@ -17,6 +17,12 @@ interface DraftLogRowProps {
   allRosterEntries?: RosterEntry[];
   leagueRosterSlots?: Record<string, number>;
   leagueBudget?: number;
+  /**
+   * `default` renders the full three-line row (MLB team + positions + fantasy team line).
+   * `compact` strips to name · price + fantasy team · slot, hiding edit/X until hover —
+   * used in the Command Center right-rail draft log to fit more picks vertically.
+   */
+  variant?: "default" | "compact";
   onUpdate?: (
     id: string,
     data: {
@@ -40,6 +46,7 @@ export function DraftLogRow({
   allRosterEntries,
   leagueRosterSlots,
   leagueBudget,
+  variant = "default",
   onUpdate,
   onRemove,
 }: DraftLogRowProps) {
@@ -153,65 +160,107 @@ export function DraftLogRow({
     setEditing(false);
   }
 
+  const isCompact = variant === "compact";
+
   return (
     <>
-      <div className="draft-log-row">
+      <div
+        className={
+          "draft-log-row" + (isCompact ? " draft-log-row--compact" : "")
+        }
+      >
         <span className="dl-pick">#{pickNum}</span>
         {headshot ? (
           <img src={headshot} alt={entry.playerName} className="dl-headshot" />
         ) : (
           <div className="dl-headshot-fallback">{initials}</div>
         )}
-        <div className="dl-body">
-          <div className="dl-row-top">
-            <span className="dl-name">{entry.playerName}</span>
-          </div>
-          <div className="dl-row-meta">
-            {entry.playerTeam ? (
-              <span className="dl-player-team">{entry.playerTeam}</span>
-            ) : null}
-            {entry.positions?.length ? (
-              <span className="dl-position">{entry.positions.join("/")}</span>
-            ) : null}
-          </div>
-          <div className="dl-row-bottom">
-            <span className="dl-fantasy-team">
-              {teamName}
-              {isMyTeamPick ? (
-                <span className="dl-you-suffix" aria-label="your team">
-                  {" "}
-                  (You)
+        {isCompact ? (
+          <div className="dl-body dl-body--compact">
+            <div className="dl-compact-line dl-compact-line--top">
+              <span className="dl-name">{entry.playerName}</span>
+              <span className="dl-price">${entry.price}</span>
+            </div>
+            <div className="dl-compact-line dl-compact-line--bottom">
+              <span className="dl-fantasy-team" title={teamName}>
+                {teamName}
+                {isMyTeamPick ? (
+                  <span className="dl-you-suffix" aria-label="your team">
+                    {" "}
+                    (You)
+                  </span>
+                ) : null}
+              </span>
+              <span className="dl-compact-sep" aria-hidden>
+                ·
+              </span>
+              <span className="dl-slot">{entry.rosterSlot}</span>
+              {isCurrentSlotOverridden ? (
+                <span className="dl-override-chip" title="Manual position override">
+                  OVR
                 </span>
               ) : null}
-            </span>
-            <span className="dl-slot">{entry.rosterSlot}</span>
-            {isCurrentSlotOverridden ? (
-              <span className="dl-override-chip" title="Manual position override">
-                OVR
-              </span>
-            ) : null}
-            <span className="dl-price">${entry.price}</span>
-            {entry.keeperContract ? (
-              <span className="dl-slot" title="Keeper contract">
-                {entry.keeperContract}
-              </span>
-            ) : null}
+              {entry.keeperContract ? (
+                <span className="dl-slot" title="Keeper contract">
+                  {entry.keeperContract}
+                </span>
+              ) : null}
+            </div>
           </div>
+        ) : (
+          <div className="dl-body">
+            <div className="dl-row-top">
+              <span className="dl-name">{entry.playerName}</span>
+            </div>
+            <div className="dl-row-meta">
+              {entry.playerTeam ? (
+                <span className="dl-player-team">{entry.playerTeam}</span>
+              ) : null}
+              {entry.positions?.length ? (
+                <span className="dl-position">{entry.positions.join("/")}</span>
+              ) : null}
+            </div>
+            <div className="dl-row-bottom">
+              <span className="dl-fantasy-team">
+                {teamName}
+                {isMyTeamPick ? (
+                  <span className="dl-you-suffix" aria-label="your team">
+                    {" "}
+                    (You)
+                  </span>
+                ) : null}
+              </span>
+              <span className="dl-slot">{entry.rosterSlot}</span>
+              {isCurrentSlotOverridden ? (
+                <span className="dl-override-chip" title="Manual position override">
+                  OVR
+                </span>
+              ) : null}
+              <span className="dl-price">${entry.price}</span>
+              {entry.keeperContract ? (
+                <span className="dl-slot" title="Keeper contract">
+                  {entry.keeperContract}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        )}
+        <div className={"dl-actions" + (isCompact ? " dl-actions--compact" : "")}>
+          {onUpdate && (
+            <button className="dl-edit" title="Edit pick" onClick={openModal}>
+              <Pencil size={11} />
+            </button>
+          )}
+          {onRemove && (
+            <button
+              className="dl-remove"
+              title="Remove pick"
+              onClick={() => onRemove(entry._id)}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
-        {onUpdate && (
-          <button className="dl-edit" title="Edit pick" onClick={openModal}>
-            <Pencil size={11} />
-          </button>
-        )}
-        {onRemove && (
-          <button
-            className="dl-remove"
-            title="Remove pick"
-            onClick={() => onRemove(entry._id)}
-          >
-            <X size={12} />
-          </button>
-        )}
       </div>
       {editing && (
         <div className="dl-modal-overlay" onClick={() => setEditing(false)}>

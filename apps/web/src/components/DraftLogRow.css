@@ -4,9 +4,114 @@
   gap: 0.4rem;
   padding: 0.5rem 0.4rem;
   border-bottom: 1px solid rgba(255,255,255,0.03);
+  position: relative;
 }
 
 .draft-log-row:last-child { border-bottom: none; }
+
+/* Compact variant — two-line dense row used in the Command Center right rail */
+.draft-log-row--compact {
+  padding: 0.32rem 0.25rem;
+  gap: 0.35rem;
+}
+
+.draft-log-row--compact .dl-pick {
+  width: 2.4ch;
+  font-size: 0.58rem;
+  color: rgba(124, 106, 153, 0.7);
+}
+
+.draft-log-row--compact .dl-headshot,
+.draft-log-row--compact .dl-headshot-fallback {
+  width: 22px;
+  height: 22px;
+}
+
+.dl-body--compact {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.dl-compact-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.dl-compact-line--top .dl-name {
+  flex: 1 1 auto;
+  font-size: 0.74rem;
+}
+
+.dl-compact-line--top .dl-price {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+}
+
+.dl-compact-line--bottom {
+  font-size: 0.6rem;
+  line-height: 1.25;
+  color: rgba(167, 139, 250, 0.72);
+  gap: 0.3rem;
+}
+
+.dl-compact-line--bottom .dl-fantasy-team {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: rgba(196, 181, 225, 0.78);
+  font-size: 0.6rem;
+}
+
+.dl-compact-line--bottom .dl-slot {
+  font-size: 0.56rem;
+  padding: 0.04rem 0.3rem;
+  min-width: 22px;
+  line-height: 1.3;
+}
+
+.dl-compact-sep {
+  color: rgba(167, 139, 250, 0.45);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+/* Row-level actions container — keep hover affordance on the right edge */
+.dl-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Hide compact action buttons until row is hovered/focused (less visual noise) */
+.dl-actions--compact {
+  position: absolute;
+  top: 0.28rem;
+  right: 0.25rem;
+  margin-left: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(15, 10, 28, 0) 0%,
+    rgba(15, 10, 28, 0.85) 35%,
+    rgba(15, 10, 28, 0.95) 100%
+  );
+  padding: 0.15rem 0.2rem 0.15rem 0.65rem;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.draft-log-row--compact:hover .dl-actions--compact,
+.draft-log-row--compact:focus-within .dl-actions--compact {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 .dl-body {
   flex: 1;
@@ -387,7 +492,6 @@
   padding: 3px 4px;
   border-radius: 4px;
   flex-shrink: 0;
-  margin-left: auto;
   transition: background 0.15s, border-color 0.15s;
   line-height: 1;
 }
