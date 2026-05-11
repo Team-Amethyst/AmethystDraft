@@ -73,6 +73,7 @@ jobs:
       - name: Reminder — draftroom.uk is not the API host
         run: |
           echo "::notice title=Hostname vs API::The SPA build uses vars.VITE_API_URL (App Runner). draftroom.uk serves the static site only — there is no /api reverse-proxy in this workflow. Engine webhooks and curl tests must target the App Runner HTTPS origin (e.g. ...awsapprunner.com/api/internal/news-signals/hook), not https://draftroom.uk/api/..."
+          echo "::notice title=Socket.IO::Intelligence alerts use Engine.IO HTTP long-polling only (no WebSocket upgrade) so App Runner works when wss:// fails in the browser."
 
       - name: Trigger App Runner Deployment
         env:
