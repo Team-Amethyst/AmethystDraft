@@ -13,11 +13,11 @@ import {
   type DepthChartResponse,
 } from "../api/players";
 import { getValuation, getValuationPlayer, type ValuationResponse } from "../api/engine";
-import { ValuationAlertsBanner } from "../components/ValuationAlertsBanner";
 import {
   filterValuationAlertsForSurface,
   normalizeValuationAlerts,
 } from "../domain/valuationAlerts";
+import { useValuationBoardAlerts } from "../contexts/ValuationBoardAlertsContext";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -158,6 +158,17 @@ export default function Research() {
       ),
     [lastResearchBoardValuation],
   );
+
+  const { publishBoardValuationAlerts } = useValuationBoardAlerts();
+  useEffect(() => {
+    publishBoardValuationAlerts(researchValuationAlerts);
+  }, [researchValuationAlerts, publishBoardValuationAlerts]);
+  useEffect(() => {
+    return () => {
+      publishBoardValuationAlerts([]);
+    };
+  }, [publishBoardValuationAlerts]);
+
   const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
     null,
   );
@@ -548,10 +559,6 @@ export default function Research() {
         </div>
 
         <div className="research-content">
-          <ValuationAlertsBanner
-            alerts={researchValuationAlerts}
-            className="research-valuation-warnings"
-          />
           {selectedView === "player-database" && (
             <>
               {playersError && <p className="research-error">{playersError}</p>}

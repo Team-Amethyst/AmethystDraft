@@ -31,11 +31,6 @@
   scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
-.pac-valuation-alerts {
-  flex-shrink: 0;
-  margin: 0 0.35rem 0.45rem 0;
-}
-
 .cc-content-scroll-main::-webkit-scrollbar {
   width: 6px;
 }

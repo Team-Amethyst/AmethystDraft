@@ -24,11 +24,11 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { getValuation, type ValuationResponse } from "../api/engine";
-import { ValuationAlertsBanner } from "../components/ValuationAlertsBanner";
 import {
   filterValuationAlertsForSurface,
   normalizeValuationAlerts,
 } from "../domain/valuationAlerts";
+import { useValuationBoardAlerts } from "../contexts/ValuationBoardAlertsContext";
 import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets from "../components/MyDraft/PositionTargets";
 import {
@@ -165,6 +165,16 @@ export default function MyDraft() {
       ),
     [lastMyDraftBoardValuation],
   );
+
+  const { publishBoardValuationAlerts } = useValuationBoardAlerts();
+  useEffect(() => {
+    publishBoardValuationAlerts(myDraftValuationAlerts);
+  }, [myDraftValuationAlerts, publishBoardValuationAlerts]);
+  useEffect(() => {
+    return () => {
+      publishBoardValuationAlerts([]);
+    };
+  }, [publishBoardValuationAlerts]);
 
   useEffect(() => {
     setTargetOverrides(
@@ -370,11 +380,6 @@ export default function MyDraft() {
   return (
     <div className="mydraft-page">
       <main className="mydraft-shell">
-        <ValuationAlertsBanner
-          alerts={myDraftValuationAlerts}
-          className="mydraft-valuation-warnings"
-        />
-
         {/* ── Top summary strip ── */}
         <section className="mydraft-top panel-card">
           <div className="top-budget">

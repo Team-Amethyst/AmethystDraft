@@ -1,5 +1,9 @@
-import { useMemo, useState } from "react";
-import { normalizeValuationAlerts } from "../../domain/valuationAlerts";
+import { useEffect, useMemo, useState } from "react";
+import {
+  filterValuationAlertsForSurface,
+  normalizeValuationAlerts,
+} from "../../domain/valuationAlerts";
+import { useValuationBoardAlerts } from "../../contexts/ValuationBoardAlertsContext";
 import type { League } from "../../contexts/LeagueContext";
 import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
@@ -12,8 +16,6 @@ import { CommandCenterDraftLog } from "./CommandCenterDraftLog";
 import { CommandCenterRightBidContextCard } from "./CommandCenterRightBidContextCard";
 import { CommandCenterRightMarketPressureCard } from "./CommandCenterRightMarketPressureCard";
 import { CommandCenterRightRosterPane } from "./CommandCenterRightRosterPane";
-import { ValuationAlertsBanner } from "../ValuationAlertsBanner";
-
 type ScoringCategory = {
   name: string;
   type: "batting" | "pitching";
@@ -140,16 +142,26 @@ export function CommandCenterRightPanel({
   const dollarsPerSpot = my?.ppSpot;
 
   const commandCenterValuationAlerts = useMemo(
-    () => normalizeValuationAlerts(engineMarket ?? null),
+    () =>
+      filterValuationAlertsForSurface(
+        normalizeValuationAlerts(engineMarket ?? null),
+        "command-center",
+      ),
     [engineMarket],
   );
 
+  const { publishBoardValuationAlerts } = useValuationBoardAlerts();
+  useEffect(() => {
+    publishBoardValuationAlerts(commandCenterValuationAlerts);
+  }, [commandCenterValuationAlerts, publishBoardValuationAlerts]);
+  useEffect(() => {
+    return () => {
+      publishBoardValuationAlerts([]);
+    };
+  }, [publishBoardValuationAlerts]);
+
   return (
     <div className="cc-right">
-      <ValuationAlertsBanner
-        alerts={commandCenterValuationAlerts}
-        className="cc-right-valuation-warnings"
-      />
       <CommandCenterRightBidContextCard
         suggestedBidDollars={suggestedBidDollars}
         maxBid={maxBid}

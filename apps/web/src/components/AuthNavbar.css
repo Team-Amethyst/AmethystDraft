@@ -767,3 +767,58 @@
   color: #6b4fa0;
   white-space: nowrap;
 }
+
+/* Compact board valuation notices (from Research / My Draft / Command Center) */
+.nb-board-valuation-heading {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b5a82;
+  padding: 0.35rem 0.55rem 0.2rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.12);
+}
+
+.nb-alert-board-valuation {
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.nb-alert-board-valuation .nb-alert-icon {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.nb-alert-head--tight {
+  margin-bottom: 0.12rem;
+}
+
+.nb-alert-desc--oneline {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
+.nb-alert-board-valuation--info {
+  border-color: rgba(99, 102, 241, 0.22);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.nb-alert-board-valuation--warning {
+  border-color: rgba(245, 158, 11, 0.22);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.nb-alert-board-valuation--critical {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.nb-board-valuation-more {
+  font-size: 0.65rem;
+  color: #7c6a96;
+  padding: 0 0.55rem 0.4rem;
+}

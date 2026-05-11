@@ -66,11 +66,6 @@ import { AuctionCenterLogResultBar } from "./auction-center/AuctionCenterLogResu
 import { AuctionCenterPlayerStack } from "./auction-center/AuctionCenterPlayerStack";
 import { AuctionCenterNotesDock } from "./auction-center/AuctionCenterNotesDock";
 import { AuctionCenterSearchBar } from "./auction-center/AuctionCenterSearchBar";
-import { ValuationAlertsBanner } from "./ValuationAlertsBanner";
-import {
-  filterValuationAlertsForSurface,
-  normalizeValuationAlerts,
-} from "../domain/valuationAlerts";
 
 interface AuctionCenterProps {
   rosterEntries: RosterEntry[];
@@ -205,32 +200,6 @@ export function AuctionCenter({
     () => displayValuationRow ?? activeValuationRow ?? undefined,
     [displayValuationRow, activeValuationRow],
   );
-
-  const selectedPlayerPositions = useMemo(
-    () =>
-      selectedPlayer?.positions?.length
-        ? selectedPlayer.positions
-        : selectedPlayer?.position
-          ? [selectedPlayer.position]
-          : [],
-    [selectedPlayer],
-  );
-
-  const auctionValuationAlerts = useMemo(() => {
-    if (!engineMarket) return [];
-    const base = normalizeValuationAlerts(engineMarket, {
-      focusPlayerId: selectedPlayerNormId || null,
-      focusPlayerRow: mergedValuationRow ?? null,
-    });
-    return filterValuationAlertsForSurface(base, "auction-center", {
-      selectedPlayerPositions,
-    });
-  }, [
-    engineMarket,
-    selectedPlayerNormId,
-    mergedValuationRow,
-    selectedPlayerPositions,
-  ]);
 
   useLayoutEffect(() => {
     if (!leagueId || !token || !selectedPlayer) {
@@ -707,10 +676,6 @@ export function AuctionCenter({
 
       <div ref={contentScrollRef} className="cc-content-scroll">
         <div className="cc-content-scroll-main">
-          <ValuationAlertsBanner
-            alerts={auctionValuationAlerts}
-            className="pac-valuation-alerts"
-          />
           <div className="player-auction-card command-center-main">
           {!selectedPlayer ? (
             <div className="cc-empty-state">

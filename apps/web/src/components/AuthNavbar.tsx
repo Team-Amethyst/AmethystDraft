@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { useValuationBoardAlerts } from "../contexts/ValuationBoardAlertsContext";
 import { getNewsSignals, type NewsSignal } from "../api/engine";
 import {
   newsSignalsCacheKey,
@@ -118,6 +119,8 @@ export default function AuthNavbar() {
   const location = useLocation();
   const { user, logout, token } = useAuth();
   const { league, allLeagues } = useLeague();
+  const { boardValuationAlerts, clearBoardValuationAlerts } =
+    useValuationBoardAlerts();
   const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -370,9 +373,14 @@ export default function AuthNavbar() {
   }, [league, leagueBase, navigate]);
 
   const handleLogout = () => {
+    clearBoardValuationAlerts();
     logout();
     navigate("/");
   };
+
+  useEffect(() => {
+    if (!token) clearBoardValuationAlerts();
+  }, [token, clearBoardValuationAlerts]);
 
   return (
     <nav className="auth-navbar">
@@ -572,6 +580,37 @@ export default function AuthNavbar() {
                       </div>
                     </div>
                   ))}
+                  {boardValuationAlerts.length > 0 && (
+                    <>
+                      <div className="nb-board-valuation-heading">
+                        Board valuation
+                      </div>
+                      {boardValuationAlerts.slice(0, 2).map((a) => (
+                        <div
+                          key={a.id}
+                          className={
+                            "nb-alert-item nb-alert-board-valuation nb-alert-board-valuation--" +
+                            a.severity
+                          }
+                        >
+                          <div className="nb-alert-icon">∑</div>
+                          <div className="nb-alert-body">
+                            <div className="nb-alert-head nb-alert-head--tight">
+                              <span className="nb-alert-title">{a.title}</span>
+                            </div>
+                            <div className="nb-alert-desc nb-alert-desc--oneline">
+                              {a.message}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {boardValuationAlerts.length > 2 ? (
+                        <div className="nb-board-valuation-more">
+                          +{boardValuationAlerts.length - 2} more
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                   {alertsLoading && (
                     <div className="nb-alerts-state nb-alerts-loading">
                       <RefreshCw size={13} className="nb-alerts-spinner" />
@@ -587,7 +626,8 @@ export default function AuthNavbar() {
                   {!alertsLoading &&
                     !alertsError &&
                     visibleAlerts.length === 0 &&
-                    webhookPings.length === 0 && (
+                    webhookPings.length === 0 &&
+                    boardValuationAlerts.length === 0 && (
                     <div className="nb-alerts-empty">
                       No MLB alerts match this filter right now.
                     </div>
