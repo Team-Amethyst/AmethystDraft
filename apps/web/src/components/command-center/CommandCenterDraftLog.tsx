@@ -1,8 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Maximize2 } from "lucide-react";
 import type { League } from "../../contexts/LeagueContext";
 import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
 import { DraftLogRow } from "../DraftLogRow";
+
+type DraftPickVm = {
+  entry: RosterEntry;
+  pickNum: number;
+  teamName: string;
+  player: Player | undefined;
+  isMyTeamPick: boolean;
+};
 
 export function CommandCenterDraftLog({
   rosterEntries,
@@ -28,6 +37,9 @@ export function CommandCenterDraftLog({
   ) => void;
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const prevPickCountRef = useRef(0);
+
   const playerMap = useMemo(
     () => new Map(allPlayers.map((p) => [p.id, p])),
     [allPlayers],
@@ -56,38 +68,147 @@ export function CommandCenterDraftLog({
     [rosterEntries],
   );
 
+  const picksView = useMemo((): DraftPickVm[] => {
+    const myIdx =
+      myTeamId != null
+        ? parseInt(myTeamId.replace("team_", ""), 10) - 1
+        : -1;
+    return sorted.map((entry, i) => {
+      const teamIdx = entry.teamId
+        ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
+        : (league?.memberIds.indexOf(entry.userId) ?? -1);
+      const teamName =
+        teamIdx >= 0
+          ? (league?.teamNames[teamIdx] ?? entry.teamId ?? entry.userId)
+          : (entry.teamId ?? entry.userId);
+      const player = playerMap.get(entry.externalPlayerId);
+      const isMyTeamPick =
+        myTeamId != null &&
+        (entry.teamId
+          ? entry.teamId === myTeamId
+          : Boolean(
+              league &&
+                myIdx >= 0 &&
+                league.memberIds.indexOf(entry.userId) === myIdx,
+            ));
+      return {
+        entry,
+        pickNum: i + 1,
+        teamName,
+        player,
+        isMyTeamPick: Boolean(isMyTeamPick),
+      };
+    });
+  }, [sorted, league, myTeamId, playerMap]);
+
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el || sorted.length === 0) {
+      prevPickCountRef.current = sorted.length;
+      return;
+    }
+    if (sorted.length > prevPickCountRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+    prevPickCountRef.current = sorted.length;
+  }, [sorted.length]);
+
   useEffect(() => {
     if (!isModalOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsModalOpen(false);
-      }
+      if (event.key === "Escape") setIsModalOpen(false);
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isModalOpen]);
 
+  const sharedRowProps = useMemo(
+    () => ({
+      slotOptions,
+      teamOptions,
+      allRosterEntries: rosterEntries,
+      leagueRosterSlots: league?.rosterSlots ?? {},
+      leagueBudget: league?.budget,
+      onUpdate: onUpdatePick,
+      onRemove: onRemovePick,
+    }),
+    [
+      slotOptions,
+      teamOptions,
+      rosterEntries,
+      league?.rosterSlots,
+      league?.budget,
+      onUpdatePick,
+      onRemovePick,
+    ],
+  );
+
   const draftCountLabel =
     sorted.length === 1 ? "1 pick made" : `${sorted.length} picks made`;
 
   return (
-    <>
+    <div className="cc-draft-log-root">
       <div className="market-section-label market-section-label--spaced">
         DRAFT LOG
         <span className="cc-draft-log-count">{draftCountLabel}</span>
       </div>
-      <div className="cc-draft-log-summary">
-        <button
-          type="button"
-          className="cc-draft-log-button"
-          onClick={() => setIsModalOpen(true)}
+
+      <div className="cc-draft-log-panel">
+        <div className="cc-draft-log-toolbar">
+          <div className="cc-draft-log-toolbar-copy">
+            <span className="cc-draft-log-toolbar-label">Recent picks</span>
+            {sorted.length === 0 ? (
+              <span className="cc-draft-log-toolbar-muted">
+                No picks yet — they appear here as you draft.
+              </span>
+            ) : (
+              <span className="cc-draft-log-toolbar-muted">
+                Newest at bottom · scroll up for earlier picks
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="cc-draft-log-expand"
+            onClick={() => setIsModalOpen(true)}
+            aria-haspopup="dialog"
+            title="Open full draft log in a larger window"
+          >
+            <Maximize2 className="cc-draft-log-expand-icon" aria-hidden strokeWidth={2} />
+            <span className="cc-draft-log-expand-text">Full view</span>
+          </button>
+        </div>
+
+        <div
+          ref={listRef}
+          className="draft-log-list draft-log-list--inline"
+          role="log"
+          aria-label="Draft log, recent picks"
+          aria-live="polite"
+          aria-relevant="additions"
         >
-          View Draft Log
-        </button>
-        {sorted.length === 0 ? (
-          <div className="cc-draft-log-summary-note">No picks yet.</div>
-        ) : null}
+          {sorted.length === 0 ? (
+            <div className="cc-draft-log-inline-empty">
+              No picks logged yet. Winning bids show up here in pick order.
+            </div>
+          ) : (
+            picksView.map(
+              ({ entry, pickNum, teamName, player, isMyTeamPick }) => (
+                <DraftLogRow
+                  key={entry._id}
+                  entry={entry}
+                  pickNum={pickNum}
+                  teamName={teamName}
+                  isMyTeamPick={isMyTeamPick}
+                  headshot={player?.headshot}
+                  {...sharedRowProps}
+                />
+              ),
+            )
+          )}
+        </div>
       </div>
+
       {isModalOpen && (
         <div
           className="cc-draft-log-modal-overlay"
@@ -126,52 +247,25 @@ export function CommandCenterDraftLog({
                 </div>
               ) : (
                 <div className="cc-draft-log-modal-list">
-                  {sorted.map((entry, i) => {
-                    const teamIdx = entry.teamId
-                      ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
-                      : (league?.memberIds.indexOf(entry.userId) ?? -1);
-                    const teamName =
-                      teamIdx >= 0
-                        ? (league?.teamNames[teamIdx] ?? entry.teamId ?? entry.userId)
-                        : (entry.teamId ?? entry.userId);
-                    const player = playerMap.get(entry.externalPlayerId);
-                    const myIdx =
-                      myTeamId != null
-                        ? parseInt(myTeamId.replace("team_", ""), 10) - 1
-                        : -1;
-                    const isMyTeamPick =
-                      myTeamId != null &&
-                      (entry.teamId
-                        ? entry.teamId === myTeamId
-                        : Boolean(
-                            league &&
-                              myIdx >= 0 &&
-                              league.memberIds.indexOf(entry.userId) === myIdx,
-                          ));
-                    return (
+                  {picksView.map(
+                    ({ entry, pickNum, teamName, player, isMyTeamPick }) => (
                       <DraftLogRow
-                        key={entry._id}
+                        key={`modal-${entry._id}`}
                         entry={entry}
-                        pickNum={i + 1}
+                        pickNum={pickNum}
                         teamName={teamName}
-                        isMyTeamPick={Boolean(isMyTeamPick)}
+                        isMyTeamPick={isMyTeamPick}
                         headshot={player?.headshot}
-                        slotOptions={slotOptions}
-                        teamOptions={teamOptions}
-                        allRosterEntries={rosterEntries}
-                        leagueRosterSlots={league?.rosterSlots ?? {}}
-                        leagueBudget={league?.budget}
-                        onUpdate={onUpdatePick}
-                        onRemove={onRemovePick}
+                        {...sharedRowProps}
                       />
-                    );
-                  })}
+                    ),
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
