@@ -9,6 +9,7 @@ import {
   removePlayerFromTaxiRoster,
   replaceTaxiRosterPlayer,
   searchEligibleTaxiPlayers,
+  searchRankedEligibleTaxiPlayers,
 } from "./taxiDraft";
 import type { TaxiRosters } from "../types/taxiDraft";
 import type { Player } from "../types/player";
@@ -109,5 +110,21 @@ describe("taxiDraft helpers", () => {
 
     const noResults = searchEligibleTaxiPlayers(samplePlayers, "nonexistent", ["p1"], searchRosters);
     expect(noResults).toEqual([]);
+  });
+
+  it("ranks eligible taxi players by name like Command Center, with team/pos fallback", () => {
+    const searchRosters: TaxiRosters = {
+      teamA: [
+        { playerId: "p1", teamId: "teamA", addedAt: "2026-01-01T00:00:00.000Z", pickNumber: 1 },
+      ],
+    };
+    const byName = searchRankedEligibleTaxiPlayers(samplePlayers, "Bravo", ["p1"], searchRosters);
+    expect(byName.map((p) => p.id)).toEqual(["p2"]);
+
+    const byTeam = searchRankedEligibleTaxiPlayers(samplePlayers, "BOS", ["p1"], searchRosters);
+    expect(byTeam.map((p) => p.id)).toEqual(["p2"]);
+
+    const empty = searchRankedEligibleTaxiPlayers(samplePlayers, "zzz", ["p1"], searchRosters);
+    expect(empty).toEqual([]);
   });
 });

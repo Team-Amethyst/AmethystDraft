@@ -1,5 +1,6 @@
 import type { Player } from "../types/player";
 import type { TaxiRosters } from "../types/taxiDraft";
+import { searchRankedAvailablePlayers } from "./auctionPlayerSearch";
 
 export function initializeTaxiDraftOrder(teamIds: readonly string[]): string[] {
   return [...teamIds];
@@ -139,5 +140,38 @@ export function searchEligibleTaxiPlayers(
 
     return nameMatch || teamMatch || positionMatch;
   });
+}
+
+/**
+ * Command Center–style ranked name search on taxi-eligible players, with a
+ * catalog_rank–sorted fallback when the query matches team or position (not in name ranker).
+ */
+export function searchRankedEligibleTaxiPlayers(
+  players: readonly Player[],
+  query: string,
+  draftedPlayerIds: ReadonlySet<string> | readonly string[],
+  taxiRosters: TaxiRosters,
+  options?: { limit?: number },
+): Player[] {
+  const limit = options?.limit ?? 12;
+  if (query.length < 1) return [];
+
+  const eligible = getEligibleTaxiPlayers(players, draftedPlayerIds, taxiRosters);
+  const ranked = searchRankedAvailablePlayers([...eligible], new Set(), query, {
+    limit,
+  });
+  if (ranked.length > 0) return ranked;
+
+  const q = query.toLowerCase().trim();
+  const fallback = eligible.filter((player) => {
+    const teamMatch = player.team.toLowerCase().includes(q);
+    const positionMatch =
+      (player.position?.toLowerCase().includes(q) ?? false) ||
+      (player.positions?.some((pos) => pos.toLowerCase().includes(q)) ?? false);
+    return teamMatch || positionMatch;
+  });
+  return fallback
+    .sort((a, b) => (a.catalog_rank ?? 999) - (b.catalog_rank ?? 999))
+    .slice(0, limit);
 }
 
