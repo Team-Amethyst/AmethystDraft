@@ -83,6 +83,15 @@ describe("valuation helpers", () => {
     expect(merged.indicator).toBe("Steal");
   });
 
+  it("does not map legacy valuation.adp onto player.auction_rank (catalog collision)", () => {
+    const merged = mergePlayerWithValuation(basePlayer(), {
+      player_id: "1",
+      adp: 5,
+      baseline_value: 10,
+    });
+    expect(merged.auction_rank).toBeUndefined();
+  });
+
   it("merges explainability notes and valuation_explain from engine row", () => {
     const merged = mergePlayerWithValuation(basePlayer(), {
       player_id: "1",

@@ -102,6 +102,34 @@ describe("valuationNormalize", () => {
     expect(merged.team_adjusted_value).toBe(31);
   });
 
+  it("does not treat catalog `adp` as auction_rank (catalog ADP alias collides)", () => {
+    const row = normalizeValuationResultRow({
+      player_id: "1",
+      name: "S",
+      position: "P",
+      adp: 42,
+      tier: 2,
+      baseline_value: 10,
+      adjusted_value: 11,
+      indicator: "Fair Value",
+    });
+    expect(row.auction_rank).toBeUndefined();
+    expect(row.adp).toBeUndefined();
+  });
+
+  it("merge keeps prior auction tier when incoming board row carries tier 0 placeholders", () => {
+    const prev = baseRow({ auction_tier: 3, tier: 3 });
+    const board = baseRow({
+      auction_tier: 0,
+      tier: 0,
+      baseline_value: 99,
+      adjusted_value: 100,
+    });
+    const merged = mergeValuationBoardRowIntoPrevious(prev, board);
+    expect(merged.auction_tier).toBe(3);
+    expect(merged.tier).toBe(3);
+  });
+
   it("maps auction_value snake and camel", () => {
     const snake = normalizeValuationResultRow({
       player_id: "1",

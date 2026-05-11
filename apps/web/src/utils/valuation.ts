@@ -594,10 +594,16 @@ export function mergePlayerWithValuation(
   valuation?: ValuationShape,
 ): Player {
   if (!valuation) return player;
-  const auctionTier =
+  const auctionTierRaw =
     coerceNumber(valuation.auction_tier) ?? coerceNumber(valuation.tier);
-  const auctionRank =
-    coerceNumber(valuation.auction_rank) ?? coerceNumber(valuation.adp);
+  /** Ignore 0 — sparse Engine/board rows use it as a placeholder and must not wipe catalog tier. */
+  const auctionTier =
+    auctionTierRaw !== undefined &&
+    Number.isFinite(auctionTierRaw) &&
+    auctionTierRaw > 0
+      ? auctionTierRaw
+      : undefined;
+  const auctionRank = coerceNumber(valuation.auction_rank);
   const baselineTier = coerceNumber(valuation.baseline_tier);
   const baselineRank = coerceNumber(valuation.baseline_rank);
   const marketAdp = coerceNumber(valuation.market_adp);

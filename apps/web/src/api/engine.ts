@@ -53,8 +53,8 @@ export interface ValuationResult {
   /** Engine explainability; safe to ignore in UI. */
   why?: string[];
   /**
-   * Legacy: some responses used `adp` for auction-rank-like ordering on the row.
-   * Prefer `auction_rank`.
+   * Legacy mirror of {@link auction_rank} when present after normalization.
+   * Raw Engine `adp` on a row is catalog-style ADP — do not use it as auction_rank (see normalize).
    */
   adp?: number;
   inflation_factor?: number;

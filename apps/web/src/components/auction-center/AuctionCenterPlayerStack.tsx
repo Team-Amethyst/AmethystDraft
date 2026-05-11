@@ -45,15 +45,21 @@ export function AuctionCenterPlayerStack({
   hittingCats,
 }: AuctionCenterPlayerStackProps) {
   const rowUi = mergedValuationRow;
+  const rawEngineTier = rowUi?.auction_tier ?? rowUi?.tier;
+  const tierFromRow =
+    typeof rawEngineTier === "number" &&
+    Number.isFinite(rawEngineTier) &&
+    rawEngineTier > 0
+      ? rawEngineTier
+      : undefined;
   const tierValue =
-    rowUi?.auction_tier ??
-    rowUi?.tier ??
+    tierFromRow ??
     displayAuctionTier(selectedPlayer) ??
     selectedPlayer.catalog_tier;
 
   const marketAdp = rowUi?.market_adp ?? selectedPlayer.market_adp;
   const auctionRank =
-    rowUi?.auction_rank ?? rowUi?.adp ?? selectedPlayer.auction_rank;
+    rowUi?.auction_rank ?? selectedPlayer.auction_rank;
 
   let rankLabel: string;
   let rankValue: number;

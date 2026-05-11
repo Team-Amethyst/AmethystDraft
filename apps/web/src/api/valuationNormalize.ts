@@ -264,9 +264,8 @@ export function normalizeValuationResultRow(
     "baseline_tier",
     "baselineTier",
   ]);
-  const auction_rank =
-    readFiniteFromRecord(row, ["auction_rank", "auctionRank"]) ??
-    readFiniteFromRecord(row, ["adp"]);
+  /** League auction-order rank only — do not fall back to `adp` (catalog ADP alias collides). */
+  const auction_rank = readFiniteFromRecord(row, ["auction_rank", "auctionRank"]);
   const baseline_rank = readFiniteFromRecord(row, [
     "baseline_rank",
     "baselineRank",
@@ -375,6 +374,18 @@ function firstFinite(
   return undefined;
 }
 
+/** Board rows often omit tier; normalized placeholders use 0 — prefer any positive tier and never let 0 clobber a good prior row. */
+function mergeAuctionTierNumbers(
+  incoming: ValuationResult,
+  previous: ValuationResult,
+): number {
+  const inc = firstFinite(incoming.auction_tier, incoming.tier);
+  const prev = firstFinite(previous.auction_tier, previous.tier);
+  if (inc !== undefined && inc > 0) return inc;
+  if (prev !== undefined && prev > 0) return prev;
+  return inc ?? prev ?? 0;
+}
+
 /**
  * When applying a bulk board refresh, keep per-player optional fields from `previous`
  * if the board row omits them (board payload is often slimmer than `/valuation/player`).
@@ -403,7 +414,9 @@ export function mergeValuationBoardRowIntoPrevious(
     previous.adjusted_value;
   merged.auction_value = firstFinite(incoming.auction_value, previous.auction_value);
   merged.auction_rank = firstFinite(incoming.auction_rank, previous.auction_rank);
-  merged.auction_tier = firstFinite(incoming.auction_tier, previous.auction_tier);
+  const mergedTier = mergeAuctionTierNumbers(incoming, previous);
+  merged.tier = mergedTier;
+  merged.auction_tier = mergedTier > 0 ? mergedTier : undefined;
   merged.baseline_rank = firstFinite(incoming.baseline_rank, previous.baseline_rank);
   merged.baseline_tier = firstFinite(incoming.baseline_tier, previous.baseline_tier);
   merged.market_adp = firstFinite(incoming.market_adp, previous.market_adp);
