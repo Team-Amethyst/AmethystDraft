@@ -103,6 +103,19 @@ Expect **`204`**. **`401`** = wrong Bearer. **`503`** = Draft missing both `AMET
 
 **`405` on `draftroom.uk`** → wrong host (SPA / CDN), not a missing Draft route or Bearer on App Runner.
 
+### Still no in-app toast after webhook **204**?
+
+1. **Browser must hold an active Socket.IO session.** Check while logged in with a tab open:
+   ```bash
+   curl -sS -H "Authorization: Bearer <AMETHYST_API_KEY>" \
+     "https://<API_HOST>/api/internal/news-signals/debug"
+   ```
+   **`socketIoConnections`** should be **≥ 1**. If **0**, the SPA is not connecting (wrong **`VITE_API_URL`** in the built bundle, blocked WebSocket, or not signed in).
+
+2. **Engine portal “Test webhook”** only fires the Sonner ping when the body includes **`"event": "custom"`**. Live **`signals_updated`** pushes refresh the list only when the Engine snapshot **fingerprint changes**.
+
+3. **Behavior fix:** Socket.IO used to connect only inside **`/leagues/:id/*`**. It now connects for **any authenticated** session, and the **Intelligence Alerts** bell shows whenever the user is signed in (not only when a league context is loaded).
+
 ### `401 Unauthorized` on App Runner (correct host)
 
 Draft compares the incoming token to **`INTERNAL_WEBHOOK_SECRET` first** if that env is set on the API service; **otherwise** it uses **`AMETHYST_API_KEY`**.

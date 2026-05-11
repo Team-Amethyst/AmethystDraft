@@ -49,6 +49,15 @@ export function useNewsSignalsRealtime(
         autoConnect: true,
       });
 
+      if (import.meta.env.DEV) {
+        socket.on("connect", () => {
+          console.debug("[newsRealtime] socket connected", origin);
+        });
+        socket.on("connect_error", (err: Error) => {
+          console.warn("[newsRealtime] connect_error", err.message);
+        });
+      }
+
       socket.on(
         NEWS_SIGNALS_UPDATED_EVENT,
         (payload?: NewsSignalsSocketPayload) => {

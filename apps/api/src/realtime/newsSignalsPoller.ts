@@ -127,3 +127,12 @@ export function unregisterNewsSignalsSubscriber(): void {
     stopPoller();
   }
 }
+
+/** Connected sockets that bumped the poller refcount (best-effort ops metric). */
+export function getNewsSignalsPollerSubscriberCount(): number {
+  return subscriberCount;
+}
+
+export function isNewsSignalsPollerIntervalRunning(): boolean {
+  return pollTimer !== null;
+}

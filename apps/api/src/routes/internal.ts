@@ -1,9 +1,12 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { Router } from "express";
 import {
   emitNewsSignalsWebhookTestPing,
   forcePollFromWebhook,
+  getNewsSignalsPollerSubscriberCount,
+  isNewsSignalsPollerIntervalRunning,
 } from "../realtime/newsSignalsPoller";
+import { getSocketIoConnectionsCount } from "../realtime/socketServer";
 
 const router: Router = Router();
 
@@ -31,26 +34,46 @@ function extractIncomingWebhookToken(req: Request): string | undefined {
   return undefined;
 }
 
-/**
- * Engine calls this when news/injury signals are ingested.
- * Auth: token must match INTERNAL_WEBHOOK_SECRET if set, else AMETHYST_API_KEY.
- * Body optional; we refetch Engine and broadcast if the snapshot changed.
- */
-router.post("/news-signals/hook", (req, res): void => {
+function assertWebhookAuth(req: Request, res: Response): boolean {
   const secret = resolveNewsSignalsWebhookBearerSecret();
   if (!secret) {
     res.status(503).json({
       error:
         "Webhook not configured: set AMETHYST_API_KEY or INTERNAL_WEBHOOK_SECRET",
     });
-    return;
+    return false;
   }
-
   const token = extractIncomingWebhookToken(req);
   if (token !== secret) {
     res.status(401).json({ error: "Unauthorized" });
-    return;
+    return false;
   }
+  return true;
+}
+
+/**
+ * Ops / curl: same Bearer as POST webhook. Shows whether any browsers have Socket.IO connected.
+ */
+router.get("/news-signals/debug", (req, res): void => {
+  if (!assertWebhookAuth(req, res)) return;
+  res.json({
+    socketIoConnections: getSocketIoConnectionsCount(),
+    newsSignalsPollerRefcount: getNewsSignalsPollerSubscriberCount(),
+    pollerIntervalActive: isNewsSignalsPollerIntervalRunning(),
+    postWebhookPath: "/api/internal/news-signals/hook",
+    socketIoPath: "/socket.io",
+    hint:
+      "Open the SPA signed in (any page with the bell); socketIoConnections should be >= 1 before webhook tests show in-app toasts.",
+  });
+});
+
+/**
+ * Engine calls this when news/injury signals are ingested.
+ * Auth: token must match INTERNAL_WEBHOOK_SECRET if set, else AMETHYST_API_KEY.
+ * Body optional; we refetch Engine and broadcast if the snapshot changed.
+ */
+router.post("/news-signals/hook", (req, res): void => {
+  if (!assertWebhookAuth(req, res)) return;
 
   forcePollFromWebhook();
 

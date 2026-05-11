@@ -132,7 +132,8 @@ export default function AuthNavbar() {
     setRealtimeNonce((n) => n + 1);
   }, []);
 
-  useNewsSignalsRealtime(token, Boolean(league), bumpRealtimeFromPush);
+  // Connect whenever signed in — league-scoped routes are not required for global MLB signals.
+  useNewsSignalsRealtime(token, Boolean(token), bumpRealtimeFromPush);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -382,7 +383,7 @@ export default function AuthNavbar() {
             )}
           </div>
         )}
-        {league && (
+        {token && (
           <div className="nb-alerts-wrap" ref={alertsRef}>
             <button
               className="nb-alerts-btn"
