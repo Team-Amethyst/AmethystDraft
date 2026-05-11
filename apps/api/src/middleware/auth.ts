@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import mongoose from "mongoose";
 import User, { IUser } from "../models/User";
 import { UnauthorizedError, InternalServerError } from "../lib/appError";
 
@@ -37,6 +38,22 @@ const authMiddleware = async (
 
     if (!decoded || typeof decoded.userId !== "string") {
       throw new UnauthorizedError("Invalid token payload", 401, "INVALID_TOKEN");
+    }
+
+    /** Playwright E2E stub only — never set in production. */
+    if (process.env.DRAFTROOM_E2E_STUB === "1") {
+      req.user = {
+        _id: new mongoose.Types.ObjectId(decoded.userId),
+        displayName: "E2E Stub User",
+        email: "e2e-stub@local.test",
+        passwordHash: "",
+        lastLogin: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        comparePassword: async () => false,
+      } as unknown as IUser;
+      next();
+      return;
     }
 
     const user = await User.findById(decoded.userId).select("-passwordHash");

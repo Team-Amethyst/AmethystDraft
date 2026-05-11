@@ -24,3 +24,9 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+      - name: Install Playwright (Chromium)
+        run: cd apps/web && pnpm exec playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: cd apps/web && pnpm run test:e2e

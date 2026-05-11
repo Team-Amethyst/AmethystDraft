@@ -53,6 +53,12 @@ export function attachSocketServer(httpServer: HttpServer): SocketIoServer {
         return next(socketAuthError("INVALID_TOKEN"));
       }
 
+      /** Playwright E2E stub only — never set in production. */
+      if (process.env.DRAFTROOM_E2E_STUB === "1") {
+        socket.data.userId = decoded.userId;
+        return next();
+      }
+
       const user = await User.findById(decoded.userId).select("_id");
       if (!user) {
         return next(socketAuthError("USER_NOT_FOUND"));
