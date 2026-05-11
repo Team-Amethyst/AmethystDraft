@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { io as ioClient, type Socket as IoSocket } from "socket.io-client";
 
 import internalRouter from "../routes/internal";
+import { amethyst } from "../lib/amethyst";
 import { attachSocketServer } from "./socketServer";
 import { NEWS_SIGNALS_UPDATED_EVENT } from "./newsSignalsPoller";
 import User from "../models/User";
@@ -27,11 +28,7 @@ vi.mock("../models/User", () => ({
 
 vi.mock("../lib/amethyst", () => ({
   amethyst: {
-    get: vi.fn().mockResolvedValue({
-      status: 200,
-      headers: { etag: '"integration-mock-etag"' },
-      data: { signals: [], count: 0 },
-    }),
+    get: vi.fn(),
   },
 }));
 
@@ -45,6 +42,13 @@ describe("news signals socket + webhook (integration)", () => {
     process.env.AMETHYST_API_KEY = API_KEY;
     delete process.env.INTERNAL_WEBHOOK_SECRET;
     process.env.AMETHYST_API_BASE_URL = "https://engine-mock.example";
+
+    vi.mocked(amethyst.get).mockReset();
+    vi.mocked(amethyst.get).mockResolvedValue({
+      status: 200,
+      headers: { etag: '"integration-mock-etag"' },
+      data: { signals: [], count: 0 },
+    });
 
     vi.mocked(User.findById).mockImplementation(
       () =>
@@ -131,5 +135,104 @@ describe("news signals socket + webhook (integration)", () => {
       ping: true,
       message: "integration ping",
     });
+  });
+
+  it("emits news_signals_updated when hook forces a poll and Engine payload fingerprint changes", async () => {
+    let pollCall = 0;
+    vi.mocked(amethyst.get).mockImplementation(async () => {
+      pollCall += 1;
+      if (pollCall === 1) {
+        return {
+          status: 200,
+          headers: {},
+          data: { signals: [], count: 0 },
+        };
+      }
+      return {
+        status: 200,
+        headers: {},
+        data: {
+          count: 1,
+          signals: [
+            {
+              player_name: "Integration Player",
+              signal_type: "injury",
+              effective_date: "2026-05-01",
+              description: "test",
+              source: "integration",
+            },
+          ],
+        },
+      };
+    });
+
+    const app = express();
+    app.use(express.json());
+    app.use("/api/internal", internalRouter);
+
+    server = http.createServer(app);
+    attachSocketServer(server);
+
+    await new Promise<void>((resolve, reject) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+      server.once("error", reject);
+    });
+
+    const port = (server.address() as AddressInfo).port;
+    baseUrl = `http://127.0.0.1:${port}`;
+
+    const token = jwt.sign({ userId: USER_ID }, JWT_SECRET);
+
+    clientSocket = ioClient(baseUrl, {
+      path: "/socket.io",
+      auth: { token },
+      transports: ["websocket"],
+      autoConnect: true,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const to = setTimeout(
+        () => reject(new Error("socket connect timeout")),
+        8000,
+      );
+      clientSocket!.once("connect", () => {
+        clearTimeout(to);
+        resolve();
+      });
+      clientSocket!.once("connect_error", (err: Error) => {
+        clearTimeout(to);
+        reject(err);
+      });
+    });
+
+    await expect.poll(() => pollCall).toBe(1);
+
+    const updatePromise = new Promise<unknown>((resolve, reject) => {
+      const to = setTimeout(
+        () => reject(new Error("no news_signals_updated event")),
+        8000,
+      );
+      clientSocket!.once(NEWS_SIGNALS_UPDATED_EVENT, (payload: unknown) => {
+        clearTimeout(to);
+        resolve(payload);
+      });
+    });
+
+    const res = await fetch(`${baseUrl}/api/internal/news-signals/hook`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ event: "signals_updated" }),
+    });
+
+    expect(res.status).toBe(204);
+
+    await expect(updatePromise).resolves.toMatchObject({
+      count: 1,
+      fingerprint: expect.any(String),
+    });
+    expect(pollCall).toBe(2);
   });
 });

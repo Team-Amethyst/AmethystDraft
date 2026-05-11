@@ -8,7 +8,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "test:e2e": "pnpm --filter web run test:e2e"
+    "test:e2e": "pnpm --filter web run test:e2e",
+    "validate:alerts": "pnpm --filter api exec vitest run src/routes/internal.routes.test.ts src/lib/newsSignalsFingerprint.test.ts src/realtime/newsSignalsSocket.integration.test.ts && CI=1 pnpm test:e2e"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
