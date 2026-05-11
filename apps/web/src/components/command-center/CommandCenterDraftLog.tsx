@@ -221,19 +221,22 @@ export function CommandCenterDraftLog({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="cc-draft-log-modal-header">
-              <div>
-                <div className="cc-draft-log-modal-title">Draft Log</div>
-                <div className="cc-draft-log-modal-subtitle">
+              <span className="cc-draft-log-modal-heading">
+                <span className="cc-draft-log-modal-heading-title">
+                  Draft Log
+                </span>
+                <span className="cc-draft-log-modal-heading-count">
                   {draftCountLabel}
-                </div>
-              </div>
+                </span>
+              </span>
               <button
                 type="button"
                 className="cc-draft-log-modal-close"
                 onClick={() => setIsModalOpen(false)}
                 aria-label="Close draft log"
+                title="Close (Esc)"
               >
-                ×
+                <span aria-hidden>×</span>
               </button>
             </div>
 

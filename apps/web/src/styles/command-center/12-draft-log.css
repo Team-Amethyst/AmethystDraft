@@ -118,81 +118,159 @@
   text-transform: none;
 }
 
+/* ─── Full-view modal — Command Center surface chrome, larger scale ──────── */
+
 .cc-draft-log-modal-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(8, 4, 18, 0.62);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
   padding: 1.25rem;
+  animation: cc-draft-log-overlay-in 120ms ease-out;
 }
 
+@keyframes cc-draft-log-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Surface mirrors .cc-surface-card (border, gradient, hairline highlight) but
+   scales up tonally for a centered focus state. */
 .cc-draft-log-modal {
   width: min(94vw, 880px);
-  max-height: 78vh;
-  background: #120b25;
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  border-radius: 18px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.045) 0%,
+      rgba(255, 255, 255, 0.012) 100%
+    ),
+    radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(139, 92, 246, 0.14) 0%,
+      transparent 65%
+    ),
+    var(--app-bg, #120b25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(139, 92, 246, 0.08);
+  overflow: hidden;
+  animation: cc-draft-log-modal-in 140ms ease-out;
 }
 
+@keyframes cc-draft-log-modal-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Heading uses the same uppercase market-section-label rhythm as the rail */
 .cc-draft-log-modal-header {
+  flex-shrink: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1.15rem 1.15rem 0.75rem;
+  gap: 0.85rem;
+  padding: 0.85rem 0.95rem;
   border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  background: rgba(0, 0, 0, 0.12);
 }
 
-.cc-draft-log-modal-title {
-  color: #ece7ff;
-  font-size: 1rem;
+.cc-draft-log-modal-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.cc-draft-log-modal-heading-title {
+  font-size: 0.72rem;
   font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cc-heading-color, #6b4fa0);
 }
 
-.cc-draft-log-modal-subtitle {
-  color: rgba(212, 200, 232, 0.76);
-  font-size: 0.78rem;
-  margin-top: 0.2rem;
+.cc-draft-log-modal-heading-count {
+  color: rgba(167, 139, 250, 0.78);
+  font-weight: 500;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.16);
 }
 
+/* Close button echoes the rail's `.cc-draft-log-expand` pill chrome */
 .cc-draft-log-modal-close {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  color: #f8f6ff;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  background: rgba(139, 92, 246, 0.1);
+  color: rgba(237, 233, 254, 0.85);
   cursor: pointer;
   line-height: 1;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  padding: 0;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.12s ease;
 }
 
 .cc-draft-log-modal-close:hover {
-  background: rgba(139, 92, 246, 0.25);
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fecaca;
+  transform: translateY(-1px);
+}
+
+.cc-draft-log-modal-close:active {
+  transform: translateY(0);
+}
+
+.cc-draft-log-modal-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(196, 181, 255, 0.45);
 }
 
 .cc-draft-log-modal-body {
-  padding: 0.9rem 1rem 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.55rem 0.6rem 0.75rem;
   overflow: hidden;
-  flex: 1;
 }
 
 .cc-draft-log-modal-list {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  max-height: calc(78vh - 7rem);
+  gap: 0.1rem;
   overflow-y: auto;
-  min-height: 0;
+  padding: 0.1rem 0.25rem 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.45)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
 .cc-draft-log-modal-list::-webkit-scrollbar {
@@ -200,8 +278,13 @@
 }
 
 .cc-draft-log-modal-list::-webkit-scrollbar-track {
-  background: rgba(20, 12, 35, 0.9);
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
   border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px var(--app-accent-border-faint)
+  );
 }
 
 .cc-draft-log-modal-list::-webkit-scrollbar-thumb {
@@ -209,15 +292,20 @@
   border-radius: 3px;
 }
 
+.cc-draft-log-modal-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(167, 139, 250, 0.72);
+}
+
 .cc-draft-log-modal-empty {
-  color: rgba(212, 200, 232, 0.8);
-  padding: 2rem;
+  color: rgba(196, 181, 225, 0.72);
+  padding: 1.6rem 1.25rem;
   text-align: center;
-  font-size: 0.94rem;
-  line-height: 1.5;
+  font-size: 0.82rem;
+  line-height: 1.55;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  border: 1px dashed rgba(139, 92, 246, 0.22);
+  border-radius: 10px;
+  margin: 0.3rem 0.25rem;
 }
 
 .dl-empty {
