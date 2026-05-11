@@ -12,8 +12,12 @@ import {
   type DepthChartPlayerRow,
   type DepthChartResponse,
 } from "../api/players";
-import { getValuation, getValuationPlayer } from "../api/engine";
-import { ValuationContextWarningsBanner } from "../components/ValuationContextWarningsBanner";
+import { getValuation, getValuationPlayer, type ValuationResponse } from "../api/engine";
+import { ValuationAlertsBanner } from "../components/ValuationAlertsBanner";
+import {
+  filterValuationAlertsForSurface,
+  normalizeValuationAlerts,
+} from "../domain/valuationAlerts";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -135,10 +139,25 @@ export default function Research() {
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationShape>
   >(() => new Map());
-  const [valuationBoardMeta, setValuationBoardMeta] = useState<{
-    warnings?: string[];
-    context?: Record<string, unknown>;
-  } | null>(null);
+  const [lastResearchBoardValuation, setLastResearchBoardValuation] =
+    useState<ValuationResponse | null>(null);
+
+  const valuationBoardMeta = useMemo(() => {
+    if (!lastResearchBoardValuation) return null;
+    return {
+      warnings: lastResearchBoardValuation.valuation_context_warnings,
+      context: lastResearchBoardValuation.valuation_context,
+    };
+  }, [lastResearchBoardValuation]);
+
+  const researchValuationAlerts = useMemo(
+    () =>
+      filterValuationAlertsForSurface(
+        normalizeValuationAlerts(lastResearchBoardValuation),
+        "research",
+      ),
+    [lastResearchBoardValuation],
+  );
   const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
     null,
   );
@@ -268,7 +287,7 @@ export default function Research() {
   useEffect(() => {
     if (!token || !leagueId || players.length === 0) {
       setValuationsByPlayerId(new Map());
-      setValuationBoardMeta(null);
+      setLastResearchBoardValuation(null);
       return;
     }
     let cancelled = false;
@@ -286,15 +305,12 @@ export default function Research() {
         );
         if (!cancelled) {
           setValuationsByPlayerId(merged);
-          setValuationBoardMeta({
-            warnings: res.valuation_context_warnings,
-            context: res.valuation_context,
-          });
+          setLastResearchBoardValuation(res);
         }
       } catch {
         if (!cancelled) {
           setValuationsByPlayerId(new Map());
-          setValuationBoardMeta(null);
+          setLastResearchBoardValuation(null);
         }
       }
     })();
@@ -532,8 +548,8 @@ export default function Research() {
         </div>
 
         <div className="research-content">
-          <ValuationContextWarningsBanner
-            warnings={valuationBoardMeta?.warnings}
+          <ValuationAlertsBanner
+            alerts={researchValuationAlerts}
             className="research-valuation-warnings"
           />
           {selectedView === "player-database" && (

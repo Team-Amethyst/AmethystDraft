@@ -34,23 +34,21 @@ export function ResearchPlayerMetaTags({
   showCustom,
   draftedTeamName,
   draftedContractLabel,
-  /** Bumped when the table scroll area resizes so rows refit without per-row ResizeObservers. */
-  layoutTick = 0,
 }: {
   tags: string[];
   showCustom: boolean;
   draftedTeamName?: string;
   draftedContractLabel?: string;
-  layoutTick?: number;
 }) {
   const metaRef = useRef<HTMLDivElement>(null);
   const probeHostRef = useRef<HTMLDivElement>(null);
   const customRef = useRef<HTMLSpanElement>(null);
   const draftRef = useRef<HTMLDivElement>(null);
   const zeroAvailRetriesRef = useRef(0);
+  const resizeRafRef = useRef(0);
 
   const [visibleFit, setVisibleFit] = useState<VisibleTagFit>(() =>
-    tags.length === 0 ? -1 : tags.length,
+    tags.length === 0 ? -1 : 0,
   );
 
   const recompute = useCallback(() => {
@@ -72,6 +70,10 @@ export function ResearchPlayerMetaTags({
         requestAnimationFrame(() => {
           recompute();
         });
+      } else {
+        // Avoid staying at initial `tags.length` (all chips) which forces horizontal overflow.
+        zeroAvailRetriesRef.current = 0;
+        setVisibleFit(0);
       }
       return;
     }
@@ -116,14 +118,28 @@ export function ResearchPlayerMetaTags({
       recompute();
     });
     return () => cancelAnimationFrame(id);
-  }, [
-    recompute,
-    tags,
-    draftedTeamName,
-    draftedContractLabel,
-    showCustom,
-    layoutTick,
-  ]);
+  }, [recompute, tags, draftedTeamName, draftedContractLabel, showCustom]);
+
+  useLayoutEffect(() => {
+    const meta = metaRef.current;
+    if (!meta) return;
+    const schedule = () => {
+      if (resizeRafRef.current) return;
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = 0;
+        recompute();
+      });
+    };
+    const ro = new ResizeObserver(schedule);
+    ro.observe(meta);
+    return () => {
+      ro.disconnect();
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = 0;
+      }
+    };
+  }, [recompute]);
 
   const metaTitle =
     tags.length > 0 && visibleFit !== tags.length ? tags.join(" · ") : undefined;

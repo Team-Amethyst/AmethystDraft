@@ -23,8 +23,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
-import { getValuation } from "../api/engine";
-import { ValuationContextWarningsBanner } from "../components/ValuationContextWarningsBanner";
+import { getValuation, type ValuationResponse } from "../api/engine";
+import { ValuationAlertsBanner } from "../components/ValuationAlertsBanner";
+import {
+  filterValuationAlertsForSurface,
+  normalizeValuationAlerts,
+} from "../domain/valuationAlerts";
 import AllocationBar from "../components/MyDraft/AllocationBar";
 import PositionTargets from "../components/MyDraft/PositionTargets";
 import {
@@ -150,9 +154,17 @@ export default function MyDraft() {
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationShape>
   >(() => new Map());
-  const [valuationBoardWarnings, setValuationBoardWarnings] = useState<
-    string[] | undefined
-  >(undefined);
+  const [lastMyDraftBoardValuation, setLastMyDraftBoardValuation] =
+    useState<ValuationResponse | null>(null);
+
+  const myDraftValuationAlerts = useMemo(
+    () =>
+      filterValuationAlertsForSurface(
+        normalizeValuationAlerts(lastMyDraftBoardValuation),
+        "my-draft",
+      ),
+    [lastMyDraftBoardValuation],
+  );
 
   useEffect(() => {
     setTargetOverrides(
@@ -197,7 +209,7 @@ export default function MyDraft() {
     if (!token || !leagueId || watchlist.length === 0) {
       const clear = window.setTimeout(() => {
         setValuationsByPlayerId(new Map());
-        setValuationBoardWarnings(undefined);
+        setLastMyDraftBoardValuation(null);
       }, 0);
       return () => window.clearTimeout(clear);
     }
@@ -213,12 +225,12 @@ export default function MyDraft() {
         for (const row of res.valuations) merged.set(row.player_id, row);
         if (!cancelled) {
           setValuationsByPlayerId(merged);
-          setValuationBoardWarnings(res.valuation_context_warnings);
+          setLastMyDraftBoardValuation(res);
         }
       } catch {
         if (!cancelled) {
           setValuationsByPlayerId(new Map());
-          setValuationBoardWarnings(undefined);
+          setLastMyDraftBoardValuation(null);
         }
       }
     })();
@@ -358,8 +370,8 @@ export default function MyDraft() {
   return (
     <div className="mydraft-page">
       <main className="mydraft-shell">
-        <ValuationContextWarningsBanner
-          warnings={valuationBoardWarnings}
+        <ValuationAlertsBanner
+          alerts={myDraftValuationAlerts}
           className="mydraft-valuation-warnings"
         />
 

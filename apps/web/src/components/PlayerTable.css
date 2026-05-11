@@ -447,8 +447,12 @@
   color: #6b4fa0;
   text-transform: uppercase;
   border-bottom: 1px solid var(--app-accent-border-faint);
-  white-space: nowrap;
+  /* Let headings wrap — never clip labels (stat combos, tier, ranks). */
+  white-space: normal;
+  line-height: 1.25;
+  vertical-align: bottom;
   user-select: none;
+  hyphens: none;
 }
 
 .pt-row {
@@ -481,6 +485,7 @@
   padding: 0.55rem 0.75rem;
   color: #d4c8e8;
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 /* Player column may wrap tags / ellipsis name — not single-line nowrap like stats */
@@ -510,8 +515,9 @@
   position: relative;
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: flex-start;
   gap: 0.35rem 0.4rem;
   min-width: 0;
   flex: 1 1 auto;
@@ -530,6 +536,13 @@
 
 .pt-draft-tags {
   flex-shrink: 0;
+}
+
+.pt-table .pt-draft-tags {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .player-name-col .custom-badge {
@@ -611,25 +624,49 @@
 .td-stat { color: #b0a0cc; font-variant-numeric: tabular-nums; }
 .td-rank { color: #6b4fa0; font-weight: 700; }
 
-/* Pos column: one row, never clipped — table horizontal scroll handles narrow viewports. */
+/* Pos column: wrap eligibility badges before forcing other columns narrow. */
+.pt-table .th-pos {
+  white-space: normal;
+  max-width: 5.5rem;
+}
+
 .td-pos {
   vertical-align: middle;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 6.25rem;
 }
 
 .pt-pos-badges {
   display: inline-flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
-  width: max-content;
+  gap: 2px 3px;
+  max-width: 100%;
 }
 
 .pt-table .pos-badge {
-  width: 2rem;
-  font-size: 0.58rem;
-  padding: 0.08rem 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 2.05rem;
+  width: auto;
+  padding: 0.06rem 0.14rem;
+  font-size: 0.5rem;
   border-radius: 3px;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Category / overflow chips: shrink before stat columns give up width */
+.pt-table .tag-list .tag,
+.pt-table .pt-category-tags .tag {
+  font-size: 0.56rem;
+  padding: 0.05rem 0.22rem;
+  letter-spacing: 0.02em;
 }
 
 .td-team { color: #9080b0; }
@@ -866,6 +903,7 @@
     position: sticky;
     left: var(--pt-player-sticky-left);
     z-index: 3;
+    width: min(42vw, 17rem);
     min-width: min(10.5rem, 38vw);
     max-width: min(42vw, 17rem);
     box-sizing: border-box;

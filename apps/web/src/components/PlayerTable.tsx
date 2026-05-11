@@ -283,30 +283,6 @@ export default function PlayerTable({
   const numActiveCols = focusedCols ? focusedCols.length : numStatCols;
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const ptScrollRef = useRef<HTMLDivElement>(null);
-  const metaLayoutRafRef = useRef(0);
-  const [metaLayoutTick, setMetaLayoutTick] = useState(0);
-
-  useEffect(() => {
-    const el = ptScrollRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      if (metaLayoutRafRef.current) return;
-      metaLayoutRafRef.current = requestAnimationFrame(() => {
-        metaLayoutRafRef.current = 0;
-        setMetaLayoutTick((t) => t + 1);
-      });
-    });
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      if (metaLayoutRafRef.current) {
-        cancelAnimationFrame(metaLayoutRafRef.current);
-        metaLayoutRafRef.current = 0;
-      }
-    };
-  }, []);
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (
@@ -471,7 +447,7 @@ export default function PlayerTable({
       />
 
       {/* ── Table ── */}
-      <div className="pt-scroll" ref={ptScrollRef}>
+      <div className="pt-scroll">
         <table className="pt-table">
           <thead>
             <tr>
@@ -632,7 +608,6 @@ export default function PlayerTable({
                             showCustom={Boolean(isCustomPlayer?.(player.id))}
                             draftedTeamName={draftedTeamName}
                             draftedContractLabel={draftedContractLabel}
-                            layoutTick={metaLayoutTick}
                           />
                         </div>
                       </div>

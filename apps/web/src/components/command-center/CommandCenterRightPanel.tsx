@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { normalizeValuationAlerts } from "../../domain/valuationAlerts";
 import type { League } from "../../contexts/LeagueContext";
 import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
@@ -11,7 +12,7 @@ import { CommandCenterDraftLog } from "./CommandCenterDraftLog";
 import { CommandCenterRightBidContextCard } from "./CommandCenterRightBidContextCard";
 import { CommandCenterRightMarketPressureCard } from "./CommandCenterRightMarketPressureCard";
 import { CommandCenterRightRosterPane } from "./CommandCenterRightRosterPane";
-import { ValuationContextWarningsBanner } from "../ValuationContextWarningsBanner";
+import { ValuationAlertsBanner } from "../ValuationAlertsBanner";
 
 type ScoringCategory = {
   name: string;
@@ -138,10 +139,15 @@ export function CommandCenterRightPanel({
   const budgetLeft = my?.remaining;
   const dollarsPerSpot = my?.ppSpot;
 
+  const commandCenterValuationAlerts = useMemo(
+    () => normalizeValuationAlerts(engineMarket ?? null),
+    [engineMarket],
+  );
+
   return (
     <div className="cc-right">
-      <ValuationContextWarningsBanner
-        warnings={engineMarket?.valuation_context_warnings}
+      <ValuationAlertsBanner
+        alerts={commandCenterValuationAlerts}
         className="cc-right-valuation-warnings"
       />
       <CommandCenterRightBidContextCard

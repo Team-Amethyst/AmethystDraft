@@ -69,19 +69,21 @@ type NewsSignalType =
   | "demotion"
   | "promotion";
 
-type AlertTab = {
-  label: string;
-  signalType?: NewsSignalType;
-};
+/** Dropdown filter; maps to `GET /signals/news` optional `signal_type`. */
+type AlertFilter = "all" | NewsSignalType;
 
-const ALERT_TABS: AlertTab[] = [
-  { label: "All Alerts" },
-  { label: "Injuries", signalType: "injury" },
-  { label: "Role Changes", signalType: "role_change" },
-  { label: "Trades", signalType: "trade" },
-  { label: "Promotions", signalType: "promotion" },
-  { label: "Demotions", signalType: "demotion" },
+const ALERT_FILTER_OPTIONS: { value: AlertFilter; label: string }[] = [
+  { value: "all", label: "All types" },
+  { value: "injury", label: "Injuries" },
+  { value: "role_change", label: "Role & playing time" },
+  { value: "trade", label: "Trades" },
+  { value: "promotion", label: "Promotions" },
+  { value: "demotion", label: "Demotions" },
 ];
+
+function signalTypeForFilter(filter: AlertFilter): NewsSignalType | undefined {
+  return filter === "all" ? undefined : filter;
+}
 
 function getAlertClass(signalType: string): "injury" | "trade" | "structural" {
   if (signalType === "injury") return "injury";
@@ -119,7 +121,7 @@ export default function AuthNavbar() {
   const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [alertTab, setAlertTab] = useState<AlertTab["label"]>("All Alerts");
+  const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
   const [alertSignals, setAlertSignals] = useState<NewsSignal[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState<string | null>(null);
@@ -265,11 +267,8 @@ export default function AuthNavbar() {
 
   useEffect(() => {
     if (!alertsOpen || !token) return;
-    const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
-    const cacheKey = newsSignalsCacheKey(
-      NEWS_LOOKBACK_DAYS,
-      selectedTab?.signalType,
-    );
+    const signalType = signalTypeForFilter(alertFilter);
+    const cacheKey = newsSignalsCacheKey(NEWS_LOOKBACK_DAYS, signalType);
     const cached = readNewsSignalsCache(cacheKey);
     const hadCache = cached !== null;
 
@@ -291,7 +290,7 @@ export default function AuthNavbar() {
 
     getNewsSignals(token, {
       days: NEWS_LOOKBACK_DAYS,
-      signal_type: selectedTab?.signalType,
+      signal_type: signalType,
     })
       .then((response) => {
         if (!active) return;
@@ -322,20 +321,17 @@ export default function AuthNavbar() {
     return () => {
       active = false;
     };
-  }, [alertsOpen, token, alertTab, applySignals]);
+  }, [alertsOpen, token, alertFilter, applySignals]);
 
   useEffect(() => {
     if (!alertsOpen || !token || realtimeNonce === 0) return;
-    const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
-    const cacheKey = newsSignalsCacheKey(
-      NEWS_LOOKBACK_DAYS,
-      selectedTab?.signalType,
-    );
+    const signalType = signalTypeForFilter(alertFilter);
+    const cacheKey = newsSignalsCacheKey(NEWS_LOOKBACK_DAYS, signalType);
     let active = true;
 
     getNewsSignals(token, {
       days: NEWS_LOOKBACK_DAYS,
-      signal_type: selectedTab?.signalType,
+      signal_type: signalType,
     })
       .then((response) => {
         if (!active) return;
@@ -349,7 +345,7 @@ export default function AuthNavbar() {
     return () => {
       active = false;
     };
-  }, [realtimeNonce, alertsOpen, token, alertTab, applySignals]);
+  }, [realtimeNonce, alertsOpen, token, alertFilter, applySignals]);
 
   const leagueBase = league ? `/leagues/${league.id}` : "";
   const isActive = (path: string) => location.pathname === path;
@@ -534,18 +530,24 @@ export default function AuthNavbar() {
                     must be ≥ 1 for a toast or row here.
                   </div>
                 )}
-                <div className="nb-alerts-tabs">
-                  {ALERT_TABS.map((tab) => (
-                    <button
-                      key={tab.label}
-                      className={
-                        "nb-alert-tab" + (alertTab === tab.label ? " active" : "")
-                      }
-                      onClick={() => setAlertTab(tab.label)}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                <div className="nb-alerts-filter-row">
+                  <label className="nb-alerts-filter-label" htmlFor="nb-alerts-filter">
+                    Show
+                  </label>
+                  <select
+                    id="nb-alerts-filter"
+                    className="nb-alerts-filter-select"
+                    value={alertFilter}
+                    onChange={(e) =>
+                      setAlertFilter(e.target.value as AlertFilter)
+                    }
+                  >
+                    {ALERT_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="nb-alerts-list">
                   {webhookPings.map((w) => (
