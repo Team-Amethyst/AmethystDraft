@@ -14,7 +14,10 @@ import { NotFoundError } from "./lib/appError";
 import customPlayerRoutes from "./routes/customPlayers";
 import { assignRequestId } from "./lib/requestContext";
 import { corsOptionsFromEnv } from "./lib/corsConfig";
-import { attachSocketServer } from "./realtime/socketServer";
+import {
+  attachSocketServer,
+  shutdownSocketServer,
+} from "./realtime/socketServer";
 import { mongoConnectionOptionsFromEnv } from "./lib/mongoConnectionOptions";
 
 dotenv.config();
@@ -77,18 +80,70 @@ const httpServer = http.createServer(app);
 attachSocketServer(httpServer);
 
 const mongoOpts = mongoConnectionOptionsFromEnv();
+const mongoUri = process.env.MONGO_URI as string;
 
-mongoose
-  .connect(process.env.MONGO_URI as string, mongoOpts)
-  .then(() => {
+let shuttingDown = false;
+
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal}: shutting down gracefully…`);
+
+  const forceExit = setTimeout(() => {
+    console.error("Shutdown timed out; exiting.");
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref();
+
+  try {
+    await shutdownSocketServer();
+  } catch (err) {
+    console.error("Socket.IO shutdown error:", err);
+  }
+
+  await new Promise<void>((resolve) => {
+    httpServer.close(() => resolve());
+  });
+
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close(false);
+    }
+  } catch (err) {
+    console.error("MongoDB close error:", err);
+  }
+
+  clearTimeout(forceExit);
+  process.exit(0);
+}
+
+process.once("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});
+process.once("SIGINT", () => {
+  void shutdown("SIGINT");
+});
+
+async function bootstrap(): Promise<void> {
+  try {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(mongoUri, mongoOpts);
+    }
     console.log(
-      `Connected to MongoDB (maxPoolSize=${mongoOpts.maxPoolSize ?? "default"})`,
+      `Connected to MongoDB (maxPoolSize=${String(mongoOpts.maxPoolSize ?? "default")}, maxIdleTimeMS=${String(mongoOpts.maxIdleTimeMS ?? "default")})`,
     );
-    httpServer.listen(PORT, () =>
-      console.log("API running on http://localhost:" + PORT),
-    );
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error("MongoDB connection error:", err);
     process.exit(1);
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.listen(Number(PORT), () => {
+      console.log("API running on http://localhost:" + PORT);
+      resolve();
+    });
+    httpServer.once("error", reject);
   });
+}
+
+void bootstrap();

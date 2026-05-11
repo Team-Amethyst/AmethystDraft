@@ -136,3 +136,12 @@ export function getNewsSignalsPollerSubscriberCount(): number {
 export function isNewsSignalsPollerIntervalRunning(): boolean {
   return pollTimer !== null;
 }
+
+/** Stops the poller and clears refs (graceful shutdown / process exit). */
+export function resetNewsSignalsPoller(): void {
+  stopPoller();
+  subscriberCount = 0;
+  ioRef = null;
+  lastFingerprint = null;
+  lastEtag = undefined;
+}

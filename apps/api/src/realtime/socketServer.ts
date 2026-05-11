@@ -6,6 +6,7 @@ import { socketIoServerCors } from "../lib/corsConfig";
 import {
   initNewsSignalsPoller,
   registerNewsSignalsSubscriber,
+  resetNewsSignalsPoller,
   unregisterNewsSignalsSubscriber,
 } from "./newsSignalsPoller";
 
@@ -85,4 +86,13 @@ export function attachSocketServer(httpServer: HttpServer): SocketIoServer {
   });
 
   return io;
+}
+
+/** Close Socket.IO and stop the news poller; safe to call multiple times. */
+export async function shutdownSocketServer(): Promise<void> {
+  if (!ioSingleton) return;
+  resetNewsSignalsPoller();
+  const io = ioSingleton;
+  ioSingleton = null;
+  await io.close();
 }
