@@ -1,14 +1,6 @@
 import { describe, it, expect } from "vitest";
+import type { Player } from "../types/player";
 import { groupPlayersByTier, calculateTierStats } from "./tiers";
-
-type Player = {
-  id: string;
-  mlbId?: number;
-  name?: string;
-  catalog_tier?: number;
-  position?: string;
-  recommended_bid?: number;
-};
 
 describe("groupPlayersByTier", () => {
   it("groups players by tier and sorts numeric tiers ascending with unassigned last", () => {
@@ -19,7 +11,7 @@ describe("groupPlayersByTier", () => {
       { id: "p4", name: "D", catalog_tier: 3 },
     ] as unknown as Player[];
 
-    const groups = groupPlayersByTier(players as any);
+    const groups = groupPlayersByTier(players as unknown as Player[]);
 
     expect(groups.map((g) => g.tier)).toEqual([1, 2, 3, "unassigned"]);
     const counts = groups.map((g) => g.players.length);
@@ -31,7 +23,7 @@ describe("groupPlayersByTier", () => {
       { id: "pX", name: "MLB" },
     ] as unknown as Player[];
 
-    const groups = groupPlayersByTier(players as any);
+    const groups = groupPlayersByTier(players as unknown as Player[]);
     expect(groups[0].tier).toBe("unassigned");
     expect(groups[0].players[0].id).toBe("pX");
   });
@@ -63,7 +55,7 @@ describe("calculateTierStats", () => {
       },
     ] as unknown as Player[];
 
-    const groups = groupPlayersByTier(players as any);
+    const groups = groupPlayersByTier(players as unknown as Player[]);
     const draftedIds = new Set<string>();
     const stats = calculateTierStats(groups, draftedIds);
 
@@ -89,7 +81,7 @@ describe("calculateTierStats", () => {
       },
     ] as unknown as Player[];
 
-    const groups = groupPlayersByTier(players as any);
+    const groups = groupPlayersByTier(players as unknown as Player[]);
     const draftedIds = new Set(["p1"]);
     const stats = calculateTierStats(groups, draftedIds);
 

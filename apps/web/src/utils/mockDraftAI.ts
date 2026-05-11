@@ -154,8 +154,9 @@ export function aiNominate(
   roster: AIRoster,
   undraftedPlayers: Player[],
   rosterSlots: Record<string, number>,
-  _allRosters: AIRoster[],
+  allRosters: AIRoster[],
 ): Player | null {
+  void allRosters;
   if (undraftedPlayers.length === 0) return null;
 
   // Find positions with greatest need
@@ -192,8 +193,9 @@ export function suggestNomination(
   watchlist: Player[],
   undraftedPlayers: Player[],
   rosterSlots: Record<string, number>,
-  _allRosters: AIRoster[],
+  allRosters: AIRoster[],
 ): { player: Player; reason: string } | null {
+  void allRosters;
   const undraftedIds = new Set(undraftedPlayers.map((p) => p.id));
 
   // First: check watchlist for available players
