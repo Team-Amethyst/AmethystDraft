@@ -82,6 +82,11 @@ router.post("/news-signals/hook", (req, res): void => {
     emitNewsSignalsWebhookTestPing(body.message);
   }
 
+  // Lets webhook callers see how many browser sockets are connected (0 => no in-app toast).
+  res.setHeader(
+    "X-Draftroom-Socket-Connections",
+    String(getSocketIoConnectionsCount()),
+  );
   res.status(204).send();
 });
 

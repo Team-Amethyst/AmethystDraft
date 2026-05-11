@@ -420,6 +420,32 @@
   color: #c4b5fd;
 }
 
+.nb-alerts-btn--socket-off {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.12);
+}
+
+.nb-alerts-socket-warning {
+  margin: 0 0.75rem 0.5rem;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 6px;
+}
+
+.nb-alerts-socket-warning strong {
+  color: #fcd34d;
+}
+
+.nb-alerts-code {
+  font-size: 0.6rem;
+  word-break: break-all;
+  color: #e9d5ff;
+}
+
 .nb-alerts-badge {
   position: absolute;
   top: -4px;

@@ -58,11 +58,12 @@ describe("internal news-signals routes", () => {
   });
 
   it("POST /news-signals/hook returns 204 and pings on event=custom", async () => {
-    await request(app)
+    const res = await request(app)
       .post("/api/internal/news-signals/hook")
       .set("Authorization", "Bearer test-webhook-key")
       .send({ event: "custom", message: "portal test" })
       .expect(204);
+    expect(res.headers["x-draftroom-socket-connections"]).toBe("7");
     expect(forcePollMock).toHaveBeenCalledTimes(1);
     expect(pingMock).toHaveBeenCalledWith("portal test");
   });

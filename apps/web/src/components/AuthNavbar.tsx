@@ -19,10 +19,49 @@ import {
   readNewsSignalsCache,
   writeNewsSignalsCache,
 } from "../api/newsSignalsCache";
-import { useNewsSignalsRealtime } from "../hooks/useNewsSignalsRealtime";
+import {
+  useNewsSignalsRealtime,
+  type NewsSocketConnectionState,
+} from "../hooks/useNewsSignalsRealtime";
 import "./AuthNavbar.css";
 
 const NEWS_LOOKBACK_DAYS = 7;
+
+const WEBHOOK_PINGS_STORAGE_KEY = "amethyst.webhookPings.v1";
+
+type StoredWebhookPing = { id: string; message: string; at: number };
+
+function loadWebhookPingsFromStorage(): StoredWebhookPing[] {
+  try {
+    const raw = sessionStorage.getItem(WEBHOOK_PINGS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (x): x is StoredWebhookPing =>
+          x != null &&
+          typeof x === "object" &&
+          typeof (x as StoredWebhookPing).id === "string" &&
+          typeof (x as StoredWebhookPing).message === "string" &&
+          typeof (x as StoredWebhookPing).at === "number",
+      )
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+function saveWebhookPingsToStorage(rows: StoredWebhookPing[]) {
+  try {
+    sessionStorage.setItem(
+      WEBHOOK_PINGS_STORAGE_KEY,
+      JSON.stringify(rows.slice(0, 8)),
+    );
+  } catch {
+    /* private mode / quota */
+  }
+}
 type NewsSignalType =
   | "injury"
   | "role_change"
@@ -85,9 +124,11 @@ export default function AuthNavbar() {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState<string | null>(null);
   const [realtimeNonce, setRealtimeNonce] = useState(0);
-  const [webhookPings, setWebhookPings] = useState<
-    { id: string; message: string; at: number }[]
-  >([]);
+  const [webhookPings, setWebhookPings] = useState<StoredWebhookPing[]>(() =>
+    loadWebhookPingsFromStorage(),
+  );
+  const [newsSocketState, setNewsSocketState] =
+    useState<NewsSocketConnectionState>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
@@ -145,8 +186,14 @@ export default function AuthNavbar() {
       message?.trim() ||
       "Webhook test received — live connection OK.";
     setWebhookPings((prev) => {
-      const row = { id: crypto.randomUUID(), message: text, at: Date.now() };
-      return [row, ...prev].slice(0, 8);
+      const row: StoredWebhookPing = {
+        id: crypto.randomUUID(),
+        message: text,
+        at: Date.now(),
+      };
+      const next = [row, ...prev].slice(0, 8);
+      saveWebhookPingsToStorage(next);
+      return next;
     });
   }, []);
 
@@ -156,6 +203,7 @@ export default function AuthNavbar() {
     Boolean(token),
     bumpRealtimeFromPush,
     recordWebhookPing,
+    setNewsSocketState,
   );
 
   useEffect(() => {
@@ -438,9 +486,17 @@ export default function AuthNavbar() {
         {token && (
           <div className="nb-alerts-wrap" ref={alertsRef}>
             <button
-              className="nb-alerts-btn"
+              type="button"
+              className={
+                "nb-alerts-btn" +
+                (newsSocketState === false ? " nb-alerts-btn--socket-off" : "")
+              }
               onClick={() => setAlertsOpen((o) => !o)}
-              title="Intelligence Alerts"
+              title={
+                newsSocketState === false
+                  ? "Intelligence Alerts — live socket disconnected (custom webhook pings will not arrive)"
+                  : "Intelligence Alerts"
+              }
             >
               <Bell size={15} />
             </button>
@@ -449,6 +505,20 @@ export default function AuthNavbar() {
                 <div className="nb-alerts-header">
                   <span className="nb-alerts-title">Intelligence Alerts</span>
                 </div>
+                {newsSocketState === false && (
+                  <div className="nb-alerts-socket-warning" role="status">
+                    <strong>No live socket to the API.</strong> A 204 webhook still
+                    broadcasts only to connected browsers. Keep this tab open while
+                    testing; add{" "}
+                    <code className="nb-alerts-code">{window.location.origin}</code>{" "}
+                    to API <code className="nb-alerts-code">CORS_ORIGIN</code> if the
+                    connection fails. Your hook response header{" "}
+                    <code className="nb-alerts-code">
+                      X-Draftroom-Socket-Connections
+                    </code>{" "}
+                    must be ≥ 1 for a toast or row here.
+                  </div>
+                )}
                 <div className="nb-alerts-tabs">
                   {ALERT_TABS.map((tab) => (
                     <button
