@@ -44,6 +44,7 @@ export function ResearchPlayerMetaTags({
   const probeHostRef = useRef<HTMLDivElement>(null);
   const customRef = useRef<HTMLSpanElement>(null);
   const draftRef = useRef<HTMLDivElement>(null);
+  const zeroAvailRetriesRef = useRef(0);
 
   const [visibleFit, setVisibleFit] = useState<VisibleTagFit>(() =>
     tags.length === 0 ? -1 : tags.length,
@@ -61,7 +62,17 @@ export function ResearchPlayerMetaTags({
     }
 
     const avail = meta.clientWidth;
-    if (avail <= 0) return;
+    // First paint can report 0 before flex/table layout settles — retry briefly.
+    if (avail <= 0) {
+      if (zeroAvailRetriesRef.current < 5) {
+        zeroAvailRetriesRef.current += 1;
+        requestAnimationFrame(() => {
+          recompute();
+        });
+      }
+      return;
+    }
+    zeroAvailRetriesRef.current = 0;
 
     const gapPx = parseGapPx(meta);
 

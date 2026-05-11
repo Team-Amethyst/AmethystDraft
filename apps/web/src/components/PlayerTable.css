@@ -489,6 +489,15 @@
   vertical-align: middle;
 }
 
+/* Keep column width bounded so ResearchPlayerMetaTags measures a real budget and
+   shows +x instead of expanding the table (scroll). Narrow sticky layout overrides
+   this in the max-width: 1100px block. */
+.pt-table thead .th-player,
+.pt-table tbody .td-player {
+  max-width: min(28rem, 48vw);
+  box-sizing: border-box;
+}
+
 /* ── Player cell ── */
 .player-cell {
   display: flex;
@@ -519,7 +528,6 @@
   overflow: hidden;
 }
 
-.pt-category-tags,
 .pt-draft-tags {
   flex-shrink: 0;
 }
@@ -690,12 +698,8 @@
   flex-shrink: 1;
   min-width: 0;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tag-list::-webkit-scrollbar {
-  display: none;
+  /* Hidden badge scrolling defeats +x collapse — clip here; overflow labels handle the rest */
+  overflow-x: hidden;
 }
 
 .tag {
