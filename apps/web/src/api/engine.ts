@@ -419,6 +419,18 @@ export interface NewsSignalsResponse {
   count: number;
 }
 
+function newsSignalsFetchSignal(): AbortSignal | undefined {
+  if (
+    typeof AbortSignal !== "undefined" &&
+    typeof AbortSignal.timeout === "function"
+  ) {
+    return AbortSignal.timeout(22_000);
+  }
+  const ac = new AbortController();
+  setTimeout(() => ac.abort(), 22_000);
+  return ac.signal;
+}
+
 export async function getNewsSignals(
   token: string,
   options?: { days?: number; signal_type?: NewsSignalType },
@@ -431,6 +443,7 @@ export async function getNewsSignals(
     `/api/engine/signals/news${qs}`,
     {
       headers: requireAuthHeaders(token),
+      signal: newsSignalsFetchSignal(),
     },
     "News signals request failed",
   );

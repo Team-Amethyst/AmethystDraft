@@ -14,6 +14,11 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { getNewsSignals, type NewsSignal } from "../api/engine";
+import {
+  newsSignalsCacheKey,
+  readNewsSignalsCache,
+  writeNewsSignalsCache,
+} from "../api/newsSignalsCache";
 import { useNewsSignalsRealtime } from "../hooks/useNewsSignalsRealtime";
 import "./AuthNavbar.css";
 
@@ -80,6 +85,9 @@ export default function AuthNavbar() {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState<string | null>(null);
   const [realtimeNonce, setRealtimeNonce] = useState(0);
+  const [webhookPings, setWebhookPings] = useState<
+    { id: string; message: string; at: number }[]
+  >([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
@@ -132,8 +140,23 @@ export default function AuthNavbar() {
     setRealtimeNonce((n) => n + 1);
   }, []);
 
+  const recordWebhookPing = useCallback((message?: string) => {
+    const text =
+      message?.trim() ||
+      "Webhook test received — live connection OK.";
+    setWebhookPings((prev) => {
+      const row = { id: crypto.randomUUID(), message: text, at: Date.now() };
+      return [row, ...prev].slice(0, 8);
+    });
+  }, []);
+
   // Connect whenever signed in — league-scoped routes are not required for global MLB signals.
-  useNewsSignalsRealtime(token, Boolean(token), bumpRealtimeFromPush);
+  useNewsSignalsRealtime(
+    token,
+    Boolean(token),
+    bumpRealtimeFromPush,
+    recordWebhookPing,
+  );
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -180,11 +203,27 @@ export default function AuthNavbar() {
   useEffect(() => {
     if (!alertsOpen || !token) return;
     const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
+    const cacheKey = newsSignalsCacheKey(
+      NEWS_LOOKBACK_DAYS,
+      selectedTab?.signalType,
+    );
+    const cached = readNewsSignalsCache(cacheKey);
+    const hadCache = cached !== null;
+
     let active = true;
 
-    queueMicrotask(() => {
-      setAlertsLoading(true);
+    if (cached) {
+      applySignals(cached.signals, "dropdown");
       setAlertsError(null);
+    }
+
+    queueMicrotask(() => {
+      if (!hadCache) {
+        setAlertsLoading(true);
+        setAlertsError(null);
+      } else {
+        setAlertsError(null);
+      }
     });
 
     getNewsSignals(token, {
@@ -193,16 +232,24 @@ export default function AuthNavbar() {
     })
       .then((response) => {
         if (!active) return;
+        writeNewsSignalsCache(cacheKey, response);
         applySignals(response.signals, "dropdown");
       })
       .catch((error: unknown) => {
         if (!active) return;
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Unable to load MLB alerts right now.";
-        setAlertsError(message);
-        setAlertSignals([]);
+        if (!hadCache) {
+          let message = "Unable to load MLB alerts right now.";
+          if (error instanceof Error) {
+            if (error.name === "AbortError") {
+              message =
+                "Request timed out. Check your connection and try again.";
+            } else {
+              message = error.message;
+            }
+          }
+          setAlertsError(message);
+          setAlertSignals([]);
+        }
       })
       .finally(() => {
         if (!active) return;
@@ -215,8 +262,12 @@ export default function AuthNavbar() {
   }, [alertsOpen, token, alertTab, applySignals]);
 
   useEffect(() => {
-    if (!token || realtimeNonce === 0) return;
+    if (!alertsOpen || !token || realtimeNonce === 0) return;
     const selectedTab = ALERT_TABS.find((tab) => tab.label === alertTab);
+    const cacheKey = newsSignalsCacheKey(
+      NEWS_LOOKBACK_DAYS,
+      selectedTab?.signalType,
+    );
     let active = true;
 
     getNewsSignals(token, {
@@ -225,6 +276,7 @@ export default function AuthNavbar() {
     })
       .then((response) => {
         if (!active) return;
+        writeNewsSignalsCache(cacheKey, response);
         applySignals(response.signals, "push");
       })
       .catch(() => {
@@ -234,7 +286,7 @@ export default function AuthNavbar() {
     return () => {
       active = false;
     };
-  }, [realtimeNonce, token, alertTab, applySignals]);
+  }, [realtimeNonce, alertsOpen, token, alertTab, applySignals]);
 
   const leagueBase = league ? `/leagues/${league.id}` : "";
   const isActive = (path: string) => location.pathname === path;
@@ -411,6 +463,28 @@ export default function AuthNavbar() {
                   ))}
                 </div>
                 <div className="nb-alerts-list">
+                  {webhookPings.map((w) => (
+                    <div key={w.id} className="nb-alert-item alert-webhook">
+                      <div className="nb-alert-icon">●</div>
+                      <div className="nb-alert-body">
+                        <div className="nb-alert-head">
+                          <span className="nb-alert-title">
+                            Live webhook message
+                          </span>
+                          <span className="nb-alert-time">
+                            {formatAlertTime(new Date(w.at).toISOString())}
+                          </span>
+                        </div>
+                        <div className="nb-alert-meta">
+                          <span className="nb-alert-pill nb-alert-pill-source">
+                            Custom
+                          </span>
+                          <span className="nb-alert-source">Engine hook</span>
+                        </div>
+                        <div className="nb-alert-desc">{w.message}</div>
+                      </div>
+                    </div>
+                  ))}
                   {alertsLoading && (
                     <div className="nb-alerts-state nb-alerts-loading">
                       <RefreshCw size={13} className="nb-alerts-spinner" />
@@ -423,7 +497,10 @@ export default function AuthNavbar() {
                       <span>{alertsError}</span>
                     </div>
                   )}
-                  {!alertsLoading && !alertsError && visibleAlerts.length === 0 && (
+                  {!alertsLoading &&
+                    !alertsError &&
+                    visibleAlerts.length === 0 &&
+                    webhookPings.length === 0 && (
                     <div className="nb-alerts-empty">
                       No MLB alerts match this filter right now.
                     </div>

@@ -15,17 +15,26 @@ type NewsSignalsSocketPayload = {
 /**
  * Subscribes to BFF Socket.IO pushes when Engine news/injury signals change.
  * Connect only while `enabled` (e.g. inside an active league session).
+ *
+ * `onWebhookPing` fires for Engine portal test webhooks (`event: "custom"`).
+ * The server emits `ping: true`; we toast here and callers can mirror into UI (e.g. alerts panel).
  */
 export function useNewsSignalsRealtime(
   token: string | null,
   enabled: boolean,
   onSignalsUpdated: () => void,
+  onWebhookPing?: (message?: string) => void,
 ): void {
   const cbRef = useRef(onSignalsUpdated);
+  const pingRef = useRef(onWebhookPing);
 
   useEffect(() => {
     cbRef.current = onSignalsUpdated;
   }, [onSignalsUpdated]);
+
+  useEffect(() => {
+    pingRef.current = onWebhookPing;
+  }, [onWebhookPing]);
 
   useEffect(() => {
     if (!enabled || !token?.trim()) return;
@@ -62,11 +71,11 @@ export function useNewsSignalsRealtime(
         NEWS_SIGNALS_UPDATED_EVENT,
         (payload?: NewsSignalsSocketPayload) => {
           if (payload?.ping) {
-            toast.message(
+            const text =
               payload.message?.trim() ||
-                "Webhook test received — live connection OK.",
-              { duration: 6000 },
-            );
+              "Webhook test received — live connection OK.";
+            toast.message(text, { duration: 6000 });
+            pingRef.current?.(payload.message);
             return;
           }
           cbRef.current();
