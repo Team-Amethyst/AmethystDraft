@@ -31,8 +31,14 @@ type PlayerCacheEntry = {
 const playerResultCache = new Map<string, PlayerCacheEntry>();
 const playerInflight = new Map<string, Promise<ValuationPlayerResponse>>();
 
-/** Short TTL for explain-heavy player payloads — conservative freshness vs duplicate traffic. */
-const PLAYER_EXPLAIN_TTL_MS = 45_000;
+/**
+ * Player-explain payloads are keyed by the same board fingerprint (league config + roster +
+ * inflation model + extras), so when any of those change the cache key changes and stale entries
+ * become unreachable. The TTL only guards against in-session engine model drift; 30 minutes is
+ * comfortably longer than typical SPA page-switching so returning to Command Center re-hydrates
+ * the bid card instantly instead of waiting on a fresh engine round-trip.
+ */
+const PLAYER_EXPLAIN_TTL_MS = 30 * 60_000;
 
 function logValuationCacheDev(
   event: "hit" | "miss" | "inflight" | "invalidate",

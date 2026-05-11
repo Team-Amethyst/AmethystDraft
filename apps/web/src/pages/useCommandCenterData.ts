@@ -23,6 +23,12 @@ export function useCommandCenterData({
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [mlbPlayers, setMlbPlayers] = useState<Player[]>([]);
   const [engineMarket, setEngineMarket] = useState<ValuationResponse | null>(null);
+  /**
+   * Tracks whether the initial roster fetch has resolved for the current league/token. Used to
+   * defer the board valuation fetch until the real roster fingerprint is known — otherwise we'd
+   * burn one round-trip on a cache key keyed by an empty roster every time the page mounts.
+   */
+  const [rosterLoaded, setRosterLoaded] = useState(false);
 
   const refreshRoster = () => {
     if (!leagueId || !token) return;
@@ -31,7 +37,13 @@ export function useCommandCenterData({
 
   useEffect(() => {
     if (!leagueId || !token) return;
-    void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
+    setRosterLoaded(false);
+    void getRoster(leagueId, token)
+      .then((entries) => {
+        setRosterEntries(entries);
+        setRosterLoaded(true);
+      })
+      .catch(console.error);
   }, [leagueId, token]);
 
   const rosterValuationKey = useMemo(
@@ -55,7 +67,7 @@ export function useCommandCenterData({
   );
 
   useEffect(() => {
-    if (!leagueId || !token) return;
+    if (!leagueId || !token || !rosterLoaded) return;
     let cancelled = false;
     void getValuation(
       leagueId,
@@ -83,6 +95,7 @@ export function useCommandCenterData({
     rosterValuationKey,
     leagueValuationKey,
     valuationBoardLogPlayerId,
+    rosterLoaded,
   ]);
 
   useEffect(() => {

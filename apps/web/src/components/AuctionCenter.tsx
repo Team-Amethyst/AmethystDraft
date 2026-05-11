@@ -216,9 +216,17 @@ export function AuctionCenter({
     userTeamId,
   ]);
 
-  /** Hide merged/catalog numbers until the latest player valuation response lands (avoids flash). */
+  /**
+   * Anti-flash for first selection only: if the board valuation map already has an engine row for
+   * this player (e.g. after navigating back to Command Center with the cache warm), keep showing it
+   * while the explain refresh is in flight. Otherwise (new player, no engine row yet), hide the
+   * catalog-only row until the per-player request lands to avoid a brief catalog flash.
+   */
+  const hasEngineBoardRowForSelection = Boolean(
+    selectedPlayerNormId && valuationMap.get(selectedPlayerNormId),
+  );
   const rowForValuationUi =
-    playerEngineFetchPending && selectedPlayerNormId
+    playerEngineFetchPending && selectedPlayerNormId && !hasEngineBoardRowForSelection
       ? undefined
       : mergedValuationRow;
 
