@@ -148,37 +148,34 @@ export function CommandCenterDraftLog({
 
   return (
     <div className="cc-draft-log-root">
-      <div className="market-section-label market-section-label--spaced">
-        DRAFT LOG
-        <span className="cc-draft-log-count">{draftCountLabel}</span>
-      </div>
-
-      <div className="cc-draft-log-panel">
-        <div className="cc-draft-log-toolbar">
-          <div className="cc-draft-log-toolbar-copy">
-            <span className="cc-draft-log-toolbar-label">Recent picks</span>
-            {sorted.length === 0 ? (
-              <span className="cc-draft-log-toolbar-muted">
-                No picks yet — they appear here as you draft.
-              </span>
-            ) : (
-              <span className="cc-draft-log-toolbar-muted">
-                Newest at bottom · scroll up for earlier picks
-              </span>
-            )}
-          </div>
+      <div className="market-section-label market-section-label--spaced cc-draft-log-heading">
+        <span className="cc-draft-log-heading-title">DRAFT LOG</span>
+        <span className="cc-draft-log-heading-meta">
+          <span
+            className="cc-draft-log-count"
+            title={
+              sorted.length > 0
+                ? "Newest pick at bottom — scroll up for earlier picks"
+                : undefined
+            }
+          >
+            {draftCountLabel}
+          </span>
           <button
             type="button"
             className="cc-draft-log-expand"
             onClick={() => setIsModalOpen(true)}
             aria-haspopup="dialog"
+            aria-label="Open full draft log in a larger window"
             title="Open full draft log in a larger window"
           >
             <Maximize2 className="cc-draft-log-expand-icon" aria-hidden strokeWidth={2} />
             <span className="cc-draft-log-expand-text">Full view</span>
           </button>
-        </div>
+        </span>
+      </div>
 
+      <div className="cc-draft-log-panel">
         <div
           ref={listRef}
           className="draft-log-list draft-log-list--inline"
