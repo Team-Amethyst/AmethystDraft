@@ -34,11 +34,14 @@ export function ResearchPlayerMetaTags({
   showCustom,
   draftedTeamName,
   draftedContractLabel,
+  /** Bumped when the table scroll area resizes so rows refit without per-row ResizeObservers. */
+  layoutTick = 0,
 }: {
   tags: string[];
   showCustom: boolean;
   draftedTeamName?: string;
   draftedContractLabel?: string;
+  layoutTick?: number;
 }) {
   const metaRef = useRef<HTMLDivElement>(null);
   const probeHostRef = useRef<HTMLDivElement>(null);
@@ -113,19 +116,14 @@ export function ResearchPlayerMetaTags({
       recompute();
     });
     return () => cancelAnimationFrame(id);
-  }, [recompute, tags, draftedTeamName, draftedContractLabel]);
-
-  useLayoutEffect(() => {
-    const meta = metaRef.current;
-    if (!meta) return;
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        recompute();
-      });
-    });
-    ro.observe(meta);
-    return () => ro.disconnect();
-  }, [recompute]);
+  }, [
+    recompute,
+    tags,
+    draftedTeamName,
+    draftedContractLabel,
+    showCustom,
+    layoutTick,
+  ]);
 
   const metaTitle =
     tags.length > 0 && visibleFit !== tags.length ? tags.join(" · ") : undefined;
