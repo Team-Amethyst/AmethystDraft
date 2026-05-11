@@ -15,6 +15,7 @@ import customPlayerRoutes from "./routes/customPlayers";
 import { assignRequestId } from "./lib/requestContext";
 import { corsOptionsFromEnv } from "./lib/corsConfig";
 import { attachSocketServer } from "./realtime/socketServer";
+import { mongoConnectionOptionsFromEnv } from "./lib/mongoConnectionOptions";
 
 dotenv.config();
 
@@ -75,10 +76,14 @@ const PORT = process.env.PORT || 3000;
 const httpServer = http.createServer(app);
 attachSocketServer(httpServer);
 
+const mongoOpts = mongoConnectionOptionsFromEnv();
+
 mongoose
-  .connect(process.env.MONGO_URI as string)
+  .connect(process.env.MONGO_URI as string, mongoOpts)
   .then(() => {
-    console.log("Connected to MongoDB");
+    console.log(
+      `Connected to MongoDB (maxPoolSize=${mongoOpts.maxPoolSize ?? "default"})`,
+    );
     httpServer.listen(PORT, () =>
       console.log("API running on http://localhost:" + PORT),
     );
