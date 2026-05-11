@@ -78,6 +78,10 @@ export function useNewsSignalsRealtime(
         transports: ["polling"],
         upgrade: false,
         autoConnect: true,
+        timeout: 20_000,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1_000,
+        reconnectionDelayMax: 10_000,
       });
 
       socket.on("connect", () => {
@@ -105,7 +109,10 @@ export function useNewsSignalsRealtime(
             const text =
               payload.message?.trim() ||
               "Webhook test received — live connection OK.";
-            toast.message(text, { duration: 6000 });
+            toast.message(text, {
+              duration: 6000,
+              id: "draftroom-news-webhook-ping",
+            });
             pingRef.current?.(payload.message);
             return;
           }

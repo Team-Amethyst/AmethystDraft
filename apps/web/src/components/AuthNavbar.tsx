@@ -134,6 +134,8 @@ export default function AuthNavbar() {
   const alertsRef = useRef<HTMLDivElement>(null);
   const baselineEstablishedRef = useRef(false);
   const knownKeysRef = useRef<Set<string>>(new Set());
+  /** Coalesce rapid Socket.IO pushes into one news fetch + toast cycle. */
+  const pushDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const applySignals = useCallback(
     (signals: NewsSignal[], source: "dropdown" | "push") => {
@@ -168,17 +170,30 @@ export default function AuthNavbar() {
       if (newInjury) {
         toast.warning(
           "New injury alert — open Intelligence Alerts for details.",
-          { duration: 10_000 },
+          { duration: 10_000, id: "draftroom-news-injury" },
         );
       } else if (anyNew) {
-        toast.message("Intelligence alerts updated.", { duration: 6000 });
+        toast.message("Intelligence alerts updated.", {
+          duration: 6000,
+          id: "draftroom-news-updated",
+        });
       }
     },
     [],
   );
 
   const bumpRealtimeFromPush = useCallback(() => {
-    setRealtimeNonce((n) => n + 1);
+    if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current);
+    pushDebounceRef.current = setTimeout(() => {
+      pushDebounceRef.current = null;
+      setRealtimeNonce((n) => n + 1);
+    }, 320);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current);
+    };
   }, []);
 
   const recordWebhookPing = useCallback((message?: string) => {
