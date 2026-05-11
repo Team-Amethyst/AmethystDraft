@@ -42,19 +42,39 @@
   min-width: 0;
 }
 
+.dl-compact-line--top {
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .dl-compact-line--top .dl-name {
   flex: 1 1 auto;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
+}
+
+/* Slot + price grouped on the right of the top line, side-by-side and prominent */
+.dl-compact-meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dl-compact-line--top .dl-slot {
+  font-size: 0.66rem;
+  padding: 0.1rem 0.4rem;
+  min-width: 26px;
 }
 
 .dl-compact-line--top .dl-price {
-  flex: 0 0 auto;
-  font-size: 0.74rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .dl-compact-line--bottom {
-  font-size: 0.6rem;
-  line-height: 1.25;
+  font-size: 0.62rem;
+  line-height: 1.3;
   color: rgba(167, 139, 250, 0.72);
   gap: 0.3rem;
 }
@@ -63,7 +83,7 @@
   flex: 1 1 auto;
   min-width: 0;
   color: rgba(196, 181, 225, 0.78);
-  font-size: 0.6rem;
+  font-size: 0.62rem;
 }
 
 .dl-compact-line--bottom .dl-slot {
@@ -71,12 +91,6 @@
   padding: 0.04rem 0.3rem;
   min-width: 22px;
   line-height: 1.3;
-}
-
-.dl-compact-sep {
-  color: rgba(167, 139, 250, 0.45);
-  font-size: 0.62rem;
-  line-height: 1;
 }
 
 /* Row-level actions container — keep hover affordance on the right edge */

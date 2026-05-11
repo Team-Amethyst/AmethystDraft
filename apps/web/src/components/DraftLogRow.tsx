@@ -179,7 +179,12 @@ export function DraftLogRow({
           <div className="dl-body dl-body--compact">
             <div className="dl-compact-line dl-compact-line--top">
               <span className="dl-name">{entry.playerName}</span>
-              <span className="dl-price">${entry.price}</span>
+              <span className="dl-compact-meta">
+                <span className="dl-slot" title="Roster slot">
+                  {entry.rosterSlot}
+                </span>
+                <span className="dl-price">${entry.price}</span>
+              </span>
             </div>
             <div className="dl-compact-line dl-compact-line--bottom">
               <span className="dl-fantasy-team" title={teamName}>
@@ -191,10 +196,6 @@ export function DraftLogRow({
                   </span>
                 ) : null}
               </span>
-              <span className="dl-compact-sep" aria-hidden>
-                ·
-              </span>
-              <span className="dl-slot">{entry.rosterSlot}</span>
               {isCurrentSlotOverridden ? (
                 <span className="dl-override-chip" title="Manual position override">
                   OVR
