@@ -240,6 +240,8 @@ describe("buildValuationContext", () => {
       {
         id: "660272",
         mlbId: 660272,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
         name: "Auction Pick",
         team: "BOS",
         position: "OF",
@@ -257,6 +259,8 @@ describe("buildValuationContext", () => {
       {
         id: "660273",
         mlbId: 660273,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
         name: "Minor Stash",
         team: "SEA",
         position: "SP",
@@ -323,6 +327,7 @@ describe("buildValuationContext", () => {
       { player_id: "660272", injury_severity: 0 },
       { player_id: "660273", injury_severity: 2 },
     ]);
+    expect(ctx.player_ids).toEqual(["660273"]);
 
     const draftedOverride = ctx.position_overrides?.find(
       (o) => o.player_id === "660272",
@@ -348,6 +353,8 @@ describe("buildValuationContext", () => {
       {
         id: "1",
         mlbId: 1,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
         name: "X",
         team: "NYY",
         position: "SS",
@@ -379,6 +386,82 @@ describe("buildValuationContext", () => {
     vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([]);
     await buildValuationContext(league, [], {});
     expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(20);
+  });
+
+  it("excludes market_only from position_overrides, injury_overrides, and player_ids", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([
+      {
+        id: "669923",
+        mlbId: 669923,
+        catalog_kind: "market_only",
+        valuation_eligible: false,
+        market_adp: 14,
+        name: "George Kirby",
+        team: "SEA",
+        position: "SP",
+        positions: ["SP"],
+        age: 28,
+        catalog_rank: 9998,
+        value: 0,
+        catalog_tier: 5,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+      {
+        id: "999001",
+        mlbId: 999001,
+        catalog_kind: "roster_context",
+        valuation_eligible: false,
+        name: "Roster Only",
+        team: "SEA",
+        position: "RP",
+        positions: ["RP"],
+        age: 24,
+        catalog_rank: 9999,
+        value: 0,
+        catalog_tier: 5,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+      {
+        id: "660273",
+        mlbId: 660273,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Valued",
+        team: "NYY",
+        position: "SS",
+        positions: ["SS"],
+        age: 26,
+        catalog_rank: 5,
+        value: 20,
+        catalog_tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injurySeverity: 0,
+      } as PlayerData,
+    ]);
+
+    const ctx = await buildValuationContext(league, [], {});
+    expect(ctx.position_overrides).toEqual([{ player_id: "660273", positions: ["SS"] }]);
+    expect(ctx.injury_overrides).toEqual([{ player_id: "660273", injury_severity: 0 }]);
+    expect(ctx.player_ids).toEqual(["660273"]);
+    expect(ctx.player_ids?.includes("669923")).toBe(false);
+    expect(ctx.player_ids?.includes("999001")).toBe(false);
   });
 });
 

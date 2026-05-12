@@ -62,11 +62,12 @@ export interface EngineValuationContext {
   hitter_budget_pct?: number;
   pos_eligibility_threshold?: number;
   /**
-   * Full-pool eligibility from Draftroom catalog (`GET /api/players` pipeline).
-   * Engine should treat this as canonical fantasy positions for valuation universe ids.
+   * Eligibility from Draftroom catalog for **`valuation_eligible`** rows only
+   * (`GET /api/players` pipeline). Excludes `market_only` / `roster_context` so Engine
+   * does not infer dollars from ADP-only catalog rows.
    */
   position_overrides?: EnginePositionOverride[];
-  /** Full-pool injury severity from Draftroom catalog (`injuryNormalize` + 40-man roster). */
+  /** Injury severity for **`valuation_eligible`** catalog rows only. */
   injury_overrides?: EngineInjuryOverride[];
   minors?: EngineTeamPlayersSection[];
   taxi?: EngineTeamPlayersSection[];
@@ -423,8 +424,16 @@ export async function buildValuationContext(
 
   const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
   const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
-  const position_overrides = playerDataToPositionOverrides(catalogPlayers);
-  const injury_overrides = playerDataToInjuryOverrides(catalogPlayers);
+  const catalogForEngine = catalogPlayers.filter((p) => p.valuation_eligible);
+  const position_overrides = playerDataToPositionOverrides(catalogForEngine);
+  const injury_overrides = playerDataToInjuryOverrides(catalogForEngine);
+
+  const draftedIdSet = new Set(
+    drafted_players.map((d) => String(d.player_id).trim()),
+  );
+  const valuationPlayerIds = catalogForEngine
+    .map((p) => String(p.id).trim())
+    .filter((id) => !draftedIdSet.has(id));
 
   return {
     roster_slots: rosterSlots,
@@ -449,6 +458,7 @@ export async function buildValuationContext(
       : {}),
     position_overrides,
     injury_overrides,
+    ...(valuationPlayerIds.length > 0 ? { player_ids: valuationPlayerIds } : {}),
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
     pre_draft_rosters: toTeamPlayersSections(keeperEntries),

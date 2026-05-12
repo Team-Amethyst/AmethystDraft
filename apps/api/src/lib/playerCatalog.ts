@@ -1,5 +1,11 @@
 import { AL_TEAMS, NL_TEAMS } from "./mlbTeams";
 
+/** Shared with Engine catalog universe rules. */
+export type CatalogKind =
+  | "valuation_eligible"
+  | "market_only"
+  | "roster_context";
+
 export interface PlayerData {
   id: string;
   mlbId: number;
@@ -13,6 +19,10 @@ export interface PlayerData {
   catalog_tier: number;
   /** Present when a real external ADP source exists (optional on catalog build). */
   market_adp?: number;
+  /** Catalog row classification (Engine-aligned). */
+  catalog_kind: CatalogKind;
+  /** When false, row is excluded from Engine valuation math and must not use catalog `value` as auction dollars. */
+  valuation_eligible: boolean;
   headshot: string;
   stats: {
     batting?: {
@@ -132,6 +142,8 @@ export function mergeTwoWayPlayers(players: PlayerData[]): PlayerData[] {
       ...winnerByValue,
       position: pitchingPos ?? winnerByValue.position,
       positions: mergedPositions,
+      catalog_kind: winnerByValue.catalog_kind,
+      valuation_eligible: winnerByValue.valuation_eligible,
       injurySeverity: mergedSev,
       injuryStatus: mergedStatus,
       stats: {

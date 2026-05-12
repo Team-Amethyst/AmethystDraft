@@ -19,6 +19,8 @@ function makePlayer(overrides: Partial<PlayerData>): PlayerData {
     catalog_rank: 0,
     value: 10,
     catalog_tier: 3,
+    catalog_kind: "valuation_eligible",
+    valuation_eligible: true,
     headshot: "",
     stats: {},
     projection: {},

@@ -15,6 +15,8 @@ function minimalPlayer(
     catalog_rank: 0,
     value: 1,
     catalog_tier: 1,
+    catalog_kind: "valuation_eligible",
+    valuation_eligible: true,
     headshot: "",
     stats: {},
     projection: {},

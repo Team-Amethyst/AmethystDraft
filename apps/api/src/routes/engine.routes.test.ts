@@ -87,6 +87,8 @@ describe("engine routes (BFF → Amethyst)", () => {
       {
         id: "660271",
         mlbId: 660271,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
         name: "Star",
         team: "NYY",
         position: "SS",
@@ -171,6 +173,7 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(payload.injury_overrides).toEqual([
         { player_id: "660271", injury_severity: 2 },
       ]);
+      expect(payload.player_ids).toEqual(["660271"]);
     });
 
     it("forwards explain_valuation_rows to Engine when requested", async () => {
@@ -289,6 +292,7 @@ describe("engine routes (BFF → Amethyst)", () => {
           league_scope: "Mixed",
           user_team_id: "team_1",
           inflation_model: "replacement_slots_v2",
+          player_ids: ["660271"],
           injury_overrides: [{ player_id: "660271", injury_severity: 2 }],
         }),
       );
