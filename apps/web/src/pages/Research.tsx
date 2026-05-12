@@ -74,6 +74,13 @@ import {
   diagnosisDepthChartMatching,
   formatDiagnosticsForConsole,
 } from "../domain/depthChartDiagnostics";
+import {
+  attachResearchDraftableFlags,
+  filterPlayersByResearchDraftablePool,
+  normalizeDraftablePoolMeta,
+  RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
+  type ResearchDraftablePoolFilter,
+} from "../domain/draftablePoolSemantics";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
@@ -132,6 +139,19 @@ export default function Research() {
     }
   });
 
+  const [researchDraftablePoolFilter, setResearchDraftablePoolFilter] =
+    useState<ResearchDraftablePoolFilter>(() => {
+      try {
+        const s = localStorage.getItem(
+          RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
+        );
+        if (s === "draftable" || s === "replacement" || s === "all") return s;
+      } catch {
+        /* noop */
+      }
+      return "all";
+    });
+
   const [players, setPlayers] = useState<Player[]>(
     () => getPlayersCached("catalog_rank") ?? [],
   );
@@ -153,6 +173,16 @@ export default function Research() {
     };
   }, [lastResearchBoardValuation]);
 
+  const draftablePoolMeta = useMemo(() => {
+    if (!lastResearchBoardValuation) return { kind: "unknown" as const };
+    return normalizeDraftablePoolMeta(
+      lastResearchBoardValuation as unknown as Record<string, unknown>,
+    );
+  }, [lastResearchBoardValuation]);
+
+  const researchDraftablePoolFilterDisabled =
+    draftablePoolMeta.kind !== "valid";
+
   const researchValuationAlerts = useMemo(
     () =>
       filterValuationAlertsForSurface(
@@ -171,6 +201,29 @@ export default function Research() {
       publishBoardValuationAlerts([]);
     };
   }, [publishBoardValuationAlerts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
+        researchDraftablePoolFilter,
+      );
+    } catch {
+      /* noop */
+    }
+  }, [researchDraftablePoolFilter]);
+
+  useEffect(() => {
+    if (
+      researchDraftablePoolFilterDisabled &&
+      researchDraftablePoolFilter !== "all"
+    ) {
+      setResearchDraftablePoolFilter("all");
+    }
+  }, [
+    researchDraftablePoolFilterDisabled,
+    researchDraftablePoolFilter,
+  ]);
 
   const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
     null,
@@ -446,6 +499,25 @@ export default function Research() {
     [filteredPlayers, valuationsByPlayerId],
   );
 
+  const mergedPlayersWithDraftable = useMemo(
+    () =>
+      attachResearchDraftableFlags(
+        mergedPlayers,
+        draftablePoolMeta,
+        isCustomPlayer,
+      ),
+    [mergedPlayers, draftablePoolMeta, isCustomPlayer],
+  );
+
+  const researchTablePlayers = useMemo(
+    () =>
+      filterPlayersByResearchDraftablePool(
+        mergedPlayersWithDraftable,
+        researchDraftablePoolFilter,
+      ),
+    [mergedPlayersWithDraftable, researchDraftablePoolFilter],
+  );
+
   const displayModalPlayer = useMemo(() => {
     if (!selectedModalPlayer) return null;
     const boardRow = valuationsByPlayerId.get(selectedModalPlayer.id);
@@ -579,7 +651,7 @@ export default function Research() {
                 <PlayerTable
                   columnLayout="research"
                   defaultValuationSortField={defaultValuationSortForPage("Research")}
-                  players={mergedPlayers}
+                  players={researchTablePlayers}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   positionFilter={positionFilter}
@@ -594,6 +666,14 @@ export default function Research() {
                   draftedByTeam={draftedByTeam}
                   draftedContractByPlayerId={draftedContractByPlayerId}
                   isCustomPlayer={isCustomPlayer}
+                  researchDraftablePoolFilter={researchDraftablePoolFilter}
+                  onResearchDraftablePoolFilterChange={setResearchDraftablePoolFilter}
+                  researchDraftablePoolFilterDisabled={
+                    researchDraftablePoolFilterDisabled
+                  }
+                  onResearchTableFilterReset={() =>
+                    setResearchDraftablePoolFilter("all")
+                  }
                 />
               )}
             </>

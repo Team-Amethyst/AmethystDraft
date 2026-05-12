@@ -10,6 +10,7 @@ import {
   positionFilterAfterStatViewChange,
   positionFilterOptionsForStatView,
 } from "../domain/playerTablePositions";
+import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
 
 export type PlayerTableControlsProps = {
   searchQuery: string;
@@ -37,6 +38,10 @@ export type PlayerTableControlsProps = {
   /** Research layout: optional model rank + tier columns. */
   researchModelColumns?: boolean;
   onResearchModelColumnsToggle?: () => void;
+  /** Research: Engine draftable pool filter. */
+  researchDraftablePoolFilter?: ResearchDraftablePoolFilter;
+  onResearchDraftablePoolFilterChange?: (v: ResearchDraftablePoolFilter) => void;
+  researchDraftablePoolFilterDisabled?: boolean;
 };
 
 export function PlayerTableControls({
@@ -64,6 +69,9 @@ export function PlayerTableControls({
   onStatBasisChange,
   researchModelColumns,
   onResearchModelColumnsToggle,
+  researchDraftablePoolFilter,
+  onResearchDraftablePoolFilterChange,
+  researchDraftablePoolFilterDisabled,
 }: PlayerTableControlsProps) {
   return (
     <div className="pt-controls">
@@ -93,6 +101,37 @@ export function PlayerTableControls({
           <option value="available">Available</option>
           <option value="drafted">Drafted</option>
         </select>
+
+        {onResearchDraftablePoolFilterChange && researchDraftablePoolFilter !== undefined && (
+          <select
+            className="pt-select"
+            title={
+              researchDraftablePoolFilterDisabled
+                ? "Draftable pool metadata unavailable from the last valuation"
+                : "Filter by Engine draftable pool"
+            }
+            value={researchDraftablePoolFilter}
+            onChange={(e) =>
+              onResearchDraftablePoolFilterChange(
+                e.target.value as ResearchDraftablePoolFilter,
+              )
+            }
+          >
+            <option value="all">Pool (All players)</option>
+            <option
+              value="draftable"
+              disabled={Boolean(researchDraftablePoolFilterDisabled)}
+            >
+              Draftable pool
+            </option>
+            <option
+              value="replacement"
+              disabled={Boolean(researchDraftablePoolFilterDisabled)}
+            >
+              Replacement / depth
+            </option>
+          </select>
+        )}
 
         <select
           className="pt-select"

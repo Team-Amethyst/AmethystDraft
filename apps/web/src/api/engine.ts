@@ -164,6 +164,8 @@ export interface ValuationResponse {
   remaining_slots?: number;
   players_left?: number;
   draftable_pool_size?: number;
+  /** MLB catalog person ids in the Engine draftable pool (when returned on the board valuation). */
+  draftable_player_ids?: string[];
   inflation_raw?: number;
   inflation_bounded_by?: string;
   valuations: ValuationResult[];

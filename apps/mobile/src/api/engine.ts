@@ -84,6 +84,7 @@ export interface ValuationResponse {
   remaining_slots?: number;
   players_left?: number;
   draftable_pool_size?: number;
+  draftable_player_ids?: string[];
   inflation_raw?: number;
   inflation_bounded_by?: string;
   valuations: ValuationResult[];

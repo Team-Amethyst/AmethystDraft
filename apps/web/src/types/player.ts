@@ -33,6 +33,8 @@ export interface Player {
   /** When false, exclude from Engine valuation math; do not use `value` as Auction Value fallback. */
   valuation_eligible?: boolean;
   catalog_kind?: CatalogKind;
+  /** Research: Engine draftable pool membership (client from board `draftable_player_ids`). */
+  research_draftable?: "draftable" | "outside" | "unknown";
   value: number;
   /** Rank by league auction value from latest valuation row (optional until merged). */
   auction_rank?: number;

@@ -534,6 +534,33 @@
   overflow: hidden;
 }
 
+.pt-depth-tag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.06rem 0.38rem;
+  border-radius: 4px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b5a82;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+}
+
+.pt-row--research-outside-draftable td {
+  color: #c4b8d8;
+}
+
+.pt-row--research-outside-draftable .player-name {
+  color: #e8dff7;
+}
+
+.pt-row--research-outside-draftable .td-value .pt-value-stack__primary {
+  color: #c4b5fd;
+}
+
 .pt-draft-tags {
   flex-shrink: 0;
 }

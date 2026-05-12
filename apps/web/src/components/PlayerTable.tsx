@@ -51,6 +51,11 @@ import {
   displayAuctionTier,
   poolHasMarketAdp,
 } from "../domain/playerRankTier";
+import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
+import {
+  shouldShowOutsideDraftableMinBidTooltip,
+  TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
+} from "../domain/draftablePoolSemantics";
 
 interface PlayerTableProps {
   players: Player[];
@@ -74,6 +79,13 @@ interface PlayerTableProps {
    * `default`: tier + model rank always visible (legacy full table).
    */
   columnLayout?: "default" | "research";
+  /** Research: Engine draftable pool filter (optional). */
+  researchDraftablePoolFilter?: ResearchDraftablePoolFilter;
+  onResearchDraftablePoolFilterChange?: (v: ResearchDraftablePoolFilter) => void;
+  /** When true, draftable / replacement options are disabled (unknown Engine meta). */
+  researchDraftablePoolFilterDisabled?: boolean;
+  /** Called with full PlayerTable reset (e.g. clear draftable filter). */
+  onResearchTableFilterReset?: () => void;
 }
 
 type PlayerTableColumnLayout = "default" | "research";
@@ -152,6 +164,10 @@ export default function PlayerTable({
   isCustomPlayer,
   defaultValuationSortField = "auction_value",
   columnLayout = "default",
+  researchDraftablePoolFilter = "all",
+  onResearchDraftablePoolFilterChange,
+  researchDraftablePoolFilterDisabled = false,
+  onResearchTableFilterReset,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -518,7 +534,23 @@ export default function PlayerTable({
           setAvailabilityFilter("all");
           setInjuryFilter("all");
           setStatView("all");
+          onResearchTableFilterReset?.();
         }}
+        researchDraftablePoolFilter={
+          columnLayout === "research"
+            ? researchDraftablePoolFilter
+            : undefined
+        }
+        onResearchDraftablePoolFilterChange={
+          columnLayout === "research"
+            ? onResearchDraftablePoolFilterChange
+            : undefined
+        }
+        researchDraftablePoolFilterDisabled={
+          columnLayout === "research"
+            ? researchDraftablePoolFilterDisabled
+            : undefined
+        }
         statBasis={statBasis}
         onStatBasisChange={onStatBasisChange}
         researchModelColumns={
@@ -671,6 +703,19 @@ export default function PlayerTable({
               ({ player, bat, pit, isBatter, tags }, index) => {
                 const isStarred = isInWatchlist(player.id);
                 const primaryValue = leagueWideAuctionDollarsForDisplay(player);
+                const showMinBidOutsidePoolTooltip =
+                  isResearchLayout &&
+                  shouldShowOutsideDraftableMinBidTooltip({
+                    draftable: player.research_draftable ?? "unknown",
+                    auctionDollars: primaryValue,
+                    valuationEligible: player.valuation_eligible,
+                  });
+                const valueCellTitle = showMinBidOutsidePoolTooltip
+                  ? TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID
+                  : player.valuation_eligible === false &&
+                      primaryValue === undefined
+                    ? "Model value unavailable"
+                    : RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE;
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
                   : undefined;
@@ -687,7 +732,11 @@ export default function PlayerTable({
                       (draftedIds && catalogPlayerIdInStringSet(draftedIds, player)
                         ? " pt-row--drafted"
                         : "") +
-                      (onPlayerClick ? " pt-row--clickable" : "")
+                      (onPlayerClick ? " pt-row--clickable" : "") +
+                      (isResearchLayout &&
+                      player.research_draftable === "outside"
+                        ? " pt-row--research-outside-draftable"
+                        : "")
                     }
                     onClick={
                       onPlayerClick ? () => onPlayerClick(player) : undefined
@@ -737,6 +786,15 @@ export default function PlayerTable({
                             draftedTeamName={draftedTeamName}
                             draftedContractLabel={draftedContractLabel}
                           />
+                          {isResearchLayout &&
+                            player.research_draftable === "outside" && (
+                              <span
+                                className="pt-depth-tag"
+                                title="Outside the Engine draftable pool for this valuation"
+                              >
+                                Depth
+                              </span>
+                            )}
                         </div>
                       </div>
                     </td>
@@ -824,12 +882,7 @@ export default function PlayerTable({
                       <div className="pt-value-stack">
                         <span
                           className="pt-value-stack__primary"
-                          title={
-                            player.valuation_eligible === false &&
-                            primaryValue === undefined
-                              ? "Model value unavailable"
-                              : RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE
-                          }
+                          title={valueCellTitle}
                         >
                           {formatCurrencyWhole(primaryValue)}
                         </span>

@@ -200,6 +200,28 @@ describe("valuationNormalize", () => {
     expect(camel.valuation_context_warnings).toEqual(["x"]);
   });
 
+  it("normalizeValuationResponseBody maps draftable_player_ids and pool size", () => {
+    const out = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      draftable_player_ids: ["1", 2],
+      draftable_pool_size: 2,
+    });
+    expect(out.draftable_player_ids).toEqual(["1", "2"]);
+    expect(out.draftable_pool_size).toBe(2);
+  });
+
+  it("normalizeValuationResponseBody accepts camelCase draftablePlayerIds", () => {
+    const out = normalizeValuationResponseBody({
+      valuations: [],
+      inflation_factor: 1,
+      draftablePlayerIds: ["99"],
+      draftablePoolSize: 1,
+    });
+    expect(out.draftable_player_ids).toEqual(["99"]);
+    expect(out.draftable_pool_size).toBe(1);
+  });
+
   it("normalizeValuationResponseBody maps valuation_context object", () => {
     const out = normalizeValuationResponseBody({
       valuations: [],

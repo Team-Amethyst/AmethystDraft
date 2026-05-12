@@ -447,6 +447,25 @@ export function mergeValuationBoardRowIntoPrevious(
   return merged;
 }
 
+function pickEngineDraftablePlayerIds(
+  o: Record<string, unknown>,
+): string[] | undefined {
+  const raw = o.draftable_player_ids ?? o.draftablePlayerIds;
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: string[] = [];
+  for (const x of raw) {
+    if (typeof x === "number" && Number.isFinite(x)) {
+      out.push(String(Math.trunc(x)));
+      continue;
+    }
+    if (typeof x === "string") {
+      const t = x.trim();
+      if (t !== "") out.push(t);
+    }
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function normalizeValuationsArray(raw: unknown): ValuationResult[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((x) =>
@@ -476,6 +495,11 @@ export function normalizeValuationResponseBody(raw: unknown): ValuationResponse 
 
   const ctx = readValuationContext(o);
   if (ctx) base.valuation_context = ctx;
+
+  const dpi = pickEngineDraftablePlayerIds(o);
+  if (dpi) base.draftable_player_ids = dpi;
+  const dps = readFiniteScalar(o.draftable_pool_size ?? o.draftablePoolSize);
+  if (dps !== undefined) base.draftable_pool_size = Math.trunc(dps);
 
   return base;
 }
