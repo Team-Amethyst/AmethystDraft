@@ -506,7 +506,7 @@
 /* ── Player cell ── */
 .player-cell {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.6rem;
   min-width: 0;
 }
@@ -599,41 +599,73 @@
   color: #fff;
 }
 
-/* ── Value chip ── */
-.value-chip {
-  font-weight: 700;
-  color: #a78bfa;
+/* ── Rank / ADP / auction-order metrics (muted vs auction value) ── */
+.pt-table thead .th-rank-metric {
+  color: #4f3f6e;
+  font-weight: 600;
 }
 
-/* Research value column: league-wide auction $ only */
+.pt-table thead .th-rank-metric.th-sortable:hover {
+  color: #7c6aa3;
+}
+
+.pt-table thead .th-value.th-sortable:hover {
+  color: #b8a3e6;
+}
+
+.pt-table tbody .td-rank-metric,
+.pt-table tbody .td-adp {
+  color: #756892;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row ordinal — visible but secondary to auction value */
+.td-rank {
+  color: #5c4f78;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Value (primary model output: text only, no chip) ── */
 .pt-value-stack {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.12rem;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
-.pt-value-stack__primary {
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+.pt-table .td-value .pt-value-stack__primary {
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #ddd6fe;
 }
 
-/* ── Stat cells ── */
-.td-stat { color: #b0a0cc; font-variant-numeric: tabular-nums; }
-.td-rank { color: #6b4fa0; font-weight: 700; }
+.pt-table thead .th-value {
+  color: #8f7ab8;
+}
+
+/* ── Stat cells (normal table body) ── */
+.td-stat {
+  color: #d0c4e4;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Pos column: wrap eligibility badges before forcing other columns narrow. */
 .pt-table .th-pos {
   white-space: normal;
-  max-width: 5.5rem;
+  max-width: 6.5rem;
 }
 
 .td-pos {
   vertical-align: middle;
   white-space: normal;
-  max-width: 6.25rem;
+  max-width: 7rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .pt-pos-badges {
@@ -649,12 +681,15 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-width: 0;
-  max-width: 2.05rem;
+  min-width: 1.85rem;
+  min-height: 22px;
+  max-width: 2.75rem;
   width: auto;
-  padding: 0.06rem 0.14rem;
-  font-size: 0.5rem;
-  border-radius: 3px;
+  padding: 0.12rem 0.32rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 5px;
   flex-shrink: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -670,7 +705,6 @@
 }
 
 .td-team { color: #9080b0; }
-.td-adp { color: #9080b0; }
 
 .pt-tag-wrap {
   position: relative;
@@ -788,15 +822,25 @@
   vertical-align: middle;
 }
 
+/* ── Star column: tighter horizontal gutter ── */
+.pt-table .td-star {
+  padding-left: 0.28rem;
+  padding-right: 0.28rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
 /* ── Star button ── */
 .btn-star {
   background: transparent;
   border: none;
   cursor: pointer;
   color: #4a3a60;
-  padding: 0.35rem 0.5rem;
+  padding: 0.2rem 0.12rem;
+  margin: 0 auto;
   display: flex;
   align-items: center;
+  justify-content: center;
   border-radius: 4px;
   transition: color 0.2s;
 }
@@ -867,7 +911,7 @@
 @media (max-width: 1100px) {
   .pt-table {
     --pt-rank-w: 3rem;
-    --pt-star-w: 3.1rem;
+    --pt-star-w: 2.45rem;
     --pt-player-sticky-left: calc(var(--pt-rank-w) + var(--pt-star-w));
     --pt-sticky-cell-bg: #0d0a1a;
     --pt-sticky-head-bg: #140f24;
@@ -1031,10 +1075,6 @@
   .pt-table th,
   .pt-table td {
     padding: 0.48rem 0.55rem;
-  }
-
-  .player-cell {
-    align-items: flex-start;
   }
 
   .player-name-col {

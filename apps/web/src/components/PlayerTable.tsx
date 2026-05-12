@@ -69,6 +69,69 @@ interface PlayerTableProps {
   draftedContractByPlayerId?: Map<string, string>;
   isCustomPlayer?: (id: string) => boolean;
   defaultValuationSortField?: ValuationSortField;
+  /**
+   * `research`: market-first column order; model tier/rank hidden until toggled on.
+   * `default`: tier + model rank always visible (legacy full table).
+   */
+  columnLayout?: "default" | "research";
+}
+
+type PlayerTableColumnLayout = "default" | "research";
+type ClientSortState = { col: string; dir: "asc" | "desc" };
+
+function readResearchModelColumnsFromLS(
+  columnLayout: PlayerTableColumnLayout,
+): boolean {
+  if (columnLayout !== "research") return false;
+  try {
+    return (
+      localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.researchModelColumns) ===
+      "true"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sortUsesHiddenResearchModelColumns(
+  col: string,
+  researchModelColumnsVisible: boolean,
+): boolean {
+  if (researchModelColumnsVisible) return false;
+  return (
+    col === "tier" ||
+    col === "auction_tier" ||
+    col === "catalog_rank" ||
+    col === "adp"
+  );
+}
+
+function readClientSortFromLS(
+  columnLayout: PlayerTableColumnLayout,
+  researchModelColumns: boolean,
+): ClientSortState {
+  const defaultSort: ClientSortState =
+    columnLayout === "research"
+      ? { col: "value", dir: "desc" }
+      : { col: "catalog_rank", dir: "asc" };
+  try {
+    const s = localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.sort);
+    if (!s) return defaultSort;
+    const parsed = JSON.parse(s) as { col?: unknown; dir?: unknown };
+    let col = typeof parsed.col === "string" ? parsed.col : defaultSort.col;
+    if (col === "adp") col = "catalog_rank";
+    const dir = parsed.dir === "desc" ? ("desc" as const) : ("asc" as const);
+    if (col === "valdiff") return defaultSort;
+    if (
+      columnLayout === "research" &&
+      sortUsesHiddenResearchModelColumns(col, researchModelColumns)
+    ) {
+      return { col: "value", dir: "desc" };
+    }
+    return { col, dir };
+  } catch {
+    return defaultSort;
+  }
 }
 
 export default function PlayerTable({
@@ -88,6 +151,7 @@ export default function PlayerTable({
   draftedContractByPlayerId,
   isCustomPlayer,
   defaultValuationSortField = "auction_value",
+  columnLayout = "default",
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -149,23 +213,15 @@ export default function PlayerTable({
   );
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
-  const [clientSort, setClientSort] = useState<{
-    col: string;
-    dir: "asc" | "desc";
-  }>(() => {
-    try {
-      const s = localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.sort);
-      if (!s) return { col: "catalog_rank", dir: "asc" as const };
-      const parsed = JSON.parse(s) as { col?: unknown; dir?: unknown };
-      let col = typeof parsed.col === "string" ? parsed.col : "catalog_rank";
-      if (col === "adp") col = "catalog_rank";
-      const dir = parsed.dir === "desc" ? ("desc" as const) : ("asc" as const);
-      if (col === "valdiff") return { col: "catalog_rank", dir: "asc" };
-      return { col, dir };
-    } catch {
-      return { col: "catalog_rank", dir: "asc" as const };
-    }
-  });
+  const [clientSort, setClientSort] = useState<ClientSortState>(() =>
+    readClientSortFromLS(
+      columnLayout,
+      readResearchModelColumnsFromLS(columnLayout),
+    ),
+  );
+  const [researchModelColumns, setResearchModelColumns] = useState(() =>
+    readResearchModelColumnsFromLS(columnLayout),
+  );
   const valuationSortField: ValuationSortField = defaultValuationSortField;
 
   useEffect(() => {
@@ -222,6 +278,18 @@ export default function PlayerTable({
       /* noop */
     }
   }, [statView]);
+
+  useEffect(() => {
+    if (columnLayout !== "research") return;
+    try {
+      localStorage.setItem(
+        PLAYER_TABLE_STORAGE_KEYS.researchModelColumns,
+        String(researchModelColumns),
+      );
+    } catch {
+      /* noop */
+    }
+  }, [columnLayout, researchModelColumns]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -409,8 +477,17 @@ export default function PlayerTable({
       ),
     [players],
   );
+  const isResearchLayout = columnLayout === "research";
+  const showTierModelCols =
+    columnLayout === "default" ||
+    (columnLayout === "research" && researchModelColumns);
+
   const tableFixedCols =
-    9 + (showAuctionRankCol ? 1 : 0) + (showMarketAdpCol ? 1 : 0);
+    5 +
+    (showTierModelCols ? 2 : 0) +
+    (showAuctionRankCol ? 1 : 0) +
+    (showMarketAdpCol ? 1 : 0) +
+    2;
 
   return (
     <div className="pt-container">
@@ -444,6 +521,25 @@ export default function PlayerTable({
         }}
         statBasis={statBasis}
         onStatBasisChange={onStatBasisChange}
+        researchModelColumns={
+          columnLayout === "research" ? researchModelColumns : undefined
+        }
+        onResearchModelColumnsToggle={
+          columnLayout === "research"
+            ? () => {
+                setResearchModelColumns((shown) => {
+                  if (shown) {
+                    setClientSort((prev) =>
+                      sortUsesHiddenResearchModelColumns(prev.col, false)
+                        ? { col: "value", dir: "desc" }
+                        : prev,
+                    );
+                  }
+                  return !shown;
+                });
+              }
+            : undefined
+        }
       />
 
       {/* ── Table ── */}
@@ -451,49 +547,81 @@ export default function PlayerTable({
         <table className="pt-table">
           <thead>
             <tr>
-              <th className="th-rank">Rank</th>
+              <th className="th-rank th-rank-metric">Rank</th>
               <th className="th-star"></th>
               <th className="th-player">Player</th>
               <th className="th-pos">Pos</th>
               <th className="th-team">Team</th>
-              <th
-                className="th-tier th-sortable"
-                title={
-                  tierHeaderUsesAuction
-                    ? AUCTION_TIER_TOOLTIP
-                    : MODEL_TIER_TOOLTIP
-                }
-                onClick={() => handleColSort("tier")}
-              >
-                {tierHeaderUsesAuction ? "Auction tier" : "Model tier"}{" "}
-                <SortArrow col="tier" sort={clientSort} />
-              </th>
-              <th
-                className="th-adp th-sortable"
-                title={MODEL_RANK_TOOLTIP}
-                onClick={() => handleColSort("catalog_rank")}
-              >
-                Model rank <SortArrow col="catalog_rank" sort={clientSort} />
-              </th>
-              {showAuctionRankCol && (
+              {showTierModelCols && (
                 <th
-                  className="th-sortable"
-                  title={AUCTION_RANK_TOOLTIP}
-                  onClick={() => handleColSort("auction_rank")}
+                  className="th-tier th-sortable th-rank-metric"
+                  title={
+                    tierHeaderUsesAuction
+                      ? AUCTION_TIER_TOOLTIP
+                      : MODEL_TIER_TOOLTIP
+                  }
+                  onClick={() => handleColSort("tier")}
                 >
-                  Auction rank{" "}
-                  <SortArrow col="auction_rank" sort={clientSort} />
+                  {tierHeaderUsesAuction ? "Auction tier" : "Model tier"}{" "}
+                  <SortArrow col="tier" sort={clientSort} />
                 </th>
               )}
-              {showMarketAdpCol && (
+              {showTierModelCols && (
                 <th
-                  className="th-sortable"
-                  title={MARKET_ADP_COLUMN_TOOLTIP}
-                  onClick={() => handleColSort("market_adp")}
+                  className="th-adp th-sortable th-rank-metric"
+                  title={MODEL_RANK_TOOLTIP}
+                  onClick={() => handleColSort("catalog_rank")}
                 >
-                  Market ADP{" "}
-                  <SortArrow col="market_adp" sort={clientSort} />
+                  Model rank{" "}
+                  <SortArrow col="catalog_rank" sort={clientSort} />
                 </th>
+              )}
+              {isResearchLayout ? (
+                <>
+                  {showMarketAdpCol && (
+                    <th
+                      className="th-sortable th-rank-metric"
+                      title={MARKET_ADP_COLUMN_TOOLTIP}
+                      onClick={() => handleColSort("market_adp")}
+                    >
+                      Market ADP{" "}
+                      <SortArrow col="market_adp" sort={clientSort} />
+                    </th>
+                  )}
+                  {showAuctionRankCol && (
+                    <th
+                      className="th-sortable th-rank-metric"
+                      title={AUCTION_RANK_TOOLTIP}
+                      onClick={() => handleColSort("auction_rank")}
+                    >
+                      Auction rank{" "}
+                      <SortArrow col="auction_rank" sort={clientSort} />
+                    </th>
+                  )}
+                </>
+              ) : (
+                <>
+                  {showAuctionRankCol && (
+                    <th
+                      className="th-sortable th-rank-metric"
+                      title={AUCTION_RANK_TOOLTIP}
+                      onClick={() => handleColSort("auction_rank")}
+                    >
+                      Auction rank{" "}
+                      <SortArrow col="auction_rank" sort={clientSort} />
+                    </th>
+                  )}
+                  {showMarketAdpCol && (
+                    <th
+                      className="th-sortable th-rank-metric"
+                      title={MARKET_ADP_COLUMN_TOOLTIP}
+                      onClick={() => handleColSort("market_adp")}
+                    >
+                      Market ADP{" "}
+                      <SortArrow col="market_adp" sort={clientSort} />
+                    </th>
+                  )}
+                </>
               )}
               <th
                 className="th-value th-sortable"
@@ -626,43 +754,76 @@ export default function PlayerTable({
                     </td>
                     <td className="td-team">{player.team}</td>
 
-                    <td
-                      className="td-tier"
-                      title={
-                        typeof player.auction_tier === "number" &&
-                        player.auction_tier !== player.catalog_tier
-                          ? `Model tier ${player.catalog_tier}`
-                          : undefined
-                      }
-                    >
-                      <TierBadge tier={displayAuctionTier(player) ?? 1} />
-                    </td>
-
-                    <td className="td-adp">{player.catalog_rank}</td>
-                    {showAuctionRankCol && (
-                      <td className="td-stat">
-                        {typeof player.auction_rank === "number" &&
-                        Number.isFinite(player.auction_rank)
-                          ? player.auction_rank
-                          : "—"}
+                    {showTierModelCols && (
+                      <td
+                        className="td-tier"
+                        title={
+                          typeof player.auction_tier === "number" &&
+                          player.auction_tier !== player.catalog_tier
+                            ? `Model tier ${player.catalog_tier}`
+                            : undefined
+                        }
+                      >
+                        <TierBadge tier={displayAuctionTier(player) ?? 1} />
                       </td>
                     )}
-                    {showMarketAdpCol && (
-                      <td
-                        className="td-stat"
-                        title={marketAdpDetailTooltip(player)}
-                      >
-                        {typeof player.market_adp === "number" &&
-                        Number.isFinite(player.market_adp)
-                          ? player.market_adp
-                          : "—"}
+
+                    {showTierModelCols && (
+                      <td className="td-adp td-rank-metric">
+                        {player.catalog_rank}
                       </td>
+                    )}
+
+                    {isResearchLayout ? (
+                      <>
+                        {showMarketAdpCol && (
+                          <td
+                            className="td-rank-metric"
+                            title={marketAdpDetailTooltip(player)}
+                          >
+                            {typeof player.market_adp === "number" &&
+                            Number.isFinite(player.market_adp)
+                              ? player.market_adp
+                              : "—"}
+                          </td>
+                        )}
+                        {showAuctionRankCol && (
+                          <td className="td-rank-metric">
+                            {typeof player.auction_rank === "number" &&
+                            Number.isFinite(player.auction_rank)
+                              ? player.auction_rank
+                              : "—"}
+                          </td>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {showAuctionRankCol && (
+                          <td className="td-rank-metric">
+                            {typeof player.auction_rank === "number" &&
+                            Number.isFinite(player.auction_rank)
+                              ? player.auction_rank
+                              : "—"}
+                          </td>
+                        )}
+                        {showMarketAdpCol && (
+                          <td
+                            className="td-rank-metric"
+                            title={marketAdpDetailTooltip(player)}
+                          >
+                            {typeof player.market_adp === "number" &&
+                            Number.isFinite(player.market_adp)
+                              ? player.market_adp
+                              : "—"}
+                          </td>
+                        )}
+                      </>
                     )}
 
                     <td className="td-value">
                       <div className="pt-value-stack">
                         <span
-                          className="value-chip pt-value-stack__primary"
+                          className="pt-value-stack__primary"
                           title={
                             player.valuation_eligible === false &&
                             primaryValue === undefined

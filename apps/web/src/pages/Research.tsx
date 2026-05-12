@@ -577,6 +577,7 @@ export default function Research() {
                 </div>
               ) : (
                 <PlayerTable
+                  columnLayout="research"
                   defaultValuationSortField={defaultValuationSortForPage("Research")}
                   players={mergedPlayers}
                   searchQuery={searchQuery}

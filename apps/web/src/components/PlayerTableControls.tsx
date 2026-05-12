@@ -34,6 +34,9 @@ export type PlayerTableControlsProps = {
   onResetFilters: () => void;
   statBasis?: StatBasis;
   onStatBasisChange?: (b: StatBasis) => void;
+  /** Research layout: optional model rank + tier columns. */
+  researchModelColumns?: boolean;
+  onResearchModelColumnsToggle?: () => void;
 };
 
 export function PlayerTableControls({
@@ -59,6 +62,8 @@ export function PlayerTableControls({
   onResetFilters,
   statBasis,
   onStatBasisChange,
+  researchModelColumns,
+  onResearchModelColumnsToggle,
 }: PlayerTableControlsProps) {
   return (
     <div className="pt-controls">
@@ -137,6 +142,16 @@ export function PlayerTableControls({
           <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
           Starred only
         </button>
+        {onResearchModelColumnsToggle && (
+          <button
+            type="button"
+            className={"pt-toggle " + (researchModelColumns ? "active" : "")}
+            title="Show model tier and model rank columns"
+            onClick={onResearchModelColumnsToggle}
+          >
+            Model rank & tiers
+          </button>
+        )}
         <div className="pt-tag-wrap">
           <button
             type="button"
