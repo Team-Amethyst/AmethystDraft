@@ -102,6 +102,17 @@ export function leagueWideAuctionDollars(
   return coerceNumber(player.adjusted_value);
 }
 
+/**
+ * Auction dollars for Research table display: omits catalog `value` fallback semantics
+ * when `valuation_eligible === false` (e.g. `market_only` rows).
+ */
+export function leagueWideAuctionDollarsForDisplay(
+  player: Pick<Player, "auction_value" | "adjusted_value" | "valuation_eligible">,
+): number | undefined {
+  if (player.valuation_eligible === false) return undefined;
+  return leagueWideAuctionDollars(player);
+}
+
 function coerceNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
@@ -567,15 +578,20 @@ export function resolveValuationNumber(
     | "adjusted_value"
     | "recommended_bid"
     | "team_adjusted_value"
+    | "valuation_eligible"
   >,
   preferredField?: ValuationSortField,
 ): number {
+  const ineligible = player.valuation_eligible === false;
+
   if (preferredField === "auction_value") {
     const v = leagueWideAuctionDollars(player);
     if (v !== undefined) return v;
+    if (ineligible) return 0;
   } else if (preferredField) {
     const preferredValue = coerceNumber(player[preferredField]);
     if (preferredValue !== undefined) return preferredValue;
+    if (ineligible) return 0;
   }
   for (const field of VALUATION_FALLBACK_ORDER) {
     if (field === "auction_value") {
@@ -586,6 +602,7 @@ export function resolveValuationNumber(
     const candidate = coerceNumber(player[field]);
     if (candidate !== undefined) return candidate;
   }
+  if (ineligible) return 0;
   return coerceNumber(player.value) ?? 0;
 }
 
@@ -594,6 +611,27 @@ export function mergePlayerWithValuation(
   valuation?: ValuationShape,
 ): Player {
   if (!valuation) return player;
+  if (player.valuation_eligible === false) {
+    const marketAdp = coerceNumber(valuation.market_adp);
+    return {
+      ...player,
+      market_adp: marketAdp ?? player.market_adp,
+      market_adp_source: mergeOptionalTrimmedString(
+        valuation.market_adp_source,
+        player.market_adp_source,
+      ),
+      market_adp_updated_at: mergeOptionalTrimmedString(
+        valuation.market_adp_updated_at,
+        player.market_adp_updated_at,
+      ),
+      market_adp_min: preferFiniteNumber(valuation.market_adp_min, player.market_adp_min),
+      market_adp_max: preferFiniteNumber(valuation.market_adp_max, player.market_adp_max),
+      market_pick_count: preferFiniteNumber(
+        valuation.market_pick_count,
+        player.market_pick_count,
+      ),
+    };
+  }
   const auctionTierRaw =
     coerceNumber(valuation.auction_tier) ?? coerceNumber(valuation.tier);
   /** Ignore 0 — sparse Engine/board rows use it as a placeholder and must not wipe catalog tier. */

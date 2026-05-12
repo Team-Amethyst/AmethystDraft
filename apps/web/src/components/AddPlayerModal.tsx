@@ -92,6 +92,8 @@ function buildPlayer(form: FormState): Player {
   return {
     id,
     mlbId:    0,           // 0 = no MLB Stats API ID
+    catalog_kind: "valuation_eligible" as const,
+    valuation_eligible: true,
     name:     form.name.trim(),
     team:     form.team.trim().toUpperCase(),
     position: form.position,

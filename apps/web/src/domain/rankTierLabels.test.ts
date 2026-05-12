@@ -55,4 +55,19 @@ describe("marketAdpDetailTooltip", () => {
     expect(t).toContain("Range 10–14.");
     expect(t).toContain("Sample size: 100 picks.");
   });
+
+  it("combines NFBC metadata line after Mongo apply (source, date, range, pick count)", () => {
+    const t = marketAdpDetailTooltip({
+      market_adp_source: "NFBC",
+      market_adp_updated_at: "2026-05-01T12:00:00.000Z",
+      market_adp_min: 1,
+      market_adp_max: 5,
+      market_pick_count: 120,
+    });
+    expect(t).toContain("from NFBC");
+    expect(t).toMatch(/\bUpdated\b/);
+    expect(t).toContain("2026");
+    expect(t).toContain("Range 1–5.");
+    expect(t).toContain("Sample size: 120 picks.");
+  });
 });

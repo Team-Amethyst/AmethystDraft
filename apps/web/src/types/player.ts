@@ -1,5 +1,11 @@
 import type { ValuationExplain } from "../api/engine";
 
+/** Engine-aligned catalog row classification (`GET /api/players`). */
+export type CatalogKind =
+  | "valuation_eligible"
+  | "market_only"
+  | "roster_context";
+
 export interface Player {
   id: string;
   mlbId: number;
@@ -24,6 +30,9 @@ export interface Player {
   market_adp_max?: number;
   /** Sample size or draft count behind the market ADP aggregate when Engine provides it. */
   market_pick_count?: number;
+  /** When false, exclude from Engine valuation math; do not use `value` as Auction Value fallback. */
+  valuation_eligible?: boolean;
+  catalog_kind?: CatalogKind;
   value: number;
   /** Rank by league auction value from latest valuation row (optional until merged). */
   auction_rank?: number;

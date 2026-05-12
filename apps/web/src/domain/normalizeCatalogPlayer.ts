@@ -1,4 +1,4 @@
-import type { Player } from "../types/player";
+import type { CatalogKind, Player } from "../types/player";
 
 /**
  * Maps catalog API JSON (including legacy `adp` / `tier`) onto canonical Player fields.
@@ -6,11 +6,17 @@ import type { Player } from "../types/player";
 export function normalizeCatalogPlayer(raw: Record<string, unknown>): Player {
   const catalog_rank = finite(raw.catalog_rank) ?? finite(raw.adp) ?? 0;
   const catalog_tier = finite(raw.catalog_tier) ?? finite(raw.tier) ?? 5;
+  const catalog_kind = parseCatalogKind(raw) ?? "valuation_eligible";
+  const veRaw = raw.valuation_eligible ?? raw.valuationEligible;
+  const valuation_eligible =
+    typeof veRaw === "boolean" ? veRaw : catalog_kind === "valuation_eligible";
   const base = { ...raw } as unknown as Player;
   return {
     ...base,
     catalog_rank,
     catalog_tier,
+    catalog_kind,
+    valuation_eligible,
     market_adp: finite(raw.market_adp) ?? finite(raw.marketAdp),
     market_adp_source: trimmedString(raw.market_adp_source ?? raw.marketAdpSource),
     market_adp_updated_at: trimmedString(
@@ -20,6 +26,14 @@ export function normalizeCatalogPlayer(raw: Record<string, unknown>): Player {
     market_adp_max: finite(raw.market_adp_max ?? raw.marketAdpMax),
     market_pick_count: finite(raw.market_pick_count ?? raw.marketPickCount),
   };
+}
+
+function parseCatalogKind(raw: Record<string, unknown>): CatalogKind | undefined {
+  const v = raw.catalog_kind ?? raw.catalogKind;
+  if (v === "valuation_eligible" || v === "market_only" || v === "roster_context") {
+    return v;
+  }
+  return undefined;
 }
 
 function trimmedString(v: unknown): string | undefined {

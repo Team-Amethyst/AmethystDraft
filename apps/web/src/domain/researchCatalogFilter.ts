@@ -4,6 +4,24 @@ import {
   normalizePlayerPositions,
 } from "../utils/eligibility";
 
+function hasFiniteMarketAdp(p: Player): boolean {
+  return typeof p.market_adp === "number" && Number.isFinite(p.market_adp);
+}
+
+/**
+ * Default Research player-database list:
+ * - Always show `valuation_eligible` (and legacy rows with no `catalog_kind`).
+ * - Show `market_only` only when Market ADP is present.
+ * - Hide `roster_context` until an explicit widen (e.g. query) is added later.
+ */
+export function filterResearchDefaultCatalogKind(players: Player[]): Player[] {
+  return players.filter((p) => {
+    if (p.catalog_kind === "roster_context") return false;
+    if (p.catalog_kind === "market_only") return hasFiniteMarketAdp(p);
+    return true;
+  });
+}
+
 /**
  * Research “player database” list filter: substring on name and optional position filter.
  * Pitcher filter uses eligibility helper; OF matches any outfield eligibility.

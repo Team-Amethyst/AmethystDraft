@@ -56,7 +56,10 @@ import {
   RESEARCH_STAT_BASIS_STORAGE_KEY_WEB,
 } from "@repo/player-stat-basis";
 import { MLB_TEAMS } from "../data/mlbTeams";
-import { filterResearchCatalogPlayers } from "../domain/researchCatalogFilter";
+import {
+  filterResearchCatalogPlayers,
+  filterResearchDefaultCatalogKind,
+} from "../domain/researchCatalogFilter";
 import {
   countDepthChartAssignments,
   DEFAULT_RESEARCH_DEPTH_TEAM_ID,
@@ -422,10 +425,15 @@ export default function Research() {
     }
   }, [depthChartData, selectedView, players, rosterEntries, watchlist]);
 
+  const playersForResearch = useMemo(
+    () => filterResearchDefaultCatalogKind(players),
+    [players],
+  );
+
   // Merge MLB API players with custom players — custom players appear at the top
   const allPlayers = useMemo(
-    () => [...customPlayers, ...players],
-    [players, customPlayers],
+    () => [...customPlayers, ...playersForResearch],
+    [playersForResearch, customPlayers],
   );
 
   const filteredPlayers = useMemo(

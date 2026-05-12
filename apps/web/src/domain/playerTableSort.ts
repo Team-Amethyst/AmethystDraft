@@ -3,7 +3,10 @@ import type { DisplayBatting, DisplayPitching } from "@repo/player-stat-basis";
 import { getDisplayStatValue } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import { displayAuctionTier } from "./playerRankTier";
-import { leagueWideAuctionDollars, type ValuationSortField } from "../utils/valuation";
+import {
+  leagueWideAuctionDollarsForDisplay,
+  type ValuationSortField,
+} from "../utils/valuation";
 
 function asFinite(n: unknown): number | undefined {
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
@@ -64,7 +67,7 @@ export function sortPlayerTableRows(
     if (col === "value") {
       const sortKey = (p: Player) => {
         if (valuationSortField === "auction_value") {
-          return leagueWideAuctionDollars(p) ?? -Infinity;
+          return leagueWideAuctionDollarsForDisplay(p) ?? -Infinity;
         }
         if (valuationSortField === "recommended_bid") {
           return asFinite(p.recommended_bid) ?? -Infinity;

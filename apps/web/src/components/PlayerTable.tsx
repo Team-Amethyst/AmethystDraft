@@ -33,7 +33,7 @@ import {
 } from "./PlayerTableParts";
 import {
   formatCurrencyWhole,
-  leagueWideAuctionDollars,
+  leagueWideAuctionDollarsForDisplay,
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   valuationSortLabel,
@@ -542,7 +542,7 @@ export default function PlayerTable({
             {rowData.map(
               ({ player, bat, pit, isBatter, tags }, index) => {
                 const isStarred = isInWatchlist(player.id);
-                const primaryValue = leagueWideAuctionDollars(player);
+                const primaryValue = leagueWideAuctionDollarsForDisplay(player);
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
                   : undefined;
@@ -663,7 +663,12 @@ export default function PlayerTable({
                       <div className="pt-value-stack">
                         <span
                           className="value-chip pt-value-stack__primary"
-                          title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}
+                          title={
+                            player.valuation_eligible === false &&
+                            primaryValue === undefined
+                              ? "Model value unavailable"
+                              : RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE
+                          }
                         >
                           {formatCurrencyWhole(primaryValue)}
                         </span>

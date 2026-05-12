@@ -18,6 +18,7 @@ import {
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
   leagueWideAuctionDollars,
+  leagueWideAuctionDollarsForDisplay,
   mergePlayerWithFocusedExplainEnrichment,
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
@@ -53,6 +54,8 @@ function basePlayer(): Player {
     catalog_rank: 20,
     value: 24,
     catalog_tier: 3,
+    catalog_kind: "valuation_eligible",
+    valuation_eligible: true,
     headshot: "",
     stats: {},
     projection: {},
@@ -81,6 +84,32 @@ describe("valuation helpers", () => {
     expect(merged.team_adjusted_value).toBe(31);
     expect(merged.inflation_model).toBe("replacement_slots_v2");
     expect(merged.indicator).toBe("Steal");
+  });
+
+  it("merges full NFBC market ADP metadata without changing catalog_rank or auction_value source", () => {
+    const catalog = basePlayer();
+    catalog.catalog_rank = 7;
+    catalog.value = 18;
+    const merged = mergePlayerWithValuation(catalog, {
+      player_id: "1",
+      market_adp: 3.5,
+      market_adp_source: "NFBC",
+      market_adp_updated_at: "2026-05-10T00:00:00.000Z",
+      market_adp_min: 2,
+      market_adp_max: 5,
+      market_pick_count: 200,
+      auction_value: 44,
+      auction_rank: 2,
+    });
+    expect(merged.catalog_rank).toBe(7);
+    expect(merged.auction_value).toBe(44);
+    expect(merged.auction_rank).toBe(2);
+    expect(merged.market_adp).toBe(3.5);
+    expect(merged.market_adp_source).toBe("NFBC");
+    expect(merged.market_adp_updated_at).toBe("2026-05-10T00:00:00.000Z");
+    expect(merged.market_adp_min).toBe(2);
+    expect(merged.market_adp_max).toBe(5);
+    expect(merged.market_pick_count).toBe(200);
   });
 
   it("does not map legacy valuation.adp onto player.auction_rank (catalog collision)", () => {
@@ -364,6 +393,74 @@ describe("valuation helpers", () => {
     });
     expect(merged.catalog_tier).toBe(3);
     expect(merged.auction_tier).toBeUndefined();
+  });
+
+  it("leagueWideAuctionDollarsForDisplay omits engine dollars when valuation_eligible is false", () => {
+    expect(
+      leagueWideAuctionDollarsForDisplay({
+        auction_value: 40,
+        adjusted_value: 35,
+        valuation_eligible: false,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("leagueWideAuctionDollarsForDisplay ignores auction_value for ineligible even if catalog value is high", () => {
+    expect(
+      leagueWideAuctionDollarsForDisplay({
+        auction_value: 99,
+        adjusted_value: 88,
+        valuation_eligible: false,
+      }),
+    ).toBeUndefined();
+    expect(
+      formatCurrencyWhole(
+        leagueWideAuctionDollarsForDisplay({
+          auction_value: 99,
+          valuation_eligible: false,
+        }),
+      ),
+    ).toBe("—");
+  });
+
+  it("leagueWideAuctionDollarsForDisplay passes through auction_value for valuation_eligible", () => {
+    expect(
+      leagueWideAuctionDollarsForDisplay({
+        auction_value: 42,
+        valuation_eligible: true,
+      }),
+    ).toBe(42);
+  });
+
+  it("mergePlayerWithValuation for market_only merges ADP metadata but not auction dollars", () => {
+    const p: Player = {
+      ...basePlayer(),
+      catalog_kind: "market_only",
+      valuation_eligible: false,
+      market_adp: 50,
+      value: 99,
+    };
+    const merged = mergePlayerWithValuation(p, {
+      player_id: "1",
+      auction_value: 40,
+      market_adp: 45,
+      market_adp_source: "NFBC",
+    });
+    expect(merged.auction_value).toBeUndefined();
+    expect(merged.value).toBe(99);
+    expect(merged.market_adp).toBe(45);
+    expect(merged.market_adp_source).toBe("NFBC");
+  });
+
+  it("resolveValuationNumber does not fall back to catalog value when valuation_eligible is false", () => {
+    const p: Player = {
+      ...basePlayer(),
+      catalog_kind: "market_only",
+      valuation_eligible: false,
+      value: 99,
+    };
+    expect(resolveValuationNumber(p, "auction_value")).toBe(0);
+    expect(resolveValuationNumber(p)).toBe(0);
   });
 
   it("uses strict fallback order for valuation numbers (league auction before roster fields)", () => {
