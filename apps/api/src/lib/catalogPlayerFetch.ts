@@ -19,6 +19,7 @@ import {
 } from "./playerScoring";
 import { teamAbbrev } from "./mlbTeams";
 import { mergeTwoWayPlayers, type PlayerData } from "./playerCatalog";
+import { appendCatalogKindTestOverlay } from "./catalogKindTestOverlay";
 import { UpstreamError } from "./appError";
 import {
   injurySeverityFrom40ManStatus,
@@ -60,7 +61,7 @@ export async function getOrRefreshCatalogPlayers(
 ): Promise<PlayerData[]> {
   const cached = serverPlayerCache.get(threshold);
   if (cached && Date.now() - cached.fetchedAt < SERVER_CACHE_TTL_MS) {
-    return cached.players;
+    return appendCatalogKindTestOverlay(cached.players);
   }
   return fetchCatalogPlayersFromMlb(threshold);
 }
@@ -254,6 +255,8 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
       return {
         id: String(pid),
         mlbId: pid,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
         name: s.player.fullName,
         team: teamAbbrev(s.team, bio?.currentTeam),
         position: normalizeFantasyPosition(
@@ -338,6 +341,8 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
       return {
         id: String(pid),
         mlbId: pid,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
         name: s.player.fullName,
         team: teamAbbrev(s.team, bio?.currentTeam),
         position: normalizeFantasyPosition(
@@ -410,10 +415,11 @@ async function fetchCatalogPlayersFromMlb(threshold: number): Promise<PlayerData
     ...(pitchers as PlayerData[]),
   ]);
   const valueFiltered = deduped.filter((p) => p.value > 0);
+  const withKindOverlay = appendCatalogKindTestOverlay(valueFiltered);
   serverPlayerCache.set(threshold, {
-    players: valueFiltered,
+    players: withKindOverlay,
     fetchedAt: Date.now(),
   });
 
-  return valueFiltered;
+  return withKindOverlay;
 }
