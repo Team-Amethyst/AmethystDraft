@@ -1,0 +1,45 @@
+/**
+ * Sonner toasts — match Intelligence Alerts / AuthNavbar chrome (theme.css tokens).
+ * Scoped under .dr-sonner on the Toaster root.
+ */
+.dr-sonner[data-sonner-toaster] {
+  --width: min(22rem, calc(100vw - 1.5rem));
+}
+
+.dr-sonner [data-sonner-toast] {
+  width: var(--width);
+  font-family: var(--app-font-family);
+  background: var(--app-bg-elevated) !important;
+  border: 1px solid var(--app-panel-border) !important;
+  border-radius: var(--app-radius-md) !important;
+  color: var(--app-text) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(12px);
+}
+
+.dr-sonner [data-sonner-toast] [data-title],
+.dr-sonner [data-sonner-toast] [data-description] {
+  color: var(--app-text) !important;
+}
+
+.dr-sonner [data-sonner-toast] [data-description] {
+  color: var(--app-text-muted) !important;
+  font-size: 0.8125rem;
+}
+
+.dr-sonner [data-sonner-toast][data-type="warning"] {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.12),
+    0 8px 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+.dr-sonner [data-sonner-toast] [data-close-button] {
+  border: 1px solid var(--app-accent-border) !important;
+  background: rgba(139, 92, 246, 0.12) !important;
+  color: var(--app-accent-soft) !important;
+}
+
+.dr-sonner [data-sonner-toast] [data-close-button]:hover {
+  background: rgba(139, 92, 246, 0.22) !important;
+}

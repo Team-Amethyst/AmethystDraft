@@ -35,8 +35,14 @@ vi.mock("../models/RosterEntry", () => ({
   },
 }));
 
+vi.mock("../lib/catalogPlayerFetch", () => ({
+  getOrRefreshCatalogPlayers: vi.fn(),
+}));
+
 import League from "../models/League";
 import RosterEntry from "../models/RosterEntry";
+import type { PlayerData } from "../lib/playerCatalog";
+import { getOrRefreshCatalogPlayers } from "../lib/catalogPlayerFetch";
 import engineRouter from "./engine";
 import errorHandler from "../middleware/errorHandler";
 import { assignRequestId } from "../lib/requestContext";
@@ -77,6 +83,28 @@ describe("engine routes (BFF → Amethyst)", () => {
     getMock.mockReset();
     vi.mocked(League.findById).mockResolvedValue(mockLeagueDoc as never);
     vi.mocked(RosterEntry.find).mockResolvedValue([] as never);
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([
+      {
+        id: "660271",
+        mlbId: 660271,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Star",
+        team: "NYY",
+        position: "SS",
+        positions: ["SS", "2B"],
+        age: 27,
+        catalog_rank: 1,
+        value: 40,
+        catalog_tier: 1,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injuryStatus: "IL10",
+        injurySeverity: 2,
+      } as PlayerData,
+    ]);
   });
 
   describe("POST /api/engine/leagues/:leagueId/valuation", () => {
@@ -85,7 +113,8 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       const res = await request(app)
         .post(`/api/engine/leagues/${lid}/valuation`)
-        .set("Authorization", "Bearer t");
+        .set("Authorization", "Bearer t")
+        .send({});
 
       expect(res.status).toBe(404);
       expect(postMock).not.toHaveBeenCalled();
@@ -103,7 +132,8 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       const res = await request(app)
         .post(`/api/engine/leagues/${lid}/valuation`)
-        .set("Authorization", "Bearer t");
+        .set("Authorization", "Bearer t")
+        .send({});
 
       expect(res.status).toBe(200);
       expect(res.body.inflation_factor).toBe(1);
@@ -116,16 +146,127 @@ describe("engine routes (BFF → Amethyst)", () => {
         league_scope: string;
         schema_version?: string;
         schemaVersion?: string;
+        user_team_id?: string;
+        inflation_model?: string;
+        pre_draft_rosters?: unknown[];
+        minors?: unknown[];
+        taxi?: unknown[];
+        drafted_players?: unknown[];
+        budget_by_team_id?: Record<string, number>;
+        position_overrides?: Array<{ player_id: string; positions: string[] }>;
+        injury_overrides?: Array<{ player_id: string; injury_severity: number }>;
       };
       expect(payload.num_teams).toBe(2);
       expect(payload.league_scope).toBe("Mixed");
       expect(payload.schema_version).toBeUndefined();
       expect(payload.schemaVersion).toBeUndefined();
+      expect(payload.user_team_id).toBe("team_1");
+      expect(payload.inflation_model).toBe("replacement_slots_v2");
+      expect(payload.pre_draft_rosters).toEqual([]);
+      expect(payload.minors).toEqual([]);
+      expect(payload.taxi).toEqual([]);
+      expect(payload.drafted_players).toEqual([]);
+      expect(payload.budget_by_team_id).toEqual({ team_1: 260, team_2: 260 });
+      expect(payload.position_overrides).toEqual([
+        { player_id: "660271", positions: ["SS", "2B"] },
+      ]);
+      expect(payload.injury_overrides).toEqual([
+        { player_id: "660271", injury_severity: 2 },
+      ]);
+      expect(payload.player_ids).toEqual(["660271"]);
+    });
+
+    it("forwards explain_valuation_rows to Engine when requested", async () => {
+      postMock.mockResolvedValueOnce({
+        data: { inflation_factor: 1, valuations: [], calculated_at: "x" },
+        headers: {},
+      });
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation`)
+        .set("Authorization", "Bearer t")
+        .send({ explain_valuation_rows: true });
+
+      expect(res.status).toBe(200);
+      const [, payload] = postMock.mock.calls[0] ?? [];
+      expect(payload).toMatchObject({ explain_valuation_rows: true });
+    });
+
+    it("sends keepers/minors/taxi/drafted context sections", async () => {
+      vi.mocked(RosterEntry.find).mockResolvedValueOnce(
+        [
+          {
+            externalPlayerId: "k1",
+            playerName: "Keeper",
+            positions: ["1B"],
+            rosterSlot: "1B",
+            teamId: "team_1",
+            price: 10,
+            isKeeper: true,
+            playerTeam: "TOR",
+          },
+          {
+            externalPlayerId: "m1",
+            playerName: "Minor",
+            positions: ["SP"],
+            rosterSlot: "MIN1",
+            teamId: "team_1",
+            price: 1,
+            isKeeper: false,
+            playerTeam: "SEA",
+          },
+          {
+            externalPlayerId: "t1",
+            playerName: "Taxi",
+            positions: ["RP"],
+            rosterSlot: "TAXI",
+            teamId: "team_2",
+            price: 1,
+            isKeeper: false,
+            playerTeam: "LAD",
+          },
+          {
+            externalPlayerId: "d1",
+            playerName: "Drafted",
+            positions: ["OF"],
+            rosterSlot: "OF",
+            teamId: "team_2",
+            price: 17,
+            isKeeper: false,
+            playerTeam: "NYY",
+          },
+        ] as never,
+      );
+      postMock.mockResolvedValueOnce({
+        data: { inflation_factor: 1, valuations: [], calculated_at: "x" },
+        headers: {},
+      });
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation`)
+        .set("Authorization", "Bearer t")
+        .send({ user_team_id: "team_2" });
+
+      expect(res.status).toBe(200);
+      const [, payload] = postMock.mock.calls[0] ?? [];
+      const body = payload as {
+        user_team_id?: string;
+        drafted_players: Array<{ player_id: string }>;
+        pre_draft_rosters: Array<{ players: Array<{ player_id: string }> }>;
+        minors: Array<{ players: Array<{ player_id: string }> }>;
+        taxi: Array<{ players: Array<{ player_id: string }> }>;
+      };
+      expect(body.user_team_id).toBe("team_2");
+      expect(body.drafted_players.map((p) => p.player_id)).toEqual(["d1"]);
+      expect(body.pre_draft_rosters[0]?.players[0]?.player_id).toBe("k1");
+      expect(body.minors[0]?.players[0]?.player_id).toBe("m1");
+      expect(body.taxi[0]?.players[0]?.player_id).toBe("t1");
     });
   });
 
   describe("POST /api/engine/leagues/:leagueId/valuation/player", () => {
     it("proxies to POST /valuation/player with player_id merged into payload", async () => {
+      vi.mocked(RosterEntry.find).mockResolvedValue([] as never);
       postMock.mockResolvedValue({
         data: {
           engine_contract_version: "1",
@@ -149,6 +290,10 @@ describe("engine routes (BFF → Amethyst)", () => {
           player_id: "660271",
           num_teams: 2,
           league_scope: "Mixed",
+          user_team_id: "team_1",
+          inflation_model: "replacement_slots_v2",
+          player_ids: ["660271"],
+          injury_overrides: [{ player_id: "660271", injury_severity: 2 }],
         }),
       );
     });
@@ -291,7 +436,8 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       const res = await request(app)
         .post(`/api/engine/leagues/${lid}/valuation`)
-        .set("Authorization", "Bearer t");
+        .set("Authorization", "Bearer t")
+        .send({});
 
       expect(res.status).toBe(502);
       expect(res.body.error?.code).toBe("ENGINE_UPSTREAM_ERROR");

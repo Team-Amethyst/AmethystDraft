@@ -15,87 +15,60 @@
  *   management and cross-component coordination; all rendering is delegated.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
-import type { WatchlistPlayer } from "../api/watchlist";
-import type { Player } from "../types/player";
+import { getValuation, type ValuationResponse } from "../api/engine";
+import {
+  filterValuationAlertsForSurface,
+  normalizeValuationAlerts,
+} from "../domain/valuationAlerts";
+import { useValuationBoardAlerts } from "../contexts/ValuationBoardAlertsContext";
 import AllocationBar from "../components/MyDraft/AllocationBar";
-import PositionTargets, {
-  type PositionPlanRow,
-} from "../components/MyDraft/PositionTargets";
+import PositionTargets from "../components/MyDraft/PositionTargets";
+import {
+  POSITION_ALLOCATION_PLAN,
+} from "../constants/positionAllocationPlan";
+import { positionColorStyle } from "../constants/positionColors";
 import WatchlistTable from "../components/MyDraft/WatchlistTable";
 import DraftNotes from "../components/MyDraft/DraftNotes";
-import { hasPitcherEligibility } from "../utils/eligibility";
+import {
+  defaultValuationSortForPage,
+  type ValuationShape,
+  type ValuationSortField,
+} from "../utils/valuation";
+import { resolveUserTeamId } from "../utils/team";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
+import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
+import {
+  readPositionTargetsFromStorage,
+  writePositionTargetsToStorage,
+  clearPositionTargetsStorage,
+} from "../utils/positionTargetsStorage";
+import {
+  loadJsonFromStorage,
+  myDraftLeagueKey,
+  saveJsonToStorage,
+} from "../utils/myDraftStateStorage";
+import { DRAFT_SESSION_NOTE_PLAYER_ID } from "../constants/draftNoteIds";
+import { useMyDraftWatchlistDerived } from "../hooks/useMyDraftWatchlistDerived";
+import { playerFromWatchlistEntry } from "../domain/watchlistToPlayer";
 import "./MyDraft.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// TODO(data): Replace with backend-provided roster template + budget targets per position.
-const POSITION_PLAN: PositionPlanRow[] = [
-  { pos: "C",    slots: 1, target: 14 },
-  { pos: "1B",   slots: 1, target: 28 },
-  { pos: "2B",   slots: 1, target: 22 },
-  { pos: "SS",   slots: 1, target: 25 },
-  { pos: "3B",   slots: 1, target: 24 },
-  { pos: "OF",   slots: 3, target: 44 },
-  { pos: "SP",   slots: 2, target: 60 },
-  { pos: "RP",   slots: 2, target: 20 },
-  { pos: "UTIL", slots: 1, target: 15 },
-  { pos: "BN",   slots: 4, target: 8  },
-];
-
-const POS_COLORS: Record<string, string> = {
-  C:    "#f87171",
-  "1B": "#fbbf24",
-  "2B": "#38bdf8",
-  "3B": "#fb923c",
-  SS:   "#22d3ee",
-  OF:   "#4ade80",
-  SP:   "#818cf8",
-  RP:   "#f472b6",
-  UTIL: "#94a3b8",
-  BN:   "#6b7280",
-};
+const POSITION_PLAN = POSITION_ALLOCATION_PLAN;
 
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";
-
-function watchlistToPlayer(p: WatchlistPlayer): Player {
-  return {
-    id: p.id,
-    mlbId: 0,
-    name: p.name,
-    team: p.team,
-    position: p.position,
-    positions: p.positions,
-    age: 0,
-    adp: p.adp,
-    value: p.value,
-    tier: p.tier,
-    headshot: "",
-    outlook: "",
-    stats: {},
-    projection: {},
-  };
-}
-
-function loadFromStorage<T>(key: string, fallback: T): T {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? (JSON.parse(saved) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveToStorage(key: string, value: unknown) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -104,6 +77,7 @@ export default function MyDraft() {
 
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
+  const { token, user } = useAuth();
   const totalBudget = league?.budget ?? 260;
   const navigate = useNavigate();
 
@@ -113,6 +87,9 @@ export default function MyDraft() {
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
+  const [valuationSortField, setValuationSortField] = useState<ValuationSortField>(
+    () => defaultValuationSortForPage("MyDraft"),
+  );
 
   // ── Persisted overrides ─────────────────────────────────────────────────────
   const defaultPositionTargets = Object.fromEntries(
@@ -122,20 +99,172 @@ export default function MyDraft() {
   const [positionTargets, setPositionTargets] = useState<Record<string, number>>(
     () => ({
       ...defaultPositionTargets,
-      ...loadFromStorage<Record<string, number>>("amethyst-position-targets", {}),
+      ...readPositionTargetsFromStorage(leagueId),
     }),
   );
+  useEffect(() => {
+    setPositionTargets({
+      ...defaultPositionTargets,
+      ...readPositionTargetsFromStorage(leagueId),
+    });
+  }, [leagueId]);
+
 
   const [targetOverrides, setTargetOverrides] = useState<Record<string, number>>(
-    () => loadFromStorage("amethyst-target-overrides", {}),
+    () => loadJsonFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
   );
 
-  const [priorityOverrides, setPriorityOverrides] = useState<Record<string, Priority>>(
-    () => loadFromStorage("amethyst-priority-overrides", {}),
+  const [priorityOverrides, setPriorityOverrides] = useState<
+    Record<string, Priority>
+  >(() => loadJsonFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}));
+
+  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
+    () => getRosterCached(leagueId ?? "") ?? [],
   );
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  useEffect(() => {
+    if (!leagueId || !token) return;
+    void getRoster(leagueId, token).then(setRosterEntries).catch(() => {
+      /* non-fatal */
+    });
+  }, [leagueId, token]);
 
   // Raw string state for controlled inputs — committed on blur
   const [targetRaw, setTargetRaw] = useState<Record<string, string>>({});
+  const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
+    ReadonlyMap<string, ValuationShape>
+  >(() => new Map());
+  const [lastMyDraftBoardValuation, setLastMyDraftBoardValuation] =
+    useState<ValuationResponse | null>(null);
+
+  const myDraftValuationAlerts = useMemo(
+    () =>
+      filterValuationAlertsForSurface(
+        normalizeValuationAlerts(lastMyDraftBoardValuation),
+        "my-draft",
+      ),
+    [lastMyDraftBoardValuation],
+  );
+
+  const { publishBoardValuationAlerts } = useValuationBoardAlerts();
+  useEffect(() => {
+    publishBoardValuationAlerts(myDraftValuationAlerts);
+  }, [myDraftValuationAlerts, publishBoardValuationAlerts]);
+  useEffect(() => {
+    return () => {
+      publishBoardValuationAlerts([]);
+    };
+  }, [publishBoardValuationAlerts]);
+
+  useEffect(() => {
+    setTargetOverrides(
+      loadJsonFromStorage(myDraftLeagueKey(leagueId, "target-overrides"), {}),
+    );
+    setPriorityOverrides(
+      loadJsonFromStorage(myDraftLeagueKey(leagueId, "priority-overrides"), {}),
+    );
+    setViewFilter(
+      loadJsonFromStorage<ViewFilter>(myDraftLeagueKey(leagueId, "view-filter"), "all"),
+    );
+    setValuationSortField(
+      loadJsonFromStorage<ValuationSortField>(
+        myDraftLeagueKey(leagueId, "valuation-sort"),
+        defaultValuationSortForPage("MyDraft"),
+      ),
+    );
+  }, [leagueId]);
+
+  useEffect(() => {
+    saveJsonToStorage(myDraftLeagueKey(leagueId, "target-overrides"), targetOverrides);
+  }, [leagueId, targetOverrides]);
+
+  useEffect(() => {
+    saveJsonToStorage(
+      myDraftLeagueKey(leagueId, "priority-overrides"),
+      priorityOverrides,
+    );
+  }, [leagueId, priorityOverrides]);
+
+  useEffect(() => {
+    saveJsonToStorage(myDraftLeagueKey(leagueId, "view-filter"), viewFilter);
+  }, [leagueId, viewFilter]);
+
+  useEffect(() => {
+    saveJsonToStorage(
+      myDraftLeagueKey(leagueId, "valuation-sort"),
+      valuationSortField,
+    );
+  }, [leagueId, valuationSortField]);
+  useEffect(() => {
+    if (!token || !leagueId || watchlist.length === 0) {
+      const clear = window.setTimeout(() => {
+        setValuationsByPlayerId(new Map());
+        setLastMyDraftBoardValuation(null);
+      }, 0);
+      return () => window.clearTimeout(clear);
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const userTeamId = resolveUserTeamId(league, user?.id);
+        const res = await getValuation(leagueId, token, userTeamId, null, {
+          leagueConfigKey: leagueValuationKey,
+          rosterFingerprint: rosterValuationKey,
+        });
+        const merged = new Map<string, ValuationShape>();
+        for (const row of res.valuations) merged.set(row.player_id, row);
+        if (!cancelled) {
+          setValuationsByPlayerId(merged);
+          setLastMyDraftBoardValuation(res);
+        }
+      } catch {
+        if (!cancelled) {
+          setValuationsByPlayerId(new Map());
+          setLastMyDraftBoardValuation(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    token,
+    watchlist,
+    leagueId,
+    league,
+    user?.id,
+    rosterValuationKey,
+    leagueValuationKey,
+  ]);
+
+  const { effectiveWatchlist, watchlistTargetTotal, filteredWatchlist } =
+    useMyDraftWatchlistDerived(
+      watchlist,
+      valuationsByPlayerId,
+      viewFilter,
+      targetOverrides,
+      valuationSortField,
+    );
 
   // ── Position target handlers ────────────────────────────────────────────────
 
@@ -144,7 +273,7 @@ export default function MyDraft() {
     if (value !== null) {
       setPositionTargets((prev) => {
         const next = { ...prev, [pos]: value };
-        saveToStorage("amethyst-position-targets", next);
+        writePositionTargetsToStorage(leagueId, next);
         return next;
       });
     }
@@ -156,7 +285,7 @@ export default function MyDraft() {
     if (isNaN(v) || v < 0) {
       setPositionTargets((prev) => {
         const next = { ...prev, [pos]: 0 };
-        saveToStorage("amethyst-position-targets", next);
+        writePositionTargetsToStorage(leagueId, next);
         return next;
       });
     }
@@ -169,7 +298,7 @@ export default function MyDraft() {
 
   function handleResetPositionTargets() {
     setPositionTargets(defaultPositionTargets);
-    localStorage.removeItem("amethyst-position-targets");
+    clearPositionTargetsStorage(leagueId);
   }
 
   // ── Watchlist target handlers ───────────────────────────────────────────────
@@ -179,7 +308,6 @@ export default function MyDraft() {
     if (value !== null) {
       setTargetOverrides((prev) => {
         const next = { ...prev, [playerId]: value };
-        saveToStorage("amethyst-target-overrides", next);
         return next;
       });
     }
@@ -190,7 +318,6 @@ export default function MyDraft() {
     const committed = isNaN(v) || v <= 0 ? defaultTarget : v;
     setTargetOverrides((prev) => {
       const next = { ...prev, [playerId]: committed };
-      saveToStorage("amethyst-target-overrides", next);
       return next;
     });
     setTargetRaw((r) => {
@@ -204,7 +331,6 @@ export default function MyDraft() {
     const next = Math.max(1, current + delta);
     setTargetOverrides((prev) => {
       const updated = { ...prev, [playerId]: next };
-      saveToStorage("amethyst-target-overrides", updated);
       return updated;
     });
     setTargetRaw((r) => {
@@ -219,7 +345,6 @@ export default function MyDraft() {
   function handlePriorityChange(playerId: string, priority: Priority) {
     setPriorityOverrides((prev) => {
       const next = { ...prev, [playerId]: priority };
-      saveToStorage("amethyst-priority-overrides", next);
       return next;
     });
   }
@@ -227,35 +352,12 @@ export default function MyDraft() {
   // ── Navigation handler ──────────────────────────────────────────────────────
 
   function handleWatchlistRowClick(playerId: string) {
-    const player = watchlist.find((p) => p.id === playerId);
+    const player = effectiveWatchlist.find((p) => p.id === playerId);
     if (player) {
-      setSelectedPlayer(watchlistToPlayer(player));
+      setSelectedPlayer(playerFromWatchlistEntry(player));
       void navigate(`/leagues/${leagueId}/command-center`);
     }
   }
-
-  // ── Derived data ────────────────────────────────────────────────────────────
-
-  const { watchlistTargetTotal, filteredWatchlist } = useMemo(() => {
-    let targetTotal = 0;
-    for (const player of watchlist) {
-      targetTotal += targetOverrides[player.id] ?? Math.round(player.value ?? 0);
-    }
-
-    let filtered = [...watchlist];
-    if (viewFilter === "hitters") {
-      filtered = filtered.filter(
-        (p) => !hasPitcherEligibility(p.positions, p.position || "UTIL"),
-      );
-    } else if (viewFilter === "pitchers") {
-      filtered = filtered.filter((p) =>
-        hasPitcherEligibility(p.positions, p.position || "UTIL"),
-      );
-    }
-    filtered.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-
-    return { watchlistTargetTotal: targetTotal, filteredWatchlist: filtered };
-  }, [watchlist, viewFilter, targetOverrides]);
 
   const positionBudgetTotal = Object.values(positionTargets).reduce(
     (a, b) => a + b,
@@ -267,7 +369,7 @@ export default function MyDraft() {
     pos: row.pos,
     slots: row.slots,
     target: positionTargets[row.pos] ?? row.target,
-    color: POS_COLORS[row.pos] ?? "#7f72a8",
+    color: positionColorStyle(row.pos).color,
     pct: ((positionTargets[row.pos] ?? row.target) / totalBudget) * 100,
   }));
 
@@ -278,7 +380,6 @@ export default function MyDraft() {
   return (
     <div className="mydraft-page">
       <main className="mydraft-shell">
-
         {/* ── Top summary strip ── */}
         <section className="mydraft-top panel-card">
           <div className="top-budget">
@@ -325,14 +426,16 @@ export default function MyDraft() {
           />
 
           <WatchlistTable
-            watchlist={watchlist}
+            watchlist={effectiveWatchlist}
             filteredWatchlist={filteredWatchlist}
             viewFilter={viewFilter}
+            valuationSortField={valuationSortField}
             targetOverrides={targetOverrides}
             targetRaw={targetRaw}
             priorityOverrides={priorityOverrides}
             getNote={getNote}
             onViewFilterChange={setViewFilter}
+            onValuationSortFieldChange={setValuationSortField}
             onTargetChange={handleWatchlistTargetChange}
             onTargetBlur={handleWatchlistTargetBlur}
             onTargetStep={handleWatchlistTargetStep}
@@ -345,8 +448,8 @@ export default function MyDraft() {
 
         {/* ── Notes strip ── */}
         <DraftNotes
-          value={getNote("__draft__")}
-          onChange={(val) => setNote("__draft__", val)}
+          value={getNote(DRAFT_SESSION_NOTE_PLAYER_ID)}
+          onChange={(val) => setNote(DRAFT_SESSION_NOTE_PLAYER_ID, val)}
         />
 
       </main>

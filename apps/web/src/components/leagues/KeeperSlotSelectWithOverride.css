@@ -1,0 +1,61 @@
+.keeper-slot-override-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.keeper-slot-override-root--compact {
+  gap: 0.2rem;
+}
+
+.keeper-slot-override-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.keeper-slot-override-field > span:first-child {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b5d88;
+}
+
+.keeper-slot-override-field--no-heading > span:first-child {
+  display: none;
+}
+
+.keeper-slot-override-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #9d8cc4;
+  cursor: pointer;
+  user-select: none;
+}
+
+.keeper-slot-override-toggle input {
+  accent-color: #a78bfa;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.keeper-slot-override-hint {
+  margin: 0;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #7c6a9e;
+}
+
+.keeper-slot-override-root--compact .keeper-slot-override-hint {
+  font-size: 0.58rem;
+}

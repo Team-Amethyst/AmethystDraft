@@ -1,6 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useParams } from "react-router";
-import PosBadge from "./PosBadge";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
@@ -8,27 +15,57 @@ import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import type { Player } from "../types/player";
 import { addRosterEntry, removeRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
-import { getStatByCategory } from "../pages/commandCenterUtils";
 import {
-  getValuation,
+  auctionCenterCategoryImpactRows,
+  availableSlotsForTeamName,
+} from "../pages/commandCenterUtils";
+import {
   getValuationPlayer,
+  type ValuationResponse,
   type ValuationResult,
 } from "../api/engine";
-
-/** League-level fields from last /valuation/calculate (for auction context strip). */
-type ValuationLeagueSnapshot = {
-  inflation_factor: number;
-  total_budget_remaining: number;
-  pool_value_remaining: number;
-  players_remaining: number;
-  valuation_model_version?: string;
-  engine_contract_version?: string;
-};
+import {
+  mergeValuationBoardRowIntoPrevious,
+  normalizeValuationResultRow,
+} from "../api/valuationNormalize";
+import {
+  logDevCcValuationPlayerResponseBody,
+  logDevValuationPlayerHttpResponse,
+  logDevValuationPlayerRequest,
+  runDevEngineBoardRowConsistencyCheck,
+  runDevMergedValuationPipelineLog,
+  runDevValuationRowChangeLog,
+} from "../dev/auctionCenterDiagnostics";
+import { resolveUserTeamId } from "../utils/team";
+import {
+  normalizeValuationPlayerId,
+  commandCenterWalletCapsFromMyTeam,
+} from "../utils/valuation";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+  valuationResultNumbersEqual,
+  valuationResultStableKey,
+} from "../utils/valuationDeps";
+import {
+  auctionValueForCommandCenterPrefill,
+  cleanedYourValueAndRecommendedBid,
+  engineFiniteOrNull,
+  formatEdgeLine,
+  mergeDisplayValuationRow,
+  valueMinusBidDeltaRounded,
+  verdictFromValueMinusBid,
+} from "../domain/auctionCenterValuation";
+import { searchRankedAvailablePlayers } from "../domain/auctionPlayerSearch";
 import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
-import { UserPlus } from "lucide-react";
+import { DRAFT_SESSION_NOTE_PLAYER_ID } from "../constants/draftNoteIds";
+import { AuctionCenterLogResultBar } from "./auction-center/AuctionCenterLogResultBar";
+import { AuctionCenterPlayerStack } from "./auction-center/AuctionCenterPlayerStack";
+import { AuctionCenterNotesDock } from "./auction-center/AuctionCenterNotesDock";
+import { AuctionCenterSearchBar } from "./auction-center/AuctionCenterSearchBar";
 
 interface AuctionCenterProps {
   rosterEntries: RosterEntry[];
@@ -40,6 +77,8 @@ interface AuctionCenterProps {
   myTeamEntries: RosterEntry[];
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   onAddMissingPlayer?: () => void;
+  /** Parent-fetched valuation board (same as Command Center engine snapshot; avoids duplicate getValuation). */
+  engineMarket?: ValuationResponse | null;
 }
 
 export function AuctionCenter({
@@ -52,91 +91,311 @@ export function AuctionCenter({
   myTeamEntries,
   showToast,
   onAddMissingPlayer,
+  engineMarket = null,
 }: AuctionCenterProps) {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { isInWatchlist } = useWatchlist();
   const { getNote, setNote } = usePlayerNotes();
 
   const [valuationMap, setValuationMap] = useState<
     Map<string, ValuationResult>
   >(new Map());
-  const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>(
-    [],
-  );
-  const [valuationSnapshot, setValuationSnapshot] =
-    useState<ValuationLeagueSnapshot | null>(null);
-
-  // Fetch (and re-fetch after each pick) engine valuations — best-effort, never blocks the UI
-  useEffect(() => {
-    if (!leagueId || !token) return;
-    let cancelled = false;
-    getValuation(leagueId, token)
-      .then((res) => {
-        if (cancelled) return;
-        setValuationMap(new Map(res.valuations.map((v) => [v.player_id, v])));
-        setValuationMarketNotes(res.market_notes ?? []);
-        setValuationSnapshot({
-          inflation_factor: res.inflation_factor,
-          total_budget_remaining: res.total_budget_remaining,
-          pool_value_remaining: res.pool_value_remaining,
-          players_remaining: res.players_remaining,
-          valuation_model_version: res.valuation_model_version,
-          engine_contract_version: res.engine_contract_version,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setValuationMarketNotes([]);
-        setValuationMap(new Map());
-        setValuationSnapshot(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [leagueId, token, rosterEntries.length]);
-
-  // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
-  useEffect(() => {
-    if (!leagueId || !token || !selectedPlayer) return;
-    let cancelled = false;
-    const playerId = selectedPlayer.id;
-    void getValuationPlayer(leagueId, token, playerId)
-      .then((res) => {
-        if (cancelled) return;
-        const row = res.player;
-        if (row && row.player_id !== playerId) return;
-        if (row) {
-          setValuationMap((prev) => {
-            const next = new Map(prev);
-            next.set(playerId, row);
-            return next;
-          });
-        }
-        setValuationMarketNotes(res.market_notes ?? []);
-        setValuationSnapshot({
-          inflation_factor: res.inflation_factor,
-          total_budget_remaining: res.total_budget_remaining,
-          pool_value_remaining: res.pool_value_remaining,
-          players_remaining: res.players_remaining,
-          valuation_model_version: res.valuation_model_version,
-          engine_contract_version: res.engine_contract_version,
-        });
-      })
-      .catch(() => {
-        /* keep last full-board map; player-only is best-effort */
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when selected id changes
-  }, [leagueId, token, selectedPlayer?.id]);
+  /** True while the active per-player Engine `getValuationPlayer` request is in flight. */
+  const [playerEngineFetchPending, setPlayerEngineFetchPending] =
+    useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+
+  const [wonBy, setWonBy] = useState("");
+  const [finalPrice, setFinalPrice] = useState("");
+  /** True after user edits bid $; avoids overwriting with late Engine payload. */
+  const bidPriceTouchedRef = useRef(false);
+  const [draftNotesHeight, setDraftNotesHeight] = useState(180);
+  const [draftedToSlot, setDraftedToSlot] = useState("");
+  const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
+  const [submitting, setSubmitting] = useState(false);
+  const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
+
+  const onDraftNotesResizeStart = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = draftNotesHeight;
+      const onMove = (evt: MouseEvent) => {
+        const maxAllowedHeight = Math.max(
+          120,
+          (contentScrollRef.current?.clientHeight ?? startHeight) - 8,
+        );
+        const next = Math.max(
+          120,
+          Math.min(maxAllowedHeight, startHeight + (startY - evt.clientY)),
+        );
+        setDraftNotesHeight(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [draftNotesHeight],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const userTeamId = useMemo(
+    () => resolveUserTeamId(league ?? null, user?.id),
+    [league?.id, league?.memberIds?.join(","), user?.id],
+  );
+
+  const selectedPlayerNormId = useMemo(
+    () => (selectedPlayer?.id ? normalizeValuationPlayerId(selectedPlayer.id) : ""),
+    [selectedPlayer?.id],
+  );
+
+  const selectedPlayerValuationKey = useMemo(() => {
+    if (!selectedPlayerNormId) return "";
+    const v = valuationMap.get(selectedPlayerNormId);
+    if (!v) return `missing:${selectedPlayerNormId}`;
+    return valuationResultStableKey(v);
+  }, [selectedPlayerNormId, valuationMap]);
+
+  const activeValuationRow = useMemo(() => {
+    if (!selectedPlayerNormId) return undefined;
+    return valuationMap.get(selectedPlayerNormId);
+  }, [selectedPlayerNormId, selectedPlayerValuationKey, valuationMap]);
+
+  const displayValuationRow = useMemo(() => {
+    if (!selectedPlayer) return undefined;
+    return mergeDisplayValuationRow(activeValuationRow, selectedPlayer);
+  }, [activeValuationRow, selectedPlayer]);
+
+  /** Single row for card, bid default, and actionable math (catalog fills engine gaps). */
+  const mergedValuationRow = useMemo(
+    () => displayValuationRow ?? activeValuationRow ?? undefined,
+    [displayValuationRow, activeValuationRow],
+  );
+
+  useLayoutEffect(() => {
+    if (!leagueId || !token || !selectedPlayer) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
+    setPlayerEngineFetchPending(true);
+  }, [
+    leagueId,
+    token,
+    selectedPlayer?.id,
+    leagueValuationKey,
+    rosterValuationKey,
+    userTeamId,
+  ]);
+
+  /**
+   * Anti-flash for first selection only: if the board valuation map already has an engine row for
+   * this player (e.g. after navigating back to Command Center with the cache warm), keep showing it
+   * while the explain refresh is in flight. Otherwise (new player, no engine row yet), hide the
+   * catalog-only row until the per-player request lands to avoid a brief catalog flash.
+   */
+  const hasEngineBoardRowForSelection = Boolean(
+    selectedPlayerNormId && valuationMap.get(selectedPlayerNormId),
+  );
+  const rowForValuationUi =
+    playerEngineFetchPending && selectedPlayerNormId && !hasEngineBoardRowForSelection
+      ? undefined
+      : mergedValuationRow;
+
+  const myTeamWalletFingerprint = useMemo(
+    () =>
+      myTeamEntries
+        .map((e) => `${e._id}:${e.price}:${e.rosterSlot ?? ""}`)
+        .sort()
+        .join("|"),
+    [myTeamEntries],
+  );
+
+  const myWalletCaps = useMemo(() => {
+    if (!league || !user?.id || !league.memberIds.includes(user.id))
+      return null;
+    return commandCenterWalletCapsFromMyTeam(league, myTeamEntries);
+  }, [league, user?.id, myTeamWalletFingerprint]);
+
+  const identityValueVsBidBadge = useMemo(() => {
+    if (!selectedPlayer) return null;
+    const cleaned = cleanedYourValueAndRecommendedBid(
+      rowForValuationUi ?? null,
+      selectedPlayer,
+    );
+    if (!cleaned) return null;
+    const delta = valueMinusBidDeltaRounded(cleaned.yourValue, cleaned.bid);
+    const v = verdictFromValueMinusBid(delta);
+    return {
+      deltaText: formatEdgeLine(delta),
+      label: v.label,
+      tone: v.tone,
+    };
+  }, [rowForValuationUi, selectedPlayer]);
+
+  const hasBidSignal = Boolean(
+    rowForValuationUi &&
+      (engineFiniteOrNull(rowForValuationUi.recommended_bid) != null ||
+        engineFiniteOrNull(rowForValuationUi.team_adjusted_value) != null),
+  );
+
+  useEffect(() => {
+    if (!selectedPlayer) return;
+    runDevMergedValuationPipelineLog({
+      selectedPlayer,
+      myWalletCaps,
+      activeValuationRow,
+      displayValuationRow,
+      mergedValuationRow,
+      valuationMap,
+    });
+  }, [
+    selectedPlayer,
+    activeValuationRow,
+    displayValuationRow,
+    mergedValuationRow,
+    myWalletCaps,
+    valuationMap,
+  ]);
+
+  // Merge board valuations from Command Center’s single engine snapshot (no duplicate getValuation).
+  useEffect(() => {
+    if (!engineMarket?.valuations?.length) return;
+    setValuationMap((prev) => {
+      const next = new Map(prev);
+      for (const v of engineMarket.valuations) {
+        const id = normalizeValuationPlayerId(v.player_id);
+        const boardRow = normalizeValuationResultRow(
+          v as unknown as Record<string, unknown>,
+        );
+        boardRow.player_id = id;
+        const prevRow = next.get(id);
+        next.set(id, mergeValuationBoardRowIntoPrevious(prevRow, boardRow));
+      }
+      return next;
+    });
+  }, [engineMarket]);
+
+  useEffect(() => {
+    if (!engineMarket?.valuations?.length || !selectedPlayer) return;
+    runDevEngineBoardRowConsistencyCheck({
+      engineMarket,
+      selectedPlayer,
+      valuationMap,
+    });
+  }, [engineMarket, selectedPlayer, valuationMap, selectedPlayerNormId]);
+
+  // Lighter per-player refresh when the card changes (merges into map; full board still on roster change).
+  useEffect(() => {
+    if (!leagueId || !token || !selectedPlayer) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
+    const playerIdRaw = selectedPlayer.id;
+    const playerId = normalizeValuationPlayerId(playerIdRaw);
+    logDevValuationPlayerRequest({
+      playerId: playerIdRaw,
+      leagueId,
+      userTeamId,
+    });
+    let cancelled = false;
+    void getValuationPlayer(leagueId, token, String(playerIdRaw), userTeamId, {
+      explainValuationRows: true,
+      cacheContext: {
+        leagueConfigKey: leagueValuationKey,
+        rosterFingerprint: rosterValuationKey,
+      },
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const responseRow =
+          res.player ??
+          (Array.isArray(res.valuations)
+            ? res.valuations.find(
+                (x) => normalizeValuationPlayerId(x.player_id) === playerId,
+              )
+            : undefined);
+        logDevValuationPlayerHttpResponse({
+          playerId: playerIdRaw,
+          row: responseRow,
+          valuationsLen: Array.isArray(res.valuations) ? res.valuations.length : 0,
+        });
+        logDevCcValuationPlayerResponseBody({
+          playerId: playerIdRaw,
+          row: res.player,
+          valuationsLen: Array.isArray(res.valuations) ? res.valuations.length : 0,
+        });
+        let row: ValuationResult | undefined = res.player;
+        if (!row && Array.isArray(res.valuations)) {
+          row =
+            res.valuations.find(
+              (x) => normalizeValuationPlayerId(x.player_id) === playerId,
+            ) ??
+            (res.valuations.length === 1 ? res.valuations[0] : undefined);
+        }
+        if (row) {
+          const normalizedRow: ValuationResult = {
+            ...row,
+            player_id: playerId,
+          };
+          setValuationMap((prev) => {
+            const cur = prev.get(playerId);
+            const mergedRow = mergeValuationBoardRowIntoPrevious(
+              cur,
+              normalizedRow,
+            );
+            if (cur && valuationResultNumbersEqual(cur, mergedRow)) return prev;
+            const next = new Map(prev);
+            next.set(playerId, mergedRow);
+            return next;
+          });
+        }
+      })
+      .catch(() => {
+        /* keep last full-board map; player-only is best-effort */
+      })
+      .finally(() => {
+        if (!cancelled) setPlayerEngineFetchPending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    leagueId,
+    token,
+    userTeamId,
+    leagueValuationKey,
+    rosterValuationKey,
+    selectedPlayer?.id,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -153,24 +412,11 @@ export function AuctionCenter({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const [wonBy, setWonBy] = useState("");
-  const [finalPrice, setFinalPrice] = useState("");
-  /** True after user edits bid $; avoids overwriting with late Engine payload. */
-  const bidPriceTouchedRef = useRef(false);
-  const [draftedToSlot, setDraftedToSlot] = useState("");
-  const [statView, setStatView] = useState<"hitting" | "pitching">("pitching");
-  const [submitting, setSubmitting] = useState(false);
-  const [redoStack, setRedoStack] = useState<RosterEntry[]>([]);
   // Seed "Won By" default when league loads
   useEffect(() => {
-    if (league && !wonBy) setWonBy(league.teamNames[0] ?? "");
-  }, [league, wonBy]);
-
-  // Seed slot default when league loads
-  useEffect(() => {
-    if (league && !draftedToSlot)
-      setDraftedToSlot(Object.keys(league.rosterSlots)[0] ?? "SP");
-  }, [league, draftedToSlot]);
+    if (!league?.id || wonBy) return;
+    setWonBy(league.teamNames[0] ?? "");
+  }, [league?.id, league?.teamNames?.join("\u0001"), wonBy]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -188,48 +434,53 @@ export function AuctionCenter({
   useEffect(() => {
     if (!selectedPlayer) return;
     bidPriceTouchedRef.current = false;
+    setFinalPrice("");
     const isPitcher = hasPitcherEligibility(
       selectedPlayer.positions,
       selectedPlayer.position,
     );
     setStatView(isPitcher ? "pitching" : "hitting");
-    const v = valuationMap.get(selectedPlayer.id);
-    const seed = v?.adjusted_value ?? selectedPlayer.value;
-    setFinalPrice(String(seed));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset bid when the selected player changes
-  }, [selectedPlayer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when selected player id changes
+  }, [selectedPlayer?.id]);
 
-  // When valuations refresh, update bid default from Engine if user has not edited the field
+  // When valuations refresh, prefill final price with league auction $ (not max-bid-capped bid)
   useEffect(() => {
     if (!selectedPlayer || bidPriceTouchedRef.current) return;
-    const v = valuationMap.get(selectedPlayer.id);
-    if (v === undefined) return;
-    setFinalPrice(String(v.adjusted_value));
-  }, [valuationMap, selectedPlayer]);
+    if (playerEngineFetchPending) return;
+    const prefill = auctionValueForCommandCenterPrefill(
+      rowForValuationUi ?? undefined,
+    );
+    if (prefill != null) {
+      setFinalPrice(String(Math.max(1, Math.round(prefill))));
+    }
+  }, [
+    selectedPlayer?.id,
+    selectedPlayer?.value,
+    rowForValuationUi,
+    playerEngineFetchPending,
+  ]);
 
   const onFinalPriceChange = useCallback((value: string) => {
     bidPriceTouchedRef.current = true;
     setFinalPrice(value);
   }, []);
 
-  const dropdownResults = (() => {
-    if (searchQuery.length < 1) return [];
-    const q = searchQuery.toLowerCase().trim();
-    const available = allPlayers.filter((p) => !draftedIds.has(p.id));
-    const scored = available.flatMap((p) => {
-      const full = p.name.toLowerCase();
-      const parts = full.split(/\s+/);
-      if (full.startsWith(q)) return [{ p, score: 0 }];
-      if (parts.some((part) => part.startsWith(q))) return [{ p, score: 1 }];
-      if (parts.some((part) => part.includes(q))) return [{ p, score: 2 }];
-      if (full.includes(q)) return [{ p, score: 3 }];
-      return [];
+  useEffect(() => {
+    if (!selectedPlayer?.id) return;
+    runDevValuationRowChangeLog({
+      selectedPlayerId: selectedPlayer.id,
+      selectedPlayerValuationKey,
+      valuationMap,
     });
-    return scored
-      .sort((a, b) => a.score - b.score || (a.p.adp ?? 999) - (b.p.adp ?? 999))
-      .map((x) => x.p)
-      .slice(0, 8);
-  })();
+  }, [selectedPlayer?.id, selectedPlayerValuationKey, valuationMap]);
+
+  const dropdownResults = useMemo(
+    () =>
+      searchRankedAvailablePlayers(allPlayers, draftedIds, searchQuery, {
+        limit: 8,
+      }),
+    [allPlayers, draftedIds, searchQuery],
+  );
 
   const handleSelectPlayer = (player: Player) => {
     setSelectedPlayer(player);
@@ -343,126 +594,28 @@ export function AuctionCenter({
     }
   };
 
-  // Derived pitching / batting stat refs
-  const sp = selectedPlayer?.stats?.pitching;
-  const sb = selectedPlayer?.stats?.batting;
-  const k9 = sp
-    ? (() => {
-        const ip = parseFloat(sp.innings);
-        return ip > 0 ? ((sp.strikeouts / ip) * 9).toFixed(1) : "--";
-      })()
-    : "--";
-
-  // Category impact rows
-  const catImpactRows = (() => {
-    if (!selectedPlayer || !league?.scoringCategories)
-      return [] as Array<{
-        name: string;
-        teamPaceStr: string;
-        withPlayerStr: string;
-        deltaStr: string;
-        improved: boolean;
-        neutral: boolean;
-      }>;
-    const relevantCats = league.scoringCategories.filter((cat) =>
-      statView === "pitching"
-        ? cat.type === "pitching"
-        : cat.type === "batting",
-    );
-    return relevantCats.map((cat) => {
-      const isRate = ["ERA", "WHIP"].includes(cat.name.toUpperCase());
-      if (isRate) {
-        const vals = myTeamEntries
-          .map((e) => {
-            const player = allPlayers.find((a) => a.id === e.externalPlayerId);
-            if (!player) return 0;
-            return getStatByCategory(player, cat.name, cat.type);
-          })
-          .filter((v) => v > 0);
-        const teamPace = vals.length
-          ? vals.reduce((a, b) => a + b, 0) / vals.length
-          : 0;
-        const playerStat = getStatByCategory(
-          selectedPlayer,
-          cat.name,
-          cat.type,
-        );
-        // If either side has no data, can't compute a meaningful delta
-        if (teamPace === 0 || playerStat === 0) {
-          return {
-            name: cat.name,
-            teamPaceStr: teamPace > 0 ? teamPace.toFixed(2) : "—",
-            withPlayerStr: playerStat > 0 ? playerStat.toFixed(2) : "—",
-            deltaStr: "—",
-            improved: false,
-            neutral: true,
-          };
-        }
-        // For ERA/WHIP, lower is better — positive delta means player improves the team.
-        // Compute the actual new team average after including this player.
-        const sum = vals.reduce((a, b) => a + b, 0);
-        const newTeamAvg = +((sum + playerStat) / (vals.length + 1)).toFixed(2);
-        const delta = +(teamPace - newTeamAvg).toFixed(2);
-        return {
-          name: cat.name,
-          teamPaceStr: teamPace.toFixed(2),
-          withPlayerStr: newTeamAvg.toFixed(2),
-          deltaStr: delta > 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2),
-          improved: delta > 0,
-          neutral: delta === 0,
-        };
-      } else {
-        const teamPace = myTeamEntries.reduce((sum, entry) => {
-          const player = allPlayers.find(
-            (a) => a.id === entry.externalPlayerId,
-          );
-          return player
-            ? sum + getStatByCategory(player, cat.name, cat.type)
-            : sum;
-        }, 0);
-        const playerStat = getStatByCategory(
-          selectedPlayer,
-          cat.name,
-          cat.type,
-        );
-        return {
-          name: cat.name,
-          teamPaceStr: Math.round(teamPace).toString(),
-          withPlayerStr: Math.round(teamPace + playerStat).toString(),
-          deltaStr:
-            playerStat > 0
-              ? `+${Math.round(playerStat)}`
-              : Math.round(playerStat).toString(),
-          improved: playerStat > 0,
-          neutral: playerStat === 0,
-        };
-      }
-    });
-  })();
+  const catImpactRows = useMemo(
+    () =>
+      auctionCenterCategoryImpactRows({
+        selectedPlayer,
+        scoringCategories: league?.scoringCategories,
+        statView,
+        myTeamEntries,
+        allPlayers,
+      }),
+    [
+      selectedPlayer,
+      league?.scoringCategories,
+      statView,
+      myTeamEntries,
+      allPlayers,
+    ],
+  );
 
   const teamNames = league?.teamNames ?? [];
   const allSlotOptions = league?.rosterSlots
     ? Object.keys(league.rosterSlots)
     : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"];
-
-  function getAvailableSlots(
-    teamName: string,
-    slots: string[],
-    roster: RosterEntry[],
-  ): Set<string> {
-    if (!league) return new Set(slots);
-    const teamIdx = league.teamNames.indexOf(teamName);
-    if (teamIdx === -1) return new Set(slots);
-    const teamId = `team_${teamIdx + 1}`;
-    const teamRoster = roster.filter((e) => e.teamId === teamId);
-    const filled = new Map<string, number>();
-    teamRoster.forEach((e) => {
-      filled.set(e.rosterSlot, (filled.get(e.rosterSlot) ?? 0) + 1);
-    });
-    return new Set(
-      slots.filter((s) => (filled.get(s) ?? 0) < (league.rosterSlots[s] ?? 1)),
-    );
-  }
 
   const eligible = selectedPlayer
     ? getEligibleSlotsForPositions(
@@ -471,9 +624,14 @@ export function AuctionCenter({
         selectedPlayer.position,
       )
     : allSlotOptions;
-  const available = getAvailableSlots(wonBy, allSlotOptions, rosterEntries);
-  const slotOptions = eligible.filter((s) => available.has(s));
-
+  const available = availableSlotsForTeamName(
+    league,
+    wonBy,
+    allSlotOptions,
+    rosterEntries,
+  );
+  const eligibleSlotOptions = eligible.filter((s) => available.has(s));
+  const overrideSlotOptions = allSlotOptions.filter((s) => available.has(s));
   const hittingCats = (league?.scoringCategories ?? []).filter(
     (c) => c.type === "batting",
   );
@@ -483,568 +641,104 @@ export function AuctionCenter({
 
   // Auto-correct draftedToSlot when player or team changes
   useEffect(() => {
-    if (slotOptions.length > 0 && !slotOptions.includes(draftedToSlot)) {
-      setDraftedToSlot(slotOptions[0]);
+    if (
+      overrideSlotOptions.length > 0 &&
+      !overrideSlotOptions.includes(draftedToSlot)
+    ) {
+      setDraftedToSlot(
+        eligibleSlotOptions[0] ?? overrideSlotOptions[0],
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayer?.id, wonBy]);
 
   return (
     <div className="cc-center">
-      {/* Search bar + undo/redo */}
-      <div className="cc-search-wrap" ref={searchRef}>
-        <div className="cc-search-inner">
-          <div className="auction-search-bar">
-            <span className="auction-search-icon">⊕</span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder={
-                selectedPlayer
-                  ? `${selectedPlayer.name} — type to switch...`
-                  : "Search player to load into auction..."
-              }
-              className="auction-search-input"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowDropdown(e.target.value.length >= 1);
-              }}
-              onFocus={() => {
-                if (searchQuery.length >= 1) setShowDropdown(true);
-              }}
-            />
-            {selectedPlayer && (
-              <button
-                className="cc-clear-btn"
-                onClick={() => {
-                  setSelectedPlayer(null);
-                  setSearchQuery("");
-                }}
-              >
-                ✕
-              </button>
-            )}
-            <div className="cc-undo-redo">
-              <button
-                className="cc-ur-btn"
-                title="Undo last pick"
-                disabled={rosterEntries.length === 0}
-                onClick={() => void handleUndo()}
-              >
-                ↩
-              </button>
-              <button
-                className="cc-ur-btn"
-                title="Redo last pick"
-                disabled={redoStack.length === 0}
-                onClick={() => void handleRedo()}
-              >
-                ↪
-              </button>
-            </div>
-          </div>
-          {/* {showDropdown && dropdownResults.length > 0 && (
-            <div className="cc-search-dropdown">
-              {dropdownResults.map((p) => (
-                <button
-                  key={p.id}
-                  className="cc-dropdown-item"
-                  onMouseDown={() => handleSelectPlayer(p)}
-                >
-                  <PosBadge pos={p.position} />
-                  <span className="cc-dd-name">
-                    {p.name}
-                    {p.injuryStatus && (
-                      <span className="pt-il-badge">
-                        {p.injuryStatus.replace("DL", "IL")}
-                      </span>
-                    )}
-                    {isInWatchlist(p.id) && (
-                      <span className="cc-dd-wl" title="On your watchlist">
-                        ★
-                      </span>
-                    )}
-                  </span>
-                  <span className="cc-dd-team">{p.team}</span>
-                  <span className="cc-dd-val">${p.value}</span>
-                </button>
-              ))}
-            </div>
-          )} */}
-          {showDropdown && (
-            <div className="cc-search-dropdown">
-              {dropdownResults.length > 0 ? (
-                dropdownResults.map((p) => (
-                  <button
-                    key={p.id}
-                    className="cc-dropdown-item"
-                    onMouseDown={() => handleSelectPlayer(p)}
-                  >
-                    <PosBadge pos={p.position} />
-                    <span className="cc-dd-name">
-                      {p.name}
-                      {p.injuryStatus && (
-                        <span className="pt-il-badge">
-                          {p.injuryStatus.replace("DL", "IL")}
-                        </span>
-                      )}
-                      {isInWatchlist(p.id) && (
-                        <span className="cc-dd-wl" title="On your watchlist">
-                          ★
-                        </span>
-                      )}
-                    </span>
-                    <span className="cc-dd-team">{p.team}</span>
-                    <span className="cc-dd-val">${p.value}</span>
-                  </button>
-                ))
-              ) : searchQuery.length >= 2 ? (
-                <div className="asd-no-results">
-                  <span className="asd-no-results-text">
-                    No players found for "{searchQuery}"
-                  </span>
-                  <button
-                    className="asd-add-missing-btn"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setShowDropdown(false);
-                      onAddMissingPlayer?.();
-                    }}
-                  >
-                    <UserPlus size={13} />
-                    Add "{searchQuery}" as custom player
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
+      <AuctionCenterSearchBar
+        searchRef={searchRef}
+        searchInputRef={searchInputRef}
+        searchQuery={searchQuery}
+        onSearchChange={(v) => {
+          setSearchQuery(v);
+          setShowDropdown(v.length >= 1);
+        }}
+        onSearchFocus={() => {
+          if (searchQuery.length >= 1) setShowDropdown(true);
+        }}
+        selectedPlayer={selectedPlayer}
+        onClearSelection={() => {
+          setSelectedPlayer(null);
+          setSearchQuery("");
+        }}
+        canUndo={rosterEntries.length > 0}
+        canRedo={redoStack.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        showDropdown={showDropdown}
+        dropdownResults={dropdownResults}
+        onSelectPlayer={handleSelectPlayer}
+        isInWatchlist={isInWatchlist}
+        onAddMissingPlayer={onAddMissingPlayer}
+        onDismissDropdown={() => setShowDropdown(false)}
+      />
 
-      <div className="cc-content-scroll">
-        {!selectedPlayer ? (
-          <div className="cc-empty-state">
-            <div className="cc-empty-icon">⊕</div>
-            <div className="cc-empty-title">No player loaded</div>
-            <div className="cc-empty-sub">
-              Search for a player above to begin the auction
-            </div>
-          </div>
-        ) : (
-          <div className="player-auction-card">
-            <div className="pac-header">
-              <div className="pac-name-row">
-                <img
-                  src={selectedPlayer.headshot}
-                  alt={selectedPlayer.name}
-                  className="pac-headshot"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-                <div className="pac-name-block">
-                  <h1 className="pac-name">
-                    {selectedPlayer.name}
-                    {selectedPlayer.injuryStatus && (
-                      <span className="pt-il-badge">
-                        {selectedPlayer.injuryStatus.replace("DL", "IL")}
-                      </span>
-                    )}
-                    {isInWatchlist(selectedPlayer.id) && (
-                      <span className="pac-wl-badge" title="On your watchlist">
-                        ★
-                      </span>
-                    )}
-                  </h1>
-                </div>
-                <div className="pac-meta-row">
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Position</span>
-                    <div
-                      style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}
-                    >
-                      {(selectedPlayer.positions?.length
-                        ? selectedPlayer.positions
-                        : [selectedPlayer.position]
-                      ).map((pos) => (
-                        <PosBadge key={pos} pos={pos} />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Team</span>
-                    <span className="pac-stat-value">
-                      {selectedPlayer.team}
-                    </span>
-                  </div>
-                  <div className="pac-stat">
-                    <span className="pac-stat-label">Tier</span>
-                    <span
-                      className="pac-stat-value pac-tier-badge"
-                      style={{
-                        background:
-                          [
-                            "#a855f7",
-                            "#6366f1",
-                            "#22c55e",
-                            "#f59e0b",
-                            "#6b7280",
-                          ][selectedPlayer.tier - 1] ?? "#6b7280",
-                      }}
-                    >
-                      {selectedPlayer.tier}
-                    </span>
-                  </div>
-                  <div
-                    className="pac-stat"
-                    title="Catalog list value (pre–auction-dollar inflation from Engine)"
-                  >
-                    <span className="pac-stat-label">List $</span>
-                    <span className="pac-stat-value green">
-                      ${selectedPlayer.value}
-                    </span>
-                  </div>
-                  {(() => {
-                    const v = valuationMap.get(selectedPlayer.id);
-                    if (!v) return null;
-                    const cls =
-                      v.indicator === "Steal"
-                        ? "steal"
-                        : v.indicator === "Reach"
-                          ? "reach"
-                          : "fair";
-                    const whyTip =
-                      v.why && v.why.length > 0 ? v.why.join(" · ") : undefined;
-                    return (
-                      <>
-                        <div
-                          className="pac-stat"
-                          title={
-                            whyTip ??
-                            "Engine inflation-adjusted auction target (use for bids)"
-                          }
-                        >
-                          <span className="pac-stat-label">Engine $</span>
-                          <span className="pac-stat-value green">
-                            ${v.adjusted_value}
-                          </span>
-                        </div>
-                        <div className="pac-stat">
-                          <span className="pac-stat-label">Signal</span>
-                          <span
-                            className={`pac-indicator pac-indicator--${cls}`}
-                            title={whyTip}
-                          >
-                            {v.indicator}
-                          </span>
-                        </div>
-                      </>
-                    );
-                  })()}
-                  <div
-                    className="pac-stat"
-                    title={
-                      (() => {
-                        const v = valuationMap.get(selectedPlayer.id);
-                        return v?.adp != null
-                          ? `Engine ADP (valuation row): ${v.adp}`
-                          : undefined;
-                      })()
-                    }
-                  >
-                    <span className="pac-stat-label">ADP</span>
-                    <span className="pac-stat-value">{selectedPlayer.adp}</span>
-                  </div>
-                </div>
+      <div ref={contentScrollRef} className="cc-content-scroll">
+        <div className="cc-content-scroll-main">
+          <div className="player-auction-card command-center-main">
+          {!selectedPlayer ? (
+            <div className="cc-empty-state">
+              <div className="cc-empty-icon">⊕</div>
+              <div className="cc-empty-title">No player loaded</div>
+              <div className="cc-empty-sub">
+                Search for a player above to begin the auction
               </div>
-              {(valuationMarketNotes.length > 0 || valuationSnapshot) && (
-                <div
-                  className="pac-engine-context"
-                  aria-label="Engine market context"
-                >
-                  <div className="pac-engine-context-heading">
-                    <span className="pac-section-label">Engine context</span>
-                  </div>
-                  {valuationMarketNotes.map((note, i) => (
-                    <p key={i} className="pac-engine-note-line">
-                      {note}
-                    </p>
-                  ))}
-                  {valuationSnapshot ? (
-                    <div
-                      className="pac-valuation-summary"
-                      title="League-wide figures from Amethyst Engine (last valuation run)"
-                    >
-                      <span>
-                        Inflation {valuationSnapshot.inflation_factor.toFixed(2)}
-                        ×
-                      </span>
-                      <span>
-                        · ${valuationSnapshot.total_budget_remaining} budget left
-                      </span>
-                      <span>
-                        · {valuationSnapshot.players_remaining} players left
-                      </span>
-                      {valuationSnapshot.valuation_model_version ? (
-                        <span>
-                          {" "}
-                          · {valuationSnapshot.valuation_model_version}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              )}
             </div>
-
-            <div className="pac-notes-wrap">
-              <div className="pac-notes-label">PLAYER NOTES</div>
-              <textarea
-                className="pac-notes"
-                value={
-                  (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""
-                }
-                onChange={(e) => {
-                  setNote(selectedPlayer.id, e.target.value);
-                }}
-                placeholder="Add scouting notes..."
-                rows={2}
+          ) : (
+            <>
+            <div className="pac-cards-stack">
+              <AuctionCenterPlayerStack
+                selectedPlayer={selectedPlayer}
+                mergedValuationRow={mergedValuationRow}
+                rowForValuationUi={rowForValuationUi}
+                identityValueVsBidBadge={identityValueVsBidBadge}
+                getNote={getNote}
+                setNote={setNote}
+                isInWatchlist={isInWatchlist}
+                statView={statView}
+                onStatViewChange={setStatView}
+                catImpactRows={catImpactRows}
+                pitchingCats={pitchingCats}
+                hittingCats={hittingCats}
               />
             </div>
 
-            {/* Performance snapshot */}
-            <div className="pac-snapshot-header">
-              <span className="pac-section-label">PERFORMANCE SNAPSHOT</span>
-              <div className="stat-view-toggle">
-                <button
-                  className={
-                    "svt-btn " + (statView === "hitting" ? "active" : "")
-                  }
-                  onClick={() => setStatView("hitting")}
-                >
-                  Hitting
-                </button>
-                <button
-                  className={
-                    "svt-btn " + (statView === "pitching" ? "active" : "")
-                  }
-                  onClick={() => setStatView("pitching")}
-                >
-                  Pitching
-                </button>
-              </div>
-            </div>
-
-            {statView === "pitching" ? (
-              <div className="pac-stat-boxes">
-                {pitchingCats.length > 0 ? (
-                  pitchingCats.map((cat) => {
-                    const label =
-                      cat.name.match(/\(([^)]+)\)$/)?.[1] ??
-                      (cat.name === "Walks + Hits per IP" ? "WHIP" : cat.name);
-                    const raw = selectedPlayer
-                      ? getStatByCategory(selectedPlayer, cat.name, "pitching")
-                      : 0;
-                    const isRate = [
-                      "ERA",
-                      "WHIP",
-                      "WALKS + HITS PER IP",
-                    ].includes(cat.name.toUpperCase());
-                    const display =
-                      raw === 0
-                        ? "--"
-                        : isRate
-                          ? raw.toFixed(2)
-                          : String(Math.round(raw));
-                    return (
-                      <div key={cat.name} className="stat-box">
-                        <div className="sb-label">{label}</div>
-                        <div className="sb-val">{display}</div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <>
-                    <div className="stat-box">
-                      <div className="sb-label">ERA</div>
-                      <div className="sb-val">{sp?.era ?? "--"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">K/9</div>
-                      <div className="sb-val">{k9}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">WHIP</div>
-                      <div className="sb-val">{sp?.whip ?? "--"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">W</div>
-                      <div className="sb-val">{sp?.wins ?? "--"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">SV</div>
-                      <div className="sb-val">{sp?.saves ?? "--"}</div>
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="pac-stat-boxes">
-                {hittingCats.length > 0 ? (
-                  hittingCats.map((cat) => {
-                    const label =
-                      cat.name.match(/\(([^)]+)\)$/)?.[1] ?? cat.name;
-                    const raw = selectedPlayer
-                      ? getStatByCategory(selectedPlayer, cat.name, "batting")
-                      : 0;
-                    const isRate = ["AVG", "OBP", "SLG"].includes(
-                      cat.name.toUpperCase(),
-                    );
-                    const display =
-                      raw === 0
-                        ? "--"
-                        : isRate
-                          ? raw.toFixed(3)
-                          : String(Math.round(raw));
-                    return (
-                      <div key={cat.name} className="stat-box">
-                        <div className="sb-label">{label}</div>
-                        <div className="sb-val">{display}</div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <>
-                    <div className="stat-box">
-                      <div className="sb-label">AVG</div>
-                      <div className="sb-val">{sb?.avg ?? ".---"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">HR</div>
-                      <div className="sb-val">{sb?.hr ?? "--"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">RBI</div>
-                      <div className="sb-val">{sb?.rbi ?? "--"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">R</div>
-                      <div className="sb-val">{sb?.runs ?? "--"}</div>
-                    </div>
-                    <div className="stat-box">
-                      <div className="sb-label">SB</div>
-                      <div className="sb-val">{sb?.sb ?? "--"}</div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Category impact */}
-            {catImpactRows.length > 0 && (
-              <>
-                <div
-                  className="pac-section-label"
-                  style={{ marginTop: "1rem", marginBottom: "0.5rem" }}
-                >
-                  CATEGORY IMPACT
-                </div>
-                <div className="cat-impact-boxes">
-                  {catImpactRows.map((row) => (
-                    <div key={row.name} className="ci-box">
-                      <div className="ci-box-label">{row.name}</div>
-                      <div
-                        className={`ci-box-delta ${
-                          row.neutral
-                            ? "neutral"
-                            : row.improved
-                              ? "green"
-                              : "red"
-                        }`}
-                      >
-                        {row.deltaStr}
-                      </div>
-                      <div className="ci-box-sub">
-                        {row.teamPaceStr}&nbsp;→&nbsp;{row.withPlayerStr}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Log result */}
-            <div className="pac-section-label pac-log-result-label">
-              LOG RESULT
-            </div>
-            <div className="log-result-grid">
-              <div className="log-field">
-                <label className="log-label">WON BY</label>
-                <select
-                  className="log-select"
-                  value={wonBy}
-                  onChange={(e) => setWonBy(e.target.value)}
-                >
-                  {teamNames.map((name) => (
-                    <option key={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="log-field">
-                <label className="log-label">FINAL PRICE</label>
-                <div className="log-price-input-wrap">
-                  <span className="log-dollar">$</span>
-                  <input
-                    type="text"
-                    className="log-price-input"
-                    value={finalPrice}
-                    onChange={(e) => onFinalPriceChange(e.target.value)}
-                    title="Bid amount; defaults to Engine adjusted $ when available"
-                  />
-                </div>
-              </div>
-              <div className="log-field">
-                <label className="log-label">DRAFTED TO SLOT</label>
-                <select
-                  className={
-                    "log-select" +
-                    (slotOptions.length === 0 ? " log-select--warn" : "")
-                  }
-                  value={draftedToSlot}
-                  onChange={(e) => setDraftedToSlot(e.target.value)}
-                >
-                  {slotOptions.length === 0 && (
-                    <option value="">— no eligible slots —</option>
-                  )}
-                  {slotOptions.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <button
-              className="log-result-btn"
-              onClick={() => void handleLogResult()}
-              disabled={
-                submitting || !wonBy || !finalPrice || slotOptions.length === 0
-              }
-            >
-              {submitting ? "Logging…" : "Log Result"}
-            </button>
+            <AuctionCenterLogResultBar
+              teamNames={teamNames}
+              wonBy={wonBy}
+              onWonByChange={setWonBy}
+              finalPrice={finalPrice}
+              onFinalPriceChange={onFinalPriceChange}
+              draftedToSlot={draftedToSlot}
+              onDraftedToSlotChange={setDraftedToSlot}
+              overrideSlotOptions={overrideSlotOptions}
+              eligibleSlotOptions={eligibleSlotOptions}
+              selectedPlayer={selectedPlayer}
+              submitting={submitting}
+              hasBidSignal={hasBidSignal}
+              onLog={handleLogResult}
+            />
+            </>
+          )}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className="cc-draft-footer">
-        <div className="pac-notes-label">DRAFT NOTES</div>
-        <textarea
-          className="pac-notes"
-          style={{ height: "120px" }}
-          value={getNote("__draft__")}
-          onChange={(e) => setNote("__draft__", e.target.value)}
-          placeholder="Pre-draft strategic notes..."
+        <AuctionCenterNotesDock
+          heightPx={draftNotesHeight}
+          onResizeStart={onDraftNotesResizeStart}
+          noteValue={getNote(DRAFT_SESSION_NOTE_PLAYER_ID) ?? ""}
+          onNoteChange={(value) =>
+            setNote(DRAFT_SESSION_NOTE_PLAYER_ID, value)
+          }
         />
       </div>
     </div>

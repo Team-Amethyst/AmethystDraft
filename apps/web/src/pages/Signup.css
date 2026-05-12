@@ -4,9 +4,10 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: #0a0514;
+  background: var(--app-bg);
   position: relative;
   overflow: hidden;
+  font-family: var(--app-font-family);
 }
 
 .signup-bg {
@@ -32,7 +33,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--app-font-family);
   font-size: 0.875rem;
   color: #7a6a90;
   text-decoration: none;
@@ -64,7 +65,7 @@
 }
 
 .signup-subtitle {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--app-font-family);
   font-size: 0.875rem;
   color: #7a6a90;
   margin: 0 0 1.75rem;
@@ -172,5 +173,5 @@
   border-radius: 7px;
 }
 .add-player-btn:hover {
-  background: rgba(139, 92, 246, 0.12);
+  background: var(--app-accent-border-faint);
 }

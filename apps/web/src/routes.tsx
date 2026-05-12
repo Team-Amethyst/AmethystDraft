@@ -12,6 +12,34 @@ import LeagueOverview from "./pages/LeagueOverview";
 import MyDraft from "./pages/MyDraft";
 import CommandCenter from "./pages/CommandCenter";
 import Research from "./pages/Research";
+import MockDraftPage from "./pages/MockDraftPage";
+import TaxiDraft from "./pages/TaxiDraft";
+
+const devOnlyRoutes = import.meta.env.DEV
+  ? [
+      {
+        path: "/dev/player-detail-layout-mocks",
+        lazy: () =>
+          import("./pages/dev/PlayerDetailLayoutMocksPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
+      {
+        path: "/dev/player-detail-modal-mock",
+        lazy: () =>
+          import("./pages/dev/PlayerDetailModalMockPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
+      {
+        path: "/dev/player-detail-modal-design",
+        lazy: () =>
+          import("./pages/dev/PlayerDetailModalDesignMockPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
+    ]
+  : [];
 
 export const router = createBrowserRouter([
   { path: "/", Component: HomePage },
@@ -30,7 +58,10 @@ export const router = createBrowserRouter([
       { path: "my-draft", Component: MyDraft },
       { path: "command-center", Component: CommandCenter },
       { path: "overview", Component: LeagueOverview },
+      { path: "taxi-draft", Component: TaxiDraft },
       { path: "settings", Component: LeagueSettings },
+      { path: "mock-draft", Component: MockDraftPage },
     ],
   },
+  ...devOnlyRoutes,
 ]);

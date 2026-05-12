@@ -1,0 +1,566 @@
+/* Taxi Draft — aligned with Command Center center column + surface cards */
+@import "../styles/command-center/06-center-shell.css";
+@import "../styles/command-center/09-search.css";
+
+.taxi-draft-page {
+  /* Mirror .cc-layout rhythm (01-layout.css) for local components */
+  --cc-pad-x: 0.75rem;
+  --cc-heading-mb: 0.4rem;
+  --cc-gap-sm: 0.35rem;
+  --cc-gap-md: 0.55rem;
+  --cc-gap-lg: 0.85rem;
+  --cc-heading-color: #6b4fa0;
+  --cc-value-green: #22c55e;
+  --cc-value-muted: #9d8cc4;
+  --cc-card-radius: 8px;
+  --cc-card-bg: rgba(255, 255, 255, 0.03);
+  --cc-card-border: 1px solid var(--app-accent-border-faint);
+  --cc-space-8: 8px;
+  --cc-space-12: 12px;
+  --cc-space-16: 16px;
+  --cc-space-24: 24px;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-top: 56px;
+  background: var(--cc-center-bg);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
+  overflow: hidden;
+}
+
+.taxi-draft-shell {
+  flex: 1;
+  min-height: 0;
+  max-width: min(1440px, 100%);
+  margin: 0 auto;
+  width: 100%;
+  padding: var(--cc-space-16) var(--cc-pad-x) var(--cc-space-24);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.taxi-draft-shell::-webkit-scrollbar {
+  width: 6px;
+}
+
+.taxi-draft-shell::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 3px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px var(--app-accent-border-faint)
+  );
+}
+
+.taxi-draft-shell::-webkit-scrollbar-thumb {
+  background: #9070b8;
+  border-radius: 3px;
+}
+
+.taxi-draft-shell::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}
+
+.taxi-draft-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--cc-gap-lg);
+  margin-bottom: var(--cc-space-16);
+  padding-bottom: var(--cc-space-12);
+  border-bottom: 1px solid var(--app-accent-hairline);
+}
+
+.taxi-draft-title {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.5vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, white 94%, var(--cc-value-muted));
+}
+
+.taxi-draft-subtitle {
+  margin: var(--cc-gap-sm) 0 0;
+  max-width: 42rem;
+  color: var(--cc-value-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.taxi-draft-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: var(--cc-space-12);
+  align-items: stretch;
+}
+
+.taxi-draft-order-card,
+.taxi-draft-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-8);
+  padding: var(--cc-space-12);
+  min-width: 0;
+  min-height: 0;
+}
+
+.taxi-draft-order-card {
+  position: sticky;
+  top: calc(56px + var(--cc-space-12));
+}
+
+.taxi-draft-workbench {
+  gap: var(--cc-space-12);
+  min-height: min(72vh, 720px);
+}
+
+.taxi-draft-workbench-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-gap-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.taxi-draft-workbench-lede {
+  margin: 0;
+  width: 100%;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--cc-value-muted);
+}
+
+.taxi-draft-workbench-empty {
+  padding: var(--cc-space-24) var(--cc-space-12);
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--cc-value-muted);
+  border-radius: var(--cc-card-radius);
+  border: 1px dashed color-mix(in srgb, var(--cc-heading-color) 22%, transparent);
+}
+
+.taxi-draft-search-empty {
+  padding: 0.85rem var(--cc-pad-x);
+  font-size: 0.78rem;
+  color: #4a3a60;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.pt-il-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.32rem;
+  border-radius: 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  vertical-align: middle;
+}
+
+.taxi-draft-roster-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-8);
+  min-height: 0;
+  flex: 1;
+}
+
+.taxi-draft-team-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cc-gap-sm);
+  padding-bottom: var(--cc-space-8);
+  border-bottom: 1px solid var(--cc-divider);
+}
+
+.taxi-draft-team-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  background: rgba(139, 92, 246, 0.06);
+  color: #c4b5d4;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 7px;
+  padding: 0.28rem 0.5rem;
+  cursor: pointer;
+  max-width: 100%;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.taxi-draft-team-tab:hover {
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #ebe4f5;
+}
+
+.taxi-draft-team-tab--active {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #f5f0ff;
+}
+
+.taxi-draft-team-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.taxi-draft-team-tab-count {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: var(--cc-heading-color);
+  background: color-mix(in srgb, black 25%, transparent);
+  border-radius: 4px;
+  padding: 0.06rem 0.28rem;
+}
+
+.taxi-draft-roster-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-8);
+  min-height: 12rem;
+  border-radius: var(--cc-card-radius);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+  padding: var(--cc-space-12);
+}
+
+.taxi-draft-roster-pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cc-gap-md);
+  flex-wrap: wrap;
+}
+
+.taxi-draft-roster-pane-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: color-mix(in srgb, white 92%, var(--cc-value-muted));
+  letter-spacing: 0.02em;
+}
+
+.taxi-draft-roster-pane-meta {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--cc-value-muted);
+}
+
+.taxi-draft-roster-rows {
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  border: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+/* Section title — matches .market-section-label */
+.taxi-draft-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--cc-heading-color);
+  text-transform: uppercase;
+  padding: 0 0 var(--cc-heading-mb);
+  margin: 0;
+}
+
+.taxi-draft-card-body {
+  flex: 1;
+  min-height: 8rem;
+  border-radius: var(--cc-card-radius);
+  border: 1px solid rgba(139, 92, 246, 0.14);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.035) 0%,
+    rgba(255, 255, 255, 0.012) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c4b5d4;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: var(--cc-space-12);
+}
+
+.taxi-draft-order-body {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.taxi-draft-order-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-12);
+  width: 100%;
+}
+
+.taxi-draft-order-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cc-gap-md);
+}
+
+.taxi-draft-order-list {
+  display: grid;
+  gap: var(--cc-gap-md);
+}
+
+.taxi-draft-order-row {
+  display: grid;
+  grid-template-columns: minmax(1.75rem, auto) 1fr minmax(140px, auto);
+  align-items: center;
+  gap: var(--cc-space-12);
+  background: var(--cc-card-bg);
+  border: var(--cc-card-border);
+  border-radius: var(--cc-card-radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: var(--cc-space-8) var(--cc-space-12);
+}
+
+.taxi-draft-order-rank {
+  color: #a78bfa;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.taxi-draft-order-team {
+  color: color-mix(in srgb, white 92%, var(--cc-value-muted));
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxi-draft-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cc-gap-sm);
+  justify-content: flex-end;
+}
+
+.taxi-draft-button {
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: rgba(139, 92, 246, 0.08);
+  color: #e9ddff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 0.32rem 0.55rem;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.taxi-draft-button:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: rgba(167, 139, 250, 0.45);
+  color: #f5f0ff;
+}
+
+.taxi-draft-button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.taxi-draft-button--secondary {
+  min-width: 0;
+}
+
+.taxi-draft-order-empty {
+  width: 100%;
+  padding: var(--cc-space-16);
+  border-radius: var(--cc-card-radius);
+  background: color-mix(in srgb, black 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--cc-heading-color) 22%, transparent);
+  color: var(--cc-value-muted);
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.taxi-draft-player-headshot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.taxi-draft-player-details {
+  min-width: 0;
+  flex: 1;
+}
+
+.taxi-draft-player-name {
+  color: color-mix(in srgb, white 93%, var(--cc-value-muted));
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxi-draft-player-meta {
+  color: var(--cc-value-muted);
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxi-draft-roster-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-12);
+  padding: var(--cc-space-8) var(--cc-space-12);
+  border-bottom: 1px solid var(--cc-divider);
+}
+
+.taxi-draft-roster-row:last-child {
+  border-bottom: none;
+}
+
+.taxi-draft-roster-player-info {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-8);
+  flex: 1;
+  min-width: 0;
+}
+
+.taxi-draft-roster-player-details {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.taxi-draft-roster-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cc-gap-md);
+  margin-top: 0.1rem;
+}
+
+@media (min-width: 640px) {
+  .taxi-draft-roster-player-details {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--cc-space-12);
+    row-gap: 0.2rem;
+  }
+
+  .taxi-draft-roster-player-details .taxi-draft-player-name {
+    margin-bottom: 0;
+    flex: 0 1 auto;
+    max-width: min(38vw, 14rem);
+  }
+
+  .taxi-draft-roster-player-details .taxi-draft-player-meta {
+    flex: 0 1 auto;
+    padding-left: var(--cc-space-12);
+    border-left: 1px solid var(--cc-divider);
+    margin-left: 0;
+    min-width: 0;
+  }
+
+  .taxi-draft-roster-player-details .taxi-draft-roster-meta {
+    margin-top: 0;
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+}
+
+.taxi-draft-pick-number {
+  color: #86efac;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--cc-value-green) 14%, transparent);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--cc-value-green) 28%, transparent);
+}
+
+.taxi-draft-added-at {
+  color: var(--cc-value-muted);
+  font-size: 0.62rem;
+}
+
+.taxi-draft-roster-actions {
+  display: flex;
+  gap: var(--cc-gap-sm);
+  flex-shrink: 0;
+}
+
+.taxi-draft-button--remove {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+}
+
+.taxi-draft-button--remove:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.16);
+}
+
+.taxi-draft-team-roster-empty {
+  padding: var(--cc-space-16);
+  color: #4a3a60;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 980px) {
+  .taxi-draft-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .taxi-draft-order-card {
+    position: relative;
+    top: auto;
+  }
+}

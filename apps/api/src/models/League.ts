@@ -14,6 +14,25 @@ export interface IRosterSlots {
   [key: string]: number;
 }
 
+/**
+ * Standard roster when `POST /api/leagues` omits `rosterSlots` (Mongoose default).
+ * Matches web `rosterDefaults` / mobile create payload (Draftroom product default).
+ */
+export const DRAFTROOM_DEFAULT_ROSTER_SLOTS: IRosterSlots = {
+  C: 1,
+  "1B": 1,
+  "2B": 1,
+  SS: 1,
+  "3B": 1,
+  MI: 1,
+  CI: 1,
+  OF: 3,
+  UTIL: 1,
+  SP: 5,
+  RP: 2,
+  BN: 3,
+};
+
 export interface ILeague extends Document {
   name: string;
   commissionerId: mongoose.Types.ObjectId;
@@ -72,19 +91,7 @@ const leagueSchema = new Schema<ILeague>(
     // Using Schema.Types.Mixed for flexible key-value roster slot config
     rosterSlots: {
       type: Schema.Types.Mixed,
-      default: {
-        C: 1,
-        "1B": 1,
-        "2B": 1,
-        "3B": 1,
-        SS: 1,
-        OF: 3,
-        UTIL: 1,
-        SP: 2,
-        RP: 2,
-        P: 3,
-        BN: 5,
-      },
+      default: () => ({ ...DRAFTROOM_DEFAULT_ROSTER_SLOTS }),
     },
     draftStatus: {
       type: String,

@@ -11,6 +11,10 @@ export interface IWatchlistEntry extends Document {
   adp: number;
   value: number;
   tier: number;
+  baselineValue?: number;
+  adjustedValue?: number;
+  recommendedBid?: number;
+  teamAdjustedValue?: number;
   personalRank: number | null;
   notes: string;
   createdAt: Date;
@@ -60,6 +64,18 @@ const watchlistEntrySchema = new Schema<IWatchlistEntry>(
     tier: {
       type: Number,
       default: 5,
+    },
+    baselineValue: {
+      type: Number,
+    },
+    adjustedValue: {
+      type: Number,
+    },
+    recommendedBid: {
+      type: Number,
+    },
+    teamAdjustedValue: {
+      type: Number,
     },
     personalRank: {
       type: Number,

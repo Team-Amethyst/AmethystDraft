@@ -10,16 +10,18 @@ on:
       - main
 
 jobs:
+  test:
+    uses: ./.github/workflows/run-tests.yml
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,7 +30,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Web Frontend
         env:
@@ -63,6 +65,15 @@ jobs:
       - name: Reminder — API CORS (App Runner env)
         run: |
           echo "::notice title=App Runner CORS::Ensure CORS_ORIGIN on the API service matches your live SPA host(s). Repository variable CORS_ORIGIN is the team reference: ${{ vars.CORS_ORIGIN }}"
+
+      - name: Reminder — Engine env (App Runner)
+        run: |
+          echo "::notice title=App Runner Engine::Set AMETHYST_API_BASE_URL (or legacy AMETHYST_API_URL) and AMETHYST_API_KEY on the API service; never expose the key to the web build or VITE_*."
+
+      - name: Reminder — draftroom.uk is not the API host
+        run: |
+          echo "::notice title=Hostname vs API::The SPA build uses vars.VITE_API_URL (App Runner). draftroom.uk serves the static site only — there is no /api reverse-proxy in this workflow. Engine webhooks and curl tests must target the App Runner HTTPS origin (e.g. ...awsapprunner.com/api/internal/news-signals/hook), not https://draftroom.uk/api/..."
+          echo "::notice title=Socket.IO::Intelligence alerts use Engine.IO HTTP long-polling only (no WebSocket upgrade) so App Runner works when wss:// fails in the browser."
 
       - name: Trigger App Runner Deployment
         env:

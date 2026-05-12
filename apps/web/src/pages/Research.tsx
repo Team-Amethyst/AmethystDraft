@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { Database, BarChart3, Layers, UserPlus } from "lucide-react";
+import { Database, BarChart3, Layers, UserPlus, Star } from "lucide-react";
 import PlayerTable from "../components/PlayerTable";
 import type { Player } from "../types/player";
 import {
@@ -9,92 +9,108 @@ import {
   getPlayers,
   getPlayersCached,
   getTeamDepthChart,
-  type DepthChartPosition,
+  type DepthChartPlayerRow,
   type DepthChartResponse,
 } from "../api/players";
-import { getCatalogBatchValues } from "../api/engine";
+import { getValuation, getValuationPlayer, type ValuationResponse } from "../api/engine";
+import {
+  filterValuationAlertsForSurface,
+  normalizeValuationAlerts,
+} from "../domain/valuationAlerts";
+import { useValuationBoardAlerts } from "../contexts/ValuationBoardAlertsContext";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
-import {
-  hasPitcherEligibility,
-  normalizePlayerPositions,
-} from "../utils/eligibility";
+import { useWatchlist } from "../contexts/WatchlistContext";
 import "./Research.css";
 import AddPlayerModal from "../components/AddPlayerModal";
+import PlayerDetailModal from "../components/PlayerDetailModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
+import {
+  defaultValuationSortForPage,
+  mergeCatalogPlayersWithValuations,
+  mergePlayerWithFocusedExplainEnrichment,
+  mergePlayerWithValuation,
+  type ValuationShape,
+} from "../utils/valuation";
+import {
+  findCatalogPlayerByExternalId,
+  lookupRosterMapForCatalogPlayer,
+} from "../domain/catalogPlayerKeys";
+import {
+  buildDraftedByTeamMap,
+  buildKeeperContractByPlayerMap,
+} from "../domain/rosterMaps";
+import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
+import TiersView from "./TiersView";
+import { resolveUserTeamId } from "../utils/team";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
+import {
+  type StatBasis,
+  parseStatBasis,
+  RESEARCH_STAT_BASIS_STORAGE_KEY_WEB,
+} from "@repo/player-stat-basis";
+import { MLB_TEAMS } from "../data/mlbTeams";
+import {
+  filterResearchCatalogPlayers,
+  filterResearchDefaultCatalogKind,
+} from "../domain/researchCatalogFilter";
+import {
+  countDepthChartAssignments,
+  DEFAULT_RESEARCH_DEPTH_TEAM_ID,
+  RESEARCH_DEPTH_POSITIONS,
+  researchDepthSlotCapacity,
+} from "../domain/researchDepthLayout";
+import {
+  buildDepthLeagueRelevanceLookup,
+  isDepthChartRowLeagueRelevant,
+} from "../domain/depthLeagueContext";
+import {
+  diagnosisDepthChartMatching,
+  formatDiagnosticsForConsole,
+} from "../domain/depthChartDiagnostics";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
-const DEPTH_POSITIONS: DepthChartPosition[] = [
-  "SP",
-  "RP",
-  "C",
-  "1B",
-  "2B",
-  "3B",
-  "SS",
-  "LF",
-  "CF",
-  "RF",
-  "DH",
-];
-
-const MLB_TEAMS = [
-  { id: 108, abbr: "LAA", name: "Los Angeles Angels" },
-  { id: 109, abbr: "AZ", name: "Arizona Diamondbacks" },
-  { id: 110, abbr: "BAL", name: "Baltimore Orioles" },
-  { id: 111, abbr: "BOS", name: "Boston Red Sox" },
-  { id: 112, abbr: "CHC", name: "Chicago Cubs" },
-  { id: 113, abbr: "CIN", name: "Cincinnati Reds" },
-  { id: 114, abbr: "CLE", name: "Cleveland Guardians" },
-  { id: 115, abbr: "COL", name: "Colorado Rockies" },
-  { id: 116, abbr: "DET", name: "Detroit Tigers" },
-  { id: 117, abbr: "HOU", name: "Houston Astros" },
-  { id: 118, abbr: "KC", name: "Kansas City Royals" },
-  { id: 119, abbr: "LAD", name: "Los Angeles Dodgers" },
-  { id: 120, abbr: "WSH", name: "Washington Nationals" },
-  { id: 121, abbr: "NYM", name: "New York Mets" },
-  { id: 133, abbr: "ATH", name: "Athletics" },
-  { id: 134, abbr: "PIT", name: "Pittsburgh Pirates" },
-  { id: 135, abbr: "SD", name: "San Diego Padres" },
-  { id: 136, abbr: "SEA", name: "Seattle Mariners" },
-  { id: 137, abbr: "SF", name: "San Francisco Giants" },
-  { id: 138, abbr: "STL", name: "St. Louis Cardinals" },
-  { id: 139, abbr: "TB", name: "Tampa Bay Rays" },
-  { id: 140, abbr: "TEX", name: "Texas Rangers" },
-  { id: 141, abbr: "TOR", name: "Toronto Blue Jays" },
-  { id: 142, abbr: "MIN", name: "Minnesota Twins" },
-  { id: 143, abbr: "PHI", name: "Philadelphia Phillies" },
-  { id: 144, abbr: "ATL", name: "Atlanta Braves" },
-  { id: 145, abbr: "CWS", name: "Chicago White Sox" },
-  { id: 146, abbr: "MIA", name: "Miami Marlins" },
-  { id: 147, abbr: "NYY", name: "New York Yankees" },
-  { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
-];
+/** Must match `isValuationContextDebugEnabled` in PlayerDetailModal. */
+function isValuationContextDebugEnabled(): boolean {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return localStorage.getItem("showValuationDebug") === "1";
+  } catch {
+    return false;
+  }
+}
 
 export default function Research() {
   usePageTitle("Research");
 
   const { customPlayers, addCustomPlayer, isCustomPlayer } = useCustomPlayers();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedModalPlayer, setSelectedModalPlayer] = useState<Player | null>(null);
 
   const { id: leagueId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
   const { league } = useLeague();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist, watchlist } = useWatchlist();
 
   const [selectedView, setSelectedView] = useState<ResearchView>("player-database");
-  const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(147);
+  const [selectedDepthTeamId, setSelectedDepthTeamId] = useState(
+    DEFAULT_RESEARCH_DEPTH_TEAM_ID,
+  );
   const [depthChartData, setDepthChartData] = useState<DepthChartResponse | null>(
-    () => getDepthChartCached(147),
+    () => getDepthChartCached(DEFAULT_RESEARCH_DEPTH_TEAM_ID),
   );
   const [isLoadingDepthChart, setIsLoadingDepthChart] = useState(
-    () => getDepthChartCached(147) === null,
+    () => getDepthChartCached(DEFAULT_RESEARCH_DEPTH_TEAM_ID) === null,
   );
   const [depthChartError, setDepthChartError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,15 +121,11 @@ export default function Research() {
       return "all";
     }
   });
-  const [statBasis, setStatBasis] = useState<
-    "projections" | "last-year" | "3-year-avg"
-  >(() => {
+  const [statBasis, setStatBasis] = useState<StatBasis>(() => {
     try {
-      return (
-        (localStorage.getItem("amethyst-research-statbasis") as
-          | "projections"
-          | "last-year"
-          | "3-year-avg") ?? "last-year"
+      return parseStatBasis(
+        localStorage.getItem(RESEARCH_STAT_BASIS_STORAGE_KEY_WEB),
+        "last-year",
       );
     } catch {
       return "last-year";
@@ -121,15 +133,48 @@ export default function Research() {
   });
 
   const [players, setPlayers] = useState<Player[]>(
-    () => getPlayersCached("adp") ?? [],
+    () => getPlayersCached("catalog_rank") ?? [],
   );
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(
-    () => getPlayersCached("adp") === null,
+    () => getPlayersCached("catalog_rank") === null,
   );
   const [playersError, setPlayersError] = useState("");
-  const [engineCatalogByPlayerId, setEngineCatalogByPlayerId] = useState<
-    ReadonlyMap<string, { value: number; tier: number }>
+  const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
+    ReadonlyMap<string, ValuationShape>
   >(() => new Map());
+  const [lastResearchBoardValuation, setLastResearchBoardValuation] =
+    useState<ValuationResponse | null>(null);
+
+  const valuationBoardMeta = useMemo(() => {
+    if (!lastResearchBoardValuation) return null;
+    return {
+      warnings: lastResearchBoardValuation.valuation_context_warnings,
+      context: lastResearchBoardValuation.valuation_context,
+    };
+  }, [lastResearchBoardValuation]);
+
+  const researchValuationAlerts = useMemo(
+    () =>
+      filterValuationAlertsForSurface(
+        normalizeValuationAlerts(lastResearchBoardValuation),
+        "research",
+      ),
+    [lastResearchBoardValuation],
+  );
+
+  const { publishBoardValuationAlerts } = useValuationBoardAlerts();
+  useEffect(() => {
+    publishBoardValuationAlerts(researchValuationAlerts);
+  }, [researchValuationAlerts, publishBoardValuationAlerts]);
+  useEffect(() => {
+    return () => {
+      publishBoardValuationAlerts([]);
+    };
+  }, [publishBoardValuationAlerts]);
+
+  const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
+    null,
+  );
 
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
     () => getRosterCached(leagueId ?? "") ?? [],
@@ -140,23 +185,70 @@ export default function Research() {
     [rosterEntries],
   );
 
-  const draftedByTeam = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const e of rosterEntries) {
-      const idx = e.teamId
-        ? parseInt(e.teamId.replace("team_", ""), 10) - 1
-        : -1;
-      const name =
-        (idx >= 0 ? league?.teamNames[idx] : undefined) ?? e.teamId ?? "";
-      if (name) map.set(e.externalPlayerId, name);
+  const draftedByTeam = useMemo(
+    () => buildDraftedByTeamMap(rosterEntries, league?.teamNames),
+    [rosterEntries, league?.teamNames],
+  );
+
+  const draftedContractByPlayerId = useMemo(
+    () => buildKeeperContractByPlayerMap(rosterEntries),
+    [rosterEntries],
+  );
+
+  const depthTotalSlots = researchDepthSlotCapacity();
+  const depthAssignedCount = useMemo(
+    () => (depthChartData ? countDepthChartAssignments(depthChartData) : 0),
+    [depthChartData],
+  );
+
+  const depthLeagueRelevanceLookup = useMemo(() => {
+    return buildDepthLeagueRelevanceLookup(players, rosterEntries, watchlist);
+  }, [players, rosterEntries, watchlist]);
+
+  // Build a set of league-relevant player IDs for quick lookup during rendering
+  const leagueRelevantDepthPlayerIds = useMemo(() => {
+    if (!depthChartData || !depthLeagueRelevanceLookup) return new Set<string>();
+    
+    const relevantIds = new Set<string>();
+    for (const rows of Object.values(depthChartData.positions)) {
+      for (const row of rows) {
+        if (isDepthChartRowLeagueRelevant(row, depthLeagueRelevanceLookup)) {
+          relevantIds.add(`${row.playerId}`);
+        }
+      }
     }
-    return map;
-  }, [rosterEntries, league?.teamNames]);
+    return relevantIds;
+  }, [depthChartData, depthLeagueRelevanceLookup]);
 
   const customPlayerIds = useMemo(
     () => new Set(customPlayers.map((p) => p.id)),
     [customPlayers],
   );
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterEntries),
+    [rosterEntries],
+  );
+
+  const researchBoardCacheExtras = useMemo(() => {
+    const ids = [...customPlayerIds].sort().join(",");
+    return ids ? `custom:${ids}` : "";
+  }, [customPlayerIds]);
 
   useEffect(() => {
     if (!leagueId || !token) return;
@@ -171,14 +263,14 @@ export default function Research() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("amethyst-research-statbasis", statBasis);
+      localStorage.setItem(RESEARCH_STAT_BASIS_STORAGE_KEY_WEB, statBasis);
     } catch { /* noop */ }
   }, [statBasis]);
 
   useEffect(() => {
     const loadPlayers = async () => {
       const cached = getPlayersCached(
-        "adp",
+        "catalog_rank",
         league?.posEligibilityThreshold,
         league?.playerPool,
       );
@@ -187,7 +279,7 @@ export default function Research() {
 
       try {
         const playersFromApi = await getPlayers(
-          "adp",
+          "catalog_rank",
           league?.posEligibilityThreshold,
           league?.playerPool,
         );
@@ -207,65 +299,97 @@ export default function Research() {
   }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
 
   useEffect(() => {
-    if (!token || players.length === 0) {
-      setEngineCatalogByPlayerId(new Map());
+    if (!token || !leagueId || players.length === 0) {
+      setValuationsByPlayerId(new Map());
+      setLastResearchBoardValuation(null);
       return;
     }
-    const pool = league?.playerPool ?? "Mixed";
     let cancelled = false;
-    const BATCH = 150;
-    const ids = players
-      .filter((p) => !customPlayerIds.has(p.id))
-      .map((p) => p.id);
-
     void (async () => {
-      const merged = new Map<string, { value: number; tier: number }>();
-      let batchFailed = false;
-      for (let i = 0; i < ids.length; i += BATCH) {
-        if (cancelled) return;
-        const chunk = ids.slice(i, i + BATCH);
-        if (chunk.length === 0) continue;
-        try {
-          const res = await getCatalogBatchValues(token, {
-            player_ids: chunk,
-            league_scope: pool,
-            pos_eligibility_threshold: league?.posEligibilityThreshold,
-          });
-          for (const row of res.players) {
-            merged.set(row.player_id, {
-              value: row.value,
-              tier: row.tier,
-            });
-          }
-        } catch {
-          batchFailed = true;
-          break;
+      try {
+        const userTeamId = resolveUserTeamId(league, user?.id);
+        const res = await getValuation(leagueId, token, userTeamId, null, {
+          leagueConfigKey: leagueValuationKey,
+          rosterFingerprint: rosterValuationKey,
+          extras: researchBoardCacheExtras || undefined,
+        });
+        const merged = researchValuationRowMapFromEngine(
+          res.valuations,
+          customPlayerIds,
+        );
+        if (!cancelled) {
+          setValuationsByPlayerId(merged);
+          setLastResearchBoardValuation(res);
+        }
+      } catch {
+        if (!cancelled) {
+          setValuationsByPlayerId(new Map());
+          setLastResearchBoardValuation(null);
         }
       }
-      // Avoid showing a misleading partial overlay if a later chunk failed.
-      if (!cancelled && !batchFailed) setEngineCatalogByPlayerId(merged);
     })();
-
     return () => {
       cancelled = true;
     };
   }, [
     token,
-    players,
-    league?.playerPool,
-    league?.posEligibilityThreshold,
+    leagueId,
+    players.length,
     customPlayerIds,
+    user?.id,
+    rosterValuationKey,
+    leagueValuationKey,
+    researchBoardCacheExtras,
   ]);
 
-  const loadDepthChart = useCallback(async (teamId: number) => {
+  useEffect(() => {
+    if (!selectedModalPlayer || !token || !leagueId) {
+      setModalExplainRow(null);
+      return;
+    }
+    let cancelled = false;
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    const pid = String(selectedModalPlayer.id).trim();
+    void getValuationPlayer(leagueId, token, selectedModalPlayer.id, userTeamId, {
+      explainValuationRows: true,
+      cacheContext: {
+        leagueConfigKey: leagueValuationKey,
+        rosterFingerprint: rosterValuationKey,
+        extras: researchBoardCacheExtras || undefined,
+      },
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const row =
+          res.player ??
+          res.valuations.find((v) => String(v.player_id).trim() === pid);
+        setModalExplainRow(row ? (row as ValuationShape) : null);
+      })
+      .catch(() => {
+        if (!cancelled) setModalExplainRow(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedModalPlayer?.id,
+    token,
+    leagueId,
+    user?.id,
+    rosterValuationKey,
+    leagueValuationKey,
+    researchBoardCacheExtras,
+  ]);
+
+  const loadDepthChart = useCallback(async (teamId: number, forceRefresh = false) => {
     const cached = getDepthChartCached(teamId);
-    if (!cached) {
+    if (!cached || forceRefresh) {
       setIsLoadingDepthChart(true);
     }
     setDepthChartError("");
 
     try {
-      const depth = await getTeamDepthChart(teamId);
+      const depth = await getTeamDepthChart(teamId, undefined, forceRefresh);
       setDepthChartData(depth);
     } catch (err) {
       setDepthChartError(
@@ -281,39 +405,123 @@ export default function Research() {
     void loadDepthChart(selectedDepthTeamId);
   }, [selectedDepthTeamId, selectedView, loadDepthChart]);
 
-  // Merge MLB API players with custom players — custom players appear at the top
-  const allPlayers = useMemo(
-    () => [...customPlayers, ...players],
-    [players, customPlayers],
+  // Run diagnostics on depth chart data to identify unmatched players
+  useEffect(() => {
+    if (!depthChartData || selectedView !== "depth-charts") return;
+    
+    const diagnostics = diagnosisDepthChartMatching(
+      depthChartData,
+      players,
+      rosterEntries,
+      watchlist
+    );
+    
+    if (diagnostics.summaryStats.unmatched > 0) {
+      console.log(
+        "%c📊 Depth Chart Diagnostics",
+        "color: #4f46e5; font-weight: bold; font-size: 12px",
+        formatDiagnosticsForConsole(diagnostics)
+      );
+    }
+  }, [depthChartData, selectedView, players, rosterEntries, watchlist]);
+
+  const playersForResearch = useMemo(
+    () => filterResearchDefaultCatalogKind(players),
+    [players],
   );
 
-  const filteredPlayers = useMemo(() => {
-    return allPlayers.filter((player) => {
-      const playerName = player.name?.toLowerCase() ?? "";
-      const matchesSearch = playerName.includes(searchQuery.toLowerCase());
-      const matchesPosition =
-        positionFilter === "all" ||
-        (() => {
-          const allPos = normalizePlayerPositions(
-            player.positions,
-            player.position,
-          );
-          if (positionFilter === "P") {
-            return hasPitcherEligibility(player.positions, player.position);
-          }
-          if (positionFilter === "OF") {
-            return allPos.includes("OF");
-          }
-          return allPos.includes(positionFilter);
-        })();
-      return matchesSearch && matchesPosition;
-    });
-  }, [allPlayers, searchQuery, positionFilter]);
+  // Merge MLB API players with custom players — custom players appear at the top
+  const allPlayers = useMemo(
+    () => [...customPlayers, ...playersForResearch],
+    [playersForResearch, customPlayers],
+  );
+
+  const filteredPlayers = useMemo(
+    () => filterResearchCatalogPlayers(allPlayers, searchQuery, positionFilter),
+    [allPlayers, searchQuery, positionFilter],
+  );
+
+  const mergedPlayers = useMemo(
+    () => mergeCatalogPlayersWithValuations(filteredPlayers, valuationsByPlayerId),
+    [filteredPlayers, valuationsByPlayerId],
+  );
+
+  const displayModalPlayer = useMemo(() => {
+    if (!selectedModalPlayer) return null;
+    const boardRow = valuationsByPlayerId.get(selectedModalPlayer.id);
+    let p = mergePlayerWithValuation(selectedModalPlayer, boardRow);
+    if (modalExplainRow) {
+      p = mergePlayerWithFocusedExplainEnrichment(p, boardRow, modalExplainRow);
+    }
+    return p;
+  }, [selectedModalPlayer, valuationsByPlayerId, modalExplainRow]);
 
   const handlePlayerClick = (player: Player) => {
+    setSelectedModalPlayer(player);
+  };
+
+  const handleMoveToCommandCenter = (player: Player) => {
     setSelectedPlayer(player);
+    setSelectedModalPlayer(null);
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
+
+  const resolveDepthPlayer = useCallback(async (slot: DepthChartPlayerRow): Promise<Player | null> => {
+    const fromLoaded = findCatalogPlayerByExternalId(allPlayers, slot.playerId);
+    if (fromLoaded) return fromLoaded;
+
+    const playersFromApi = await getPlayers(
+      "catalog_rank",
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+    );
+    setPlayers(playersFromApi);
+
+    return findCatalogPlayerByExternalId(playersFromApi, slot.playerId) ?? null;
+  }, [allPlayers, league?.playerPool, league?.posEligibilityThreshold]);
+
+  const handleDepthPlayerClick = useCallback(async (slot: DepthChartPlayerRow) => {
+    setDepthChartError("");
+
+    try {
+      const matched = await resolveDepthPlayer(slot);
+      if (matched) {
+        handlePlayerClick(matched);
+        return;
+      }
+
+      setDepthChartError(`Could not open ${slot.playerName}. Player record was not found in catalog data.`);
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load player details for command center navigation",
+      );
+    }
+  }, [handlePlayerClick, resolveDepthPlayer]);
+
+  const handleDepthStarToggle = useCallback(async (slot: DepthChartPlayerRow) => {
+    setDepthChartError("");
+    try {
+      const matched = await resolveDepthPlayer(slot);
+      if (!matched) {
+        setDepthChartError(`Could not star ${slot.playerName}. Player record was not found in catalog data.`);
+        return;
+      }
+
+      if (isInWatchlist(matched.id)) {
+        removeFromWatchlist(matched.id);
+      } else {
+        addToWatchlist(matched);
+      }
+    } catch (err) {
+      setDepthChartError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update watchlist from depth chart",
+      );
+    }
+  }, [addToWatchlist, isInWatchlist, removeFromWatchlist, resolveDepthPlayer]);
 
   const navigationItems: Array<{
     id: ResearchView;
@@ -369,7 +577,9 @@ export default function Research() {
                 </div>
               ) : (
                 <PlayerTable
-                  players={filteredPlayers}
+                  columnLayout="research"
+                  defaultValuationSortField={defaultValuationSortForPage("Research")}
+                  players={mergedPlayers}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   positionFilter={positionFilter}
@@ -382,17 +592,22 @@ export default function Research() {
                   onNoteChange={setNote}
                   draftedIds={draftedIds}
                   draftedByTeam={draftedByTeam}
+                  draftedContractByPlayerId={draftedContractByPlayerId}
                   isCustomPlayer={isCustomPlayer}
-                  engineCatalogByPlayerId={engineCatalogByPlayerId}
                 />
               )}
             </>
           )}
           {selectedView === "tiers" && (
-            <div className="coming-soon">
-              <h2>Tiers</h2>
-              <p>Coming soon...</p>
-            </div>
+            <TiersView
+              players={mergedPlayers}
+              draftedIds={draftedIds}
+              onPlayerClick={handlePlayerClick}
+              isInWatchlist={isInWatchlist}
+              addToWatchlist={addToWatchlist}
+              removeFromWatchlist={removeFromWatchlist}
+              onMoveToCommandCenter={handleMoveToCommandCenter}
+            />
           )}
           {selectedView === "depth-charts" && (
             <div className="depth-chart-wrapper">
@@ -421,7 +636,7 @@ export default function Research() {
                   <button
                     type="button"
                     className="depth-chart-refresh-btn"
-                    onClick={() => void loadDepthChart(selectedDepthTeamId)}
+                    onClick={() => void loadDepthChart(selectedDepthTeamId, true)}
                   >
                     Refresh
                   </button>
@@ -451,6 +666,12 @@ export default function Research() {
                     <span>
                       Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
                     </span>
+                    <span>
+                      Assignments {depthAssignedCount}/{depthTotalSlots}
+                    </span>
+                    <span>
+                      Manual review {depthChartData.manualReview.length}
+                    </span>
                     <span
                       className={`depth-chart-limit-chip ${depthChartData.constraints.rosterLimitRespected ? "is-ok" : "is-warning"}`}
                     >
@@ -459,14 +680,23 @@ export default function Research() {
                   </div>
 
                   <div className="depth-chart-grid">
-                    {DEPTH_POSITIONS.map((position) => {
+                    {RESEARCH_DEPTH_POSITIONS.map((position) => {
                       const rows = depthChartData.positions[position] ?? [];
                       return (
                         <section key={position} className="position-group">
                           <div className="position-group__header">
                             <h3 className="position-group__title">{position}</h3>
+                            <span className="position-group__fill">
+                              {(depthChartData.positions[position] ?? []).length}/3
+                            </span>
                           </div>
                           <div className="position-group__body">
+                            <div className="position-group__table-head">
+                              <span>Rank</span>
+                              <span>Player</span>
+                              <span>Status</span>
+                              <span>Usage</span>
+                            </div>
                             {[1, 2, 3].map((rank) => {
                               const row = rows.find((item) => item.rank === rank);
                               const rankClass =
@@ -481,26 +711,77 @@ export default function Research() {
                               return (
                                 <div
                                   key={`${position}-${rank}`}
-                                  className={`player-slot ${rankClass} ${injured ? "player-slot--injured" : ""} ${row?.outOfPosition || row?.needsManualReview ? "player-slot--oof" : ""}`}
+                                  className={`player-slot ${rankClass} ${injured ? "player-slot--injured" : ""} ${row?.outOfPosition || row?.needsManualReview ? "player-slot--oof" : ""} ${row ? "player-slot--clickable" : ""}`}
+                                  role={row ? "button" : undefined}
+                                  tabIndex={row ? 0 : undefined}
+                                  onClick={() => {
+                                    if (row) {
+                                      void handleDepthPlayerClick(row);
+                                    }
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (!row) return;
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      void handleDepthPlayerClick(row);
+                                    }
+                                  }}
                                 >
                                   <div className="player-slot__rank">#{rank}</div>
                                   {row ? (
-                                    <div className="player-slot__content">
-                                      <div className="player-slot__name">{row.playerName}</div>
-                                      <div className="player-slot__meta">
-                                        <span>{row.primaryPosition}</span>
-                                        <span>{row.status}</span>
-                                        <span>{row.usageStarts} starts</span>
-                                        <span>{row.usageAppearances} apps</span>
+                                    <>
+                                      <div className="player-slot__content">
+                                        <div className="player-slot__name-line">
+                                          <div className="player-slot__name">{row.playerName}</div>
+                                          <div className="player-slot__chips">
+                                            <span className="player-slot__chip">{row.primaryPosition}</span>
+                                            {leagueRelevantDepthPlayerIds.has(`${row.playerId}`) && (
+                                              <span className="player-slot__chip player-slot__chip--league-relevant">In League</span>
+                                            )}
+                                            {injured && <span className="player-slot__chip player-slot__chip--injured">INJ</span>}
+                                            {(row.outOfPosition || row.needsManualReview) && (
+                                              <span className="player-slot__chip player-slot__chip--oof">OOF</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {(row.outOfPosition || row.needsManualReview) && (
+                                          <div className="player-slot__flag">Manual review suggested</div>
+                                        )}
                                       </div>
-                                      {row.outOfPosition && (
-                                        <div className="player-slot__flag">OOF - Manual Review</div>
-                                      )}
-                                    </div>
+                                      <div className="player-slot__meta player-slot__meta--status">
+                                        <span>{row.status}</span>
+                                      </div>
+                                      <div className="player-slot__meta player-slot__meta--usage">
+                                        <div className="player-slot__usage-text">
+                                          <span>{row.usageStarts} starts</span>
+                                          <span>{row.usageAppearances} apps</span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className={`btn-star depth-slot-star ${isInWatchlist(String(row.playerId)) ? "starred" : ""}`}
+                                          aria-label={
+                                            isInWatchlist(String(row.playerId))
+                                              ? `Remove ${row.playerName} from watchlist`
+                                              : `Add ${row.playerName} to watchlist`
+                                          }
+                                          onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            void handleDepthStarToggle(row);
+                                          }}
+                                        >
+                                          <Star size={14} fill={isInWatchlist(String(row.playerId)) ? "#fbbf24" : "none"} />
+                                        </button>
+                                      </div>
+                                    </>
                                   ) : (
-                                    <div className="player-slot__content player-slot__content--empty">
-                                      No assignment
-                                    </div>
+                                    <>
+                                      <div className="player-slot__content player-slot__content--empty">
+                                        No assignment
+                                      </div>
+                                      <div className="player-slot__meta player-slot__meta--status">-</div>
+                                      <div className="player-slot__meta player-slot__meta--usage">-</div>
+                                    </>
                                   )}
                                 </div>
                               );
@@ -535,6 +816,36 @@ export default function Research() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSave={addCustomPlayer}
+      />
+      <PlayerDetailModal
+        isOpen={selectedModalPlayer !== null}
+        player={displayModalPlayer ?? selectedModalPlayer}
+        draftedByTeam={
+          selectedModalPlayer
+            ? lookupRosterMapForCatalogPlayer(draftedByTeam, selectedModalPlayer)
+            : undefined
+        }
+        draftedContract={
+          selectedModalPlayer
+            ? lookupRosterMapForCatalogPlayer(
+                draftedContractByPlayerId,
+                selectedModalPlayer,
+              )
+            : undefined
+        }
+        note={selectedModalPlayer ? getNote(selectedModalPlayer.id) : ""}
+        onNoteChange={setNote}
+        isCustomPlayer={
+          selectedModalPlayer ? isCustomPlayer(selectedModalPlayer.id) : false
+        }
+        onClose={() => setSelectedModalPlayer(null)}
+        onMoveToCommandCenter={handleMoveToCommandCenter}
+        valuationContextWarnings={valuationBoardMeta?.warnings}
+        valuationContextDev={
+          isValuationContextDebugEnabled()
+            ? valuationBoardMeta?.context ?? null
+            : undefined
+        }
       />
     </div>
   );

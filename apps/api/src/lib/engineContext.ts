@@ -1,10 +1,13 @@
 import type { ILeague } from "../models/League";
 import type { IRosterEntry } from "../models/RosterEntry";
+import { getOrRefreshCatalogPlayers } from "./catalogPlayerFetch";
+import type { PlayerData } from "./playerCatalog";
 import {
   normalizeRosterSlots,
   type ValuationRequestFixture,
   type ValuationFlatRequest,
   type ValuationIncomingParsed,
+  type RosterSlotsNormalized,
 } from "../validation/valuationRequestSchema";
 
 export interface EngineRosterSlot {
@@ -31,6 +34,19 @@ export interface EngineDraftedPlayer {
   pick_number?: number;
 }
 
+/** Catalog-derived eligibility row for Engine (full player pool). */
+export interface EnginePositionOverride {
+  player_id: string;
+  positions: string[];
+}
+
+/** Catalog-derived injury severity for Engine (full player pool). */
+export interface EngineInjuryOverride {
+  player_id: string;
+  /** 0 = healthy … 3 = long-term / IL60-class (see `injuryNormalize`). */
+  injury_severity: number;
+}
+
 /** Payload for POST /valuation/calculate (extends legacy fields; engine may ignore unknown keys). */
 export interface EngineValuationContext {
   roster_slots: EngineRosterSlot[];
@@ -45,6 +61,14 @@ export interface EngineValuationContext {
   scoring_format?: "5x5" | "6x6" | "points";
   hitter_budget_pct?: number;
   pos_eligibility_threshold?: number;
+  /**
+   * Eligibility from Draftroom catalog for **`valuation_eligible`** rows only
+   * (`GET /api/players` pipeline). Excludes `market_only` / `roster_context` so Engine
+   * does not infer dollars from ADP-only catalog rows.
+   */
+  position_overrides?: EnginePositionOverride[];
+  /** Injury severity for **`valuation_eligible`** catalog rows only. */
+  injury_overrides?: EngineInjuryOverride[];
   minors?: EngineTeamPlayersSection[];
   taxi?: EngineTeamPlayersSection[];
   /** Engine: optional subset of undrafted ids to value. */
@@ -60,6 +84,12 @@ export interface EngineValuationContext {
   schemaVersion?: string;
   deterministic?: boolean;
   seed?: number;
+  user_team_id?: string;
+  inflation_model?: "replacement_slots_v2";
+  /** When true, Engine may attach row-level explain payloads (larger response). */
+  explain_valuation_rows?: boolean;
+  /** Optional bid-cap hint for Engine experiments; omit in Draftroom by default. */
+  recommended_bid_soft_cap_ratio?: number;
 }
 
 export interface EngineTeamPlayersSection {
@@ -122,6 +152,40 @@ function toDraftedPlayers(entries: IRosterEntry[]): EngineDraftedPlayer[] {
   });
 }
 
+function isMinorSlot(slot: string | undefined): boolean {
+  const normalized = (slot ?? "").toUpperCase();
+  return normalized.includes("MIN");
+}
+
+function isTaxiSlot(slot: string | undefined): boolean {
+  const normalized = (slot ?? "").toUpperCase();
+  return normalized.includes("TAXI");
+}
+
+function toTeamPlayersSections(
+  entries: IRosterEntry[],
+): EngineTeamPlayersSection[] {
+  const byTeam = new Map<string, EngineRosterOnlyPlayer[]>();
+  for (const e of entries) {
+    const rows = byTeam.get(e.teamId) ?? [];
+    rows.push({
+      player_id: String(e.externalPlayerId),
+      name: e.playerName,
+      positions: e.positions.length ? [...e.positions] : undefined,
+      team: e.playerTeam,
+      team_id: e.teamId,
+      paid: e.price,
+      is_keeper: e.isKeeper,
+      roster_slot: e.rosterSlot,
+    });
+    byTeam.set(e.teamId, rows);
+  }
+  return [...byTeam.entries()].map(([team_id, players]) => ({
+    team_id,
+    players,
+  }));
+}
+
 /** Remaining budget per team: total_budget − sum(paid) for players on that team. */
 export function computeBudgetByTeamRemaining(
   totalBudget: number,
@@ -150,29 +214,238 @@ export function computeBudgetByTeamRemaining(
 }
 
 /**
- * Builds the full context object for /valuation/calculate and /analysis/scarcity.
+ * Engine roster_slots: always `{ position, count }[]` with integer counts.
+ * League.rosterSlots is `Mixed` in Mongo — it may be a plain record or an array
+ * of `{ position, count }`. Using Object.entries on an array produces bogus rows
+ * ("0", { position: "C", count: 1 }) and breaks downstream capacity math.
  */
-export function buildValuationContext(
+export function leagueRosterSlotsForEngine(league: ILeague): EngineRosterSlot[] {
+  const raw = league.rosterSlots as unknown;
+  if (raw == null || typeof raw !== "object") return [];
+  const normalized: RosterSlotsNormalized = normalizeRosterSlots(
+    raw as Parameters<typeof normalizeRosterSlots>[0],
+  );
+  return normalized
+    .map((row) => ({
+      position: String(row.position),
+      count: Math.max(
+        0,
+        Math.floor(
+          typeof row.count === "number"
+            ? row.count
+            : Number(row.count as unknown) || 0,
+        ),
+      ),
+    }))
+    .filter((row) => row.position.length > 0);
+}
+
+/** Canonical team count for engine payloads when `teams` is missing or invalid. */
+export function resolveLeagueNumTeams(league: ILeague): number {
+  const explicit = Number(league.teams);
+  if (Number.isFinite(explicit) && explicit >= 2) {
+    return Math.floor(explicit);
+  }
+  const nameLen = Array.isArray(league.teamNames) ? league.teamNames.length : 0;
+  if (nameLen >= 2) return nameLen;
+  const memberLen = league.memberIds?.length ?? 0;
+  if (memberLen >= 2) return memberLen;
+  return 12;
+}
+
+function countSectionPlayers(
+  sections: EngineTeamPlayersSection[] | undefined,
+): number {
+  if (!sections?.length) return 0;
+  return sections.reduce((n, s) => n + (s.players?.length ?? 0), 0);
+}
+
+/** Structured summary for LOG_ENGINE_VALUATION_DEBUG=1 (exact POST body is logged separately). */
+export function summarizeEngineValuationPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const drafted = (payload.drafted_players as EngineDraftedPlayer[]) ?? [];
+  const roster_slots = (payload.roster_slots as EngineRosterSlot[]) ?? [];
+  const slotSum = roster_slots.reduce(
+    (s, r) => s + (typeof r.count === "number" && Number.isFinite(r.count) ? r.count : 0),
+    0,
+  );
+  const bb = payload.budget_by_team_id as Record<string, number> | undefined;
+  let budget_by_team_id_sum: number | null = null;
+  if (bb && typeof bb === "object") {
+    let s = 0;
+    for (const v of Object.values(bb)) {
+      if (typeof v === "number" && Number.isFinite(v)) s += v;
+    }
+    budget_by_team_id_sum = s;
+  }
+
+  const po = payload.position_overrides;
+  const position_overrides_count = Array.isArray(po) ? po.length : 0;
+  const io = payload.injury_overrides;
+  const injury_overrides_count = Array.isArray(io) ? io.length : 0;
+
+  return {
+    drafted_players_length: drafted.length,
+    drafted_players_first_20: drafted.slice(0, 20),
+    position_overrides_count,
+    injury_overrides_count,
+    pre_draft_rosters_player_count: countSectionPlayers(
+      payload.pre_draft_rosters as EngineTeamPlayersSection[] | undefined,
+    ),
+    minors_player_count: countSectionPlayers(
+      payload.minors as EngineTeamPlayersSection[] | undefined,
+    ),
+    taxi_player_count: countSectionPlayers(
+      payload.taxi as EngineTeamPlayersSection[] | undefined,
+    ),
+    roster_slots,
+    roster_slot_count_sum: slotSum,
+    num_teams: payload.num_teams,
+    total_budget: payload.total_budget,
+    budget_by_team_id: payload.budget_by_team_id,
+    budget_by_team_id_sum,
+    inflation_model: payload.inflation_model,
+    user_team_id: payload.user_team_id,
+  };
+}
+
+/** Set LOG_ENGINE_VALUATION_DEBUG=1 on the API to log the exact engine POST body and a summary. */
+export function logEngineValuationPayloadIfEnabled(
+  payload: Record<string, unknown>,
+): void {
+  if (process.env.LOG_ENGINE_VALUATION_DEBUG !== "1") return;
+  console.info(
+    "[engine-valuation] POST /valuation/calculate body:",
+    JSON.stringify(payload),
+  );
+  console.info(
+    "[engine-valuation] summary:",
+    JSON.stringify(summarizeEngineValuationPayload(payload)),
+  );
+}
+
+/** Picks useful top-level / nested keys from Engine JSON (schemas vary by Engine version). */
+export function pickEngineValuationResponseDebug(
+  data: unknown,
+): Record<string, unknown> {
+  const d =
+    typeof data === "object" && data !== null
+      ? (data as Record<string, unknown>)
+      : {};
+  const v2 = d.context_v2;
+  const market =
+    v2 && typeof v2 === "object"
+      ? ((v2 as Record<string, unknown>).market_summary as
+          | Record<string, unknown>
+          | undefined)
+      : undefined;
+  const vals = d.valuations;
+  const valuationsLength = Array.isArray(vals) ? vals.length : null;
+  const pick = (k: string) => (Object.prototype.hasOwnProperty.call(d, k) ? d[k] : undefined);
+
+  return {
+    valuations_length: valuationsLength,
+    players_remaining: d.players_remaining,
+    total_budget_remaining: d.total_budget_remaining,
+    inflation_factor: d.inflation_factor,
+    pool_value_remaining: d.pool_value_remaining,
+    remaining_slots: pick("remaining_slots"),
+    players_left: pick("players_left"),
+    draftable_pool_size: pick("draftable_pool_size"),
+    inflation_raw: pick("inflation_raw"),
+    inflation_bounded_by: pick("inflation_bounded_by"),
+    context_v2_market_summary: market,
+  };
+}
+
+export function logEngineValuationResponseIfEnabled(data: unknown): void {
+  if (process.env.LOG_ENGINE_VALUATION_DEBUG !== "1") return;
+  console.info(
+    "[engine-valuation] response pick:",
+    JSON.stringify(pickEngineValuationResponseDebug(data)),
+  );
+}
+
+/**
+ * Maps catalog players to Engine `position_overrides` (MLB person id strings).
+ * Empty `positions` falls back to normalized primary `position` (same as catalog rows).
+ */
+export function playerDataToPositionOverrides(
+  players: PlayerData[],
+): EnginePositionOverride[] {
+  return players.map((p) => ({
+    player_id: String(p.id),
+    positions:
+      Array.isArray(p.positions) && p.positions.length > 0
+        ? [...p.positions]
+        : [String(p.position)],
+  }));
+}
+
+function clampInjurySeverity(n: number | undefined): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return 0;
+  return Math.min(3, Math.max(0, Math.trunc(n)));
+}
+
+/** One row per catalog player for Engine catalog merge (includes healthy zeros). */
+export function playerDataToInjuryOverrides(
+  players: PlayerData[],
+): EngineInjuryOverride[] {
+  return players.map((p) => ({
+    player_id: String(p.id),
+    injury_severity: clampInjurySeverity(p.injurySeverity),
+  }));
+}
+
+/**
+ * Builds the full context object for /valuation/calculate and /analysis/scarcity.
+ *
+ * Player stat lines (`stats`, `stats3yr`, `projection` on catalog) are for the
+ * Amethyst MLB catalog and research UI only. The upstream engine ingests its own
+ * player features from the ids and league rules in this payload; keep catalog
+ * season definitions aligned with engine release notes when changing MLB season math.
+ */
+export async function buildValuationContext(
   league: ILeague,
   rosterEntries: IRosterEntry[],
-): EngineValuationContext {
-  const rosterSlots = Object.entries(league.rosterSlots).map(
-    ([position, count]) => ({ position, count }),
-  );
+  options?: { userTeamId?: string },
+): Promise<EngineValuationContext> {
+  const rosterSlots = leagueRosterSlotsForEngine(league);
+  const numTeams = resolveLeagueNumTeams(league);
 
-  const drafted_players = toDraftedPlayers(rosterEntries);
+  const keeperEntries = rosterEntries.filter((e) => e.isKeeper);
+  const minorsEntries = rosterEntries.filter((e) => isMinorSlot(e.rosterSlot));
+  const taxiEntries = rosterEntries.filter((e) => isTaxiSlot(e.rosterSlot));
+  const draftedEntries = rosterEntries.filter(
+    (e) => !e.isKeeper && !isMinorSlot(e.rosterSlot) && !isTaxiSlot(e.rosterSlot),
+  );
+  const drafted_players = toDraftedPlayers(draftedEntries);
+
+  const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
+  const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
+  const catalogForEngine = catalogPlayers.filter((p) => p.valuation_eligible);
+  const position_overrides = playerDataToPositionOverrides(catalogForEngine);
+  const injury_overrides = playerDataToInjuryOverrides(catalogForEngine);
+
+  const draftedIdSet = new Set(
+    drafted_players.map((d) => String(d.player_id).trim()),
+  );
+  const valuationPlayerIds = catalogForEngine
+    .map((p) => String(p.id).trim())
+    .filter((id) => !draftedIdSet.has(id));
 
   return {
     roster_slots: rosterSlots,
     scoring_categories: league.scoringCategories,
     total_budget: league.budget,
-    num_teams: league.teams,
+    num_teams: numTeams,
     league_scope: league.playerPool,
     drafted_players,
     budget_by_team_id: computeBudgetByTeamRemaining(
       league.budget,
       drafted_players,
-      league.teams,
+      numTeams,
     ),
     ...(league.scoringFormat
       ? { scoring_format: league.scoringFormat }
@@ -183,6 +456,14 @@ export function buildValuationContext(
     ...(league.posEligibilityThreshold !== undefined
       ? { pos_eligibility_threshold: league.posEligibilityThreshold }
       : {}),
+    position_overrides,
+    injury_overrides,
+    ...(valuationPlayerIds.length > 0 ? { player_ids: valuationPlayerIds } : {}),
+    user_team_id: options?.userTeamId ?? "team_1",
+    inflation_model: "replacement_slots_v2",
+    pre_draft_rosters: toTeamPlayersSections(keeperEntries),
+    minors: toTeamPlayersSections(minorsEntries),
+    taxi: toTeamPlayersSections(taxiEntries),
   };
 }
 
@@ -196,9 +477,7 @@ export function buildSimulationContext(
   budgetByTeamId: Record<string, number>,
   availablePlayerIds?: string[],
 ): EngineSimulationContext {
-  const rosterSlots = Object.entries(league.rosterSlots).map(
-    ([position, count]) => ({ position, count }),
-  );
+  const rosterSlots = leagueRosterSlotsForEngine(league);
 
   const teamIds = league.memberIds.map((_, i) => `team_${i + 1}`);
 
@@ -232,7 +511,7 @@ export function buildScarcityContext(
   return {
     drafted_players: toDraftedPlayers(rosterEntries),
     scoring_categories: league.scoringCategories,
-    num_teams: league.teams,
+    num_teams: resolveLeagueNumTeams(league),
     league_scope: league.playerPool,
     ...(position ? { position } : {}),
   };
@@ -388,10 +667,19 @@ export function buildEngineValuationCalculateBodyFromFixture(
     ...(fixture.minors?.length ? { minors: fixture.minors } : {}),
     ...(fixture.taxi?.length ? { taxi: fixture.taxi } : {}),
     ...(fixture.player_ids?.length ? { player_ids: fixture.player_ids } : {}),
+    ...(fixture.position_overrides !== undefined
+      ? { position_overrides: fixture.position_overrides }
+      : {}),
+    ...(fixture.injury_overrides !== undefined
+      ? { injury_overrides: fixture.injury_overrides }
+      : {}),
     ...(fixture.deterministic !== undefined
       ? { deterministic: fixture.deterministic }
       : {}),
     ...(fixture.seed !== undefined ? { seed: fixture.seed } : {}),
+    user_team_id: fixture.user_team_id ?? fixture.league.user_team_id ?? "team_1",
+    inflation_model:
+      fixture.inflation_model ?? fixture.league.inflation_model ?? "replacement_slots_v2",
   };
 
   return body;
@@ -446,10 +734,18 @@ export function buildEngineValuationCalculateBodyFromFlat(
     ...(flat.minors?.length ? { minors: flat.minors } : {}),
     ...(flat.taxi?.length ? { taxi: flat.taxi } : {}),
     ...(flat.player_ids?.length ? { player_ids: flat.player_ids } : {}),
+    ...(flat.position_overrides !== undefined
+      ? { position_overrides: flat.position_overrides }
+      : {}),
+    ...(flat.injury_overrides !== undefined
+      ? { injury_overrides: flat.injury_overrides }
+      : {}),
     ...(flat.deterministic !== undefined
       ? { deterministic: flat.deterministic }
       : {}),
     ...(flat.seed !== undefined ? { seed: flat.seed } : {}),
+    user_team_id: flat.user_team_id ?? "team_1",
+    inflation_model: flat.inflation_model ?? "replacement_slots_v2",
   };
 
   return body;

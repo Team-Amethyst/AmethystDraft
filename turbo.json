@@ -11,22 +11,34 @@
     "lint": {
       "dependsOn": ["^lint"],
       "env": [
+        "NODE_ENV",
         "CORS_ORIGIN",
         "MONGO_URI",
         "JWT_SECRET",
+        "AMETHYST_API_BASE_URL",
         "AMETHYST_API_URL",
         "AMETHYST_API_KEY",
         "PLAYER_API_TEST_KEY",
         "AMETHYST_CONTRACT_TEST",
-        "AMETHYST_ENGINE_TIMEOUT_MS"
+        "AMETHYST_ENGINE_TIMEOUT_MS",
+        "LOG_ENGINE_VALUATION_DEBUG",
+        "INTERNAL_WEBHOOK_SECRET",
+        "MONGODB_MAX_POOL_SIZE",
+        "DRAFTROOM_E2E_STUB",
+        "REDIS_URL",
+        "AMETHYST_CATALOG_KIND_TEST_OVERLAY"
       ]
     },
     "check-types": {
       "dependsOn": ["^check-types"]
     },
+    "test": {
+      "outputs": []
+    },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["PORT", "VITE_PORT", "VITE_API_URL"]
     }
   }
 }

@@ -11,7 +11,8 @@ export type Player = {
   name: string;
   team: string;
   pos: string;
-  adp: number;
+  /** Catalog model rank (not market ADP). */
+  catalog_rank: number;
   /** Projected auction value (from API) */
   value?: number;
   /** URL to MLB headshot */
@@ -24,6 +25,8 @@ export type TeamKeeper = {
   playerName: string;
   team: string;
   cost: number;
+  /** Free-form keeper contract label (examples: "Arb", "3Y", "Prospect"). */
+  contractType?: string;
   playerId: string;
   /** Player's actual eligible positions (from API). Persisted on the roster entry. */
   positions?: string[];
@@ -47,14 +50,14 @@ export const rosterDefaults: RosterSlot[] = [
 ];
 
 export const availablePlayers: Player[] = [
-  { id: 1, name: "Ronald Acuña Jr.", team: "ATL", pos: "OF", adp: 1.2 },
-  { id: 2, name: "Shohei Ohtani", team: "LAD", pos: "TWP", adp: 2.5 },
-  { id: 3, name: "Julio Rodríguez", team: "SEA", pos: "OF", adp: 3.8 },
-  { id: 4, name: "Bobby Witt Jr.", team: "KC", pos: "SS", adp: 4.1 },
-  { id: 5, name: "Corbin Carroll", team: "ARI", pos: "OF", adp: 5.4 },
-  { id: 6, name: "Mookie Betts", team: "LAD", pos: "2B/OF", adp: 6.2 },
-  { id: 7, name: "Freddie Freeman", team: "LAD", pos: "1B", adp: 7.0 },
-  { id: 8, name: "Kyle Tucker", team: "HOU", pos: "OF", adp: 8.5 },
+  { id: 1, name: "Ronald Acuña Jr.", team: "ATL", pos: "OF", catalog_rank: 1.2 },
+  { id: 2, name: "Shohei Ohtani", team: "LAD", pos: "TWP", catalog_rank: 2.5 },
+  { id: 3, name: "Julio Rodríguez", team: "SEA", pos: "OF", catalog_rank: 3.8 },
+  { id: 4, name: "Bobby Witt Jr.", team: "KC", pos: "SS", catalog_rank: 4.1 },
+  { id: 5, name: "Corbin Carroll", team: "ARI", pos: "OF", catalog_rank: 5.4 },
+  { id: 6, name: "Mookie Betts", team: "LAD", pos: "2B/OF", catalog_rank: 6.2 },
+  { id: 7, name: "Freddie Freeman", team: "LAD", pos: "1B", catalog_rank: 7.0 },
+  { id: 8, name: "Kyle Tucker", team: "HOU", pos: "OF", catalog_rank: 8.5 },
 ];
 
 export const hittingStats = [
@@ -122,4 +125,82 @@ export function getEligibleSlots(
     }
   }
   return result;
+}
+
+/** Slots a keeper may occupy when editing (excludes one index from used counts). */
+export function getEligibleSlotsForKeeperAssignment(
+  player: Player,
+  rosterSlots: RosterSlot[],
+  currentKeepers: TeamKeeper[],
+  excludeIndex: number,
+): string[] {
+  const eligibleTypes = new Set(
+    getEligibleSlotsForPositions(
+      player.positions,
+      rosterSlots.map((slot) => slot.position),
+      player.pos,
+    ),
+  );
+  const usedCounts: Record<string, number> = {};
+  for (let i = 0; i < currentKeepers.length; i++) {
+    if (i === excludeIndex) continue;
+    const k = currentKeepers[i];
+    usedCounts[k.slot] = (usedCounts[k.slot] ?? 0) + 1;
+  }
+  const keeper = currentKeepers[excludeIndex];
+  const result: string[] = [];
+  for (const rs of rosterSlots) {
+    if (!eligibleTypes.has(rs.position) || rs.count === 0) continue;
+    const used = usedCounts[rs.position] ?? 0;
+    if (used < rs.count || keeper?.slot === rs.position) {
+      result.push(rs.position);
+    }
+  }
+  return [...new Set(result)];
+}
+
+/** Roster positions with capacity left, ignoring position eligibility (commissioner override). */
+export function getOpenRosterSlotPositions(
+  rosterSlots: RosterSlot[],
+  currentKeepers: TeamKeeper[],
+): string[] {
+  const usedCounts: Record<string, number> = {};
+  for (const k of currentKeepers) {
+    usedCounts[k.slot] = (usedCounts[k.slot] ?? 0) + 1;
+  }
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const rs of rosterSlots) {
+    if (rs.count === 0) continue;
+    const used = usedCounts[rs.position] ?? 0;
+    if (used < rs.count && !seen.has(rs.position)) {
+      seen.add(rs.position);
+      result.push(rs.position);
+    }
+  }
+  return result;
+}
+
+/** Open slots when reassigning a keeper (same capacity rules as eligible edit, no position filter). */
+export function getOpenRosterSlotPositionsForReassign(
+  rosterSlots: RosterSlot[],
+  currentKeepers: TeamKeeper[],
+  excludeIndex: number,
+): string[] {
+  const usedCounts: Record<string, number> = {};
+  for (let i = 0; i < currentKeepers.length; i++) {
+    if (i === excludeIndex) continue;
+    const k = currentKeepers[i];
+    usedCounts[k.slot] = (usedCounts[k.slot] ?? 0) + 1;
+  }
+  const keeper = currentKeepers[excludeIndex];
+  const result: string[] = [];
+  for (const rs of rosterSlots) {
+    if (rs.count === 0) continue;
+    const used = usedCounts[rs.position] ?? 0;
+    if (used < rs.count || keeper?.slot === rs.position) {
+      result.push(rs.position);
+    }
+  }
+  return [...new Set(result)];
 }

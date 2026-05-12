@@ -9,12 +9,11 @@
  */
 
 import PosBadge from "../PosBadge";
+import { useNavigate, useParams } from "react-router";
+import type { PositionPlanRow } from "../../constants/positionAllocationPlan";
+import "./PositionTargets.css";
 
-export interface PositionPlanRow {
-  pos: string;
-  slots: number;
-  target: number;
-}
+export type { PositionPlanRow } from "../../constants/positionAllocationPlan";
 
 interface PositionTargetsProps {
   positionPlan: PositionPlanRow[];
@@ -37,6 +36,9 @@ export default function PositionTargets({
   onTargetBlur,
   onReset,
 }: PositionTargetsProps) {
+  const navigate = useNavigate();
+  const { id: leagueId } = useParams();
+
   return (
     <div className="mydraft-left panel-card">
       <div className="table-head-row">
@@ -100,8 +102,13 @@ export default function PositionTargets({
         </table>
       </div>
 
-      <button className="mock-btn" type="button" disabled>
-        AI Mock Draft — Coming Soon
+
+      <button
+        className="mock-btn"
+        type="button"
+        onClick={() => navigate(`/leagues/${leagueId}/mock-draft`)}
+      >
+        AI Mock Draft
       </button>
     </div>
   );

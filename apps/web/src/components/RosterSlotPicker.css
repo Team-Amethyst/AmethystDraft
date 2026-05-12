@@ -1,0 +1,175 @@
+/* Roster slot picker — custom listbox; ineligible slots muted but selectable */
+
+.rsp {
+  position: relative;
+  width: 100%;
+  font-family: "DM Sans", sans-serif;
+}
+
+/* Lift open picker above following modal fields (stacking order). */
+.rsp--modal.rsp--open {
+  z-index: 15;
+}
+
+.rsp--modal {
+  font-family: inherit;
+}
+
+.rsp-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.35rem;
+  padding: 0 0.45rem 0 0.5rem;
+  margin: 0;
+  border-radius: var(--cc-card-radius, 8px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c4b5d4;
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.rsp--modal .rsp-trigger {
+  min-height: 2rem;
+  border-radius: 5px;
+  background: rgba(139, 92, 246, 0.08);
+  font-size: 0.72rem;
+  color: #d4c8e8;
+}
+
+.rsp-trigger:hover:not(:disabled) {
+  border-color: rgba(139, 92, 246, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rsp--modal .rsp-trigger:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.rsp-trigger:focus-visible {
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.rsp--open .rsp-trigger {
+  border-color: rgba(167, 139, 250, 0.45);
+}
+
+.rsp--warn .rsp-trigger {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
+
+.rsp--disabled .rsp-trigger,
+.rsp-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rsp-trigger-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rsp-chevron {
+  flex-shrink: 0;
+  color: #8b6bb8;
+  transition: transform 0.2s ease;
+}
+
+.rsp--open .rsp-chevron {
+  transform: rotate(180deg);
+  color: #a78bfa;
+}
+
+.rsp-panel {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 0.28rem 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: var(--cc-card-radius, 8px);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: #161026;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.rsp--modal .rsp-panel {
+  background: #141022;
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.rsp-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.42rem 0.55rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.74rem;
+  text-align: left;
+  cursor: pointer;
+  color: #d4c8e8;
+  transition: background 0.1s;
+}
+
+.rsp--modal .rsp-option {
+  font-size: 0.72rem;
+}
+
+.rsp-option:hover {
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.rsp-option--eligible {
+  color: #e8dff8;
+}
+
+.rsp-option--ineligible {
+  color: rgba(180, 165, 210, 0.42);
+}
+
+.rsp-option--ineligible:hover {
+  color: rgba(200, 185, 230, 0.72);
+  background: rgba(100, 90, 130, 0.2);
+}
+
+.rsp-option-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.rsp-option[aria-selected="true"] {
+  background: rgba(139, 92, 246, 0.22);
+}
+
+.rsp-option--ineligible[aria-selected="true"] {
+  background: rgba(90, 80, 120, 0.35);
+  color: rgba(210, 195, 235, 0.85);
+}
+
+@media (max-width: 1280px) {
+  .rsp--cc .rsp-trigger {
+    min-height: 2.15rem;
+    font-size: 0.72rem;
+  }
+}

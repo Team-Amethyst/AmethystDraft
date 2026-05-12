@@ -30,6 +30,12 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import type { LeagueTabParamList } from "../navigation/types";
 import type { Player } from "../types/player";
+import {
+  type StatBasis,
+  formatResearchStatSummaryLine,
+  parseStatBasis,
+  RESEARCH_STAT_BASIS_STORAGE_KEY_MOBILE,
+} from "@repo/player-stat-basis";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "Research">;
 
@@ -45,10 +51,6 @@ type PositionFilter =
   | "SP"
   | "RP"
   | "UTIL";
-
-type StatBasis = "projections" | "last-year" | "3-year-avg";
-
-const STAT_BASIS_KEY = "amethyst-research-statbasis-mobile";
 
 const POSITION_FILTERS: PositionFilter[] = [
   "ALL",
@@ -110,15 +112,6 @@ const MLB_TEAMS = [
   { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
 ];
 
-function clampNonNegative(value: number): number {
-  return Math.max(0, Math.round(value));
-}
-
-function formatRate(value: number): string {
-  if (!Number.isFinite(value)) return "0.000";
-  return value.toFixed(3);
-}
-
 function positionMatches(player: Player, filter: PositionFilter): boolean {
   if (filter === "ALL") return true;
 
@@ -138,47 +131,6 @@ function positionMatches(player: Player, filter: PositionFilter): boolean {
   }
 
   return false;
-}
-
-function buildPlayerStatSummary(player: Player, statBasis: StatBasis): string | null {
-  const projectionBat = player.projection?.batting;
-  const statsBat = player.stats?.batting;
-  const projectionPit = player.projection?.pitching;
-  const statsPit = player.stats?.pitching;
-
-  if (statBasis === "projections") {
-    if (projectionBat) {
-      return `Proj AVG ${projectionBat.avg} • HR ${projectionBat.hr} • RBI ${projectionBat.rbi} • SB ${projectionBat.sb}`;
-    }
-
-    if (projectionPit) {
-      return `Proj ERA ${projectionPit.era} • WHIP ${projectionPit.whip} • K ${projectionPit.strikeouts} • SV ${projectionPit.saves}`;
-    }
-
-    return null;
-  }
-
-  if (statBasis === "last-year") {
-    if (statsBat) {
-      return `2025 AVG ${formatRate(parseFloat(statsBat.avg) * 0.985)} • HR ${clampNonNegative(statsBat.hr * 1.08)} • RBI ${clampNonNegative(statsBat.rbi * 1.04)} • SB ${clampNonNegative(statsBat.sb * 0.94)}`;
-    }
-
-    if (statsPit) {
-      return `2025 ERA ${formatRate(parseFloat(statsPit.era) * 1.06)} • WHIP ${formatRate(parseFloat(statsPit.whip) * 1.04)} • K ${clampNonNegative(statsPit.strikeouts * 1.02)} • SV ${clampNonNegative(statsPit.saves * 1.03)}`;
-    }
-
-    return null;
-  }
-
-  if (statsBat) {
-    return `3YR AVG ${formatRate(parseFloat(statsBat.avg) * 0.995)} • HR ${clampNonNegative(statsBat.hr * 0.95)} • RBI ${clampNonNegative(statsBat.rbi * 0.96)} • SB ${clampNonNegative(statsBat.sb * 0.92)}`;
-  }
-
-  if (statsPit) {
-    return `3YR ERA ${formatRate(parseFloat(statsPit.era) * 1.02)} • WHIP ${formatRate(parseFloat(statsPit.whip) * 1.01)} • K ${clampNonNegative(statsPit.strikeouts * 0.95)} • SV ${clampNonNegative(statsPit.saves * 0.95)}`;
-  }
-
-  return null;
 }
 
 export default function ResearchScreen({ route, navigation }: Props) {
@@ -259,14 +211,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
   useEffect(() => {
     async function loadBasis() {
       try {
-        const stored = await AsyncStorage.getItem(STAT_BASIS_KEY);
-        if (
-          stored === "projections" ||
-          stored === "last-year" ||
-          stored === "3-year-avg"
-        ) {
-          setStatBasis(stored);
-        }
+        const stored = await AsyncStorage.getItem(
+          RESEARCH_STAT_BASIS_STORAGE_KEY_MOBILE,
+        );
+        setStatBasis(parseStatBasis(stored, "last-year"));
       } catch {
         // ignore
       }
@@ -276,7 +224,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
   }, []);
 
   useEffect(() => {
-    void AsyncStorage.setItem(STAT_BASIS_KEY, statBasis);
+    void AsyncStorage.setItem(
+      RESEARCH_STAT_BASIS_STORAGE_KEY_MOBILE,
+      statBasis,
+    );
   }, [statBasis]);
 
   useEffect(() => {
@@ -843,7 +794,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                   const engineRow = valuationsByPlayerId.get(item.id);
                   const displayTier = engineRow?.tier ?? item.tier;
                   const displayValue = engineRow?.adjusted_value ?? item.value;
-                  const statSummary = buildPlayerStatSummary(item, statBasis);
+                  const statSummary = formatResearchStatSummaryLine(item, statBasis);
                   const custom = isCustomPlayer(item.id);
 
                   return (
@@ -940,7 +891,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                       const engineRow = valuationsByPlayerId.get(player.id);
                       const displayValue = engineRow?.adjusted_value ?? player.value;
                       const watched = isInWatchlist(leagueId, player.id);
-                      const statSummary = buildPlayerStatSummary(player, statBasis);
+                      const statSummary = formatResearchStatSummaryLine(player, statBasis);
                       const custom = isCustomPlayer(player.id);
 
                       return (

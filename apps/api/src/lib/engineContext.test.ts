@@ -1,12 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("./catalogPlayerFetch", () => ({
+  getOrRefreshCatalogPlayers: vi.fn(),
+}));
+
+import mongoose from "mongoose";
 import type { ILeague } from "../models/League";
 import type { IRosterEntry } from "../models/RosterEntry";
+import type { PlayerData } from "./playerCatalog";
+import { getOrRefreshCatalogPlayers } from "./catalogPlayerFetch";
 import {
   computeBudgetByTeamRemaining,
   buildValuationContext,
   buildEngineValuationCalculateBodyFromFixture,
   buildEngineValuationCalculateBodyFromFlat,
   finalizeEngineValuationPostPayload,
+  leagueRosterSlotsForEngine,
+  playerDataToInjuryOverrides,
+  resolveLeagueNumTeams,
 } from "./engineContext";
 import {
   valuationRequestSchema,
@@ -82,8 +93,95 @@ describe("computeBudgetByTeamRemaining", () => {
   });
 });
 
+describe("leagueRosterSlotsForEngine", () => {
+  it("accepts array-shaped rosterSlots (Mongo Mixed) without Object.entries corruption", () => {
+    const league = {
+      rosterSlots: [
+        { position: "C", count: 1 },
+        { position: "OF", count: 3 },
+        { position: "BN", count: 5 },
+      ],
+      scoringCategories: [],
+      budget: 260,
+      teams: 6,
+      teamNames: [],
+      memberIds: [],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(leagueRosterSlotsForEngine(league)).toEqual([
+      { position: "C", count: 1 },
+      { position: "OF", count: 3 },
+      { position: "BN", count: 5 },
+    ]);
+  });
+
+  it("coerces string counts and plain record input", () => {
+    const league = {
+      rosterSlots: { C: "1" as unknown as number, UTIL: 2 },
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      teamNames: [],
+      memberIds: [],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(leagueRosterSlotsForEngine(league)).toEqual([
+      { position: "C", count: 1 },
+      { position: "UTIL", count: 2 },
+    ]);
+  });
+});
+
+describe("playerDataToInjuryOverrides", () => {
+  it("clamps severity to 0–3 and defaults missing to 0", () => {
+    expect(
+      playerDataToInjuryOverrides([
+        { id: "1", injurySeverity: 99 } as PlayerData,
+        { id: "2" } as PlayerData,
+        { id: "3", injurySeverity: -5 } as PlayerData,
+      ]),
+    ).toEqual([
+      { player_id: "1", injury_severity: 3 },
+      { player_id: "2", injury_severity: 0 },
+      { player_id: "3", injury_severity: 0 },
+    ]);
+  });
+});
+
+describe("resolveLeagueNumTeams", () => {
+  it("uses explicit teams when valid", () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 6,
+      teamNames: ["a"],
+      memberIds: [],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(resolveLeagueNumTeams(league)).toBe(6);
+  });
+
+  it("falls back to teamNames.length when teams is missing", () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: undefined,
+      teamNames: ["a", "b", "c", "d", "e", "f"],
+      memberIds: [new mongoose.Types.ObjectId()],
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+    expect(resolveLeagueNumTeams(league)).toBe(6);
+  });
+});
+
 describe("buildValuationContext", () => {
-  it("maps league and roster entries including keeper flag and budget_by_team_id", () => {
+  beforeEach(() => {
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([]);
+  });
+
+  it("maps league and roster entries including context parity fields", async () => {
     const league = {
       rosterSlots: { OF: 2 },
       scoringCategories: [{ name: "HR", type: "batting" as const }],
@@ -106,24 +204,264 @@ describe("buildValuationContext", () => {
         isKeeper: true,
         playerTeam: "TOR",
       },
+      {
+        externalPlayerId: "660272",
+        playerName: "Auction Pick",
+        positions: ["OF"],
+        rosterSlot: "OF",
+        teamId: "team_2",
+        price: 18,
+        isKeeper: false,
+        playerTeam: "BOS",
+      },
+      {
+        externalPlayerId: "660273",
+        playerName: "Minor Stash",
+        positions: ["SP"],
+        rosterSlot: "MIN1",
+        teamId: "team_2",
+        price: 1,
+        isKeeper: false,
+        playerTeam: "SEA",
+      },
+      {
+        externalPlayerId: "660274",
+        playerName: "Taxi Arm",
+        positions: ["RP"],
+        rosterSlot: "TAXI",
+        teamId: "team_1",
+        price: 2,
+        isKeeper: false,
+        playerTeam: "HOU",
+      },
     ] as unknown as IRosterEntry[];
 
-    const ctx = buildValuationContext(league, entries);
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([
+      {
+        id: "660272",
+        mlbId: 660272,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Auction Pick",
+        team: "BOS",
+        position: "OF",
+        positions: ["LF", "OF"],
+        age: 28,
+        catalog_rank: 1,
+        value: 10,
+        catalog_tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injurySeverity: 0,
+      } as PlayerData,
+      {
+        id: "660273",
+        mlbId: 660273,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Minor Stash",
+        team: "SEA",
+        position: "SP",
+        positions: ["SP"],
+        age: 22,
+        catalog_rank: 2,
+        value: 5,
+        catalog_tier: 4,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injurySeverity: 2,
+        injuryStatus: "IL10",
+      } as PlayerData,
+    ]);
+
+    const ctx = await buildValuationContext(league, entries, { userTeamId: "team_2" });
 
     expect(ctx.roster_slots).toEqual([{ position: "OF", count: 2 }]);
     expect(ctx.drafted_players).toEqual([
       expect.objectContaining({
-        player_id: "660271",
-        is_keeper: true,
-        positions: ["1B"],
-        roster_slot: "1B",
-        paid: 25,
+        player_id: "660272",
+        positions: ["OF"],
+        roster_slot: "OF",
+        paid: 18,
       }),
     ]);
-    expect(ctx.budget_by_team_id).toEqual({ team_1: 235, team_2: 260 });
+    expect(ctx.pre_draft_rosters).toEqual([
+      expect.objectContaining({
+        team_id: "team_1",
+        players: [
+          expect.objectContaining({
+            player_id: "660271",
+            is_keeper: true,
+          }),
+        ],
+      }),
+    ]);
+    expect(ctx.minors).toEqual([
+      expect.objectContaining({
+        team_id: "team_2",
+        players: [expect.objectContaining({ player_id: "660273" })],
+      }),
+    ]);
+    expect(ctx.taxi).toEqual([
+      expect.objectContaining({
+        team_id: "team_1",
+        players: [expect.objectContaining({ player_id: "660274" })],
+      }),
+    ]);
+    expect(ctx.budget_by_team_id).toEqual({ team_1: 260, team_2: 242 });
     expect(ctx.scoring_format).toBe("5x5");
     expect(ctx.hitter_budget_pct).toBe(72);
     expect(ctx.pos_eligibility_threshold).toBe(15);
+    expect(ctx.user_team_id).toBe("team_2");
+    expect(ctx.inflation_model).toBe("replacement_slots_v2");
+
+    expect(ctx.position_overrides).toEqual([
+      { player_id: "660272", positions: ["LF", "OF"] },
+      { player_id: "660273", positions: ["SP"] },
+    ]);
+    expect(ctx.injury_overrides).toEqual([
+      { player_id: "660272", injury_severity: 0 },
+      { player_id: "660273", injury_severity: 2 },
+    ]);
+    expect(ctx.player_ids).toEqual(["660273"]);
+
+    const draftedOverride = ctx.position_overrides?.find(
+      (o) => o.player_id === "660272",
+    );
+    const draftedRow = ctx.drafted_players.find((p) => p.player_id === "660272");
+    expect(draftedRow?.positions).toEqual(["OF"]);
+    expect(draftedOverride?.positions).toEqual(["LF", "OF"]);
+
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(15);
+  });
+
+  it("passes League.posEligibilityThreshold into catalog fetch", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+      posEligibilityThreshold: 7,
+    } as unknown as ILeague;
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([
+      {
+        id: "1",
+        mlbId: 1,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "X",
+        team: "NYY",
+        position: "SS",
+        positions: ["SS"],
+        age: 25,
+        catalog_rank: 1,
+        value: 8,
+        catalog_tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+    ]);
+
+    await buildValuationContext(league, [], {});
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(7);
+  });
+
+  it("uses threshold 20 when league omits posEligibilityThreshold", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([]);
+    await buildValuationContext(league, [], {});
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(20);
+  });
+
+  it("excludes market_only from position_overrides, injury_overrides, and player_ids", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([
+      {
+        id: "669923",
+        mlbId: 669923,
+        catalog_kind: "market_only",
+        valuation_eligible: false,
+        market_adp: 14,
+        name: "George Kirby",
+        team: "SEA",
+        position: "SP",
+        positions: ["SP"],
+        age: 28,
+        catalog_rank: 9998,
+        value: 0,
+        catalog_tier: 5,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+      {
+        id: "999001",
+        mlbId: 999001,
+        catalog_kind: "roster_context",
+        valuation_eligible: false,
+        name: "Roster Only",
+        team: "SEA",
+        position: "RP",
+        positions: ["RP"],
+        age: 24,
+        catalog_rank: 9999,
+        value: 0,
+        catalog_tier: 5,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+      } as PlayerData,
+      {
+        id: "660273",
+        mlbId: 660273,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Valued",
+        team: "NYY",
+        position: "SS",
+        positions: ["SS"],
+        age: 26,
+        catalog_rank: 5,
+        value: 20,
+        catalog_tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injurySeverity: 0,
+      } as PlayerData,
+    ]);
+
+    const ctx = await buildValuationContext(league, [], {});
+    expect(ctx.position_overrides).toEqual([{ player_id: "660273", positions: ["SS"] }]);
+    expect(ctx.injury_overrides).toEqual([{ player_id: "660273", injury_severity: 0 }]);
+    expect(ctx.player_ids).toEqual(["660273"]);
+    expect(ctx.player_ids?.includes("669923")).toBe(false);
+    expect(ctx.player_ids?.includes("999001")).toBe(false);
   });
 });
 
@@ -225,10 +563,13 @@ describe("buildEngineValuationCalculateBodyFromFlat", () => {
         schemaVersion: "1.0.0",
         checkpoint: "pre_draft",
         player_ids: ["660271"],
+        user_team_id: "team_3",
       }),
     );
     expect(body.drafted_players[0]?.position).toBe("OF");
     expect(body.player_ids).toEqual(["660271"]);
     expect(body.schema_version).toBe("1.0.0");
+    expect(body.user_team_id).toBe("team_3");
+    expect(body.inflation_model).toBe("replacement_slots_v2");
   });
 });

@@ -16,6 +16,7 @@
 import { useState, useCallback } from "react";
 import type { Player } from "../types/player";
 import { useAuth } from "../contexts/AuthContext";
+import { buildApiUrl } from "../api/client";
 
 // Key is now scoped to userId so each user has their own list
 function storageKey(userId: string) {
@@ -39,11 +40,9 @@ function saveToStorage(userId: string, players: Player[]) {
   }
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
 async function syncToMongo(player: Player, token: string): Promise<void> {
   try {
-    const res = await fetch(`${API_BASE}/api/players/custom`, {
+    const res = await fetch(buildApiUrl("/api/players/custom"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

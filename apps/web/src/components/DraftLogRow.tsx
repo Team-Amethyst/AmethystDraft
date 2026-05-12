@@ -2,22 +2,35 @@ import { useState } from "react";
 import { Pencil, X } from "lucide-react";
 import type { RosterEntry } from "../api/roster";
 import { getEligibleSlotsForPositions } from "../utils/eligibility";
+import { RosterSlotPicker } from "./RosterSlotPicker";
 import "./DraftLogRow.css";
 
 interface DraftLogRowProps {
   entry: RosterEntry;
   pickNum: number;
   teamName: string;
+  /** Highlight when this pick belongs to the signed-in user's team */
+  isMyTeamPick?: boolean;
   headshot?: string;
-  mlbTeam?: string;
   slotOptions: string[];
   teamOptions: { id: string; name: string }[];
   allRosterEntries?: RosterEntry[];
   leagueRosterSlots?: Record<string, number>;
   leagueBudget?: number;
+  /**
+   * `default` renders the full three-line row (MLB team + positions + fantasy team line).
+   * `compact` strips to name · price + fantasy team · slot, hiding edit/X until hover —
+   * used in the Command Center right-rail draft log to fit more picks vertically.
+   */
+  variant?: "default" | "compact";
   onUpdate?: (
     id: string,
-    data: { price?: number; rosterSlot?: string; teamId?: string },
+    data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    },
   ) => void;
   onRemove?: (id: string) => void;
 }
@@ -26,13 +39,14 @@ export function DraftLogRow({
   entry,
   pickNum,
   teamName,
+  isMyTeamPick = false,
   headshot,
-  mlbTeam,
   slotOptions,
   teamOptions,
   allRosterEntries,
   leagueRosterSlots,
   leagueBudget,
+  variant = "default",
   onUpdate,
   onRemove,
 }: DraftLogRowProps) {
@@ -54,27 +68,21 @@ export function DraftLogRow({
     );
   }
 
-  /** All eligible slots for a given teamId */
-  function validSlotsFor(teamId: string): string[] {
-    const elig = getEligibleSlotsForPositions(entry.positions, slotOptions);
-    if (elig.length === 0) return slotOptions;
-    // For the current team filter to open slots; for reassignment show all eligible
-    if (teamId === entry.teamId) {
-      const open = openSlots(teamId, slotOptions);
-      const filtered = elig.filter((s) => open.has(s));
-      return filtered.length > 0 ? filtered : elig;
-    }
-    return elig;
-  }
-
   // Show all teams — don't filter by capacity (too aggressive for an edit tool)
   const filteredTeamOptions = teamOptions;
   const [editing, setEditing] = useState(false);
   const [editSlot, setEditSlot] = useState(entry.rosterSlot);
   const [editPrice, setEditPrice] = useState(String(entry.price));
   const [editTeamId, setEditTeamId] = useState(entry.teamId);
+  const [editKeeperContract, setEditKeeperContract] = useState(
+    entry.keeperContract ?? "",
+  );
 
-  const currentValidSlots = validSlotsFor(editTeamId);
+  const eligibleSlots = getEligibleSlotsForPositions(entry.positions, slotOptions);
+  const openSet = openSlots(editTeamId, slotOptions);
+  const orderedOpenSlots = slotOptions.filter((s) => openSet.has(s));
+  const eligibleOpenSlots = eligibleSlots.filter((s) => openSet.has(s));
+  const isCurrentSlotOverridden = !eligibleSlots.includes(entry.rosterSlot);
   const initials = entry.playerName
     .split(" ")
     .map((w) => w[0])
@@ -83,16 +91,27 @@ export function DraftLogRow({
     .toUpperCase();
 
   function openModal() {
-    setEditSlot(entry.rosterSlot);
+    const o = openSlots(entry.teamId, slotOptions);
+    const ord = slotOptions.filter((s) => o.has(s));
+    const eligibleOrd = eligibleSlots.filter((s) => o.has(s));
+    const slot = ord.includes(entry.rosterSlot)
+      ? entry.rosterSlot
+      : (eligibleOrd[0] ?? ord[0] ?? entry.rosterSlot);
+    setEditSlot(slot);
     setEditPrice(String(entry.price));
     setEditTeamId(entry.teamId);
+    setEditKeeperContract(entry.keeperContract ?? "");
     setEditing(true);
   }
 
   function handleTeamChange(newTeamId: string) {
     setEditTeamId(newTeamId);
-    const slots = validSlotsFor(newTeamId);
-    if (!slots.includes(editSlot)) setEditSlot(slots[0] ?? editSlot);
+    const nextOpen = openSlots(newTeamId, slotOptions);
+    const ordered = slotOptions.filter((s) => nextOpen.has(s));
+    if (!ordered.includes(editSlot)) {
+      const eligibleOrdered = eligibleSlots.filter((s) => nextOpen.has(s));
+      setEditSlot(eligibleOrdered[0] ?? ordered[0] ?? editSlot);
+    }
   }
 
   function handleSave() {
@@ -125,50 +144,124 @@ export function DraftLogRow({
       }
     }
 
-    const data: { price?: number; rosterSlot?: string; teamId?: string } = {};
+    const data: {
+      price?: number;
+      rosterSlot?: string;
+      teamId?: string;
+      keeperContract?: string;
+    } = {};
     if (editSlot !== entry.rosterSlot) data.rosterSlot = editSlot;
     if (newPrice !== entry.price) data.price = newPrice;
     if (editTeamId !== entry.teamId) data.teamId = editTeamId;
+    if (editKeeperContract.trim() !== (entry.keeperContract ?? "")) {
+      data.keeperContract = editKeeperContract.trim();
+    }
     if (Object.keys(data).length > 0) onUpdate(entry._id, data);
     setEditing(false);
   }
 
+  const isCompact = variant === "compact";
+
   return (
     <>
-      <div className="draft-log-row">
+      <div
+        className={
+          "draft-log-row" + (isCompact ? " draft-log-row--compact" : "")
+        }
+      >
         <span className="dl-pick">#{pickNum}</span>
         {headshot ? (
           <img src={headshot} alt={entry.playerName} className="dl-headshot" />
         ) : (
           <div className="dl-headshot-fallback">{initials}</div>
         )}
-        <div className="dl-body">
-          <div className="dl-row-top">
-            <span className="dl-name">{entry.playerName}</span>
-            <span className="dl-mlb-team">
-              {mlbTeam || entry.playerTeam || "—"}
-            </span>
+        {isCompact ? (
+          <div className="dl-body dl-body--compact">
+            <div className="dl-compact-line dl-compact-line--top">
+              <span className="dl-name">{entry.playerName}</span>
+              <span className="dl-compact-meta">
+                <span className="dl-slot" title="Roster slot">
+                  {entry.rosterSlot}
+                </span>
+                <span className="dl-price">${entry.price}</span>
+              </span>
+            </div>
+            <div className="dl-compact-line dl-compact-line--bottom">
+              <span className="dl-fantasy-team" title={teamName}>
+                {teamName}
+                {isMyTeamPick ? (
+                  <span className="dl-you-suffix" aria-label="your team">
+                    {" "}
+                    (You)
+                  </span>
+                ) : null}
+              </span>
+              {isCurrentSlotOverridden ? (
+                <span className="dl-override-chip" title="Manual position override">
+                  OVR
+                </span>
+              ) : null}
+              {entry.keeperContract ? (
+                <span className="dl-slot" title="Keeper contract">
+                  {entry.keeperContract}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <div className="dl-row-bottom">
-            <span className="dl-fantasy-team">{teamName}</span>
-            <span className="dl-slot">{entry.rosterSlot}</span>
-            <span className="dl-price">${entry.price}</span>
+        ) : (
+          <div className="dl-body">
+            <div className="dl-row-top">
+              <span className="dl-name">{entry.playerName}</span>
+            </div>
+            <div className="dl-row-meta">
+              {entry.playerTeam ? (
+                <span className="dl-player-team">{entry.playerTeam}</span>
+              ) : null}
+              {entry.positions?.length ? (
+                <span className="dl-position">{entry.positions.join("/")}</span>
+              ) : null}
+            </div>
+            <div className="dl-row-bottom">
+              <span className="dl-fantasy-team">
+                {teamName}
+                {isMyTeamPick ? (
+                  <span className="dl-you-suffix" aria-label="your team">
+                    {" "}
+                    (You)
+                  </span>
+                ) : null}
+              </span>
+              <span className="dl-slot">{entry.rosterSlot}</span>
+              {isCurrentSlotOverridden ? (
+                <span className="dl-override-chip" title="Manual position override">
+                  OVR
+                </span>
+              ) : null}
+              <span className="dl-price">${entry.price}</span>
+              {entry.keeperContract ? (
+                <span className="dl-slot" title="Keeper contract">
+                  {entry.keeperContract}
+                </span>
+              ) : null}
+            </div>
           </div>
+        )}
+        <div className={"dl-actions" + (isCompact ? " dl-actions--compact" : "")}>
+          {onUpdate && (
+            <button className="dl-edit" title="Edit pick" onClick={openModal}>
+              <Pencil size={11} />
+            </button>
+          )}
+          {onRemove && (
+            <button
+              className="dl-remove"
+              title="Remove pick"
+              onClick={() => onRemove(entry._id)}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
-        {onUpdate && (
-          <button className="dl-edit" title="Edit pick" onClick={openModal}>
-            <Pencil size={11} />
-          </button>
-        )}
-        {onRemove && (
-          <button
-            className="dl-remove"
-            title="Remove pick"
-            onClick={() => onRemove(entry._id)}
-          >
-            <X size={12} />
-          </button>
-        )}
       </div>
       {editing && (
         <div className="dl-modal-overlay" onClick={() => setEditing(false)}>
@@ -194,9 +287,6 @@ export function DraftLogRow({
               )}
               <div>
                 <div className="dl-modal-player-name">{entry.playerName}</div>
-                <div className="dl-modal-player-team">
-                  {mlbTeam || entry.playerTeam}
-                </div>
               </div>
             </div>
             <div className="dl-modal-fields">
@@ -216,19 +306,17 @@ export function DraftLogRow({
                   </select>
                 </label>
               )}
-              <label className="dl-modal-field">
-                <span className="dl-modal-label">Position</span>
-                <select
-                  className="dl-modal-select"
+              <label className="dl-modal-field dl-modal-field--stack">
+                <span className="dl-modal-label">Roster slot</span>
+                <RosterSlotPicker
+                  variant="modal"
                   value={editSlot}
-                  onChange={(e) => setEditSlot(e.target.value)}
-                >
-                  {currentValidSlots.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setEditSlot}
+                  orderedSlots={orderedOpenSlots}
+                  eligibleSlots={eligibleOpenSlots}
+                  warn={orderedOpenSlots.length === 0}
+                  emptyLabel="— no open slots —"
+                />
               </label>
               <label className="dl-modal-field">
                 <span className="dl-modal-label">Price Paid</span>
@@ -245,6 +333,19 @@ export function DraftLogRow({
                     }}
                   />
                 </div>
+              </label>
+              <label className="dl-modal-field">
+                <span className="dl-modal-label">Contract</span>
+                <input
+                  className="dl-modal-price-input"
+                  type="text"
+                  value={editKeeperContract}
+                  onChange={(e) => setEditKeeperContract(e.target.value)}
+                  placeholder="Arb / 3Y"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSave();
+                  }}
+                />
               </label>
             </div>
             <div className="dl-modal-actions">

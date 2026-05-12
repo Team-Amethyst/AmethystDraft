@@ -2,13 +2,20 @@ import { authHeaders, requestJson, requestVoid } from "./client";
 
 export interface WatchlistPlayer {
   id: string;
+  /** Optional MLB player id to support matching against depth charts */
+  mlbId?: number;
   name: string;
   team: string;
   position: string;
   positions?: string[];
-  adp: number;
+  catalog_rank: number;
   value: number;
-  tier: number;
+  catalog_tier: number;
+  baseline_value?: number;
+  auction_value?: number;
+  adjusted_value?: number;
+  recommended_bid?: number;
+  team_adjusted_value?: number;
 }
 
 export async function getWatchlist(
@@ -39,9 +46,14 @@ export async function addWatchlistEntry(
         team: player.team,
         position: player.position,
         positions: player.positions,
-        adp: player.adp,
+        catalog_rank: player.catalog_rank,
         value: player.value,
-        tier: player.tier,
+        catalog_tier: player.catalog_tier,
+        baseline_value: player.baseline_value,
+        auction_value: player.auction_value,
+        adjusted_value: player.adjusted_value,
+        recommended_bid: player.recommended_bid,
+        team_adjusted_value: player.team_adjusted_value,
       }),
     },
     "Failed to add watchlist entry",

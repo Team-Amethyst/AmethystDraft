@@ -1,7 +1,8 @@
 Player API / Activity #9 fixtures (valuation-request v1.0.0)
 =============================================================
 
-- league.base.json: reusable league block; merge into checkpoint payloads when generating from Excel.
+- league.base.json: reusable league block; merge into checkpoint payloads when generating from Excel (Draftroom standard roster; matches Mongo default when rosterSlots is omitted on POST /api/leagues).
+- league.legacy-mongo-roster-fallback.json: pre-2026 Mongoose-only default (2 SP / 2 RP / 3 P / 5 BN, no MI/CI) kept for regression or Engine comparisons; not used by active checkpoints.
 - checkpoints/*.json: full valuation-request documents (schema apps/api/schemas/valuation-request.v1.schema.json).
 
 POST /api/players/valuations with header x-player-api-key: <PLAYER_API_TEST_KEY>

@@ -23,9 +23,9 @@ const features: Feature[] = [
   },
   {
     icon: <Shield size={22} />,
-    title: "Budget Discipline",
+    title: "AI Mock Drafts",
     description:
-      "Hitter/pitcher allocation tracking with 70/30 default split. Never lose your auction to budget mismanagement.",
+      "Simulate full drafts against AI opponents with realistic tendencies. Test strategies and see how builds play out before draft day.",
   },
 ];
 

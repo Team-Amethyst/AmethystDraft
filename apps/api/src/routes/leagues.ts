@@ -218,6 +218,7 @@ const addRosterEntry: RequestHandler = async (
       userId,
       teamId: bodyTeamId,
       isKeeper,
+      keeperContract,
     } = req.body;
     const memberIds = league.memberIds.map(String);
     const requesterId = String(req.user!._id);
@@ -246,6 +247,8 @@ const addRosterEntry: RequestHandler = async (
       price,
       rosterSlot,
       isKeeper: isKeeper ?? false,
+      keeperContract:
+        typeof keeperContract === "string" ? keeperContract.trim() : "",
     });
     res.status(201).json(entry);
   } catch (err) {
@@ -321,10 +324,11 @@ const updateRosterEntry: RequestHandler = async (
       throw new ForbiddenError("Not authorized to update this entry", 403, "FORBIDDEN_TEAM_WRITE");
     }
 
-    const { price, rosterSlot, teamId } = req.body as {
+    const { price, rosterSlot, teamId, keeperContract } = req.body as {
       price?: number;
       rosterSlot?: string;
       teamId?: string;
+      keeperContract?: string;
     };
 
     // Only the commissioner can reassign an entry to a different team
@@ -344,6 +348,9 @@ const updateRosterEntry: RequestHandler = async (
       // Also update userId if that team slot has a joined member
       const newUserId = league.memberIds[teamIndex];
       if (newUserId) update.userId = newUserId;
+    }
+    if (keeperContract !== undefined) {
+      update.keeperContract = String(keeperContract).trim();
     }
     const entry = await RosterEntry.findOneAndUpdate(
       { _id: req.params.entryId, leagueId: req.params.id },
@@ -424,9 +431,13 @@ const getWatchlist: RequestHandler = async (
         team: e.playerTeam,
         position: e.playerPosition,
         positions: e.playerPositions,
-        adp: e.adp,
+        catalog_rank: e.adp,
+        catalog_tier: e.tier,
         value: e.value,
-        tier: e.tier,
+        baseline_value: e.baselineValue,
+        adjusted_value: e.adjustedValue,
+        recommended_bid: e.recommendedBid,
+        team_adjusted_value: e.teamAdjustedValue,
       })),
     );
   } catch (err) {
@@ -442,14 +453,34 @@ const upsertWatchlistEntry: RequestHandler = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { name, team, position, positions, adp, value, tier } = req.body as {
+    const {
+      name,
+      team,
+      position,
+      positions,
+      catalog_rank,
+      catalog_tier,
+      adp,
+      tier,
+      value,
+      baseline_value,
+      adjusted_value,
+      recommended_bid,
+      team_adjusted_value,
+    } = req.body as {
       name: string;
       team?: string;
       position?: string;
       positions?: string[];
+      catalog_rank?: number;
+      catalog_tier?: number;
       adp?: number;
       value?: number;
       tier?: number;
+      baseline_value?: number;
+      adjusted_value?: number;
+      recommended_bid?: number;
+      team_adjusted_value?: number;
     };
     await WatchlistEntry.findOneAndUpdate(
       {
@@ -462,9 +493,13 @@ const upsertWatchlistEntry: RequestHandler = async (
         playerTeam: team ?? "",
         playerPosition: position ?? "",
         playerPositions: positions ?? [],
-        adp: adp ?? 0,
+        adp: catalog_rank ?? adp ?? 0,
         value: value ?? 0,
-        tier: tier ?? 5,
+        tier: catalog_tier ?? tier ?? 5,
+        baselineValue: baseline_value,
+        adjustedValue: adjusted_value,
+        recommendedBid: recommended_bid,
+        teamAdjustedValue: team_adjusted_value,
       },
       { upsert: true, new: true },
     );

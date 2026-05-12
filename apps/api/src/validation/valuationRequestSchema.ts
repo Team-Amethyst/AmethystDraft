@@ -67,6 +67,16 @@ const teamPlayersSectionSchema = z.object({
   players: z.array(rosteredPlayerSchema),
 });
 
+export const positionOverrideEntrySchema = z.object({
+  player_id: z.string().min(1),
+  positions: z.array(z.string()),
+});
+
+export const injuryOverrideEntrySchema = z.object({
+  player_id: z.string().min(1),
+  injury_severity: z.number().int().min(0).max(3),
+});
+
 const preDraftRostersFlexibleSchema = z.union([
   z.array(teamPlayersSectionSchema),
   z.record(z.string(), z.array(rosteredPlayerSchema)),
@@ -82,6 +92,8 @@ const leagueFixtureSchema = z.object({
   hitter_budget_pct: z.number().min(0).max(100).optional(),
   pos_eligibility_threshold: z.number().int().min(1).max(162).optional(),
   budget_by_team_id: z.record(z.string(), z.number().min(0)).optional(),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
 });
 
 /**
@@ -97,8 +109,12 @@ export const valuationRequestSchema = z.object({
   minors: z.array(teamPlayersSectionSchema).optional(),
   taxi: z.array(teamPlayersSectionSchema).optional(),
   player_ids: z.array(z.string().min(1)).optional(),
+  position_overrides: z.array(positionOverrideEntrySchema).optional(),
+  injury_overrides: z.array(injuryOverrideEntrySchema).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
 });
 
 export type ValuationRequestFixture = z.infer<typeof valuationRequestSchema>;
@@ -124,8 +140,12 @@ export const valuationFlatRequestSchema = z.object({
   taxi: z.array(teamPlayersSectionSchema).optional(),
   pre_draft_rosters: preDraftRostersFlexibleSchema.optional(),
   player_ids: z.array(z.string().min(1)).optional(),
+  position_overrides: z.array(positionOverrideEntrySchema).optional(),
+  injury_overrides: z.array(injuryOverrideEntrySchema).optional(),
   deterministic: z.boolean().optional(),
   seed: z.number().int().optional(),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
 });
 
 export type ValuationFlatRequest = z.infer<typeof valuationFlatRequestSchema>;

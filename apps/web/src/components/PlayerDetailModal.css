@@ -1,0 +1,1487 @@
+.pdm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(4, 2, 10, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+@media (min-width: 761px) {
+  .pdm-overlay {
+    padding: max(20px, env(safe-area-inset-top)) max(32px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+  }
+}
+
+/* Modal shell — Draftroom / Command Center “professional dark” surfaces */
+.pdm-modal.cc-modal-shell {
+  background: var(--pdm-canvas, #0c0a11);
+  background-image: none;
+  border: 1px solid var(--pdm-rule, #2a2438);
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.58);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
+}
+
+.pdm-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: calc(100vw - 40px);
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: pdm;
+  /* Legacy reference — desktop rail uses `.pdm-split` grid track (~19–21%). */
+  --pdm-rail-track-pct: 19%;
+  /* Draftroom reference (Command Center center) */
+  --pdm-canvas: #0c0a11;
+  --pdm-panel: #15121e;
+  --pdm-rule: #2a2438;
+  --pdm-label: #9d8cc4;
+  --pdm-accent: #a855f7;
+  /* Command Center spacing (same names as `01-layout.css` on `.cc-layout`) */
+  --cc-pad-x: 1.05rem;
+  --cc-heading-mb: 0.38rem;
+  --cc-gap-sm: 0.35rem;
+  --cc-gap-md: 0.55rem;
+  --cc-gap-lg: 0.85rem;
+  --pdm-workspace-radius: 10px;
+  --cc-heading-color: var(--pdm-label);
+  --cc-card-radius: 8px;
+  --cc-card-bg: rgba(255, 255, 255, 0.03);
+  --cc-card-border: 1px solid var(--pdm-rule);
+  --cc-card-pad: 0.55rem 0.5rem;
+  --cc-space-8: 8px;
+  --cc-space-12: 12px;
+  --cc-space-16: 16px;
+  --cc-space-20: 20px;
+  --pdm-stack-gap: var(--cc-gap-md);
+  --pdm-stack-gap-lg: var(--cc-gap-md);
+  /* ~9% tighter vertical rhythm between valuation / stats / disclosures (desktop `.pdm-main`) */
+  --pdm-workspace-section-gap: calc(var(--cc-gap-lg) * 0.91);
+}
+
+@media (min-width: 761px) {
+  .pdm-modal {
+    width: min(calc(1200px * 0.88), calc(100vw - 64px));
+    max-width: calc(100vw - 64px);
+    max-height: calc(100vh - 80px);
+    --cc-pad-x: 1.28rem;
+  }
+}
+
+.pdm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+  padding: var(--cc-gap-md) var(--cc-pad-x) var(--cc-gap-lg);
+}
+
+@media (min-width: 761px) {
+  .pdm-body {
+    padding: var(--cc-gap-lg) var(--cc-pad-x) var(--cc-gap-lg);
+  }
+}
+
+.pdm-identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Left rail: stacked player hero (image focal + text block) */
+.pdm-rail__identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .pdm-rail__identity {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .pdm-rail__group {
+    padding: 0.38rem 0 0.48rem;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--pdm-rule);
+    background: transparent;
+    box-sizing: border-box;
+  }
+}
+
+.pdm-headshot {
+  width: 85px;
+  height: 85px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid color-mix(in srgb, var(--app-accent-border) 78%, transparent);
+  background: color-mix(in srgb, var(--app-bg-soft) 88%, black 12%);
+}
+
+@media (min-width: 761px) {
+  .pdm-rail .pdm-headshot {
+    /* ~+18% vs prior 112×1.08 */
+    width: calc(112px * 1.08 * 1.18);
+    height: calc(112px * 1.08 * 1.18);
+  }
+}
+
+.pdm-title {
+  margin: 0;
+  color: color-mix(in srgb, var(--app-text) 94%, var(--app-text-muted) 6%);
+  font-size: 1.39rem;
+  line-height: 1.22;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Rail name: fixed two-line band (stable layout), larger type, max 2 lines */
+.pdm-rail .pdm-title--rail {
+  width: 100%;
+  text-align: left;
+  font-size: clamp(1.18rem, 2.6cqw, 1.42rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  min-height: calc(2 * 1.12em);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-wrap: balance;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 761px) {
+  .pdm-rail .pdm-title--rail {
+    font-size: clamp(1.22rem, 2.9cqw, 1.52rem);
+    line-height: 1.1;
+    min-height: calc(2 * 1.1em);
+  }
+}
+
+/* Rail top: team + position badges on one row */
+.pdm-meta-team-abbr {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: color-mix(in srgb, var(--app-text) 84%, var(--app-text-muted) 16%);
+  line-height: 1.15;
+  flex-shrink: 0;
+}
+
+.pdm-rail-team-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.pdm-header-positions {
+  margin-top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  align-items: center;
+}
+
+.pdm-header-positions--rail {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+@media (min-width: 761px) {
+  .pdm-rail .pdm-header-positions--rail {
+    justify-content: flex-start;
+  }
+}
+
+/* Compact position chips in rail (share row with team) */
+.pdm-rail .pos-badge {
+  width: 2rem;
+  font-size: 0.58rem;
+  padding: 0.06rem 0;
+  border-radius: 3px;
+}
+
+/* Ranks + profile stack (no card chrome) */
+.pdm-rail-kv-stack {
+  margin-top: 0.18rem;
+  min-width: 0;
+}
+
+.pdm-rail-kv-dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(2.25rem, auto);
+  gap: 0.22rem 0.55rem;
+  margin: 0;
+  align-items: baseline;
+}
+
+.pdm-rail-kv-dl dt {
+  margin: 0;
+  font-size: 0.69rem;
+  font-weight: 600;
+  color: var(--app-text-dim);
+  line-height: 1.38;
+}
+
+.pdm-rail-kv-dl dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.38;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--app-text) 90%, var(--app-text-muted) 10%);
+}
+
+@media (min-width: 761px) {
+  .pdm-rail .pdm-rail-kv-dl dt {
+    font-size: 0.71rem;
+  }
+
+  .pdm-rail .pdm-rail-kv-dl dd {
+    font-size: 0.8rem;
+  }
+}
+
+.pdm-rail-section-title {
+  margin: 0.38rem 0 0.22rem;
+  padding-top: 0.36rem;
+  border-top: 1px solid color-mix(in srgb, var(--pdm-rule) 85%, transparent);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--pdm-label);
+  line-height: 1.2;
+}
+
+.pdm-header-context {
+  margin-top: 0.06rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.252rem;
+  align-items: center;
+}
+
+.pdm-chip {
+  border: 1px solid var(--app-accent-border);
+  background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+  color: var(--app-text-muted);
+  border-radius: 999px;
+  padding: 0.08rem 0.42rem;
+  font-size: 0.7rem;
+}
+
+.pdm-chip--inj {
+  border-color: color-mix(in srgb, var(--app-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--app-danger) 14%, transparent);
+  color: var(--app-danger);
+}
+
+.pdm-chip--drafted {
+  border-color: color-mix(in srgb, var(--app-success) 45%, transparent);
+  background: color-mix(in srgb, var(--app-success) 12%, transparent);
+  color: var(--app-success);
+}
+
+/* ----- Split: rail + workspace (horizontal inset comes from `.pdm-body`) ----- */
+.pdm-split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-gap-lg);
+  padding: var(--cc-gap-sm) 0 var(--cc-gap-md);
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-split {
+    display: grid;
+    /* Narrower rail (~10% vs prior max track) → more width for workspace */
+    grid-template-columns: minmax(10.25rem, 19%) minmax(0, 1fr);
+    column-gap: var(--cc-gap-md);
+    align-items: start;
+    align-content: start;
+    position: relative;
+    padding: var(--cc-gap-sm) 0 var(--cc-gap-md);
+  }
+}
+
+.pdm-rail {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  order: 0;
+}
+
+.pdm-rail__head {
+  margin-bottom: 0.12rem;
+}
+
+.pdm-rail__group {
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-rail__group {
+    padding: 0.75rem 0.65rem 0.75rem;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    box-sizing: border-box;
+  }
+}
+
+@media (min-width: 761px) {
+  .pdm-rail {
+    width: 100%;
+    max-width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    align-self: start;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+  }
+
+  .pdm-rail__identity {
+    align-items: flex-start;
+  }
+
+  .pdm-rail__identity .pdm-identity-text {
+    align-items: flex-start;
+  }
+}
+
+.pdm-section-heading {
+  margin: 0.22rem 0 0.18rem;
+  padding-top: 0.14rem;
+  border-top: 1px solid var(--pdm-rule);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pdm-label);
+}
+
+.pdm-player-notes .pdm-section-heading {
+  margin-top: 0;
+  margin-bottom: 0.42rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.pdm-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pdm-stack-gap, 0.72rem);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  order: 1;
+  position: relative;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+@media (min-width: 761px) {
+  .pdm-main {
+    gap: 0;
+    padding: calc(var(--cc-space-16) + 2px) var(--cc-space-20) var(--cc-space-16);
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .pdm-main > .pdm-snapshot-section {
+    padding-top: var(--pdm-workspace-section-gap);
+    margin-top: var(--pdm-workspace-section-gap);
+    border-top: none;
+  }
+
+  .pdm-main > .pdm-lower-disclosures {
+    margin-top: var(--pdm-workspace-section-gap);
+  }
+}
+
+/* Workspace sections must consume the full column width (no skinny left band) */
+.pdm-main > .pdm-valuation-card,
+.pdm-main > .pdm-snapshot-section,
+.pdm-main > .pdm-lower-disclosures {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Valuation — sits inside unified main workspace on desktop */
+.pdm-valuation-card {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pdm-valuation-strip__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  font-variant-numeric: tabular-nums;
+  column-gap: 0.2rem;
+}
+
+@media (min-width: 761px) {
+  .pdm-valuation-strip__metrics {
+    column-gap: 0.56rem;
+  }
+}
+
+/* Metric tiles: equal footprint, vertically centered label + value */
+.pdm-valuation-metric-grid.pdm-valuation-strip__metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 0.5rem;
+  row-gap: 0.4rem;
+  align-items: stretch;
+}
+
+@container pdm (min-width: 520px) {
+  .pdm-valuation-metric-grid.pdm-valuation-strip__metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 0.38rem;
+    column-gap: 0.62rem;
+  }
+
+  .pdm-valuation-metric-grid .pdm-metric:first-child {
+    border-left: none;
+  }
+}
+
+.pdm-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.18rem;
+  padding: 0.22rem 0.12rem 0.28rem;
+  min-width: 0;
+  border-left: 1px solid color-mix(in srgb, var(--app-accent-hairline) 48%, transparent);
+}
+
+.pdm-valuation-metric-grid .pdm-metric {
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  border-left: 1px solid var(--pdm-rule);
+  background: transparent;
+  padding: 0.48rem 0.42rem 0.52rem;
+  gap: 0.24rem;
+  min-height: 4.1rem;
+}
+
+@container pdm (max-width: 519px) {
+  .pdm-valuation-metric-grid .pdm-metric:nth-child(2n + 1) {
+    border-left: none;
+  }
+}
+
+/* Legacy strip dividers only when not using card grid */
+.pdm-valuation-strip__metrics:not(.pdm-valuation-metric-grid) .pdm-metric:first-child {
+  border-left: none;
+}
+
+.pdm-metric-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pdm-label) 92%, white 8%);
+  line-height: 1.18;
+  max-width: 100%;
+  text-wrap: balance;
+}
+
+@media (min-width: 761px) {
+  .pdm-metric-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.085em;
+  }
+}
+
+.pdm-valuation-metric-grid .pdm-metric-label {
+  color: color-mix(in srgb, var(--pdm-label) 87%, white 13%);
+}
+
+/* Metric values — high-contrast primary (BDC-style) */
+.pdm-metric-value {
+  font-size: clamp(calc(1.32rem * 1.2 * 1.135 * 1.13), calc(1.65vw * 1.2 * 1.135 * 1.13), calc(1.48rem * 1.2 * 1.135 * 1.13));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.08;
+  color: color-mix(in srgb, white 96%, var(--pdm-label) 4%);
+}
+
+@media (min-width: 761px) {
+  .pdm-metric-value {
+    font-size: clamp(calc(1.42rem * 1.2 * 1.135 * 1.13), calc(1.9vw * 1.2 * 1.135 * 1.13), calc(1.62rem * 1.2 * 1.135 * 1.13));
+  }
+}
+
+.pdm-engine-note {
+  margin: 0.22rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.38;
+  color: color-mix(in srgb, var(--app-text-muted) 92%, #c4b5fd);
+}
+
+/* Performance snapshot — flat section; only the stat grid is bordered (no nested card) */
+.pdm-snapshot-section {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+/* Match Profile / Player notes caps (was 0.52rem — too small vs 0.62rem section labels) */
+.pdm-snapshot-section .pdm-stat-group h4 {
+  margin: 0 0 0.28rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pdm-label);
+}
+
+/* Player notes — full width of body; horizontal inset matches rail / main padding on desktop */
+.pdm-player-notes {
+  width: 100%;
+  max-width: 100%;
+  margin: calc(var(--cc-gap-md) * 0.92) 0 calc(var(--cc-gap-lg) * 0.91 + 0.38rem);
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.pdm-draft-notes-field {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.pdm-draft-notes__textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  min-height: 5.5rem;
+  max-height: min(28vh, 200px);
+  resize: vertical;
+  padding: 0.62rem var(--cc-space-16);
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--app-text) 90%, var(--app-text-muted) 10%);
+  background: color-mix(in srgb, var(--pdm-canvas) 88%, var(--pdm-panel) 12%);
+  border: 1px solid var(--pdm-rule);
+  border-radius: var(--cc-card-radius);
+}
+
+.pdm-draft-notes__textarea::placeholder {
+  color: color-mix(in srgb, var(--app-text-dim) 72%, var(--app-text-muted) 28%);
+}
+
+.pdm-draft-notes__textarea:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--pdm-accent) 35%, var(--pdm-rule) 65%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pdm-accent) 18%, transparent);
+}
+
+@media (min-width: 761px) {
+  .pdm-player-notes {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
+
+  .pdm-modal-footer {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
+
+  .pdm-draft-notes__textarea {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
+
+  /* Flat table: no nested “card” frame inside the workspace panel */
+  .pdm-modal .pdm-main .pdm-compare {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .pdm-modal .pdm-main .pdm-compare-head {
+    border-bottom: 1px solid var(--pdm-rule);
+  }
+}
+
+.pdm-snapshot-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.55rem 1.25rem;
+  align-items: start;
+  width: 100%;
+}
+
+@media (min-width: 761px) {
+  .pdm-snapshot-split {
+    column-gap: 1.65rem;
+    row-gap: 0.62rem;
+  }
+}
+
+.pdm-snapshot-section .pdm-stat-group {
+  width: 100%;
+  min-width: 0;
+}
+
+.pdm-snapshot-single {
+  display: block;
+  width: 100%;
+}
+
+.pdm-snapshot-section .pdm-snapshot-single .pdm-compare {
+  max-width: 100%;
+}
+
+/* Vertical gap only when stats stack in a single column */
+.pdm-snapshot-single .pdm-stat-group + .pdm-stat-group {
+  margin-top: 0.35rem;
+}
+
+.pdm-compare {
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.pdm-compare-corner {
+  font-size: 0.6rem;
+  color: color-mix(in srgb, var(--app-text-dim) 92%, var(--app-text-muted) 8%);
+}
+
+.pdm-compare-head,
+.pdm-compare-row {
+  display: grid;
+  grid-template-columns: minmax(2.4rem, 0.72fr) repeat(3, minmax(0, 1fr));
+  gap: 0.14rem 0.2rem;
+  padding: 0.18rem 0.32rem;
+}
+
+.pdm-compare-head {
+  background: transparent;
+  color: var(--pdm-label);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.pdm-compare-row {
+  border-top: 1px solid var(--pdm-rule, var(--app-accent-hairline));
+  color: color-mix(in srgb, white 94%, var(--pdm-label) 6%);
+  font-size: 0.8rem;
+}
+
+.pdm-compare-head + .pdm-compare-row {
+  border-top: none;
+}
+
+@media (min-width: 761px) {
+  .pdm-compare-head,
+  .pdm-compare-row {
+    padding: 0.3rem 0.48rem;
+    gap: 0.16rem 0.26rem;
+  }
+
+  .pdm-compare-head {
+    font-size: 0.62rem;
+  }
+
+  .pdm-compare-row {
+    font-size: 0.86rem;
+  }
+}
+
+.pdm-compare-row span:first-child {
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.pdm-empty {
+  margin: 0.1rem 0;
+  color: var(--app-text-dim);
+  font-size: 0.7rem;
+}
+
+/* ----- Lower disclosures — thin bordered row panels (Command Center) ----- */
+.pdm-lower-disclosures {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-top: var(--cc-gap-lg);
+  padding-top: calc(var(--cc-gap-md) * 0.92);
+  border-top: 1px solid var(--pdm-rule);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-gap-sm);
+}
+
+.pdm-lower-details {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--pdm-rule);
+  border-radius: var(--cc-card-radius);
+  background: transparent;
+  overflow: hidden;
+}
+
+.pdm-lower-summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pdm-label) 92%, white 8%);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem var(--cc-space-16);
+  border-radius: 0;
+  margin: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-lower-summary {
+    font-size: 0.625rem;
+    padding: 0.65rem var(--cc-space-20);
+  }
+}
+
+.pdm-lower-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pdm-lower-summary::before {
+  content: "";
+  width: 0.32rem;
+  height: 0.32rem;
+  border-right: 2px solid color-mix(in srgb, var(--pdm-label) 55%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--pdm-label) 55%, transparent);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.pdm-lower-details[open] > .pdm-lower-summary::before {
+  transform: rotate(45deg);
+}
+
+.pdm-lower-details:not([open]) > .pdm-lower-summary:hover {
+  color: color-mix(in srgb, var(--pdm-label) 70%, white 30%);
+  background: color-mix(in srgb, var(--pdm-accent) 6%, transparent);
+}
+
+.pdm-lower-details[open] > .pdm-lower-summary {
+  background: transparent;
+  border-bottom: 1px solid var(--pdm-rule);
+  margin-bottom: 0;
+}
+
+.pdm-lower-details[open] > .pdm-lower-summary:hover {
+  background: transparent;
+  color: color-mix(in srgb, var(--pdm-label) 92%, white 8%);
+}
+
+.pdm-lower-details .pdm-note-block {
+  margin-top: 0.28rem;
+}
+
+.pdm-lower-details.pdm-model-details[open] {
+  padding-bottom: 0;
+}
+
+.pdm-lower-details.pdm-model-details[open] > :not(summary) {
+  padding-left: var(--cc-space-16);
+  padding-right: var(--cc-space-16);
+  padding-bottom: var(--cc-space-16);
+}
+
+.pdm-lower-details.pdm-model-details[open] > :not(summary):first-of-type {
+  padding-top: var(--cc-gap-md);
+}
+
+.pdm-lower-details.pdm-model-details[open] .pdm-note-block:first-of-type {
+  margin-top: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-lower-details.pdm-model-details[open] > :not(summary) {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+    padding-bottom: var(--cc-space-20);
+  }
+
+  .pdm-lower-details.pdm-model-details[open] > :not(summary):first-of-type {
+    padding-top: var(--cc-gap-lg);
+  }
+}
+
+.pdm-model-details[open] .pdm-note-block,
+.pdm-model-details[open] .pdm-outlook {
+  max-width: 68ch;
+}
+
+/* Model read (explain_v2): dense engine copy — use rail width, not prose 68ch cap */
+.pdm-model-details[open] .pdm-note-block--explain-v2 {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pdm-lower-disclosures .pdm-valuation-explain,
+.pdm-lower-disclosures .pdm-valuation-context-dev {
+  font-size: 0.78rem;
+}
+
+/* ----- “Why this value?” structured explain ----- */
+.pdm-valuation-explain > .pdm-explain-layout {
+  padding: var(--cc-gap-md) var(--cc-space-16) var(--cc-gap-lg);
+  box-sizing: border-box;
+}
+
+/* Baseline row is outside .pdm-explain-layout — match horizontal inset so $ doesn’t hug the card edge */
+.pdm-valuation-explain > .pdm-baseline-strength-dl {
+  padding: var(--cc-gap-md) var(--cc-space-16) var(--cc-gap-md);
+  margin: 0;
+  border-bottom: 1px solid var(--pdm-rule);
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-valuation-explain > .pdm-baseline-strength-dl {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
+}
+
+.pdm-valuation-explain .pdm-explain-kv-dl dd {
+  padding-inline-end: 0.15rem;
+}
+
+.pdm-explain-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.pdm-explain-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.42rem;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .pdm-explain-columns--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+    column-gap: 0;
+  }
+
+  /* One vertical rule between columns — no boxed columns that clash with outer border */
+  .pdm-explain-columns--split .pdm-explain-col {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .pdm-explain-columns--split .pdm-explain-col:first-child {
+    padding-right: var(--cc-gap-lg);
+    border-right: 1px solid var(--pdm-rule);
+  }
+
+  .pdm-explain-columns--split .pdm-explain-col:last-child:not(:only-child) {
+    padding-left: var(--cc-gap-lg);
+  }
+}
+
+.pdm-explain-col {
+  min-width: 0;
+  padding: 0.38rem 0 0.42rem;
+  border: none;
+  border-bottom: 1px solid var(--pdm-rule);
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.pdm-explain-columns .pdm-explain-col:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.pdm-explain-col--full {
+  width: 100%;
+  margin-top: var(--cc-gap-sm);
+  padding-top: var(--cc-gap-md);
+  border-top: 1px solid var(--pdm-rule);
+  border-bottom: none;
+}
+
+.pdm-explain-block-title {
+  margin: 0 0 0.32rem;
+  padding-bottom: 0.22rem;
+  border-bottom: 1px solid var(--pdm-rule);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pdm-label);
+  line-height: 1.2;
+}
+
+.pdm-explain-kv-dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(4.25rem, max-content);
+  gap: 0.26rem 0.62rem;
+  align-items: baseline;
+  margin: 0;
+}
+
+.pdm-explain-kv-dl dt {
+  margin: 0;
+  padding-right: 0.15rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--app-text-dim);
+  line-height: 1.35;
+}
+
+.pdm-explain-kv-dl dd {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--app-text-muted) 86%, var(--app-text) 14%);
+  word-break: break-word;
+}
+
+.pdm-explain-kv-dl--warnings {
+  grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr);
+}
+
+.pdm-explain-kv-dl--warnings dd {
+  text-align: left;
+  font-variant-numeric: none;
+}
+
+.pdm-explain-warnings {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.pdm-explain-warnings--compact {
+  padding-left: 0.85rem;
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.pdm-explain-warnings--compact li + li {
+  margin-top: 0.1rem;
+}
+
+.pdm-valuation-context-pre {
+  margin: var(--cc-gap-sm) 0 0;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  padding: var(--cc-card-pad);
+  border-radius: var(--cc-card-radius);
+  background: transparent;
+  border: 1px solid var(--pdm-rule);
+}
+
+.pdm-note-block + .pdm-note-block {
+  margin-top: 0.5rem;
+}
+
+.pdm-note-block p {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.pdm-note-block ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--app-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.pdm-note-block li + li {
+  margin-top: 0.28rem;
+}
+
+.pdm-why-lines {
+  margin: 0;
+  padding-left: 1.05rem;
+  color: color-mix(in srgb, var(--app-text) 82%, var(--app-text-muted) 18%);
+  font-size: 0.78rem;
+  line-height: 1.42;
+}
+
+.pdm-why-lines li + li {
+  margin-top: 0.28rem;
+}
+
+.pdm-note-block--explain-v2 {
+  margin-top: 0.2rem;
+}
+
+.pdm-explain-v2-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.42rem;
+  padding-bottom: 0.28rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-accent-hairline) 55%, transparent);
+}
+
+.pdm-explain-v2-title {
+  margin: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--app-text-dim) 88%, var(--app-text-muted) 12%);
+}
+
+.pdm-explain-v2-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem 0.5rem;
+  align-items: center;
+}
+
+.pdm-explain-v2-indicator {
+  display: inline-block;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--app-text) 88%, var(--app-text-muted) 12%);
+  background: color-mix(in srgb, var(--app-accent-hairline) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-accent-border) 45%, transparent);
+}
+
+.pdm-explain-v2-confidence {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+
+.pdm-explain-v2-adjustments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem 0.75rem;
+  margin-bottom: 0.5rem;
+  padding: 0.32rem 0.42rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-bg-soft) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 45%, transparent);
+}
+
+.pdm-explain-v2-adj {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  font-size: 0.66rem;
+}
+
+.pdm-explain-v2-adj__k {
+  color: var(--app-text-dim);
+  font-weight: 600;
+}
+
+.pdm-explain-v2-adj__v {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--app-text) 85%, var(--app-text-muted) 15%);
+}
+
+.pdm-explain-v2-drivers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.pdm-explain-v2-driver {
+  padding: 0.4rem 0.48rem 0.42rem 0.52rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 50%, transparent);
+  border-left-width: 3px;
+  background: color-mix(in srgb, var(--app-bg-soft) 20%, transparent);
+}
+
+.pdm-explain-v2-driver--pos {
+  border-left-color: color-mix(in srgb, #22c55e 55%, var(--app-accent-hairline) 45%);
+}
+
+.pdm-explain-v2-driver--neg {
+  border-left-color: color-mix(in srgb, #f87171 55%, var(--app-accent-hairline) 45%);
+}
+
+.pdm-explain-v2-driver--neutral {
+  border-left-color: color-mix(in srgb, var(--app-text-dim) 50%, var(--app-accent-hairline) 50%);
+}
+
+.pdm-explain-v2-driver__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.pdm-explain-v2-driver-name {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--app-text) 90%, var(--app-text-muted) 10%);
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.pdm-explain-v2-impact {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.1rem 0.36rem;
+  border-radius: 999px;
+}
+
+.pdm-explain-v2-impact--pos {
+  color: #86efac;
+  background: color-mix(in srgb, #22c55e 14%, transparent);
+}
+
+.pdm-explain-v2-impact--neg {
+  color: #fca5a5;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+}
+
+.pdm-explain-v2-impact--neutral {
+  color: var(--app-text-muted);
+  background: color-mix(in srgb, var(--app-accent-hairline) 40%, transparent);
+}
+
+.pdm-explain-v2-preview {
+  margin: 0.32rem 0 0;
+  max-width: 100%;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--app-text) 78%, var(--app-text-muted) 22%);
+}
+
+.pdm-explain-v2-expand {
+  margin-top: 0.32rem;
+  max-width: 100%;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--app-bg-soft) 40%, transparent);
+}
+
+.pdm-explain-v2-expand__summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-dim);
+  padding: 0.22rem 0.35rem;
+  user-select: none;
+}
+
+.pdm-explain-v2-expand__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pdm-explain-v2-full {
+  margin: 0;
+  padding: 0 0.35rem 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--app-text-muted);
+}
+
+.pdm-stat-group p {
+  margin: 0.1rem 0;
+  color: var(--app-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.pdm-outlook {
+  margin: 0.4rem 0 0;
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.pdm-outlook--expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
+.pdm-modal-footer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cc-gap-sm) var(--cc-gap-md);
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: var(--cc-gap-md) 0 var(--cc-space-16);
+  border-top: 1px solid var(--pdm-rule);
+  box-sizing: border-box;
+}
+
+.pdm-actions {
+  padding: 0;
+  border-top: none;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--cc-gap-md);
+  box-sizing: border-box;
+}
+
+.pdm-modal-footer .pdm-actions {
+  flex: 0 0 auto;
+}
+
+.pdm-basis-foot {
+  margin: 0;
+  padding: 0;
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: 0.58rem;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--app-text-dim) 78%, transparent);
+  box-sizing: border-box;
+  text-align: left;
+}
+
+@media (min-width: 761px) {
+  .pdm-basis-foot {
+    font-size: 0.56rem;
+  }
+}
+
+.pdm-btn {
+  border-radius: 8px;
+  padding: 0.3rem 0.58rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pdm-btn--secondary {
+  border: 1px solid var(--app-accent-border);
+  background: color-mix(in srgb, var(--app-accent) 6%, transparent);
+  color: var(--app-text-muted);
+}
+
+.pdm-btn--primary {
+  border: 1px solid var(--app-accent-border-strong);
+  background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  color: var(--app-text);
+}
+
+.pdm-inline-warnings {
+  margin: 0 0 var(--cc-gap-md);
+  padding: var(--cc-space-12) var(--cc-space-16);
+  border-radius: var(--cc-card-radius);
+  border: 1px solid color-mix(in srgb, #fbbf24 40%, transparent);
+  background: color-mix(in srgb, #fbbf24 10%, var(--app-bg-soft));
+  color: #fde68a;
+  font-size: 0.78rem;
+}
+
+@media (min-width: 761px) {
+  .pdm-inline-warnings {
+    margin-bottom: var(--cc-gap-md);
+  }
+}
+
+.pdm-inline-warnings ul {
+  margin: 0.32rem 0 0;
+  padding-left: 1.05rem;
+}
+
+@media (max-width: 760px) {
+  .pdm-modal {
+    --cc-pad-x: 0.88rem;
+    width: calc(100vw - 40px);
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 40px);
+    overflow-x: hidden;
+  }
+
+  .pdm-split {
+    padding: var(--cc-gap-sm) 0 var(--cc-gap-md);
+    gap: var(--cc-gap-lg);
+  }
+
+  .pdm-rail {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--pdm-rule);
+  }
+
+  .pdm-headshot {
+    width: 85px;
+    height: 85px;
+  }
+
+  .pdm-title {
+    font-size: 1.32rem;
+    line-height: 1.2;
+  }
+
+  .pdm-rail .pdm-title--rail {
+    font-size: clamp(1.14rem, 4vw, 1.32rem);
+    line-height: 1.12;
+    min-height: calc(2 * 1.12em);
+  }
+
+  .pdm-rail__identity {
+    min-width: 0;
+  }
+
+  .pdm-valuation-strip__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem 0.45rem;
+  }
+
+  .pdm-valuation-metric-grid.pdm-valuation-strip__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.45rem;
+    row-gap: 0.35rem;
+  }
+
+  .pdm-valuation-metric-grid .pdm-metric {
+    min-height: 3.85rem;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--pdm-rule);
+    padding: 0.4rem 0.28rem;
+  }
+
+  .pdm-valuation-metric-grid .pdm-metric:nth-child(2n + 1) {
+    border-left: none;
+  }
+
+  .pdm-metric-value {
+    font-size: clamp(calc(1.2rem * 1.135 * 1.08), calc(4.2vw * 1.135 * 1.08), calc(1.38rem * 1.135 * 1.08));
+  }
+
+  .pdm-snapshot-split {
+    grid-template-columns: 1fr;
+  }
+
+  .pdm-snapshot-split .pdm-stat-group + .pdm-stat-group {
+    margin-top: 0.42rem;
+  }
+
+  .pdm-draft-notes__textarea {
+    max-height: min(32vh, 220px);
+  }
+
+  .pdm-compare-head,
+  .pdm-compare-row {
+    grid-template-columns: minmax(0, 0.9fr) repeat(3, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .pdm-compare-head span,
+  .pdm-compare-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

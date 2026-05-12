@@ -1,5 +1,11 @@
 import { AL_TEAMS, NL_TEAMS } from "./mlbTeams";
 
+/** Shared with Engine catalog universe rules. */
+export type CatalogKind =
+  | "valuation_eligible"
+  | "market_only"
+  | "roster_context";
+
 export interface PlayerData {
   id: string;
   mlbId: number;
@@ -8,9 +14,15 @@ export interface PlayerData {
   position: string;
   positions: string[];
   age: number;
-  adp: number;
+  catalog_rank: number;
   value: number;
-  tier: number;
+  catalog_tier: number;
+  /** Present when a real external ADP source exists (optional on catalog build). */
+  market_adp?: number;
+  /** Catalog row classification (Engine-aligned). */
+  catalog_kind: CatalogKind;
+  /** When false, row is excluded from Engine valuation math and must not use catalog `value` as auction dollars. */
+  valuation_eligible: boolean;
   headshot: string;
   stats: {
     batting?: {
@@ -52,8 +64,38 @@ export interface PlayerData {
       innings: number;
     };
   };
+  /**
+   * Equal-weight (1:1:1) blend of the last three completed MLB seasons.
+   * Same sample gates as projection (AB/IP per year); distinct from 5/3/2 `projection`.
+   */
+  stats3yr?: {
+    batting?: {
+      avg: string;
+      hr: number;
+      rbi: number;
+      runs: number;
+      sb: number;
+      obp: string;
+      slg: string;
+    };
+    pitching?: {
+      era: string;
+      whip: string;
+      wins: number;
+      saves: number;
+      holds: number;
+      strikeouts: number;
+      completeGames: number;
+      innings: number;
+    };
+  };
   outlook: string;
   injuryStatus?: string;
+  /**
+   * Draftroom canonical severity for Engine (`injury_overrides`); 0 = healthy.
+   * Populated from MLB 40-man roster code + description in catalog fetch.
+   */
+  injurySeverity?: number;
   springStats?: {
     batting?: {
       avg: string;
@@ -87,13 +129,30 @@ export function mergeTwoWayPlayers(players: PlayerData[]): PlayerData[] {
     ];
     const pitchingPos = mergedPositions.find((pos) => ["SP", "RP", "P"].includes(pos));
     const winnerByValue = p.value > existing.value ? p : existing;
+    const es = existing.injurySeverity ?? 0;
+    const ps = p.injurySeverity ?? 0;
+    const mergedSev = Math.max(es, ps);
+    const mergedStatus =
+      ps > es
+        ? p.injuryStatus
+        : es > ps
+          ? existing.injuryStatus
+          : (existing.injuryStatus ?? p.injuryStatus);
     allMap.set(p.id, {
       ...winnerByValue,
       position: pitchingPos ?? winnerByValue.position,
       positions: mergedPositions,
+      catalog_kind: winnerByValue.catalog_kind,
+      valuation_eligible: winnerByValue.valuation_eligible,
+      injurySeverity: mergedSev,
+      injuryStatus: mergedStatus,
       stats: {
         ...existing.stats,
         ...p.stats,
+      },
+      stats3yr: {
+        ...existing.stats3yr,
+        ...p.stats3yr,
       },
     });
   }
@@ -109,19 +168,36 @@ export function filterByPlayerPool(
   return players;
 }
 
-export function applyAdpByValue(players: PlayerData[]): PlayerData[] {
+export function applyCatalogRankByValue(players: PlayerData[]): PlayerData[] {
   return [...players]
     .sort((a, b) => b.value - a.value)
-    .map((p, i) => ({ ...p, adp: i + 1 }));
+    .map((p, i) => ({ ...p, catalog_rank: i + 1 }));
 }
+
+/** @deprecated Use {@link applyCatalogRankByValue}. */
+export const applyAdpByValue = applyCatalogRankByValue;
 
 export function sortPlayers(
   players: PlayerData[],
-  sortBy: "value" | "adp" | "name",
+  sortBy: "value" | "catalog_rank" | "name" | "market_adp" | "adp",
 ): PlayerData[] {
+  const mode =
+    sortBy === "adp" ? "catalog_rank" : sortBy;
   const result = [...players];
-  if (sortBy === "name") result.sort((a, b) => a.name.localeCompare(b.name));
-  else if (sortBy === "adp") result.sort((a, b) => a.adp - b.adp);
-  else result.sort((a, b) => b.value - a.value);
+  if (mode === "name") result.sort((a, b) => a.name.localeCompare(b.name));
+  else if (mode === "catalog_rank")
+    result.sort((a, b) => a.catalog_rank - b.catalog_rank);
+  else if (mode === "market_adp") {
+    result.sort((a, b) => {
+      const ma = a.market_adp;
+      const mb = b.market_adp;
+      const fa = typeof ma === "number" && Number.isFinite(ma);
+      const fb = typeof mb === "number" && Number.isFinite(mb);
+      if (!fa && !fb) return 0;
+      if (!fa) return 1;
+      if (!fb) return -1;
+      return ma - mb;
+    });
+  } else result.sort((a, b) => b.value - a.value);
   return result;
 }

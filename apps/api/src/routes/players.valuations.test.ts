@@ -104,12 +104,16 @@ describe("POST /valuations (fixture valuations)", () => {
       schemaVersion: string;
       drafted_players: unknown[];
       pre_draft_rosters?: unknown;
+      user_team_id?: string;
+      inflation_model?: string;
     };
     expect(engineBody.checkpoint).toBe("pre_draft");
     expect(engineBody.schema_version).toBe("1.0.0");
     expect(engineBody.schemaVersion).toBe("1.0.0");
     expect(Array.isArray(engineBody.drafted_players)).toBe(true);
     expect(engineBody.pre_draft_rosters).toBeDefined();
+    expect(engineBody.user_team_id).toBe("team_1");
+    expect(engineBody.inflation_model).toBe("replacement_slots_v2");
   });
 
   it("accepts flat valuation body (no nested league)", async () => {
@@ -120,6 +124,7 @@ describe("POST /valuations (fixture valuations)", () => {
       league_scope: "Mixed",
       drafted_players: [],
       schemaVersion: "1.0.0",
+      user_team_id: "team_2",
     };
     const res = await request(app)
       .post("/valuations")
@@ -129,6 +134,10 @@ describe("POST /valuations (fixture valuations)", () => {
     expect(postMock).toHaveBeenCalled();
     const [, bodyArg] = postMock.mock.calls[0] ?? [];
     expect((bodyArg as { drafted_players: unknown[] }).drafted_players).toEqual([]);
+    expect((bodyArg as { user_team_id?: string }).user_team_id).toBe("team_2");
+    expect(
+      (bodyArg as { inflation_model?: string }).inflation_model,
+    ).toBe("replacement_slots_v2");
   });
 
   it("forwards Engine 400 Zod errors body (no AppError wrapper)", async () => {

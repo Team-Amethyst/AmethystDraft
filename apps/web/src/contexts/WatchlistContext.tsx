@@ -56,9 +56,13 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
         team: player.team,
         position: player.position,
         positions: player.positions,
-        adp: player.adp,
+        catalog_rank: player.catalog_rank,
         value: player.value,
-        tier: player.tier,
+        catalog_tier: player.catalog_tier,
+        baseline_value: player.baseline_value,
+        adjusted_value: player.adjusted_value,
+        recommended_bid: player.recommended_bid,
+        team_adjusted_value: player.team_adjusted_value,
       };
       setWatchlist((prev) => {
         if (prev.find((p) => p.id === player.id)) return prev;

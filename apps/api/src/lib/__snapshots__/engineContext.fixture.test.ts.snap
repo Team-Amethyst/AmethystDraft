@@ -161,6 +161,7 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
     },
   ],
   "hitter_budget_pct": 70,
+  "inflation_model": "replacement_slots_v2",
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
@@ -198,11 +199,19 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -213,7 +222,7 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -222,10 +231,6 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -275,6 +280,7 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
   "scoring_format": "5x5",
   "seed": 42,
   "total_budget": 260,
+  "user_team_id": "team_1",
 }
 `;
 
@@ -999,6 +1005,7 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
     },
   ],
   "hitter_budget_pct": 70,
+  "inflation_model": "replacement_slots_v2",
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
@@ -1036,11 +1043,19 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -1051,7 +1066,7 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -1060,10 +1075,6 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -1113,6 +1124,7 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
   "scoring_format": "5x5",
   "seed": 42,
   "total_budget": 260,
+  "user_team_id": "team_1",
 }
 `;
 
@@ -2537,6 +2549,7 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
     },
   ],
   "hitter_budget_pct": 70,
+  "inflation_model": "replacement_slots_v2",
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
@@ -2574,11 +2587,19 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -2589,7 +2610,7 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -2598,10 +2619,6 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -2651,6 +2668,7 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
   "scoring_format": "5x5",
   "seed": 42,
   "total_budget": 260,
+  "user_team_id": "team_1",
 }
 `;
 
@@ -4495,6 +4513,7 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
     },
   ],
   "hitter_budget_pct": 70,
+  "inflation_model": "replacement_slots_v2",
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
@@ -4532,11 +4551,19 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -4547,7 +4574,7 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -4556,10 +4583,6 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -4609,6 +4632,7 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
   "scoring_format": "5x5",
   "seed": 42,
   "total_budget": 260,
+  "user_team_id": "team_1",
 }
 `;
 
@@ -4632,6 +4656,7 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
   "deterministic": true,
   "drafted_players": [],
   "hitter_budget_pct": 70,
+  "inflation_model": "replacement_slots_v2",
   "league_scope": "Mixed",
   "num_teams": 12,
   "pos_eligibility_threshold": 20,
@@ -4669,11 +4694,19 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
     },
     {
       "count": 1,
+      "position": "SS",
+    },
+    {
+      "count": 1,
       "position": "3B",
     },
     {
       "count": 1,
-      "position": "SS",
+      "position": "MI",
+    },
+    {
+      "count": 1,
+      "position": "CI",
     },
     {
       "count": 3,
@@ -4684,7 +4717,7 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
       "position": "UTIL",
     },
     {
-      "count": 2,
+      "count": 5,
       "position": "SP",
     },
     {
@@ -4693,10 +4726,6 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
     },
     {
       "count": 3,
-      "position": "P",
-    },
-    {
-      "count": 5,
       "position": "BN",
     },
   ],
@@ -4746,5 +4775,6 @@ exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable 
   "scoring_format": "5x5",
   "seed": 42,
   "total_budget": 260,
+  "user_team_id": "team_1",
 }
 `;

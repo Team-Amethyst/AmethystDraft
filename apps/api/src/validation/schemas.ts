@@ -82,6 +82,7 @@ export const addRosterEntrySchema = z.object({
   price: z.number().int().min(1, "Price must be at least $1"),
   rosterSlot: z.string().min(1, "Roster slot is required"),
   isKeeper: z.boolean().optional(),
+  keeperContract: z.string().trim().max(40).optional(),
   userId: z.string().optional(),
   teamId: z.string().optional(),
 });
@@ -98,9 +99,21 @@ export const newsSignalsQuerySchema = z.object({
   signal_type: z.string().min(1).optional(),
 });
 
+/** Body for POST …/leagues/:leagueId/valuation — forwarded fields merged into Engine payload. */
+export const valuationBoardBodySchema = z.object({
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  explain_valuation_rows: z.boolean().optional(),
+  recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
+});
+
 /** Body for POST …/valuation/player — merged with league valuation context for Engine. */
 export const valuationPlayerBodySchema = z.object({
   player_id: z.string().min(1, "player_id is required"),
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  explain_valuation_rows: z.boolean().optional(),
+  recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
 });
 
 /** Body for POST …/catalog/batch-values — forwarded to Engine catalog route. */
@@ -111,7 +124,9 @@ export const catalogBatchValuesBodySchema = z.object({
 });
 
 export const playersQuerySchema = z.object({
-  sortBy: z.enum(["adp", "value", "name"]).optional(),
+  sortBy: z
+    .enum(["adp", "catalog_rank", "value", "name", "market_adp"])
+    .optional(),
   playerPool: playerPoolQuerySchema,
   posEligibilityThreshold: z.coerce.number().int().min(0).max(162).optional(),
 });

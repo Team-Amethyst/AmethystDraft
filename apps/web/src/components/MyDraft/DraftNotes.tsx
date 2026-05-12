@@ -10,6 +10,7 @@
  */
 
 import { useRef, useState } from "react";
+import "./DraftNotes.css";
 
 interface DraftNotesProps {
   value: string;

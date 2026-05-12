@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -20,6 +20,11 @@ export default defineConfig([
         'warn',
         { allowConstantExport: true, checkJS: false },
       ],
+      // React Compiler–style rules flag many valid patterns (controlled resets, derived keys).
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/use-memo': 'warn',
     },
     languageOptions: {
       ecmaVersion: 2020,
