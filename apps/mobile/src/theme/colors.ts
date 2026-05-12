@@ -1,0 +1,16 @@
+export const colors = {
+  bg: "#090712",
+  surface: "#141120",
+  surface2: "#1e1930",
+  border: "#35294d",
+  text: "#f8fafc",
+  muted: "#a1a1aa",
+  purple: "#8b5cf6",
+  purple2: "#a78bfa",
+  gold: "#facc15",
+  green: "#22c55e",
+  red: "#ef4444",
+  blue: "#38bdf8",
+  white: "#ffffff",
+  black: "#111827",
+};

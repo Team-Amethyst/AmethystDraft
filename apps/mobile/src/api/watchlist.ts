@@ -7,9 +7,18 @@ export interface WatchlistPlayer {
   team: string;
   position: string;
   positions?: string[];
+
   adp: number;
   value: number;
   tier: number;
+
+  catalog_rank?: number;
+  catalog_tier?: number;
+  baseline_value?: number;
+  auction_value?: number;
+  adjusted_value?: number;
+  recommended_bid?: number;
+  team_adjusted_value?: number;
 }
 
 export function playerToWatchlistEntry(player: Player): WatchlistPlayer {
@@ -19,9 +28,13 @@ export function playerToWatchlistEntry(player: Player): WatchlistPlayer {
     team: player.team,
     position: player.position,
     positions: player.positions,
+
     adp: player.adp,
     value: player.value,
     tier: player.tier,
+
+    catalog_rank: player.adp,
+    catalog_tier: player.tier,
   };
 }
 
@@ -42,13 +55,30 @@ export async function addWatchlistEntry(
   leagueId: string,
   entry: WatchlistPlayer,
   token: string,
-): Promise<WatchlistPlayer> {
-  return requestJson<WatchlistPlayer>(
-    `/api/leagues/${leagueId}/watchlist`,
+): Promise<void> {
+  return requestVoid(
+    `/api/leagues/${leagueId}/watchlist/${encodeURIComponent(entry.id)}`,
     {
-      method: "POST",
+      method: "PUT",
       headers: authHeaders(token),
-      body: JSON.stringify(entry),
+      body: JSON.stringify({
+        name: entry.name,
+        team: entry.team,
+        position: entry.position,
+        positions: entry.positions,
+
+        adp: entry.adp,
+        value: entry.value,
+        tier: entry.tier,
+
+        catalog_rank: entry.catalog_rank ?? entry.adp,
+        catalog_tier: entry.catalog_tier ?? entry.tier,
+        baseline_value: entry.baseline_value,
+        auction_value: entry.auction_value,
+        adjusted_value: entry.adjusted_value,
+        recommended_bid: entry.recommended_bid,
+        team_adjusted_value: entry.team_adjusted_value,
+      }),
     },
     "Failed to add watchlist entry",
   );
@@ -60,7 +90,7 @@ export async function deleteWatchlistEntry(
   token: string,
 ): Promise<void> {
   return requestVoid(
-    `/api/leagues/${leagueId}/watchlist/${playerId}`,
+    `/api/leagues/${leagueId}/watchlist/${encodeURIComponent(playerId)}`,
     {
       method: "DELETE",
       headers: authHeaders(token),

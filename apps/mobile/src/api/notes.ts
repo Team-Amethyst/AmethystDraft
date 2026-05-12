@@ -16,15 +16,15 @@ export async function getNotes(
 export async function saveNote(
   leagueId: string,
   playerId: string,
-  note: string,
+  content: string,
   token: string,
 ): Promise<void> {
   return requestVoid(
-    `/api/leagues/${leagueId}/notes/${playerId}`,
+    `/api/leagues/${leagueId}/notes/${encodeURIComponent(playerId)}`,
     {
       method: "PUT",
       headers: authHeaders(token),
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({ content }),
     },
     "Failed to save note",
   );

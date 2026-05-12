@@ -1,4 +1,14 @@
-const API_BASE = "http://192.168.1.9:3001";
+declare const process: {
+  env: {
+    EXPO_PUBLIC_API_URL?: string;
+  };
+};
+
+const DEFAULT_API_BASE = "http://localhost:3001";
+
+const API_BASE = (
+  process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE
+).replace(/\/$/, "");
 
 type ValidationErr = { field?: string; message?: string };
 
@@ -26,7 +36,9 @@ export function buildApiUrl(path: string): string {
 }
 
 export function authHeaders(token?: string): Record<string, string> {
-  if (!token) {
+  const trimmed = token?.trim();
+
+  if (!trimmed) {
     return {
       "Content-Type": "application/json",
     };
@@ -34,7 +46,7 @@ export function authHeaders(token?: string): Record<string, string> {
 
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${trimmed}`,
   };
 }
 
@@ -47,7 +59,12 @@ async function parseApiError(
   try {
     const data = (await res.json()) as ErrorShape;
 
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
+    if (res.status === 429) {
+      message =
+        data.error?.message ??
+        data.message ??
+        "Too many requests. Please wait a moment and try again.";
+    } else if (Array.isArray(data.errors) && data.errors.length > 0) {
       message = messageFromEngineValidation(data.errors);
     } else {
       message = data.error?.message ?? data.message ?? fallbackMessage;
@@ -95,7 +112,9 @@ export async function requestJson<T>(
     res = await fetchWithTimeout(url, init);
   } catch (err) {
     console.log("API request failed:", err);
-    throw new Error("Could not reach the API. Check that the backend is running and reachable.");
+    throw new Error(
+      "Could not reach the API. Check that the backend is running and reachable.",
+    );
   }
 
   console.log("API response:", res.status, url);
@@ -122,7 +141,9 @@ export async function requestVoid(
     res = await fetchWithTimeout(url, init);
   } catch (err) {
     console.log("API request failed:", err);
-    throw new Error("Could not reach the API. Check that the backend is running and reachable.");
+    throw new Error(
+      "Could not reach the API. Check that the backend is running and reachable.",
+    );
   }
 
   console.log("API response:", res.status, url);
