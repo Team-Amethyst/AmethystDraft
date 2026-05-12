@@ -5,6 +5,7 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -13,6 +14,13 @@ import { useLeague } from "../contexts/LeagueContext";
 import type { RootStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Leagues">;
+
+function statusLabel(status: string): string {
+  if (status === "pre-draft") return "Pre-Draft";
+  if (status === "in-progress") return "In Progress";
+  if (status === "completed") return "Completed";
+  return status;
+}
 
 export default function LeaguesScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
@@ -30,13 +38,16 @@ export default function LeaguesScreen({ navigation }: Props) {
 
       <Text style={{ marginBottom: 16 }}>Welcome, {user?.displayName}</Text>
 
-      <Button title="Create League" onPress={() => navigation.navigate("CreateLeague")} />
+      <Button
+        title="Create League"
+        onPress={() => navigation.navigate("CreateLeague")}
+      />
 
-      <SafeAreaView style={{ height: 12 }} />
+      <View style={{ height: 12 }} />
 
       <Button title="Logout" onPress={() => void logout()} />
 
-      <SafeAreaView style={{ height: 20 }} />
+      <View style={{ height: 20 }} />
 
       {loading ? (
         <ActivityIndicator />
@@ -45,29 +56,72 @@ export default function LeaguesScreen({ navigation }: Props) {
           data={allLeagues}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("LeagueTabs", {
-                  leagueId: item.id,
-                  leagueName: item.name,
-                  screen: "Research",
-                  params: { leagueId: item.id },
-                })
-              }
+            <View
               style={{
                 padding: 16,
                 borderWidth: 1,
                 borderColor: "#ddd",
                 borderRadius: 10,
                 marginBottom: 12,
+                backgroundColor: "white",
               }}
             >
-              <Text style={{ fontSize: 18, fontWeight: "600" }}>
-                {item.name}
-              </Text>
-              <Text>{item.teams} teams</Text>
-              <Text>${item.budget} budget</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("LeagueTabs", {
+                    leagueId: item.id,
+                    leagueName: item.name,
+                    screen: "Research",
+                    params: { leagueId: item.id },
+                  })
+                }
+              >
+                <Text style={{ fontSize: 18, fontWeight: "700" }}>
+                  {item.name}
+                </Text>
+
+                <Text style={{ color: "#4b5563", marginTop: 4 }}>
+                  {item.teams} teams • ${item.budget} budget
+                </Text>
+
+                <Text style={{ color: "#4b5563", marginTop: 2 }}>
+                  {statusLabel(item.draftStatus)}
+                  {item.draftDate
+                    ? ` • ${new Date(item.draftDate).toLocaleDateString()}`
+                    : ""}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 12 }} />
+
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title="Open"
+                    onPress={() =>
+                      navigation.navigate("LeagueTabs", {
+                        leagueId: item.id,
+                        leagueName: item.name,
+                        screen: "Research",
+                        params: { leagueId: item.id },
+                      })
+                    }
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title="Settings"
+                    onPress={() =>
+                      navigation.navigate("LeagueSettings", {
+                        leagueId: item.id,
+                        leagueName: item.name,
+                      })
+                    }
+                  />
+                </View>
+              </View>
+            </View>
           )}
           ListEmptyComponent={<Text>No leagues found.</Text>}
         />

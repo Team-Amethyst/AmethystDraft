@@ -12,6 +12,7 @@ export interface RosterEntry {
   price: number;
   rosterSlot: string;
   isKeeper: boolean;
+  keeperContract?: string;
   acquiredAt: string;
   createdAt: string;
 }
@@ -24,6 +25,7 @@ export interface RosterEntryPayload {
   price: number;
   rosterSlot: string;
   isKeeper?: boolean;
+  keeperContract?: string;
   userId?: string;
   teamId?: string;
 }
@@ -60,7 +62,12 @@ export async function addRosterEntry(
 export async function updateRosterEntry(
   leagueId: string,
   entryId: string,
-  data: { price?: number; rosterSlot?: string; teamId?: string },
+  data: {
+    price?: number;
+    rosterSlot?: string;
+    teamId?: string;
+    keeperContract?: string;
+  },
   token: string,
 ): Promise<RosterEntry> {
   return requestJson<RosterEntry>(

@@ -1,5 +1,6 @@
 import type { StyleProp, ViewStyle } from "react-native";
 import { Text, TouchableOpacity } from "react-native";
+import { colors } from "../../theme/colors";
 
 type Tone = "default" | "primary" | "danger" | "info";
 
@@ -16,47 +17,47 @@ function getColors(selected: boolean, tone: Tone) {
   if (!selected) {
     if (tone === "danger") {
       return {
-        borderColor: "#fecaca",
-        backgroundColor: "#fff1f2",
-        textColor: "#991b1b",
+        borderColor: "#7f1d1d",
+        backgroundColor: "#2a1218",
+        textColor: "#fecaca",
       };
     }
 
     if (tone === "info") {
       return {
-        borderColor: "#bfdbfe",
-        backgroundColor: "#eff6ff",
-        textColor: "#1d4ed8",
+        borderColor: "#4338ca",
+        backgroundColor: "#15162b",
+        textColor: "#c7d2fe",
       };
     }
 
     return {
-      borderColor: "#d1d5db",
-      backgroundColor: "white",
-      textColor: "#111827",
+      borderColor: colors.border,
+      backgroundColor: colors.surface2,
+      textColor: colors.text,
     };
   }
 
   if (tone === "danger") {
     return {
-      borderColor: "#991b1b",
-      backgroundColor: "#991b1b",
-      textColor: "white",
+      borderColor: colors.red,
+      backgroundColor: colors.red,
+      textColor: colors.white,
     };
   }
 
   if (tone === "info") {
     return {
-      borderColor: "#1d4ed8",
-      backgroundColor: "#1d4ed8",
-      textColor: "white",
+      borderColor: colors.purple,
+      backgroundColor: colors.purple,
+      textColor: colors.white,
     };
   }
 
   return {
-    borderColor: "#111827",
-    backgroundColor: "#111827",
-    textColor: "white",
+    borderColor: colors.purple2,
+    backgroundColor: colors.purple,
+    textColor: colors.white,
   };
 }
 
@@ -68,7 +69,7 @@ export default function AppChip({
   onPress,
   style,
 }: Props) {
-  const colors = getColors(selected, tone);
+  const chipColors = getColors(selected, tone);
 
   return (
     <TouchableOpacity
@@ -79,15 +80,17 @@ export default function AppChip({
           paddingVertical: 8,
           borderRadius: 999,
           borderWidth: 1,
-          borderColor: colors.borderColor,
-          backgroundColor: colors.backgroundColor,
+          borderColor: chipColors.borderColor,
+          backgroundColor: chipColors.backgroundColor,
           alignItems: "center",
         },
         fullWidth ? { width: "100%" } : null,
         style,
       ]}
     >
-      <Text style={{ color: colors.textColor, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color: chipColors.textColor, fontWeight: "700" }}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }

@@ -39,3 +39,19 @@ export async function getMyLeagues(token: string): Promise<League[]> {
     "Failed to fetch leagues",
   );
 }
+
+export async function updateLeague(
+  id: string,
+  data: Partial<CreateLeaguePayload>,
+  token: string,
+): Promise<League> {
+  return requestJson<League>(
+    `/api/leagues/${id}`,
+    {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    },
+    "Failed to update league",
+  );
+}
