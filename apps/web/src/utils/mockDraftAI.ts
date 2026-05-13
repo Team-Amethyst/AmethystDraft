@@ -8,6 +8,27 @@
 
 import type { Player } from "../types/player";
 
+// ─── Valuation helper ─────────────────────────────────────────────────────────
+
+/**
+ * Returns the Amethyst Engine auction value for a player.
+ * Priority: auction_value → adjusted_value → value (legacy fallback).
+ * Mirrors leagueWideAuctionDollars from valuation.ts — use this everywhere
+ * in the mock draft so AI decisions use your real valuations, not the
+ * legacy catalog `value` field which may differ significantly.
+ */
+function playerAuctionValue(player: Player): number {
+  if (typeof player.auction_value === "number" && Number.isFinite(player.auction_value)) {
+    return player.auction_value;
+  }
+  if (typeof player.adjusted_value === "number" && Number.isFinite(player.adjusted_value)) {
+    return player.adjusted_value;
+  }
+  return typeof player.value === "number" && Number.isFinite(player.value)
+    ? player.value
+    : 0;
+}
+
 export interface AIRoster {
   teamName: string;
   budget: number;
@@ -93,13 +114,13 @@ export function aiMaxBid(
   if (need === 0 && !hasUtilRoom && !hasBnRoom) return 0;
 
   // Base value from player projection
-  const baseValue = player.value ?? 0;
+  const baseValue = playerAuctionValue(player);
   if (baseValue <= 0) return 0;
 
   // Scarcity multiplier — how many comparable players are left?
   const comparable = undraftedPlayers.filter((p) => {
     const ppos = getPositionFromPlayer(p);
-    return ppos === pos && (p.value ?? 0) >= baseValue * 0.7;
+    return ppos === pos && playerAuctionValue(p) >= baseValue * 0.7;
   });
   const scarcityMultiplier = comparable.length <= 2 ? 1.25
     : comparable.length <= 5 ? 1.1
@@ -154,9 +175,8 @@ export function aiNominate(
   roster: AIRoster,
   undraftedPlayers: Player[],
   rosterSlots: Record<string, number>,
-  allRosters: AIRoster[],
+  _allRosters: AIRoster[],
 ): Player | null {
-  void allRosters;
   if (undraftedPlayers.length === 0) return null;
 
   // Find positions with greatest need
@@ -169,7 +189,7 @@ export function aiNominate(
   for (const { pos } of posNeeds) {
     const candidates = undraftedPlayers
       .filter((p) => getPositionFromPlayer(p) === pos)
-      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+      .sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a));
 
     if (candidates.length > 0) {
       // Occasionally nominate the 2nd or 3rd best to be unpredictable
@@ -179,7 +199,7 @@ export function aiNominate(
   }
 
   // Fallback: nominate best available overall
-  return undraftedPlayers.sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0] ?? null;
+  return undraftedPlayers.sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a))[0] ?? null;
 }
 
 // ─── Suggestion engine ────────────────────────────────────────────────────────
@@ -193,22 +213,21 @@ export function suggestNomination(
   watchlist: Player[],
   undraftedPlayers: Player[],
   rosterSlots: Record<string, number>,
-  allRosters: AIRoster[],
+  _allRosters: AIRoster[],
 ): { player: Player; reason: string } | null {
-  void allRosters;
   const undraftedIds = new Set(undraftedPlayers.map((p) => p.id));
 
   // First: check watchlist for available players
   const availableWatchlist = watchlist
     .filter((p) => undraftedIds.has(p.id))
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    .sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a));
 
   if (availableWatchlist.length > 0) {
     const top = availableWatchlist[0];
     const pos = getPositionFromPlayer(top);
     const need = positionNeed(userRoster, pos, rosterSlots);
     const remaining = undraftedPlayers.filter(
-      (p) => getPositionFromPlayer(p) === pos && (p.value ?? 0) >= (top.value ?? 0) * 0.8,
+      (p) => getPositionFromPlayer(p) === pos && playerAuctionValue(p) >= playerAuctionValue(top) * 0.8,
     ).length;
 
     const reason = need > 0
@@ -229,7 +248,7 @@ export function suggestNomination(
   for (const { pos } of posNeeds) {
     const best = undraftedPlayers
       .filter((p) => getPositionFromPlayer(p) === pos)
-      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
+      .sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a))[0];
 
     if (best) {
       const remaining = undraftedPlayers.filter(
@@ -245,7 +264,7 @@ export function suggestNomination(
   }
 
   // Fallback: best available overall
-  const best = undraftedPlayers.sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
+  const best = undraftedPlayers.sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a))[0];
   return best ? { player: best, reason: "Best available player overall" } : null;
 }
 

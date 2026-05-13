@@ -184,7 +184,11 @@ export default function MockDraftPage() {
                   </div>
                   <h2 className="md-auction-name">{state.nominatedPlayer.name}</h2>
                   <div className="md-auction-value">
-                    Proj Value <strong className="green">${state.nominatedPlayer.value}</strong>
+                    Auction Value <strong className="green">
+                      ${state.nominatedPlayer.auction_value
+                        ?? state.nominatedPlayer.adjusted_value
+                        ?? state.nominatedPlayer.value}
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -279,7 +283,9 @@ export default function MockDraftPage() {
                             <PosBadge pos={p.position} />
                             <span className="md-sr-name">{p.name}</span>
                             <span className="md-sr-team">{p.team}</span>
-                            <span className="md-sr-val">${p.value}</span>
+                            <span className="md-sr-val">
+                              ${p.auction_value ?? p.adjusted_value ?? p.value}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -311,7 +317,11 @@ export default function MockDraftPage() {
             <div className="md-suggestion-player">
               <PosBadge pos={state.suggestion.player.position} />
               <span className="md-sug-name">{state.suggestion.player.name}</span>
-              <span className="md-sug-val">${state.suggestion.player.value}</span>
+              <span className="md-sug-val">
+                ${state.suggestion.player.auction_value
+                  ?? state.suggestion.player.adjusted_value
+                  ?? state.suggestion.player.value}
+              </span>
             </div>
             <button
               className="md-btn-suggestion"
@@ -349,7 +359,9 @@ export default function MockDraftPage() {
                 >
                   <PosBadge pos={p.position} />
                   <span className="md-wl-name">{p.name}</span>
-                  <span className="md-wl-val">${p.value}</span>
+                  <span className="md-wl-val">
+                    ${p.auction_value ?? p.adjusted_value ?? p.value}
+                  </span>
                   {isDrafted && <span className="md-wl-drafted">DRAFTED</span>}
                   {!isDrafted && isUserTurn && state.phase === "nomination" && (
                     <button
