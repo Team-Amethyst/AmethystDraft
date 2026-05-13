@@ -450,7 +450,7 @@
 
 .pt-table.pt-table--research .th-player,
 .pt-table.pt-table--research .td-player {
-  width: 23%;
+  width: 16%;
   max-width: none;
   min-width: 0;
   box-sizing: border-box;
@@ -458,7 +458,7 @@
 
 .pt-table.pt-table--research .th-pos,
 .pt-table.pt-table--research .td-pos {
-  width: 8.5rem;
+  width: 7rem;
   min-width: 4.5rem;
   max-width: none;
 }
@@ -473,15 +473,46 @@
   width: 6.5rem;
 }
 
-/* Rank / ADP / auction metric columns — min width so nowrap headers are not over-clipped. */
+/* Rank / ADP / auction metrics — tight but full labels; avoid soaking free table width. */
 .pt-table.pt-table--research .th-rank-metric,
 .pt-table.pt-table--research .td-rank-metric {
-  min-width: 5.85rem;
+  width: 7.35rem;
+  min-width: 7.35rem;
+  max-width: 7.75rem;
+  box-sizing: border-box;
 }
 
 .pt-table.pt-table--research .th-value,
 .pt-table.pt-table--research .td-value {
-  min-width: 6.75rem;
+  /* Fixed width so the column does not leave a wide empty band before stat columns. */
+  width: 9.75rem;
+  min-width: 9.75rem;
+  max-width: 9.75rem;
+  box-sizing: border-box;
+}
+
+/* Stat combo headers (R/W, SB/WHIP, …) need more width than numeric cells; allow wrap vs ellipsis. */
+.pt-table.pt-table--research .th-stat,
+.pt-table.pt-table--research .td-stat,
+.pt-table.pt-table--research .th-avg {
+  width: 5rem;
+  min-width: 5rem;
+  max-width: 5.5rem;
+  padding-left: 0.32rem;
+  padding-right: 0.32rem;
+  box-sizing: border-box;
+}
+
+.pt-table.pt-table--research thead .th-stat,
+.pt-table.pt-table--research thead .th-avg {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.18;
+  hyphens: none;
+  word-break: break-word;
+  font-size: 0.61rem;
+  letter-spacing: 0.035em;
 }
 
 .pt-table thead {
@@ -622,6 +653,7 @@
 .pt-research-player-top .player-name {
   flex: 0 1 auto;
   min-width: 0;
+  max-width: min(9rem, 42vw);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -666,7 +698,8 @@
   overflow: hidden;
 }
 
-@container playerbadges (max-width: 9.5rem) {
+/* Prefer 2 visible meta chips + "+N" when the strip is modestly wide — pure CSS, no resize listeners. */
+@container playerbadges (max-width: 17.5rem) {
   .pt-research-meta-badges--collapsible .pt-research-meta-badges__full {
     display: none;
   }
