@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { io as ioClient, type Socket as IoSocket } from "socket.io-client";
 
 import internalRouter from "../routes/internal";
+import { __resetNewsSignalsWebhookIngressForTests } from "../lib/newsSignalsWebhookIngress";
 import { amethyst } from "../lib/amethyst";
 import { attachSocketServer } from "./socketServer";
 import { NEWS_SIGNALS_UPDATED_EVENT } from "./newsSignalsPoller";
@@ -38,6 +39,7 @@ describe("news signals socket + webhook (integration)", () => {
   let clientSocket: IoSocket | undefined;
 
   beforeEach(() => {
+    __resetNewsSignalsWebhookIngressForTests();
     process.env.JWT_SECRET = JWT_SECRET;
     process.env.AMETHYST_API_KEY = API_KEY;
     delete process.env.INTERNAL_WEBHOOK_SECRET;

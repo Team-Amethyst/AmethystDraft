@@ -1,5 +1,7 @@
 # 1. Use Node 20 as the base
 FROM node:20-slim AS base
+ARG DRAFTROOM_GIT_SHA=unknown
+ENV DRAFTROOM_GIT_SHA=$DRAFTROOM_GIT_SHA
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable

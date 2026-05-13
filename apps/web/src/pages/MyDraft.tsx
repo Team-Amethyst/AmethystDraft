@@ -243,7 +243,11 @@ export default function MyDraft() {
     );
   }, [leagueId, valuationSortField]);
   useEffect(() => {
-    const canFetch = Boolean(token && leagueId && watchlist.length > 0);
+    // Wait for league from layout context: `leagueValuationConfigKey(null)` is "" and
+    // `resolveUserTeamId` falls back to `team_1`, then a duplicate POST fires when league loads.
+    const canFetch = Boolean(
+      token && leagueId && watchlist.length > 0 && leagueValuationKey,
+    );
     if (!canFetch) {
       const t = window.setTimeout(() => {
         setValuationsByPlayerId(new Map());
