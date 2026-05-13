@@ -468,14 +468,20 @@
   width: 4rem;
 }
 
-.pt-table.pt-table--research .th-value,
-.pt-table.pt-table--research .td-value {
-  width: 6.25rem;
-}
-
 .pt-table.pt-table--research .th-notes,
 .pt-table.pt-table--research .td-notes {
   width: 6.5rem;
+}
+
+/* Rank / ADP / auction metric columns — min width so nowrap headers are not over-clipped. */
+.pt-table.pt-table--research .th-rank-metric,
+.pt-table.pt-table--research .td-rank-metric {
+  min-width: 5.85rem;
+}
+
+.pt-table.pt-table--research .th-value,
+.pt-table.pt-table--research .td-value {
+  min-width: 6.75rem;
 }
 
 .pt-table thead {
@@ -608,12 +614,13 @@
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
-  flex: 1 1 0;
+  /* Content-sized so injury sits right after the name; do not grow and steal width from badges. */
+  flex: 0 1 auto;
   overflow: hidden;
 }
 
 .pt-research-player-top .player-name {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -625,10 +632,10 @@
   flex-shrink: 0;
 }
 
+/* Uses remaining width in the player cell so category/draft chips stay visible (+N via CQ when tight). */
 .pt-research-meta-badges {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-width: 0;
-  max-width: 100%;
   overflow: hidden;
 }
 
