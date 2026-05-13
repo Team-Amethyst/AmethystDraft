@@ -15,7 +15,7 @@
  *   management and cross-component coordination; all rendering is delegated.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
@@ -24,6 +24,14 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { getValuation, type ValuationResponse } from "../api/engine";
+import {
+  buildValuationBoardCacheKey,
+  peekBoardValuationCache,
+} from "../api/valuationCache";
+import {
+  classifyBoardValuationFetchPhase,
+  type BoardValuationUiPhase,
+} from "../domain/boardValuationFetchPhase";
 import {
   filterValuationAlertsForSurface,
   normalizeValuationAlerts,
@@ -156,6 +164,17 @@ export default function MyDraft() {
   >(() => new Map());
   const [lastMyDraftBoardValuation, setLastMyDraftBoardValuation] =
     useState<ValuationResponse | null>(null);
+  const [myDraftBoardPhase, setMyDraftBoardPhase] =
+    useState<BoardValuationUiPhase>("idle");
+  const [myDraftBoardError, setMyDraftBoardError] = useState<string | null>(
+    null,
+  );
+  const myDraftBoardSuccessKeyRef = useRef<string | null>(null);
+  const lastMyDraftBoardRef = useRef<ValuationResponse | null>(null);
+
+  useEffect(() => {
+    lastMyDraftBoardRef.current = lastMyDraftBoardValuation;
+  }, [lastMyDraftBoardValuation]);
 
   const myDraftValuationAlerts = useMemo(
     () =>
@@ -216,31 +235,68 @@ export default function MyDraft() {
     );
   }, [leagueId, valuationSortField]);
   useEffect(() => {
-    if (!token || !leagueId || watchlist.length === 0) {
-      const clear = window.setTimeout(() => {
+    const canFetch = Boolean(token && leagueId && watchlist.length > 0);
+    if (!canFetch) {
+      const t = window.setTimeout(() => {
         setValuationsByPlayerId(new Map());
         setLastMyDraftBoardValuation(null);
+        setMyDraftBoardPhase("idle");
+        setMyDraftBoardError(null);
+        myDraftBoardSuccessKeyRef.current = null;
       }, 0);
-      return () => window.clearTimeout(clear);
+      return () => window.clearTimeout(t);
     }
+
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    const cacheCtx = {
+      leagueConfigKey: leagueValuationKey,
+      rosterFingerprint: rosterValuationKey,
+    };
+    const activeCacheKey = buildValuationBoardCacheKey(
+      leagueId!,
+      userTeamId,
+      cacheCtx,
+    );
+    const peek = peekBoardValuationCache(leagueId!, userTeamId, cacheCtx);
+    const pre = classifyBoardValuationFetchPhase({
+      canStartFetch: true,
+      peekHit: peek !== undefined,
+      activeCacheKey,
+      lastSuccessCacheKey: myDraftBoardSuccessKeyRef.current,
+      displayedBoardPresent: lastMyDraftBoardRef.current !== null,
+    });
+
+    if (pre === "ready_sync") {
+      setMyDraftBoardPhase("ready");
+      setMyDraftBoardError(null);
+    } else if (pre === "refreshing") {
+      setMyDraftBoardPhase("refreshing");
+      setMyDraftBoardError(null);
+    } else {
+      setMyDraftBoardPhase("loading");
+      setMyDraftBoardError(null);
+    }
+
     let cancelled = false;
     void (async () => {
       try {
-        const userTeamId = resolveUserTeamId(league, user?.id);
-        const res = await getValuation(leagueId, token, userTeamId, null, {
+        const res = await getValuation(leagueId!, token!, userTeamId, null, {
           leagueConfigKey: leagueValuationKey,
           rosterFingerprint: rosterValuationKey,
         });
         const merged = new Map<string, ValuationShape>();
         for (const row of res.valuations) merged.set(row.player_id, row);
         if (!cancelled) {
+          myDraftBoardSuccessKeyRef.current = activeCacheKey;
           setValuationsByPlayerId(merged);
           setLastMyDraftBoardValuation(res);
+          setMyDraftBoardPhase("ready");
+          setMyDraftBoardError(null);
         }
       } catch {
         if (!cancelled) {
-          setValuationsByPlayerId(new Map());
-          setLastMyDraftBoardValuation(null);
+          setMyDraftBoardPhase("error");
+          setMyDraftBoardError("Unable to load watchlist valuations.");
         }
       }
     })();
@@ -443,6 +499,8 @@ export default function MyDraft() {
             onNoteChange={setNote}
             onRemove={removeFromWatchlist}
             onRowClick={handleWatchlistRowClick}
+            valuationBoardPhase={myDraftBoardPhase}
+            valuationBoardError={myDraftBoardError}
           />
         </section>
 

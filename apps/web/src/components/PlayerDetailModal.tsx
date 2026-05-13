@@ -61,6 +61,8 @@ interface PlayerDetailModalProps {
   onMoveToCommandCenter: (player: Player) => void;
   /** Latest board valuation response warnings (same payload as Command Center). */
   valuationContextWarnings?: readonly string[];
+  /** True while focused `/valuation/player` explain payload is loading (Why this value). */
+  valuationExplainLoading?: boolean;
   /**
    * Opaque `valuation_context` JSON when present.
    * Shown only when `import.meta.env.DEV` and `localStorage.getItem("showValuationDebug") === "1"`.
@@ -306,6 +308,7 @@ export default function PlayerDetailModal({
   onMoveToCommandCenter,
   valuationContextWarnings,
   valuationContextDev,
+  valuationExplainLoading = false,
 }: PlayerDetailModalProps) {
   useEffect(() => {
     if (!isOpen || !player) return;
@@ -355,11 +358,13 @@ export default function PlayerDetailModal({
     Boolean(player.market_notes?.length) ||
     Boolean(player.explain_v2);
 
-  const showWhyThisValue = whyThisValueHasExpandableContent(
-    player.valuation_explain ?? null,
-    valuationContextWarnings,
-    player.baseline_value,
-  );
+  const showWhyThisValue =
+    valuationExplainLoading ||
+    whyThisValueHasExpandableContent(
+      player.valuation_explain ?? null,
+      valuationContextWarnings,
+      player.baseline_value,
+    );
 
   return (
     <div className="pdm-overlay" onClick={onClose}>
@@ -569,6 +574,11 @@ export default function PlayerDetailModal({
               {showWhyThisValue ? (
                 <details className="pdm-lower-details pdm-valuation-explain">
                   <summary className="pdm-lower-summary">Why this value?</summary>
+                  {valuationExplainLoading ? (
+                    <p className="pdm-explain-loading" role="status">
+                      Loading explanation…
+                    </p>
+                  ) : null}
                   {typeof player.baseline_value === "number" &&
                   Number.isFinite(player.baseline_value) ? (
                     <dl className="pdm-explain-kv-dl pdm-baseline-strength-dl">

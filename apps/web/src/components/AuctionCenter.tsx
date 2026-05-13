@@ -47,6 +47,7 @@ import {
   valuationResultNumbersEqual,
   valuationResultStableKey,
 } from "../utils/valuationDeps";
+import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import {
   auctionValueForCommandCenterPrefill,
   cleanedYourValueAndRecommendedBid,
@@ -79,6 +80,9 @@ interface AuctionCenterProps {
   onAddMissingPlayer?: () => void;
   /** Parent-fetched valuation board (same as Command Center engine snapshot; avoids duplicate getValuation). */
   engineMarket?: ValuationResponse | null;
+  /** Engine board snapshot load / refresh / error (Command Center wiring). */
+  engineBoardPhase?: BoardValuationUiPhase;
+  engineBoardError?: string | null;
 }
 
 export function AuctionCenter({
@@ -92,6 +96,8 @@ export function AuctionCenter({
   showToast,
   onAddMissingPlayer,
   engineMarket = null,
+  engineBoardPhase = "ready",
+  engineBoardError = null,
 }: AuctionCenterProps) {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league } = useLeague();
@@ -695,6 +701,25 @@ export function AuctionCenter({
             </div>
           ) : (
             <>
+            {(engineBoardPhase === "loading" ||
+              engineBoardPhase === "refreshing" ||
+              engineBoardPhase === "error") && (
+              <div
+                className={
+                  "pac-engine-board-hint" +
+                  (engineBoardPhase === "error"
+                    ? " pac-engine-board-hint--error"
+                    : "")
+                }
+              >
+                {engineBoardPhase === "loading" && "Loading league valuation…"}
+                {engineBoardPhase === "refreshing" &&
+                  "Refreshing valuation…"}
+                {engineBoardPhase === "error" &&
+                  (engineBoardError ??
+                    "Valuation request failed; bid controls still available.")}
+              </div>
+            )}
             <div className="pac-cards-stack">
               <AuctionCenterPlayerStack
                 selectedPlayer={selectedPlayer}

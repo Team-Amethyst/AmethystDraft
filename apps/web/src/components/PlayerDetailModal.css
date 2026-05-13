@@ -896,6 +896,12 @@
   font-size: 0.78rem;
 }
 
+.pdm-explain-loading {
+  margin: 0.35rem var(--cc-space-16) 0.5rem;
+  font-size: 0.82rem;
+  color: var(--app-text-muted, rgba(200, 190, 220, 0.75));
+}
+
 /* ----- “Why this value?” structured explain ----- */
 .pdm-valuation-explain > .pdm-explain-layout {
   padding: var(--cc-gap-md) var(--cc-space-16) var(--cc-gap-lg);

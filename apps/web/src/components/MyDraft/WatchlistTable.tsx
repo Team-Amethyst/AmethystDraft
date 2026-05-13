@@ -18,6 +18,7 @@ import {
   valuationTooltip,
   type ValuationSortField,
 } from "../../utils/valuation";
+import type { BoardValuationUiPhase } from "../../domain/boardValuationFetchPhase";
 import { WatchlistTableRow } from "./WatchlistTableRow";
 import "./WatchlistTable.css";
 
@@ -42,6 +43,9 @@ interface WatchlistTableProps {
   onNoteChange: (playerId: string, note: string) => void;
   onRemove: (playerId: string) => void;
   onRowClick: (playerId: string) => void;
+  /** Engine board valuation status for watchlist dollar columns. */
+  valuationBoardPhase?: BoardValuationUiPhase;
+  valuationBoardError?: string | null;
 }
 
 export default function WatchlistTable({
@@ -62,6 +66,8 @@ export default function WatchlistTable({
   onNoteChange,
   onRemove,
   onRowClick,
+  valuationBoardPhase = "ready",
+  valuationBoardError = null,
 }: WatchlistTableProps) {
   return (
     <section className="mydraft-right panel-card">
@@ -71,6 +77,17 @@ export default function WatchlistTable({
           <div className="watchlist-sub">
             {watchlist.length} player{watchlist.length !== 1 ? "s" : ""}
           </div>
+          {valuationBoardPhase === "loading" ? (
+            <div className="watchlist-engine-hint">Loading Engine valuations…</div>
+          ) : null}
+          {valuationBoardPhase === "refreshing" ? (
+            <div className="watchlist-engine-hint">Updating values…</div>
+          ) : null}
+          {valuationBoardPhase === "error" ? (
+            <div className="watchlist-engine-hint watchlist-engine-hint--error">
+              {valuationBoardError ?? "Valuation request failed."}
+            </div>
+          ) : null}
         </div>
 
         <div className="watchlist-controls">

@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getPlayers } from "../api/players";
 import { getRoster, removeRosterEntry, updateRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import type { League } from "../contexts/LeagueContext";
 import type { Player } from "../types/player";
 import { getValuation, type ValuationResponse } from "../api/engine";
+import {
+  buildValuationBoardCacheKey,
+  peekBoardValuationCache,
+} from "../api/valuationCache";
+import { classifyBoardValuationFetchPhase } from "../domain/boardValuationFetchPhase";
+import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { leagueValuationConfigKey, rosterValuationFingerprint } from "../utils/valuationDeps";
 
 export function useCommandCenterData({
@@ -23,6 +29,10 @@ export function useCommandCenterData({
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [mlbPlayers, setMlbPlayers] = useState<Player[]>([]);
   const [engineMarket, setEngineMarket] = useState<ValuationResponse | null>(null);
+  const [engineBoardPhase, setEngineBoardPhase] = useState<BoardValuationUiPhase>("idle");
+  const [engineBoardError, setEngineBoardError] = useState<string | null>(null);
+  const boardSuccessKeyRef = useRef<string | null>(null);
+  const engineMarketRef = useRef<ValuationResponse | null>(null);
   /**
    * Tracks whether the initial roster fetch has resolved for the current league/token. Used to
    * defer the board valuation fetch until the real roster fingerprint is known — otherwise we'd
@@ -34,6 +44,13 @@ export function useCommandCenterData({
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries).catch(console.error);
   };
+
+  useEffect(() => {
+    boardSuccessKeyRef.current = null;
+    setEngineMarket(null);
+    setEngineBoardPhase("idle");
+    setEngineBoardError(null);
+  }, [leagueId]);
 
   useEffect(() => {
     if (!leagueId || !token) return;
@@ -51,6 +68,10 @@ export function useCommandCenterData({
     [rosterEntries],
   );
 
+  useEffect(() => {
+    engineMarketRef.current = engineMarket;
+  }, [engineMarket]);
+
   const leagueValuationKey = useMemo(
     () => leagueValuationConfigKey(league ?? null),
     [
@@ -67,23 +88,62 @@ export function useCommandCenterData({
   );
 
   useEffect(() => {
-    if (!leagueId || !token || !rosterLoaded) return;
+    if (!leagueId || !token || !rosterLoaded) {
+      setEngineBoardPhase("idle");
+      setEngineBoardError(null);
+      return;
+    }
+
+    const cacheCtx = {
+      leagueConfigKey: leagueValuationKey,
+      rosterFingerprint: rosterValuationKey,
+    };
+    const activeCacheKey = buildValuationBoardCacheKey(
+      leagueId,
+      userTeamIdForValuation,
+      cacheCtx,
+    );
+    const peek = peekBoardValuationCache(leagueId, userTeamIdForValuation, cacheCtx);
+    const pre = classifyBoardValuationFetchPhase({
+      canStartFetch: true,
+      peekHit: peek !== undefined,
+      activeCacheKey,
+      lastSuccessCacheKey: boardSuccessKeyRef.current,
+      displayedBoardPresent: engineMarketRef.current !== null,
+    });
+
+    if (pre === "ready_sync") {
+      setEngineBoardPhase("ready");
+      setEngineBoardError(null);
+    } else if (pre === "refreshing") {
+      setEngineBoardPhase("refreshing");
+      setEngineBoardError(null);
+    } else {
+      setEngineBoardPhase("loading");
+      setEngineBoardError(null);
+    }
+
     let cancelled = false;
     void getValuation(
       leagueId,
       token,
       userTeamIdForValuation,
       valuationBoardLogPlayerId ?? null,
-      {
-        leagueConfigKey: leagueValuationKey,
-        rosterFingerprint: rosterValuationKey,
-      },
+      cacheCtx,
     )
       .then((res) => {
-        if (!cancelled) setEngineMarket(res);
+        if (!cancelled) {
+          boardSuccessKeyRef.current = activeCacheKey;
+          setEngineMarket(res);
+          setEngineBoardPhase("ready");
+          setEngineBoardError(null);
+        }
       })
       .catch(() => {
-        if (!cancelled) setEngineMarket(null);
+        if (!cancelled) {
+          setEngineBoardPhase("error");
+          setEngineBoardError("Unable to refresh league valuation.");
+        }
       });
     return () => {
       cancelled = true;
@@ -148,6 +208,8 @@ export function useCommandCenterData({
     rosterEntries,
     mlbPlayers,
     engineMarket,
+    engineBoardPhase,
+    engineBoardError,
     setRosterEntries,
     refreshRoster,
     removePick,

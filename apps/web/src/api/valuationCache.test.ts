@@ -6,6 +6,7 @@ import {
   fetchBoardValuationWithCache,
   fetchPlayerValuationWithCache,
   invalidateValuationCachesForLeague,
+  peekBoardValuationCache,
   type ValuationBoardCacheContext,
 } from "./valuationCache";
 import { __setValuationExecutorsForTests } from "./engineValuationInternal";
@@ -210,5 +211,26 @@ describe("valuationCache", () => {
     });
     expect(k.startsWith(`L1\u001fteam_1\u001freplacement_slots_v2\u001f`)).toBe(true);
     expect(k.endsWith("\u001fcustom:a")).toBe(true);
+  });
+
+  it("peekBoardValuationCache returns stored board for active key", async () => {
+    __setValuationExecutorsForTests({
+      board: vi.fn(async () => ({
+        ...minimalBoardResponse(),
+        valuations: [{ player_id: "1" } as never],
+      })),
+    });
+    const ctx: ValuationBoardCacheContext = {
+      leagueConfigKey: "cfg",
+      rosterFingerprint: "rost",
+    };
+    await fetchBoardValuationWithCache({
+      leagueId: "L",
+      token: "tok",
+      userTeamId: "team_1",
+      cacheContext: ctx,
+    });
+    const peek = peekBoardValuationCache("L", "team_1", ctx);
+    expect(peek?.valuations?.[0]?.player_id).toBe("1");
   });
 });

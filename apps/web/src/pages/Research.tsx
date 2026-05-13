@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { Database, BarChart3, Layers, UserPlus, Star } from "lucide-react";
@@ -13,6 +13,14 @@ import {
   type DepthChartResponse,
 } from "../api/players";
 import { getValuation, getValuationPlayer, type ValuationResponse } from "../api/engine";
+import {
+  buildValuationBoardCacheKey,
+  peekBoardValuationCache,
+} from "../api/valuationCache";
+import {
+  classifyBoardValuationFetchPhase,
+  type BoardValuationUiPhase,
+} from "../domain/boardValuationFetchPhase";
 import {
   filterValuationAlertsForSurface,
   normalizeValuationAlerts,
@@ -164,6 +172,17 @@ export default function Research() {
   >(() => new Map());
   const [lastResearchBoardValuation, setLastResearchBoardValuation] =
     useState<ValuationResponse | null>(null);
+  const [researchBoardPhase, setResearchBoardPhase] =
+    useState<BoardValuationUiPhase>("idle");
+  const [researchBoardError, setResearchBoardError] = useState<string | null>(
+    null,
+  );
+  const researchBoardSuccessKeyRef = useRef<string | null>(null);
+  const lastResearchBoardRef = useRef<ValuationResponse | null>(null);
+
+  useEffect(() => {
+    lastResearchBoardRef.current = lastResearchBoardValuation;
+  }, [lastResearchBoardValuation]);
 
   const valuationBoardMeta = useMemo(() => {
     if (!lastResearchBoardValuation) return null;
@@ -228,6 +247,7 @@ export default function Research() {
   const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
     null,
   );
+  const [modalExplainLoading, setModalExplainLoading] = useState(false);
 
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
     () => getRosterCached(leagueId ?? "") ?? [],
@@ -355,12 +375,45 @@ export default function Research() {
     if (!token || !leagueId || players.length === 0) {
       setValuationsByPlayerId(new Map());
       setLastResearchBoardValuation(null);
+      setResearchBoardPhase("idle");
+      setResearchBoardError(null);
+      researchBoardSuccessKeyRef.current = null;
       return;
     }
+    const userTeamId = resolveUserTeamId(league, user?.id);
+    const cacheCtx = {
+      leagueConfigKey: leagueValuationKey,
+      rosterFingerprint: rosterValuationKey,
+      extras: researchBoardCacheExtras || undefined,
+    };
+    const activeCacheKey = buildValuationBoardCacheKey(
+      leagueId,
+      userTeamId,
+      cacheCtx,
+    );
+    const peek = peekBoardValuationCache(leagueId, userTeamId, cacheCtx);
+    const pre = classifyBoardValuationFetchPhase({
+      canStartFetch: true,
+      peekHit: peek !== undefined,
+      activeCacheKey,
+      lastSuccessCacheKey: researchBoardSuccessKeyRef.current,
+      displayedBoardPresent: lastResearchBoardRef.current !== null,
+    });
+
+    if (pre === "ready_sync") {
+      setResearchBoardPhase("ready");
+      setResearchBoardError(null);
+    } else if (pre === "refreshing") {
+      setResearchBoardPhase("refreshing");
+      setResearchBoardError(null);
+    } else {
+      setResearchBoardPhase("loading");
+      setResearchBoardError(null);
+    }
+
     let cancelled = false;
     void (async () => {
       try {
-        const userTeamId = resolveUserTeamId(league, user?.id);
         const res = await getValuation(leagueId, token, userTeamId, null, {
           leagueConfigKey: leagueValuationKey,
           rosterFingerprint: rosterValuationKey,
@@ -371,13 +424,16 @@ export default function Research() {
           customPlayerIds,
         );
         if (!cancelled) {
+          researchBoardSuccessKeyRef.current = activeCacheKey;
           setValuationsByPlayerId(merged);
           setLastResearchBoardValuation(res);
+          setResearchBoardPhase("ready");
+          setResearchBoardError(null);
         }
       } catch {
         if (!cancelled) {
-          setValuationsByPlayerId(new Map());
-          setLastResearchBoardValuation(null);
+          setResearchBoardPhase("error");
+          setResearchBoardError("Unable to load league valuation.");
         }
       }
     })();
@@ -392,15 +448,18 @@ export default function Research() {
     user?.id,
     rosterValuationKey,
     leagueValuationKey,
-    researchBoardCacheExtras,
+    league?.id,
+    league?.memberIds?.join(","),
   ]);
 
   useEffect(() => {
     if (!selectedModalPlayer || !token || !leagueId) {
       setModalExplainRow(null);
+      setModalExplainLoading(false);
       return;
     }
     let cancelled = false;
+    setModalExplainLoading(true);
     const userTeamId = resolveUserTeamId(league, user?.id);
     const pid = String(selectedModalPlayer.id).trim();
     void getValuationPlayer(leagueId, token, selectedModalPlayer.id, userTeamId, {
@@ -420,6 +479,9 @@ export default function Research() {
       })
       .catch(() => {
         if (!cancelled) setModalExplainRow(null);
+      })
+      .finally(() => {
+        if (!cancelled) setModalExplainLoading(false);
       });
     return () => {
       cancelled = true;
@@ -648,33 +710,56 @@ export default function Research() {
                   <p>Fetching player data from MLB Stats API...</p>
                 </div>
               ) : (
-                <PlayerTable
-                  columnLayout="research"
-                  defaultValuationSortField={defaultValuationSortForPage("Research")}
-                  players={researchTablePlayers}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  positionFilter={positionFilter}
-                  onPositionChange={setPositionFilter}
-                  statBasis={statBasis}
-                  onStatBasisChange={setStatBasis}
-                  onPlayerClick={handlePlayerClick}
-                  scoringCategories={league?.scoringCategories}
-                  getNote={getNote}
-                  onNoteChange={setNote}
-                  draftedIds={draftedIds}
-                  draftedByTeam={draftedByTeam}
-                  draftedContractByPlayerId={draftedContractByPlayerId}
-                  isCustomPlayer={isCustomPlayer}
-                  researchDraftablePoolFilter={researchDraftablePoolFilter}
-                  onResearchDraftablePoolFilterChange={setResearchDraftablePoolFilter}
-                  researchDraftablePoolFilterDisabled={
-                    researchDraftablePoolFilterDisabled
-                  }
-                  onResearchTableFilterReset={() =>
-                    setResearchDraftablePoolFilter("all")
-                  }
-                />
+                <>
+                  <PlayerTable
+                    columnLayout="research"
+                    defaultValuationSortField={defaultValuationSortForPage(
+                      "Research",
+                    )}
+                    players={researchTablePlayers}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    positionFilter={positionFilter}
+                    onPositionChange={setPositionFilter}
+                    statBasis={statBasis}
+                    onStatBasisChange={setStatBasis}
+                    onPlayerClick={handlePlayerClick}
+                    scoringCategories={league?.scoringCategories}
+                    getNote={getNote}
+                    onNoteChange={setNote}
+                    draftedIds={draftedIds}
+                    draftedByTeam={draftedByTeam}
+                    draftedContractByPlayerId={draftedContractByPlayerId}
+                    isCustomPlayer={isCustomPlayer}
+                    researchDraftablePoolFilter={researchDraftablePoolFilter}
+                    onResearchDraftablePoolFilterChange={
+                      setResearchDraftablePoolFilter
+                    }
+                    researchDraftablePoolFilterDisabled={
+                      researchDraftablePoolFilterDisabled
+                    }
+                    onResearchTableFilterReset={() =>
+                      setResearchDraftablePoolFilter("all")
+                    }
+                    researchEngineBoardPhase={researchBoardPhase}
+                  />
+                  {researchBoardPhase === "loading" ? (
+                    <p className="research-board-engine-hint">
+                      Loading Engine valuation for this league…
+                    </p>
+                  ) : null}
+                  {researchBoardPhase === "refreshing" ? (
+                    <p className="research-board-engine-hint">
+                      Updating values…
+                    </p>
+                  ) : null}
+                  {researchBoardPhase === "error" ? (
+                    <p className="research-board-engine-hint research-board-engine-hint--error">
+                      {researchBoardError ??
+                        "Valuation request failed; Engine columns may be incomplete."}
+                    </p>
+                  ) : null}
+                </>
               )}
             </>
           )}
@@ -926,6 +1011,7 @@ export default function Research() {
             ? valuationBoardMeta?.context ?? null
             : undefined
         }
+        valuationExplainLoading={modalExplainLoading}
       />
     </div>
   );

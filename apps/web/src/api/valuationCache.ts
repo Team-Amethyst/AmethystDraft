@@ -69,6 +69,25 @@ export function buildValuationBoardCacheKey(
   ].join(SEP);
 }
 
+/** Synchronous read of a memoized board response (for loading / stale UI before `getValuation` resolves). */
+export function peekBoardValuationCache(
+  leagueId: string,
+  userTeamId: string,
+  ctx: ValuationBoardCacheContext,
+): ValuationResponse | undefined {
+  const key = buildValuationBoardCacheKey(leagueId, userTeamId, ctx);
+  return boardResultCache.get(key);
+}
+
+export function isBoardValuationInflight(
+  leagueId: string,
+  userTeamId: string,
+  ctx: ValuationBoardCacheContext,
+): boolean {
+  const key = buildValuationBoardCacheKey(leagueId, userTeamId, ctx);
+  return boardInflight.has(key);
+}
+
 function buildPlayerCacheKey(
   boardKey: string,
   playerId: string,

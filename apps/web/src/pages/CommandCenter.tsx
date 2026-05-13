@@ -47,6 +47,8 @@ export default function CommandCenter() {
     rosterEntries,
     mlbPlayers,
     engineMarket,
+    engineBoardPhase,
+    engineBoardError,
     refreshRoster,
     removePick,
     updatePick,
@@ -173,6 +175,8 @@ export default function CommandCenter() {
           showToast={showToast}
           onAddMissingPlayer={() => setShowAddModal(true)}
           engineMarket={engineMarket}
+          engineBoardPhase={engineBoardPhase}
+          engineBoardError={engineBoardError}
         />
         <CommandCenterRightPanel
           league={league}

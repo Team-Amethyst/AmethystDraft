@@ -56,6 +56,8 @@ import {
   shouldShowOutsideDraftableMinBidTooltip,
   TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
 } from "../domain/draftablePoolSemantics";
+import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
+import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
 
 interface PlayerTableProps {
   players: Player[];
@@ -86,6 +88,8 @@ interface PlayerTableProps {
   researchDraftablePoolFilterDisabled?: boolean;
   /** Called with full PlayerTable reset (e.g. clear draftable filter). */
   onResearchTableFilterReset?: () => void;
+  /** Research: Engine board snapshot phase (loading masks auction $ / rank until first board). */
+  researchEngineBoardPhase?: BoardValuationUiPhase;
 }
 
 type PlayerTableColumnLayout = "default" | "research";
@@ -168,6 +172,7 @@ export default function PlayerTable({
   onResearchDraftablePoolFilterChange,
   researchDraftablePoolFilterDisabled = false,
   onResearchTableFilterReset,
+  researchEngineBoardPhase = "ready",
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -702,8 +707,15 @@ export default function PlayerTable({
             {rowData.map(
               ({ player, bat, pit, isBatter, tags }, index) => {
                 const isStarred = isInWatchlist(player.id);
-                const primaryValue = leagueWideAuctionDollarsForDisplay(player);
+                const maskEngineColumns = shouldMaskResearchEngineColumns(
+                  researchEngineBoardPhase,
+                  player,
+                );
+                const primaryValue = maskEngineColumns
+                  ? undefined
+                  : leagueWideAuctionDollarsForDisplay(player);
                 const showMinBidOutsidePoolTooltip =
+                  !maskEngineColumns &&
                   isResearchLayout &&
                   shouldShowOutsideDraftableMinBidTooltip({
                     draftable: player.research_draftable ?? "unknown",
@@ -787,6 +799,7 @@ export default function PlayerTable({
                             draftedContractLabel={draftedContractLabel}
                           />
                           {isResearchLayout &&
+                            !maskEngineColumns &&
                             player.research_draftable === "outside" && (
                               <span
                                 className="pt-depth-tag"
@@ -847,10 +860,12 @@ export default function PlayerTable({
                         )}
                         {showAuctionRankCol && (
                           <td className="td-rank-metric">
-                            {typeof player.auction_rank === "number" &&
-                            Number.isFinite(player.auction_rank)
-                              ? player.auction_rank
-                              : "—"}
+                            {maskEngineColumns
+                              ? "—"
+                              : typeof player.auction_rank === "number" &&
+                                  Number.isFinite(player.auction_rank)
+                                ? player.auction_rank
+                                : "—"}
                           </td>
                         )}
                       </>
