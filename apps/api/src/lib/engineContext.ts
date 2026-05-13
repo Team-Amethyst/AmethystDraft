@@ -423,7 +423,11 @@ export async function buildValuationContext(
   const drafted_players = toDraftedPlayers(draftedEntries);
 
   const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
+  const diag = process.env.LOG_ENGINE_VALUATION_DIAGNOSTICS === "1";
+  const catalogT0 = Date.now();
   const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
+  const catalogMs = Date.now() - catalogT0;
+  const syncT0 = Date.now();
   const catalogForEngine = catalogPlayers.filter((p) => p.valuation_eligible);
   const position_overrides = playerDataToPositionOverrides(catalogForEngine);
   const injury_overrides = playerDataToInjuryOverrides(catalogForEngine);
@@ -434,6 +438,18 @@ export async function buildValuationContext(
   const valuationPlayerIds = catalogForEngine
     .map((p) => String(p.id).trim())
     .filter((id) => !draftedIdSet.has(id));
+
+  const syncMs = Date.now() - syncT0;
+  if (diag) {
+    console.info(
+      "[valuation-diag] buildValuationContext phases",
+      JSON.stringify({
+        catalog_ms: catalogMs,
+        context_sync_ms: syncMs,
+        valuation_eligible_count: catalogForEngine.length,
+      }),
+    );
+  }
 
   return {
     roster_slots: rosterSlots,

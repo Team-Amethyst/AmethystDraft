@@ -12,8 +12,16 @@ import {
   finalizeEngineValuationPostPayload,
   logEngineValuationPayloadIfEnabled,
   logEngineValuationResponseIfEnabled,
+  summarizeEngineValuationPayload,
   userIdToTeamId,
 } from "../lib/engineContext";
+import {
+  valuationDiagnosticsEnabled,
+  safeJsonByteLength,
+  jsonSnippet,
+  classifyAxiosLikeError,
+} from "../lib/engineValuationDiagnostics";
+import { getRequestIdFromStore } from "../lib/requestContext";
 import { validateBody, validateQuery } from "../validation/validate";
 import {
   mockPickSchema,
@@ -62,6 +70,19 @@ function resolveUserTeamId(req: AuthRequest, league: ILeague): string {
   }
 }
 
+function valuationPayloadCounts(payload: Record<string, unknown>) {
+  const po = payload.position_overrides;
+  const io = payload.injury_overrides;
+  const pi = payload.player_ids;
+  const dp = payload.drafted_players;
+  return {
+    position_overrides_count: Array.isArray(po) ? po.length : 0,
+    injury_overrides_count: Array.isArray(io) ? io.length : 0,
+    player_ids_count: Array.isArray(pi) ? pi.length : 0,
+    drafted_players_count: Array.isArray(dp) ? dp.length : 0,
+  };
+}
+
 // ─── POST /api/engine/leagues/:leagueId/valuation ─────────────────────────────
 // Returns engine-computed player valuations given the current draft state.
 
@@ -69,19 +90,41 @@ const calculateValuation: RequestHandler = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
+  const diag = valuationDiagnosticsEnabled();
+  const t0 = Date.now();
+  const leagueId = req.params.leagueId;
+  let msLeague = 0;
+  let msRoster = 0;
+  let msContext = 0;
+  let msEngine = 0;
+  let userTeamIdForLog: string | undefined;
+
   try {
-    const league = await League.findById(req.params.leagueId);
+    const tLeague = Date.now();
+    const league = await League.findById(leagueId);
+    msLeague = Date.now() - tLeague;
     if (!league) {
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
+
+    const tRoster = Date.now();
     const entries = await RosterEntry.find({ leagueId: league._id });
+    msRoster = Date.now() - tRoster;
+
     const body = req.body as {
       explain_valuation_rows?: boolean;
       recommended_bid_soft_cap_ratio?: number;
     };
+
+    const userTeamId = resolveUserTeamId(req, league);
+    userTeamIdForLog = userTeamId;
+
+    const tContext = Date.now();
     const context = await buildValuationContext(league, entries, {
-      userTeamId: resolveUserTeamId(req, league),
+      userTeamId,
     });
+    msContext = Date.now() - tContext;
+
     const payload = finalizeEngineValuationPostPayload({
       ...context,
       ...(body.explain_valuation_rows === true
@@ -92,11 +135,121 @@ const calculateValuation: RequestHandler = async (
         : {}),
     });
     logEngineValuationPayloadIfEnabled(payload);
-    const axiosRes = await amethyst.post("/valuation/calculate", payload);
+    const payloadRecord = payload as Record<string, unknown>;
+    const payloadBytes = safeJsonByteLength(payloadRecord);
+
+    const tEngine = Date.now();
+    let axiosRes;
+    try {
+      axiosRes = await amethyst.post("/valuation/calculate", payload);
+    } catch (engineErr) {
+      msEngine = Date.now() - tEngine;
+      if (diag) {
+        const transport = classifyAxiosLikeError(engineErr);
+        const ax = engineErr instanceof AxiosError ? engineErr : null;
+        console.info(
+          "[valuation-diag] board_engine_error",
+          JSON.stringify({
+            route: "POST /api/engine/leagues/:leagueId/valuation",
+            engine_path: "/valuation/calculate",
+            leagueId,
+            user_team_id: userTeamIdForLog,
+            requestId: getRequestIdFromStore(),
+            ms: {
+              league: msLeague,
+              roster: msRoster,
+              context: msContext,
+              engine: msEngine,
+              total: Date.now() - t0,
+            },
+            payload_bytes: payloadBytes,
+            ...valuationPayloadCounts(payloadRecord),
+            ...transport,
+            engine_body_snippet:
+              ax?.response?.data !== undefined ? jsonSnippet(ax.response.data) : undefined,
+          }),
+        );
+      }
+      throw engineErr;
+    }
+    msEngine = Date.now() - tEngine;
+
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
+
+    if (diag) {
+      const responseBytes = safeJsonByteLength(axiosRes.data);
+      const summary = summarizeEngineValuationPayload(payloadRecord);
+      console.info(
+        "[valuation-diag] board_ok",
+        JSON.stringify({
+          route: "POST /api/engine/leagues/:leagueId/valuation",
+          engine_path: "/valuation/calculate",
+          leagueId,
+          user_team_id: userTeamIdForLog,
+          requestId: getRequestIdFromStore(),
+          ms: {
+            league: msLeague,
+            roster: msRoster,
+            context: msContext,
+            engine: msEngine,
+            total: Date.now() - t0,
+          },
+          payload_bytes: payloadBytes,
+          response_bytes: responseBytes,
+          position_overrides_count: summary.position_overrides_count,
+          injury_overrides_count: summary.injury_overrides_count,
+          player_ids_count: valuationPayloadCounts(payloadRecord).player_ids_count,
+          drafted_players_count: summary.drafted_players_length,
+        }),
+      );
+    }
+
     res.json(axiosRes.data);
   } catch (err) {
+    if (diag) {
+      if (err instanceof AppError) {
+        console.info(
+          "[valuation-diag] board_app_error",
+          JSON.stringify({
+            route: "POST /api/engine/leagues/:leagueId/valuation",
+            leagueId,
+            user_team_id: userTeamIdForLog,
+            requestId: getRequestIdFromStore(),
+            ms: {
+              league: msLeague,
+              roster: msRoster,
+              context: msContext,
+              engine: msEngine,
+              total: Date.now() - t0,
+            },
+            code: err.code,
+            statusCode: err.statusCode,
+            message: err.message,
+            details_snippet:
+              err.details !== undefined ? jsonSnippet(err.details, 600) : undefined,
+          }),
+        );
+      } else if (!(err instanceof AxiosError)) {
+        console.info(
+          "[valuation-diag] board_unexpected",
+          JSON.stringify({
+            route: "POST /api/engine/leagues/:leagueId/valuation",
+            leagueId,
+            user_team_id: userTeamIdForLog,
+            requestId: getRequestIdFromStore(),
+            ms: {
+              league: msLeague,
+              roster: msRoster,
+              context: msContext,
+              engine: msEngine,
+              total: Date.now() - t0,
+            },
+            ...classifyAxiosLikeError(err),
+          }),
+        );
+      }
+    }
     if (err instanceof AppError) throw err;
     throwEngineError(err, req);
   }
@@ -109,15 +262,36 @@ const calculateValuationPlayer: RequestHandler = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
+  const diag = valuationDiagnosticsEnabled();
+  const t0 = Date.now();
+  const leagueId = req.params.leagueId;
+  let msLeague = 0;
+  let msRoster = 0;
+  let msContext = 0;
+  let msEngine = 0;
+  let userTeamIdForLog: string | undefined;
+
   try {
-    const league = await League.findById(req.params.leagueId);
+    const tLeague = Date.now();
+    const league = await League.findById(leagueId);
+    msLeague = Date.now() - tLeague;
     if (!league) {
       throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
     }
+
+    const tRoster = Date.now();
     const entries = await RosterEntry.find({ leagueId: league._id });
+    msRoster = Date.now() - tRoster;
+
+    const userTeamId = resolveUserTeamId(req, league);
+    userTeamIdForLog = userTeamId;
+
+    const tContext = Date.now();
     const context = await buildValuationContext(league, entries, {
-      userTeamId: resolveUserTeamId(req, league),
+      userTeamId,
     });
+    msContext = Date.now() - tContext;
+
     const body = req.body as {
       player_id: string;
       explain_valuation_rows?: boolean;
@@ -135,11 +309,123 @@ const calculateValuationPlayer: RequestHandler = async (
     logEngineValuationPayloadIfEnabled(base);
     const { player_id } = body;
     const payload = { ...base, player_id };
-    const axiosRes = await amethyst.post("/valuation/player", payload);
+    const payloadRecord = payload as Record<string, unknown>;
+    const payloadBytes = safeJsonByteLength(payloadRecord);
+
+    const tEngine = Date.now();
+    let axiosRes;
+    try {
+      axiosRes = await amethyst.post("/valuation/player", payload);
+    } catch (engineErr) {
+      msEngine = Date.now() - tEngine;
+      if (diag) {
+        const transport = classifyAxiosLikeError(engineErr);
+        const ax = engineErr instanceof AxiosError ? engineErr : null;
+        console.info(
+          "[valuation-diag] player_engine_error",
+          JSON.stringify({
+            route: "POST /api/engine/leagues/:leagueId/valuation/player",
+            engine_path: "/valuation/player",
+            leagueId,
+            user_team_id: userTeamIdForLog,
+            player_id,
+            requestId: getRequestIdFromStore(),
+            ms: {
+              league: msLeague,
+              roster: msRoster,
+              context: msContext,
+              engine: msEngine,
+              total: Date.now() - t0,
+            },
+            payload_bytes: payloadBytes,
+            ...valuationPayloadCounts(payloadRecord),
+            ...transport,
+            engine_body_snippet:
+              ax?.response?.data !== undefined ? jsonSnippet(ax.response.data) : undefined,
+          }),
+        );
+      }
+      throw engineErr;
+    }
+    msEngine = Date.now() - tEngine;
+
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
+
+    if (diag) {
+      const responseBytes = safeJsonByteLength(axiosRes.data);
+      const summary = summarizeEngineValuationPayload(base as Record<string, unknown>);
+      console.info(
+        "[valuation-diag] player_ok",
+        JSON.stringify({
+          route: "POST /api/engine/leagues/:leagueId/valuation/player",
+          engine_path: "/valuation/player",
+          leagueId,
+          user_team_id: userTeamIdForLog,
+          player_id,
+          requestId: getRequestIdFromStore(),
+          ms: {
+            league: msLeague,
+            roster: msRoster,
+            context: msContext,
+            engine: msEngine,
+            total: Date.now() - t0,
+          },
+          payload_bytes: payloadBytes,
+          response_bytes: responseBytes,
+          position_overrides_count: summary.position_overrides_count,
+          injury_overrides_count: summary.injury_overrides_count,
+          player_ids_count: valuationPayloadCounts(payloadRecord).player_ids_count,
+          drafted_players_count: summary.drafted_players_length,
+        }),
+      );
+    }
+
     res.json(axiosRes.data);
   } catch (err) {
+    if (diag) {
+      if (err instanceof AppError) {
+        console.info(
+          "[valuation-diag] player_app_error",
+          JSON.stringify({
+            route: "POST /api/engine/leagues/:leagueId/valuation/player",
+            leagueId,
+            user_team_id: userTeamIdForLog,
+            requestId: getRequestIdFromStore(),
+            ms: {
+              league: msLeague,
+              roster: msRoster,
+              context: msContext,
+              engine: msEngine,
+              total: Date.now() - t0,
+            },
+            code: err.code,
+            statusCode: err.statusCode,
+            message: err.message,
+            details_snippet:
+              err.details !== undefined ? jsonSnippet(err.details, 600) : undefined,
+          }),
+        );
+      } else if (!(err instanceof AxiosError)) {
+        console.info(
+          "[valuation-diag] player_unexpected",
+          JSON.stringify({
+            route: "POST /api/engine/leagues/:leagueId/valuation/player",
+            leagueId,
+            user_team_id: userTeamIdForLog,
+            requestId: getRequestIdFromStore(),
+            ms: {
+              league: msLeague,
+              roster: msRoster,
+              context: msContext,
+              engine: msEngine,
+              total: Date.now() - t0,
+            },
+            ...classifyAxiosLikeError(err),
+          }),
+        );
+      }
+    }
     if (err instanceof AppError) throw err;
     throwEngineError(err, req);
   }
