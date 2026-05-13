@@ -465,12 +465,12 @@
 
 .pt-table.pt-table--research .th-team,
 .pt-table.pt-table--research .td-team {
-  width: 3.25rem;
+  width: 4rem;
 }
 
 .pt-table.pt-table--research .th-value,
 .pt-table.pt-table--research .td-value {
-  width: 5.5rem;
+  width: 6.25rem;
 }
 
 .pt-table.pt-table--research .th-notes,
@@ -559,6 +559,7 @@
 .pt-table.pt-table--research thead .th-player,
 .pt-table.pt-table--research tbody .td-player {
   max-width: none;
+  overflow: hidden;
 }
 
 /* ── Player cell ── */
@@ -570,7 +571,10 @@
 }
 
 .player-cell--research {
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .player-name-col {
@@ -585,24 +589,27 @@
   flex: 1 1 auto;
 }
 
-/* Research: name + injury on first row; category / custom / drafted badges below with +N when narrow. */
+/* Research: one line — name + injury + meta badges (+N when strip is narrow); no wrap. */
 .player-name-col--research {
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
   flex-wrap: nowrap;
-  align-content: flex-start;
-  gap: 0.28rem;
+  align-items: center;
+  align-content: center;
+  gap: 0.35rem;
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .pt-research-player-top {
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
-  width: 100%;
+  flex: 1 1 0;
+  overflow: hidden;
 }
 
 .pt-research-player-top .player-name {
@@ -619,13 +626,17 @@
 }
 
 .pt-research-meta-badges {
-  width: 100%;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .pt-research-meta-badges__cq {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   container-type: inline-size;
   container-name: playerbadges;
 }
@@ -1246,10 +1257,12 @@
   }
 
   .player-name-col--research {
-    flex-direction: column;
-    align-items: stretch;
-    align-self: stretch;
-    overflow-x: hidden;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .player-name {
