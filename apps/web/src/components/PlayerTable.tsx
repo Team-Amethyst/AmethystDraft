@@ -11,7 +11,6 @@ import {
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
-import { ResearchPlayerMetaTags } from "./ResearchPlayerMetaTags";
 import { ResearchEngineValueLoading } from "./research/ResearchEngineValueLoading";
 import "./PlayerTable.css";
 import {
@@ -59,6 +58,7 @@ import {
 } from "../domain/draftablePoolSemantics";
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
+import { researchPlayerCellTooltip } from "../domain/researchPlayerCellTooltip";
 
 interface PlayerTableProps {
   players: Player[];
@@ -582,7 +582,7 @@ export default function PlayerTable({
 
       {/* ── Table ── */}
       <div className="pt-scroll">
-        <table className="pt-table">
+        <table className={"pt-table" + (isResearchLayout ? " pt-table--research" : "")}>
           <thead>
             <tr>
               <th className="th-rank th-rank-metric">Rank</th>
@@ -735,6 +735,15 @@ export default function PlayerTable({
                 const draftedContractLabel = draftedContractByPlayerId
                   ? lookupRosterMapForCatalogPlayer(draftedContractByPlayerId, player)
                   : undefined;
+                const playerCellTitle = researchPlayerCellTooltip({
+                  playerName: player.name,
+                  tags,
+                  isCustom: Boolean(isCustomPlayer?.(player.id)),
+                  draftedTeamName,
+                  draftedContractLabel,
+                  maskEngineColumns,
+                  researchDraftable: player.research_draftable,
+                });
 
                 return (
                   <tr
@@ -778,13 +787,21 @@ export default function PlayerTable({
                     </td>
 
                     <td className="td-player">
-                      <div className="player-cell">
+                      <div
+                        className="player-cell"
+                        title={playerCellTitle}
+                      >
                         <PlayerHeadshot
                           src={player.headshot}
                           name={player.name}
                           isCustom={isCustomPlayer?.(player.id)}
                         />
-                        <div className="player-name-col">
+                        <div
+                          className={
+                            "player-name-col" +
+                            (isResearchLayout ? " player-name-col--research" : "")
+                          }
+                        >
                           <span className="player-name">
                             {player.name}
                             {player.injuryStatus && (
@@ -793,22 +810,6 @@ export default function PlayerTable({
                               </span>
                             )}
                           </span>
-                          <ResearchPlayerMetaTags
-                            tags={tags}
-                            showCustom={Boolean(isCustomPlayer?.(player.id))}
-                            draftedTeamName={draftedTeamName}
-                            draftedContractLabel={draftedContractLabel}
-                          />
-                          {isResearchLayout &&
-                            !maskEngineColumns &&
-                            player.research_draftable === "outside" && (
-                              <span
-                                className="pt-depth-tag"
-                                title="Outside the Engine draftable pool for this valuation"
-                              >
-                                Depth
-                              </span>
-                            )}
                         </div>
                       </div>
                     </td>
