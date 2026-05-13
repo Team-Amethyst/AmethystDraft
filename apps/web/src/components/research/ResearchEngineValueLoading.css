@@ -1,0 +1,19 @@
+.rev-engine-val-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  min-width: 1.1em;
+  min-height: 1.1em;
+}
+
+.rev-engine-val-loading__icon {
+  animation: rev-engine-val-spin 0.75s linear infinite;
+  opacity: 0.88;
+}
+
+@keyframes rev-engine-val-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

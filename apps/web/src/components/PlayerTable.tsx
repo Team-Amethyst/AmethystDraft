@@ -12,6 +12,7 @@ import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
 import { ResearchPlayerMetaTags } from "./ResearchPlayerMetaTags";
+import { ResearchEngineValueLoading } from "./research/ResearchEngineValueLoading";
 import "./PlayerTable.css";
 import {
   catalogPlayerIdInStringSet,
@@ -860,12 +861,14 @@ export default function PlayerTable({
                         )}
                         {showAuctionRankCol && (
                           <td className="td-rank-metric">
-                            {maskEngineColumns
-                              ? "—"
-                              : typeof player.auction_rank === "number" &&
-                                  Number.isFinite(player.auction_rank)
-                                ? player.auction_rank
-                                : "—"}
+                            {maskEngineColumns ? (
+                              <ResearchEngineValueLoading label="Loading auction rank" />
+                            ) : typeof player.auction_rank === "number" &&
+                              Number.isFinite(player.auction_rank) ? (
+                              player.auction_rank
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         )}
                       </>
@@ -899,7 +902,11 @@ export default function PlayerTable({
                           className="pt-value-stack__primary"
                           title={valueCellTitle}
                         >
-                          {formatCurrencyWhole(primaryValue)}
+                          {maskEngineColumns ? (
+                            <ResearchEngineValueLoading label="Loading auction value" />
+                          ) : (
+                            formatCurrencyWhole(primaryValue)
+                          )}
                         </span>
                       </div>
                     </td>

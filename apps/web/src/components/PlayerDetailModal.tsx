@@ -27,6 +27,9 @@ import {
 import { useEffect } from "react";
 import PosBadge from "./PosBadge";
 import "./PlayerDetailModal.css";
+import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
+import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
+import { ResearchEngineValueLoading } from "./research/ResearchEngineValueLoading";
 import {
   AUCTION_RANK_TOOLTIP,
   AUCTION_TIER_TOOLTIP,
@@ -68,6 +71,8 @@ interface PlayerDetailModalProps {
    * Shown only when `import.meta.env.DEV` and `localStorage.getItem("showValuationDebug") === "1"`.
    */
   valuationContextDev?: Record<string, unknown> | null;
+  /** Research: Engine board phase — loading masks auction / ladder dollars until first board. */
+  researchEngineBoardPhase?: BoardValuationUiPhase;
 }
 
 function valueOrDash(value: unknown): string {
@@ -309,6 +314,7 @@ export default function PlayerDetailModal({
   valuationContextWarnings,
   valuationContextDev,
   valuationExplainLoading = false,
+  researchEngineBoardPhase = "ready",
 }: PlayerDetailModalProps) {
   useEffect(() => {
     if (!isOpen || !player) return;
@@ -322,6 +328,11 @@ export default function PlayerDetailModal({
   }, [isOpen, player, onClose]);
 
   if (!isOpen || !player) return null;
+
+  const maskEngineMetrics = shouldMaskResearchEngineColumns(
+    researchEngineBoardPhase,
+    player,
+  );
 
   const positions = player.positions?.length ? player.positions : [player.position];
   const batting = player.stats.batting;
@@ -419,8 +430,20 @@ export default function PlayerDetailModal({
                       <dl className="pdm-rail-kv-dl" aria-label="Ranks and tiers">
                         <dt title={MODEL_RANK_TOOLTIP}>Model rank</dt>
                         <dd>{valueOrDash(player.catalog_rank)}</dd>
-                        {typeof player.auction_rank === "number" &&
-                        Number.isFinite(player.auction_rank) ? (
+                        {maskEngineMetrics ? (
+                          <>
+                            <dt title={AUCTION_RANK_TOOLTIP}>Auction rank</dt>
+                            <dd>
+                              {typeof player.auction_rank === "number" &&
+                              Number.isFinite(player.auction_rank) ? (
+                                player.auction_rank
+                              ) : (
+                                <ResearchEngineValueLoading label="Loading auction rank" />
+                              )}
+                            </dd>
+                          </>
+                        ) : typeof player.auction_rank === "number" &&
+                          Number.isFinite(player.auction_rank) ? (
                           <>
                             <dt title={AUCTION_RANK_TOOLTIP}>Auction rank</dt>
                             <dd>{player.auction_rank}</dd>
@@ -492,25 +515,49 @@ export default function PlayerDetailModal({
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
                     Auction Value
                   </span>
-                  <span className="pdm-metric-value">{formatCurrencyWhole(marketValue)}</span>
+                  <span className="pdm-metric-value">
+                    {maskEngineMetrics && marketValue == null ? (
+                      <ResearchEngineValueLoading label="Loading auction value" />
+                    ) : (
+                      formatCurrencyWhole(marketValue)
+                    )}
+                  </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
                     Team Value
                   </span>
-                  <span className="pdm-metric-value">{formatCurrencyWhole(yourValue)}</span>
+                  <span className="pdm-metric-value">
+                    {maskEngineMetrics && yourValue == null ? (
+                      <ResearchEngineValueLoading label="Loading team value" />
+                    ) : (
+                      formatCurrencyWhole(yourValue)
+                    )}
+                  </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={ROSTER_EDGE_TOOLTIP}>
                     Roster Edge
                   </span>
-                  <span className="pdm-metric-value">{formatSignedDollarWhole(rosterEdge)}</span>
+                  <span className="pdm-metric-value">
+                    {maskEngineMetrics && rosterEdge === undefined ? (
+                      <ResearchEngineValueLoading label="Loading roster edge" />
+                    ) : (
+                      formatSignedDollarWhole(rosterEdge)
+                    )}
+                  </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
                     Max Bid
                   </span>
-                  <span className="pdm-metric-value">{formatCurrencyWhole(maxBid)}</span>
+                  <span className="pdm-metric-value">
+                    {maskEngineMetrics && maxBid == null ? (
+                      <ResearchEngineValueLoading label="Loading max bid" />
+                    ) : (
+                      formatCurrencyWhole(maxBid)
+                    )}
+                  </span>
                 </div>
               </div>
               {player.recommended_bid_note?.trim() ? (

@@ -1021,6 +1021,7 @@ export default function Research() {
             : undefined
         }
         valuationExplainLoading={modalExplainLoading}
+        researchEngineBoardPhase={researchBoardPhase}
       />
     </div>
   );
