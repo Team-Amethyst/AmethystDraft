@@ -60,6 +60,10 @@ describe("internal news-signals routes", () => {
     expect(res.body.newsSignalsPollerRefcount).toBe(4);
     expect(res.body.pollerIntervalActive).toBe(true);
     expect(res.body.redisUrlConfigured).toBe(false);
+    expect(res.body.requestRouteMetrics).toMatchObject({
+      startedAtMs: expect.any(Number),
+      buckets: expect.any(Object),
+    });
   });
 
   it("POST /news-signals/hook returns 204 and pings on event=custom", async () => {

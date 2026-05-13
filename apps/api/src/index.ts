@@ -14,6 +14,7 @@ import { NotFoundError } from "./lib/appError";
 import customPlayerRoutes from "./routes/customPlayers";
 import { assignRequestId } from "./lib/requestContext";
 import { corsOptionsFromEnv } from "./lib/corsConfig";
+import { requestRouteMetricsMiddleware } from "./middleware/requestRouteMetrics";
 import {
   attachSocketServer,
   shutdownSocketServer,
@@ -50,6 +51,7 @@ app.use(
 );
 app.use(express.json({ limit: '10mb' }));
 app.use(assignRequestId);
+app.use(requestRouteMetricsMiddleware);
 
 app.get("/", (req, res) => {
   res.send("Amethyst Draft Info API - Online");

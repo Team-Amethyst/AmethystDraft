@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import { getRequestRouteMetricsSnapshot } from "../middleware/requestRouteMetrics";
 import { Router } from "express";
 import {
   applyEngineNewsWebhookSnapshotHint,
@@ -64,6 +64,7 @@ router.get("/news-signals/debug", (req, res): void => {
     redisUrlConfigured: Boolean(process.env.REDIS_URL?.trim()),
     postWebhookPath: "/api/internal/news-signals/hook",
     socketIoPath: "/socket.io",
+    requestRouteMetrics: getRequestRouteMetricsSnapshot(),
     hint:
       "Open the SPA signed in (any page with the bell); socketIoConnections should be >= 1 before webhook tests show in-app toasts.",
   });

@@ -113,6 +113,8 @@ export default function Research() {
   const navigate = useNavigate();
   const { setSelectedPlayer } = useSelectedPlayer();
   const { league } = useLeague();
+  const leagueRef = useRef(league);
+  leagueRef.current = league;
   const { token, user } = useAuth();
   const { getNote, setNote } = usePlayerNotes();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist, watchlist } = useWatchlist();
@@ -375,7 +377,8 @@ export default function Research() {
     // Wait for league row from layout context. Otherwise `leagueValuationConfigKey(null)` is ""
     // and `resolveUserTeamId` falls back to `team_1`; when leagues load we re-run with a new
     // cache key and fire a second board POST while the first is still pending (duplicate Network).
-    if (!token || !leagueId || !league || players.length === 0) {
+    const leagueRow = leagueRef.current;
+    if (!token || !leagueId || !leagueRow || players.length === 0) {
       setValuationsByPlayerId(new Map());
       setLastResearchBoardValuation(null);
       setResearchBoardPhase("idle");
@@ -383,7 +386,7 @@ export default function Research() {
       researchBoardSuccessKeyRef.current = null;
       return;
     }
-    const userTeamId = resolveUserTeamId(league, user?.id);
+    const userTeamId = resolveUserTeamId(leagueRow, user?.id);
     const cacheCtx = {
       leagueConfigKey: leagueValuationKey,
       rosterFingerprint: rosterValuationKey,
@@ -446,14 +449,11 @@ export default function Research() {
   }, [
     token,
     leagueId,
-    league,
     players.length,
-    customPlayerIds,
     user?.id,
     rosterValuationKey,
     leagueValuationKey,
-    league?.id,
-    league?.memberIds?.join(","),
+    researchBoardCacheExtras,
   ]);
 
   useEffect(() => {
