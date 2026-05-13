@@ -66,8 +66,13 @@ app.use("/api/leagues", leaguesRoutes);
 app.use("/api/internal", internalRoutes);
 
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "Draftroom API is running" });
+app.get("/api/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    message: "Draftroom API is running",
+    /** Set at image build (see apps/api/Dockerfile + deploy workflow). Confirms App Runner picked up a new image. */
+    gitSha: process.env.DRAFTROOM_GIT_SHA || undefined,
+  });
 });
 
 // 404 for unknown routes

@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - main
+  # Manual deploy when production is stale (e.g. internal routes missing) without an empty commit.
+  workflow_dispatch:
 
 jobs:
   test:
@@ -54,7 +56,11 @@ jobs:
           ECR_REPOSITORY: amethyst-api
           IMAGE_TAG: latest
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f apps/api/Dockerfile .
+          echo "DRAFTROOM_GIT_SHA=${GITHUB_SHA} (also exposed as gitSha in GET /api/health after deploy)"
+          docker build \
+            --build-arg DRAFTROOM_GIT_SHA="${GITHUB_SHA}" \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -f apps/api/Dockerfile .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
       - name: Deploy Frontend to S3
@@ -87,6 +93,8 @@ jobs:
           fi
 
           echo "Found Service ARN: $SERVICE_ARN"
+
+          echo "::notice title=Verify internal debug after deploy::curl -sS https://<your-apprunner-host>/api/internal/news-signals/debug -H \"Authorization: Bearer …\" should return 401 (wrong secret) or 200 (correct), never 404 once this image is live."
 
           # Wait up to 5 minutes for any existing operations to finish
           for i in {1..10}; do

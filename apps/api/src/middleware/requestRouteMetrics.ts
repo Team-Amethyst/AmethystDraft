@@ -33,6 +33,13 @@ export function bucketHttpPath(rawPath: string): string {
   if (path.startsWith("/api/engine/")) return "/api/engine/*";
 
   if (path.startsWith("/api/leagues")) return "/api/leagues/*";
+
+  if (path === "/api/internal/news-signals/hook") {
+    return "/api/internal/news-signals/hook";
+  }
+  if (path === "/api/internal/news-signals/debug") {
+    return "/api/internal/news-signals/debug";
+  }
   if (path.startsWith("/api/internal")) return "/api/internal/*";
 
   return "other";

@@ -88,7 +88,9 @@ export function useCommandCenterData({
   );
 
   useEffect(() => {
-    if (!leagueId || !token || !rosterLoaded) {
+    // Defer until league row exists: `leagueValuationConfigKey(null)` is "" and the board cache
+    // key would not match the post-load fetch (duplicate POST while first is in flight).
+    if (!leagueId || !token || !rosterLoaded || !leagueValuationKey) {
       setEngineBoardPhase("idle");
       setEngineBoardError(null);
       return;

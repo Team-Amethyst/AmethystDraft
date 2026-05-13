@@ -29,4 +29,14 @@ describe("bucketHttpPath", () => {
       "/api/players",
     );
   });
+
+  it("splits internal news-signals hook and debug from generic internal", () => {
+    expect(bucketHttpPath("/api/internal/news-signals/hook")).toBe(
+      "/api/internal/news-signals/hook",
+    );
+    expect(bucketHttpPath("/api/internal/news-signals/debug")).toBe(
+      "/api/internal/news-signals/debug",
+    );
+    expect(bucketHttpPath("/api/internal/other")).toBe("/api/internal/*");
+  });
 });

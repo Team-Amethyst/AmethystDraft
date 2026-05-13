@@ -589,7 +589,7 @@ export default function PlayerTable({
         <table className={"pt-table" + (isResearchLayout ? " pt-table--research" : "")}>
           <thead>
             <tr>
-              <th className="th-rank th-rank-metric">Rank</th>
+              <th className="th-rank">Rank</th>
               <th className="th-star"></th>
               <th className="th-player">Player</th>
               <th className="th-pos">Pos</th>

@@ -179,6 +179,73 @@ describe("valuationCache", () => {
     expect(playerSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("uses a fresh board fetch when cache extras change (Research custom ids)", async () => {
+    let calls = 0;
+    __setValuationExecutorsForTests({
+      board: vi.fn(async () => {
+        calls++;
+        return minimalBoardResponse();
+      }),
+    });
+    const base = {
+      leagueConfigKey: "cfg",
+      rosterFingerprint: "rost",
+      extras: "custom:a,b",
+    };
+    await fetchBoardValuationWithCache({
+      leagueId: "L",
+      token: "tok",
+      userTeamId: "team_1",
+      cacheContext: base,
+    });
+    await fetchBoardValuationWithCache({
+      leagueId: "L",
+      token: "tok",
+      userTeamId: "team_1",
+      cacheContext: { ...base, extras: "custom:a,b,c" },
+    });
+    expect(calls).toBe(2);
+  });
+
+  it("dedupes concurrent player explain fetches with identical cache key (shared promise)", async () => {
+    let release!: () => void;
+    const barrier = new Promise<void>((r) => {
+      release = () => r();
+    });
+    const playerSpy = vi.fn(async () => {
+      await barrier;
+      return {
+        ...minimalBoardResponse(),
+        valuations: [],
+      };
+    });
+    __setValuationExecutorsForTests({ player: playerSpy });
+    const ctx: ValuationBoardCacheContext = {
+      leagueConfigKey: "cfg",
+      rosterFingerprint: "rost",
+    };
+    const p1 = fetchPlayerValuationWithCache({
+      leagueId: "L",
+      token: "tok",
+      playerId: "42",
+      userTeamId: "team_1",
+      options: { explainValuationRows: true },
+      cacheContext: ctx,
+    });
+    const p2 = fetchPlayerValuationWithCache({
+      leagueId: "L",
+      token: "tok",
+      playerId: "42",
+      userTeamId: "team_1",
+      options: { explainValuationRows: true },
+      cacheContext: ctx,
+    });
+    expect(playerSpy).toHaveBeenCalledTimes(1);
+    release();
+    await Promise.all([p1, p2]);
+    expect(playerSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("uses a fresh board fetch when rosterFingerprint changes (draft state)", async () => {
     let calls = 0;
     __setValuationExecutorsForTests({

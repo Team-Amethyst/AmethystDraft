@@ -78,6 +78,21 @@ export const createLeagueSchema = z.object({
 
 export const updateLeagueSchema = createLeagueSchema.partial();
 
+// ─── Taxi Draft ───────────────────────────────────────────────────────────────
+
+export const updateTaxiDraftOrderSchema = z.object({
+  taxiDraftOrder: z.array(z.string()),
+});
+
+export const updateTaxiRostersSchema = z.object({
+  taxiRosters: z.record(z.string(), z.array(z.object({
+    playerId: z.string(),
+    teamId: z.string(),
+    addedAt: z.string(),
+    pickNumber: z.number().optional(),
+  }))),
+});
+
 // ─── Roster ───────────────────────────────────────────────────────────────────
 
 export const addRosterEntrySchema = z.object({

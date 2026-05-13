@@ -33,6 +33,17 @@ export const DRAFTROOM_DEFAULT_ROSTER_SLOTS: IRosterSlots = {
   BN: 3,
 };
 
+export interface ITaxiRosterEntry {
+  playerId: string;
+  teamId: string;
+  addedAt: string;
+  pickNumber?: number;
+}
+
+export interface ITaxiRosters {
+  [teamId: string]: ITaxiRosterEntry[];
+}
+
 export interface ILeague extends Document {
   name: string;
   commissionerId: mongoose.Types.ObjectId;
@@ -49,6 +60,8 @@ export interface ILeague extends Document {
   playerPool: PlayerPool;
   teamNames: string[];
   posEligibilityThreshold: number;
+  taxiDraftOrder?: string[];
+  taxiRosters?: ITaxiRosters;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -123,6 +136,14 @@ const leagueSchema = new Schema<ILeague>(
     posEligibilityThreshold: {
       type: Number,
       default: 20,
+    },
+    taxiDraftOrder: {
+      type: [String],
+      default: [],
+    },
+    taxiRosters: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
   },
   { timestamps: true },

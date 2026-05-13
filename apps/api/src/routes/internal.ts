@@ -1,6 +1,12 @@
 import { getRequestRouteMetricsSnapshot } from "../middleware/requestRouteMetrics";
 import { Router, type Request, type Response } from "express";
 import {
+  getNewsSignalsWebhookIngressCounters,
+  decideNewsSignalsWebhookIngress,
+  logNewsSignalsWebhookIngress,
+  recordNewsSignalsHookReceived,
+} from "../lib/newsSignalsWebhookIngress";
+import {
   applyEngineNewsWebhookSnapshotHint,
   emitNewsSignalsWebhookTestPing,
   forcePollFromWebhook,
@@ -65,6 +71,7 @@ router.get("/news-signals/debug", (req, res): void => {
     postWebhookPath: "/api/internal/news-signals/hook",
     socketIoPath: "/socket.io",
     requestRouteMetrics: getRequestRouteMetricsSnapshot(),
+    newsSignalsWebhook: getNewsSignalsWebhookIngressCounters(),
     hint:
       "Open the SPA signed in (any page with the bell); socketIoConnections should be >= 1 before webhook tests show in-app toasts.",
   });
@@ -78,10 +85,27 @@ router.get("/news-signals/debug", (req, res): void => {
 router.post("/news-signals/hook", (req, res): void => {
   if (!assertWebhookAuth(req, res)) return;
 
-  const body = req.body as { event?: string; message?: string } | undefined;
-  applyEngineNewsWebhookSnapshotHint(req.body);
-  forcePollFromWebhook();
+  recordNewsSignalsHookReceived();
+  const decision = decideNewsSignalsWebhookIngress(req.body);
+  logNewsSignalsWebhookIngress(req, decision, req.body);
 
+  if (decision === "dedupe_body") {
+    res.setHeader("X-Draftroom-Webhook-Decision", "dedupe_body");
+    res.setHeader(
+      "X-Draftroom-Socket-Connections",
+      String(getSocketIoConnectionsCount()),
+    );
+    res.status(204).send();
+    return;
+  }
+
+  applyEngineNewsWebhookSnapshotHint(req.body);
+
+  if (decision === "full") {
+    forcePollFromWebhook();
+  }
+
+  const body = req.body as { event?: string; message?: string } | undefined;
   if (body?.event === "custom") {
     emitNewsSignalsWebhookTestPing(body.message);
   }
@@ -91,6 +115,11 @@ router.post("/news-signals/hook", (req, res): void => {
     "X-Draftroom-Socket-Connections",
     String(getSocketIoConnectionsCount()),
   );
+  if (decision === "throttle_poll_only") {
+    res.setHeader("X-Draftroom-Webhook-Decision", "throttle_poll_only");
+  } else {
+    res.setHeader("X-Draftroom-Webhook-Decision", "full");
+  }
   res.status(204).send();
 });
 
