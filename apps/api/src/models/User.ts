@@ -5,6 +5,8 @@ export interface IUser extends Document {
   displayName: string;
   email: string;
   passwordHash: string;
+  passwordResetTokenHash?: string | null; // For password reset functionality
+  passwordResetExpiresAt?: Date | null; // Expiration time for reset token
   lastLogin: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +32,14 @@ const userSchema = new Schema<IUser>(
       required: true,
     },
     lastLogin: {
+      type: Date,
+      default: null,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpiresAt: {
       type: Date,
       default: null,
     },

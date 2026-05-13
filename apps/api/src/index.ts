@@ -1,9 +1,12 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import express, { Request, Response, NextFunction } from "express";
 import http from "node:http";
 import cors from "cors";
 import helmet from "helmet";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import playersRoutes from "./routes/players";
 import engineRoutes from "./routes/engine";
@@ -21,8 +24,6 @@ import {
 } from "./realtime/socketServer";
 import { attachRedisAdapterIfConfigured } from "./realtime/socketIoRedisAdapter";
 import { mongoConnectionOptionsFromEnv } from "./lib/mongoConnectionOptions";
-
-dotenv.config();
 
 const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
 requiredEnvVars.forEach((varName) => {

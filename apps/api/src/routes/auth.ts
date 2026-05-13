@@ -14,6 +14,7 @@ import {
   updateProfileSchema,
   changePasswordSchema,
   // deleteAccountSchema,
+  resetPasswordSchema
 } from "../validation/schemas";
 import {
   UnauthorizedError,
@@ -22,9 +23,16 @@ import {
   NotFoundError
 } from "../lib/appError";
 import authMiddleware, { AuthRequest } from "../middleware/auth";
+import crypto from "crypto"; // For generating secure random tokens for password reset 
+import { sendMail } from "../lib/mailer"; // For sending password reset emails
 
 // Explicit type annotation fixes the portable type error on Router()
 const router: Router = Router();
+
+// Utility function to hash reset tokens before storing in DB
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 // POST /api/auth/register
 const register: RequestHandler = async (
@@ -116,23 +124,55 @@ const forgotPassword: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (user) {
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenHash = hashResetToken(token);
+      user.passwordResetTokenHash = tokenHash;
+      user.passwordResetExpiresAt = new Date(Date.now() + 3600000); // 1 hour from now
+      await user.save();
 
-    // Always return same response to prevent email enumeration attacks
-    if (!user) {
-      res.json({ message: "If that email exists, a reset link has been sent" });
-      return;
+      const appUrl = process.env.APP_URL ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
+      const resetUrl = `${appUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
+      const text = `We received a request to reset your password. Open this link to reset it: ${resetUrl}. If you didn't request this, ignore this email.`;
+      const html = `<p>We received a request to reset your password. Click <a href="${resetUrl}">here</a> to reset it. If you didn't request this, ignore this email.</p>`;
+      try {
+        await sendMail({ to: user.email, subject: "Reset your password", text, html });
+      } catch (error) {
+        // log error but do not reveal to client
+        console.error("Error sending reset password email:", error);
+      }
+    }
+    //Always respond the same response to avoid email enumeration
+    res.json({ ok: true, message: "If that account exists, you'll receive an email with reset instructions." });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPassword: RequestHandler = async (req, res, next) => {
+  try {
+    const { email, token, newPassword } = req.body;
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user || !user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
+      throw new UnauthorizedError("Invalid or expired reset token", 401, "INVALID_RESET_TOKEN");
     }
 
-    // TODO: generate reset token and send via nodemailer or similar
-    // For now, return a clear message that this feature is not implemented
-    res.status(501).json({
-      message: "Password reset is not yet implemented. Please contact support.",
-      error: {
-        code: "FEATURE_NOT_IMPLEMENTED",
-        message: "Password reset functionality is coming soon"
-      }
-    });
+    if (user.passwordResetExpiresAt < new Date()) {
+      throw new UnauthorizedError("Invalid or expired reset token", 401, "INVALID_RESET_TOKEN"); 
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    if (tokenHash !== user.passwordResetTokenHash) {
+      throw new UnauthorizedError("Invalid or expired reset token", 401, "INVALID_RESET_TOKEN");
+    }
+
+    user.passwordHash = newPassword;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    await user.save();
+    res.json({ ok: true, message: "Password updated successfully" });
   } catch (err) {
     next(err);
   }
@@ -288,5 +328,6 @@ router.post("/change-password", authMiddleware, validate(changePasswordSchema), 
 router.delete("/users/:id", authMiddleware, deleteAccount);
 // Password-confirmed deletion route variant:
 // router.delete("/users/:id", authMiddleware, validate(deleteAccountSchema), deleteAccount);
+router.post("/reset-password", validate(resetPasswordSchema), resetPassword);
 
 export default router;

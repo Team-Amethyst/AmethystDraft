@@ -3,6 +3,7 @@ import HomePage from "./pages/HomePage";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Account from "./pages/Account";
 import Leagues from "./pages/Leagues";
 import LeagueCreate from "./pages/LeaguesCreate";
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
   { path: "/signup", Component: Signup },
   { path: "/login", Component: Login },
   { path: "/forgot-password", Component: ForgotPassword },
+  { path: "/reset-password", Component: ResetPassword },
   { path: "/account", Component: Account },
   { path: "/leagues", Component: Leagues },
   { path: "/leagues/create", Component: LeagueCreate },

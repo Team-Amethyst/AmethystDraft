@@ -1,5 +1,5 @@
 import { getRequestRouteMetricsSnapshot } from "../middleware/requestRouteMetrics";
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import {
   applyEngineNewsWebhookSnapshotHint,
   emitNewsSignalsWebhookTestPing,
