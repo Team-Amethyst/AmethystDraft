@@ -436,16 +436,36 @@
   table-layout: fixed;
 }
 
+/* Ordinal rank only — do not use `th-rank-metric` here (that width is for ADP/rank/value metrics). */
 .pt-table.pt-table--research .th-rank,
 .pt-table.pt-table--research .td-rank {
-  width: 2.35rem;
+  width: 2rem;
+  min-width: 2rem;
+  max-width: 2.15rem;
   box-sizing: border-box;
+  padding-left: 0.35rem;
+  padding-right: 0.2rem;
+  text-align: right;
+}
+
+.pt-table.pt-table--research thead .th-rank {
+  text-align: center;
+  color: #4f3f6e;
+  font-weight: 600;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.12;
 }
 
 .pt-table.pt-table--research .th-star,
 .pt-table.pt-table--research .td-star {
-  width: 2.25rem;
+  width: 2rem;
+  min-width: 2rem;
+  max-width: 2.15rem;
   box-sizing: border-box;
+  padding-left: 0.12rem;
+  padding-right: 0.28rem;
 }
 
 .pt-table.pt-table--research .th-player,
@@ -1164,6 +1184,12 @@
     width: min(32vw, 13rem);
     min-width: min(8.75rem, 28vw);
     max-width: min(32vw, 13rem);
+  }
+
+  .pt-table.pt-table--research {
+    --pt-rank-w: 2rem;
+    --pt-star-w: 2rem;
+    --pt-player-sticky-left: calc(var(--pt-rank-w) + var(--pt-star-w));
   }
 
   .pt-table thead .th-rank,
