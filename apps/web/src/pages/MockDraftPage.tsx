@@ -18,6 +18,10 @@ import { getPlayers, getPlayersCached } from "../api/players";
 import { getValuation } from "../api/engine";
 import { mergeCatalogPlayersWithValuations } from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
 import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
 import { filterResearchDefaultCatalogKind } from "../domain/researchCatalogFilter";
 import { useMockDraft } from "../hooks/useMockDraft";
@@ -227,6 +231,21 @@ export default function MockDraftPage() {
 
   const { token, user } = useAuth();
 
+  const mockLeagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
   // ── Player loading — mirrors Research.tsx so we get the same filtered pool
   //    (AL/NL/Mixed via playerPool) and Engine-enriched auction_value fields.
   //    Without this, search-nominated and AI-nominated players use the legacy
@@ -251,8 +270,8 @@ export default function MockDraftPage() {
       try {
         const userTeamId = resolveUserTeamId(league ?? null, user?.id);
         const res = await getValuation(leagueId, token, userTeamId, null, {
-          leagueConfigKey: leagueId ?? "",
-          rosterFingerprint: "",
+          leagueConfigKey: mockLeagueValuationKey,
+          rosterFingerprint: rosterValuationFingerprint([]),
         });
         const merged = researchValuationRowMapFromEngine(res.valuations, new Set());
         if (!cancelled) setValuationsByPlayerId(merged);
@@ -261,7 +280,7 @@ export default function MockDraftPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token, leagueId, rawPlayers.length, league, user?.id]);
+  }, [token, leagueId, rawPlayers.length, user?.id, mockLeagueValuationKey]);
 
   // Merge catalog players with Engine valuations + custom players at the top.
   // filterResearchDefaultCatalogKind removes market_only / non-draftable rows,

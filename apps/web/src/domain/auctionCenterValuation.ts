@@ -168,6 +168,21 @@ export function valuationExplainHasBidContextTable(ve: ValuationExplain): boolea
   );
 }
 
+/**
+ * True when a merged board row already carries the focused explain payload that
+ * {@code POST /valuation/player} with {@code explain_valuation_rows} would add,
+ * so the client can skip a redundant Engine round-trip.
+ */
+export function engineRowHasFocusedExplainPayload(
+  row: ValuationResult | undefined,
+): boolean {
+  const ve = row?.valuation_explain;
+  if (!ve || typeof ve !== "object") return false;
+  return (
+    valuationExplainHasBidContextTable(ve) || valuationExplainHasRiskRoleContent(ve)
+  );
+}
+
 /** True when any Engine field should populate the “Why this bid?” disclosure (merged row + catalog). */
 export function bidReasonDisclosureHasEngineContent(
   row: ValuationResult | undefined | null,

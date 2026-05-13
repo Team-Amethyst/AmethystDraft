@@ -52,6 +52,7 @@ import {
   auctionValueForCommandCenterPrefill,
   cleanedYourValueAndRecommendedBid,
   engineFiniteOrNull,
+  engineRowHasFocusedExplainPayload,
   formatEdgeLine,
   mergeDisplayValuationRow,
   valueMinusBidDeltaRounded,
@@ -108,6 +109,8 @@ export function AuctionCenter({
   const [valuationMap, setValuationMap] = useState<
     Map<string, ValuationResult>
   >(new Map());
+  const valuationMapRef = useRef(valuationMap);
+  valuationMapRef.current = valuationMap;
   /** True while the active per-player Engine `getValuationPlayer` request is in flight. */
   const [playerEngineFetchPending, setPlayerEngineFetchPending] =
     useState(false);
@@ -212,6 +215,16 @@ export function AuctionCenter({
       setPlayerEngineFetchPending(false);
       return;
     }
+    if (!engineMarket?.valuations?.length) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
+    const pid = normalizeValuationPlayerId(selectedPlayer.id);
+    const row = valuationMapRef.current.get(pid);
+    if (engineRowHasFocusedExplainPayload(row)) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
     setPlayerEngineFetchPending(true);
   }, [
     leagueId,
@@ -220,6 +233,7 @@ export function AuctionCenter({
     leagueValuationKey,
     rosterValuationKey,
     userTeamId,
+    engineMarket?.valuations?.length,
   ]);
 
   /**
@@ -325,8 +339,16 @@ export function AuctionCenter({
       setPlayerEngineFetchPending(false);
       return;
     }
+    if (!engineMarket?.valuations?.length) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
     const playerIdRaw = selectedPlayer.id;
     const playerId = normalizeValuationPlayerId(playerIdRaw);
+    if (engineRowHasFocusedExplainPayload(valuationMapRef.current.get(playerId))) {
+      setPlayerEngineFetchPending(false);
+      return;
+    }
     logDevValuationPlayerRequest({
       playerId: playerIdRaw,
       leagueId,
@@ -401,6 +423,7 @@ export function AuctionCenter({
     leagueValuationKey,
     rosterValuationKey,
     selectedPlayer?.id,
+    engineMarket?.valuations?.length,
   ]);
 
   useEffect(() => {

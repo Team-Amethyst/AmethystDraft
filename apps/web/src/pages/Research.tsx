@@ -458,6 +458,10 @@ export default function Research() {
       setModalExplainLoading(false);
       return;
     }
+    if (researchBoardPhase === "idle" || researchBoardPhase === "loading") {
+      setModalExplainLoading(researchBoardPhase === "loading");
+      return;
+    }
     let cancelled = false;
     setModalExplainLoading(true);
     const userTeamId = resolveUserTeamId(league, user?.id);
@@ -494,6 +498,7 @@ export default function Research() {
     rosterValuationKey,
     leagueValuationKey,
     researchBoardCacheExtras,
+    researchBoardPhase,
   ]);
 
   const loadDepthChart = useCallback(async (teamId: number, forceRefresh = false) => {

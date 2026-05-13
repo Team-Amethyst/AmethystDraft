@@ -150,6 +150,14 @@ export default function MyDraft() {
     [rosterEntries],
   );
 
+  const watchlistBoardRequestKey = useMemo(() => {
+    if (watchlist.length === 0) return "";
+    return watchlist
+      .map((w) => w.id)
+      .sort()
+      .join("\u0001");
+  }, [watchlist]);
+
   useEffect(() => {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries).catch(() => {
@@ -305,9 +313,8 @@ export default function MyDraft() {
     };
   }, [
     token,
-    watchlist,
+    watchlistBoardRequestKey,
     leagueId,
-    league,
     user?.id,
     rosterValuationKey,
     leagueValuationKey,

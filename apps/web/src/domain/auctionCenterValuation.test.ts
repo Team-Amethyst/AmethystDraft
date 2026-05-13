@@ -5,6 +5,7 @@ import {
   auctionValueForCommandCenterPrefill,
   bidReasonDisclosureHasEngineContent,
   commandCenterEdgeVsMaxBidRounded,
+  engineRowHasFocusedExplainPayload,
   mergeDisplayValuationRow,
   valuationExplainHasBidContextTable,
 } from "./auctionCenterValuation";
@@ -128,6 +129,26 @@ describe("Command Center bid reasoning helpers", () => {
     const merged = mergeDisplayValuationRow(row, minimalPlayer({ explain_v2: v2, why: ["a"] }));
     expect(merged?.explain_v2).toEqual(v2);
     expect(merged?.why).toEqual(["a"]);
+  });
+});
+
+describe("engineRowHasFocusedExplainPayload", () => {
+  it("is false when explain missing or empty", () => {
+    expect(engineRowHasFocusedExplainPayload(undefined)).toBe(false);
+    expect(
+      engineRowHasFocusedExplainPayload({
+        player_id: "p1",
+      } as ValuationResult),
+    ).toBe(false);
+  });
+
+  it("is true when bid-context explain fields are present", () => {
+    expect(
+      engineRowHasFocusedExplainPayload({
+        player_id: "p1",
+        valuation_explain: { replacement_key_used: "OF5" },
+      } as ValuationResult),
+    ).toBe(true);
   });
 });
 
