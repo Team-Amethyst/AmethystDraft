@@ -47,7 +47,9 @@ export function ResearchPlayerMetaBadges({
   items: readonly ResearchPlayerMetaBadgeItem[];
 }) {
   if (items.length === 0) return null;
-  const collapsible = items.length > 1;
+  /** Only swap to the compact strip when 3+ meta chips — avoids "+1" after a single extra tag. */
+  const collapsible = items.length > 2;
+  const overflowCount = items.length > 2 ? items.length - 2 : 0;
   return (
     <div
       className={
@@ -63,9 +65,11 @@ export function ResearchPlayerMetaBadges({
         </div>
         {collapsible ? (
           <div className="pt-research-meta-badges__compact tag-list pt-category-tags">
-            <span key={items[0].key}>{items[0].node}</span>
-            <span className="tag tag--overflow" aria-hidden="true">
-              +{items.length - 1}
+            {items.slice(0, 2).map((it) => (
+              <span key={it.key}>{it.node}</span>
+            ))}
+            <span className="tag tag--overflow" title={`${overflowCount} more`}>
+              +{overflowCount}
             </span>
           </div>
         ) : null}
