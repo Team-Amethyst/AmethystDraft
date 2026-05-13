@@ -52,3 +52,27 @@ export function shouldMaskResearchEngineColumns(
   if (player.catalog_kind === "market_only") return false;
   return true;
 }
+
+/** Players for whom the Command Center bid ladder expects Engine board-backed dollars. */
+export function isEngineValuationLadderPlayer(
+  player: Pick<Player, "valuation_eligible" | "catalog_kind">,
+): boolean {
+  if (player.valuation_eligible === false) return false;
+  if (player.catalog_kind === "market_only") return false;
+  return true;
+}
+
+/**
+ * Command Center bid ladder: show a loading icon instead of an em dash for a missing cell
+ * while the board snapshot is not settled (`ready` / `error`). Covers idle (e.g. roster
+ * warming), first fetch (`loading`), and background refresh (`refreshing`).
+ */
+export function shouldShowBidLadderCellSpinner(
+  phase: BoardValuationUiPhase,
+  player: Pick<Player, "valuation_eligible" | "catalog_kind">,
+  cellHasValue: boolean,
+): boolean {
+  if (cellHasValue) return false;
+  if (phase === "ready" || phase === "error") return false;
+  return isEngineValuationLadderPlayer(player);
+}

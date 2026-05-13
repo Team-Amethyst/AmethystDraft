@@ -734,6 +734,7 @@ export function AuctionCenter({
                 catImpactRows={catImpactRows}
                 pitchingCats={pitchingCats}
                 hittingCats={hittingCats}
+                engineBoardPhase={engineBoardPhase}
               />
             </div>
 

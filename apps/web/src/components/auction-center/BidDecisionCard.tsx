@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import {
@@ -20,17 +21,32 @@ import {
 import { AuctionMetricTile } from "./AuctionMetricTile";
 import { BidWhyThisBid } from "./BidWhyThisBid";
 import { displayAuctionTier } from "../../domain/playerRankTier";
+import {
+  shouldShowBidLadderCellSpinner,
+  type BoardValuationUiPhase,
+} from "../../domain/boardValuationFetchPhase";
 
 function fmtMoney(n: number | null) {
   return n != null ? formatDollar(n) : "—";
 }
 
+function BidLadderMetricLoading() {
+  return (
+    <span className="bdc-metric-value-loading" aria-busy="true" aria-label="Loading valuation">
+      <Loader2 className="bdc-metric-value-loading-icon" size={20} strokeWidth={2.25} />
+    </span>
+  );
+}
+
 export function BidDecisionCard({
   valuationRow,
   selectedPlayer,
+  engineBoardPhase = "ready",
 }: {
   valuationRow: ValuationResult | null | undefined;
   selectedPlayer: Player;
+  /** Engine board lifecycle for Command Center / Auction Center bid ladder placeholders. */
+  engineBoardPhase?: BoardValuationUiPhase;
 }) {
   const row = valuationRow ?? null;
 
@@ -126,6 +142,12 @@ export function BidDecisionCard({
     displayBid,
   );
 
+  const auctionHasValue =
+    displayLeagueAuction != null && Number.isFinite(displayLeagueAuction);
+  const maxBidHasValue = recommendedBidDisplay != null;
+  const teamValueHasValue = displayYour != null && Number.isFinite(displayYour);
+  const bidEdgeHasValue = edgeVsMaxDisplay !== undefined;
+
   return (
     <div className="bdc-decision-stack">
       <div
@@ -143,10 +165,14 @@ export function BidDecisionCard({
                 title={valuationTooltip("auction_value")}
                 value={
                   <span className="bdc-focus-value">
-                    {fmtMoney(
-                      displayLeagueAuction != null && Number.isFinite(displayLeagueAuction)
-                        ? displayLeagueAuction
-                        : null,
+                    {shouldShowBidLadderCellSpinner(
+                      engineBoardPhase,
+                      selectedPlayer,
+                      auctionHasValue,
+                    ) ? (
+                      <BidLadderMetricLoading />
+                    ) : (
+                      fmtMoney(auctionHasValue ? displayLeagueAuction : null)
                     )}
                   </span>
                 }
@@ -156,7 +182,7 @@ export function BidDecisionCard({
                 label={valuationSortLabel("recommended_bid")}
                 title={valuationTooltip("recommended_bid")}
                 value={
-                  recommendedBidDisplay != null ? (
+                  maxBidHasValue ? (
                     <span
                       className={
                         "bdc-focus-value bdc-recommended-value" +
@@ -165,6 +191,20 @@ export function BidDecisionCard({
                       }
                     >
                       {recommendedBidDisplay}
+                    </span>
+                  ) : shouldShowBidLadderCellSpinner(
+                      engineBoardPhase,
+                      selectedPlayer,
+                      maxBidHasValue,
+                    ) ? (
+                    <span
+                      className={
+                        "bdc-focus-value bdc-recommended-value" +
+                        (decisionDanger ? " bdc-recommended-value--danger" : "") +
+                        (decisionStrong ? " bdc-recommended-value--strong" : "")
+                      }
+                    >
+                      <BidLadderMetricLoading />
                     </span>
                   ) : (
                     "—"
@@ -176,7 +216,15 @@ export function BidDecisionCard({
                 title={valuationTooltip("team_adjusted_value")}
                 value={
                   <span className="bdc-focus-value">
-                    {fmtMoney(displayYour)}
+                    {shouldShowBidLadderCellSpinner(
+                      engineBoardPhase,
+                      selectedPlayer,
+                      teamValueHasValue,
+                    ) ? (
+                      <BidLadderMetricLoading />
+                    ) : (
+                      fmtMoney(teamValueHasValue ? displayYour : null)
+                    )}
                   </span>
                 }
               />
@@ -185,7 +233,15 @@ export function BidDecisionCard({
                 title={BID_EDGE_TOOLTIP}
                 value={
                   <span className="bdc-focus-value">
-                    {formatCurrencyWhole(edgeVsMaxDisplay)}
+                    {shouldShowBidLadderCellSpinner(
+                      engineBoardPhase,
+                      selectedPlayer,
+                      bidEdgeHasValue,
+                    ) ? (
+                      <BidLadderMetricLoading />
+                    ) : (
+                      formatCurrencyWhole(edgeVsMaxDisplay)
+                    )}
                   </span>
                 }
               />

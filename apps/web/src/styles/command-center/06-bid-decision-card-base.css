@@ -126,6 +126,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.bid-decision-card .bdc-metric-value-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.12em;
+}
+
+.bid-decision-card .bdc-metric-value-loading-icon {
+  animation: bdc-metric-value-spin 0.75s linear infinite;
+  opacity: 0.88;
+}
+
+@keyframes bdc-metric-value-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .bid-decision-card .bdc-metric-tile {
   box-sizing: border-box;
   min-width: 0;

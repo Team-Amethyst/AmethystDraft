@@ -7,6 +7,7 @@ import {
   MODEL_RANK_TOOLTIP,
 } from "../../domain/rankTierLabels";
 import { displayAuctionTier } from "../../domain/playerRankTier";
+import type { BoardValuationUiPhase } from "../../domain/boardValuationFetchPhase";
 import { AuctionCenterPlayerImpact } from "./AuctionCenterPlayerImpact";
 import { BidDecisionCard } from "./BidDecisionCard";
 import { PlayerIdentityCard } from "./PlayerIdentityCard";
@@ -28,6 +29,7 @@ interface AuctionCenterPlayerStackProps {
   catImpactRows: AuctionCenterCategoryImpactRow[];
   pitchingCats: { name: string; type: "batting" | "pitching" }[];
   hittingCats: { name: string; type: "batting" | "pitching" }[];
+  engineBoardPhase: BoardValuationUiPhase;
 }
 
 export function AuctionCenterPlayerStack({
@@ -43,6 +45,7 @@ export function AuctionCenterPlayerStack({
   catImpactRows,
   pitchingCats,
   hittingCats,
+  engineBoardPhase,
 }: AuctionCenterPlayerStackProps) {
   const rowUi = mergedValuationRow;
   const rawEngineTier = rowUi?.auction_tier ?? rowUi?.tier;
@@ -115,6 +118,7 @@ export function AuctionCenterPlayerStack({
         <BidDecisionCard
           valuationRow={rowForValuationUi}
           selectedPlayer={selectedPlayer}
+          engineBoardPhase={engineBoardPhase}
         />
       </section>
     </>
