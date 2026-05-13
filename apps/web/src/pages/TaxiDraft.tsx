@@ -12,7 +12,8 @@ import {
 } from "../domain/taxiDraft";
 import {
   loadTaxiDraftState,
-  saveTaxiDraftState,
+  saveTaxiDraftOrder,
+  saveTaxiRosters,
 } from "../utils/taxiDraftPersistence";
 import { getPlayersCached } from "../api/players";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
@@ -45,30 +46,51 @@ export default function TaxiDraft() {
 
   useEffect(() => {
     if (!league) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxiDraftOrder([]);
       setTaxiRosters({});
       return;
     }
 
-    const savedState = loadTaxiDraftState(league.id);
-    if (savedState?.taxiDraftOrder?.length) {
-      setTaxiDraftOrder(savedState.taxiDraftOrder);
-    } else {
-      setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
-    }
+    const loadState = async () => {
+      const savedState = await loadTaxiDraftState(league.id);
+      if (savedState?.taxiDraftOrder?.length) {
+        setTaxiDraftOrder(savedState.taxiDraftOrder);
+      } else {
+        setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
+      }
 
-    if (savedState?.taxiRosters) {
-      setTaxiRosters(savedState.taxiRosters);
-    }
+      if (savedState?.taxiRosters) {
+        setTaxiRosters(savedState.taxiRosters);
+      }
+    };
+
+    void loadState();
   }, [league, leagueTeamNames]);
 
   useEffect(() => {
-    if (!league) return;
-    saveTaxiDraftState(league.id, {
-      taxiDraftOrder,
-      taxiRosters,
-    });
-  }, [league, taxiDraftOrder, taxiRosters]);
+    if (!league?.id || !taxiDraftOrder.length) return;
+    const saveOrder = async () => {
+      try {
+        await saveTaxiDraftOrder(league.id, taxiDraftOrder);
+      } catch (error) {
+        console.error("Failed to save taxi draft order:", error);
+      }
+    };
+    void saveOrder();
+  }, [league?.id, taxiDraftOrder]);
+
+  useEffect(() => {
+    if (!league?.id) return;
+    const saveRosters = async () => {
+      try {
+        await saveTaxiRosters(league.id, taxiRosters);
+      } catch (error) {
+        console.error("Failed to save taxi rosters:", error);
+      }
+    };
+    void saveRosters();
+  }, [league?.id, taxiRosters]);
 
   // Load players for search
   useEffect(() => {

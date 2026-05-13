@@ -1,5 +1,5 @@
 import { Router, RequestHandler, Response, NextFunction } from "express";
-import League from "../models/League";
+import League, { ITaxiRosterEntry } from "../models/League";
 import RosterEntry from "../models/RosterEntry";
 import PlayerNote from "../models/PlayerNote";
 import WatchlistEntry from "../models/WatchlistEntry";
@@ -9,6 +9,8 @@ import {
   createLeagueSchema,
   updateLeagueSchema,
   addRosterEntrySchema,
+  updateTaxiDraftOrderSchema,
+  updateTaxiRostersSchema,
 } from "../validation/schemas";
 import {
   NotFoundError,
@@ -524,6 +526,68 @@ const deleteWatchlistEntry: RequestHandler = async (
   }
 };
 
+// ─── PUT /api/leagues/:id/taxi-draft-order ────────────────────────────────────
+
+const updateTaxiDraftOrder: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const league = await League.findOne({
+      _id: req.params.id,
+      commissionerId: req.user!._id,
+    });
+
+    if (!league) {
+      throw new NotFoundError("League not found or not authorized", 404, "LEAGUE_NOT_FOUND_OR_UNAUTHORIZED");
+    }
+
+    const { taxiDraftOrder } = req.body as { taxiDraftOrder: string[] };
+
+    if (!Array.isArray(taxiDraftOrder)) {
+      throw new ValidationError("taxiDraftOrder must be an array", 400, "INVALID_TAXI_DRAFT_ORDER");
+    }
+
+    league.taxiDraftOrder = taxiDraftOrder;
+    await league.save();
+    res.json(serializeLeague(league));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── PUT /api/leagues/:id/taxi-rosters ─────────────────────────────────────────
+
+const updateTaxiRosters: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const league = await League.findOne({
+      _id: req.params.id,
+      memberIds: req.user!._id,
+    });
+
+    if (!league) {
+      throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
+    }
+
+    const { taxiRosters } = req.body as { taxiRosters: Record<string, ITaxiRosterEntry[]> };
+
+    if (typeof taxiRosters !== "object" || taxiRosters === null) {
+      throw new ValidationError("taxiRosters must be an object", 400, "INVALID_TAXI_ROSTERS");
+    }
+
+    league.taxiRosters = taxiRosters;
+    await league.save();
+    res.json(serializeLeague(league));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── Route registration ────────────────────────────────────────────────────────
 
 router.post("/", validate(createLeagueSchema), createLeague);
@@ -539,5 +603,8 @@ router.put("/:id/notes/:playerId", upsertNote);
 router.get("/:id/watchlist", getWatchlist);
 router.put("/:id/watchlist/:playerId", upsertWatchlistEntry);
 router.delete("/:id/watchlist/:playerId", deleteWatchlistEntry);
+
+router.put("/:id/taxi-draft-order", validate(updateTaxiDraftOrderSchema), updateTaxiDraftOrder);
+router.put("/:id/taxi-rosters", validate(updateTaxiRostersSchema), updateTaxiRosters);
 
 export default router;
