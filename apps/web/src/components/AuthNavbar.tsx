@@ -141,6 +141,8 @@ export default function AuthNavbar() {
   const knownKeysRef = useRef<Set<string>>(new Set());
   /** Coalesce rapid Socket.IO pushes into one news fetch + toast cycle. */
   const pushDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Tracks last open+filter+token key so Socket.IO nonce bumps alone use push refresh (one fetch). */
+  const alertsPanelKeyRef = useRef<string>("");
 
   const applySignals = useCallback(
     (signals: NewsSignal[], source: "dropdown" | "push") => {
@@ -269,27 +271,41 @@ export default function AuthNavbar() {
   }, [alertsOpen]);
 
   useEffect(() => {
-    if (!alertsOpen || !token) return;
+    if (!alertsOpen || !token) {
+      if (!alertsOpen) alertsPanelKeyRef.current = "";
+      return;
+    }
+
     const signalType = signalTypeForFilter(alertFilter);
     const cacheKey = newsSignalsCacheKey(NEWS_LOOKBACK_DAYS, signalType);
+    const panelKey = `${alertsOpen}|${alertFilter}|${token}`;
+    const panelContextChanged = alertsPanelKeyRef.current !== panelKey;
+    alertsPanelKeyRef.current = panelKey;
+
+    /** Opening the panel or changing filter uses dropdown semantics; nonce-only bumps use push (toasts). */
+    const isPushOnly =
+      !panelContextChanged && realtimeNonce > 0;
+
     const cached = readNewsSignalsCache(cacheKey);
     const hadCache = cached !== null;
 
     let active = true;
 
-    if (cached) {
-      applySignals(cached.signals, "dropdown");
-      setAlertsError(null);
-    }
-
-    queueMicrotask(() => {
-      if (!hadCache) {
-        setAlertsLoading(true);
-        setAlertsError(null);
-      } else {
+    if (!isPushOnly) {
+      if (cached) {
+        applySignals(cached.signals, "dropdown");
         setAlertsError(null);
       }
-    });
+
+      queueMicrotask(() => {
+        if (!hadCache) {
+          setAlertsLoading(true);
+          setAlertsError(null);
+        } else {
+          setAlertsError(null);
+        }
+      });
+    }
 
     getNewsSignals(token, {
       days: NEWS_LOOKBACK_DAYS,
@@ -298,11 +314,11 @@ export default function AuthNavbar() {
       .then((response) => {
         if (!active) return;
         writeNewsSignalsCache(cacheKey, response);
-        applySignals(response.signals, "dropdown");
+        applySignals(response.signals, isPushOnly ? "push" : "dropdown");
       })
       .catch((error: unknown) => {
         if (!active) return;
-        if (!hadCache) {
+        if (!isPushOnly && !hadCache) {
           let message = "Unable to load MLB alerts right now.";
           if (error instanceof Error) {
             if (error.name === "AbortError") {
@@ -318,37 +334,13 @@ export default function AuthNavbar() {
       })
       .finally(() => {
         if (!active) return;
-        setAlertsLoading(false);
+        if (!isPushOnly) setAlertsLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [alertsOpen, token, alertFilter, applySignals]);
-
-  useEffect(() => {
-    if (!alertsOpen || !token || realtimeNonce === 0) return;
-    const signalType = signalTypeForFilter(alertFilter);
-    const cacheKey = newsSignalsCacheKey(NEWS_LOOKBACK_DAYS, signalType);
-    let active = true;
-
-    getNewsSignals(token, {
-      days: NEWS_LOOKBACK_DAYS,
-      signal_type: signalType,
-    })
-      .then((response) => {
-        if (!active) return;
-        writeNewsSignalsCache(cacheKey, response);
-        applySignals(response.signals, "push");
-      })
-      .catch(() => {
-        /* push refresh is best-effort */
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [realtimeNonce, alertsOpen, token, alertFilter, applySignals]);
+  }, [alertsOpen, token, alertFilter, realtimeNonce, applySignals]);
 
   const leagueBase = league ? `/leagues/${league.id}` : "";
   const isActive = (path: string) => location.pathname === path;
