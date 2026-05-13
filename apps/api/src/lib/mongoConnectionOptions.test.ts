@@ -9,12 +9,13 @@ describe("mongoConnectionOptionsFromEnv", () => {
     else process.env.MONGODB_MAX_POOL_SIZE = prev;
   });
 
-  it("defaults maxPoolSize to 25 when unset", () => {
+  it("defaults maxPoolSize to 10 when unset", () => {
     delete process.env.MONGODB_MAX_POOL_SIZE;
     const opts = mongoConnectionOptionsFromEnv();
-    expect(opts.maxPoolSize).toBe(25);
+    expect(opts.maxPoolSize).toBe(10);
     expect(opts.maxConnecting).toBe(2);
     expect(opts.maxIdleTimeMS).toBe(60_000);
+    expect(opts.serverSelectionTimeoutMS).toBe(30_000);
   });
 
   it("respects MONGODB_MAX_POOL_SIZE", () => {

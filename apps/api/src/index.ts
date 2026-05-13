@@ -81,6 +81,8 @@ const httpServer = http.createServer(app);
 
 const mongoOpts = mongoConnectionOptionsFromEnv();
 const mongoUri = process.env.MONGO_URI as string;
+const serviceName =
+  process.env.SERVICE_NAME?.trim() || process.env.AWS_APPRUNNER_SERVICE_ID?.trim() || "draftroom-api";
 
 let shuttingDown = false;
 
@@ -129,9 +131,21 @@ async function bootstrap(): Promise<void> {
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(mongoUri, mongoOpts);
     }
-    console.log(
-      `Connected to MongoDB (maxPoolSize=${String(mongoOpts.maxPoolSize ?? "default")}, maxIdleTimeMS=${String(mongoOpts.maxIdleTimeMS ?? "default")})`,
-    );
+    const dbName = mongoose.connection.db?.databaseName ?? "(unknown)";
+    const poolLog = {
+      service: serviceName,
+      pid: process.pid,
+      NODE_ENV: process.env.NODE_ENV ?? "(unset)",
+      mongoDatabase: dbName,
+      maxPoolSize: mongoOpts.maxPoolSize,
+      minPoolSize: mongoOpts.minPoolSize,
+      maxConnecting: mongoOpts.maxConnecting,
+      maxIdleTimeMS: mongoOpts.maxIdleTimeMS,
+      serverSelectionTimeoutMS: mongoOpts.serverSelectionTimeoutMS,
+      // Not set in ConnectOptions; Node driver default is typically 0 (no socket idle timeout).
+      socketTimeoutMS: "(driver default — not set in Draftroom)",
+    };
+    console.log(`[mongo] connected ${JSON.stringify(poolLog)}`);
   } catch (err) {
     console.error("MongoDB connection error:", err);
     process.exit(1);
