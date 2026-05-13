@@ -520,7 +520,9 @@ export default function MockDraftPage() {
                             <PosBadge pos={p.position} />
                             <span className="md-sr-name">{p.name}</span>
                             <span className="md-sr-team">{p.team}</span>
-                            <span className="md-sr-val">${p.value}</span>
+                            <span className="md-sr-val">
+                              ${p.auction_value ?? p.adjusted_value ?? p.value}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -552,7 +554,11 @@ export default function MockDraftPage() {
             <div className="md-suggestion-player">
               <PosBadge pos={state.suggestion.player.position} />
               <span className="md-sug-name">{state.suggestion.player.name}</span>
-              <span className="md-sug-val">${state.suggestion.player.value}</span>
+              <span className="md-sug-val">
+                ${state.suggestion.player.auction_value
+                  ?? state.suggestion.player.adjusted_value
+                  ?? state.suggestion.player.value}
+              </span>
             </div>
             <button
               className="md-btn-suggestion"
