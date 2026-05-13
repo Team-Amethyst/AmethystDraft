@@ -15,6 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { useValuationBoardAlerts } from "../contexts/ValuationBoardAlertsContext";
 import { getNewsSignals, type NewsSignal } from "../api/engine";
+import { createClientUuid } from "../utils/randomUuid";
 import {
   newsSignalsCacheKey,
   readNewsSignalsCache,
@@ -209,7 +210,7 @@ export default function AuthNavbar() {
       "Webhook test received — live connection OK.";
     setWebhookPings((prev) => {
       const row: StoredWebhookPing = {
-        id: crypto.randomUUID(),
+        id: createClientUuid(),
         message: text,
         at: Date.now(),
       };
