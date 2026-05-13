@@ -372,7 +372,10 @@ export default function Research() {
   }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
 
   useEffect(() => {
-    if (!token || !leagueId || players.length === 0) {
+    // Wait for league row from layout context. Otherwise `leagueValuationConfigKey(null)` is ""
+    // and `resolveUserTeamId` falls back to `team_1`; when leagues load we re-run with a new
+    // cache key and fire a second board POST while the first is still pending (duplicate Network).
+    if (!token || !leagueId || !league || players.length === 0) {
       setValuationsByPlayerId(new Map());
       setLastResearchBoardValuation(null);
       setResearchBoardPhase("idle");
@@ -443,6 +446,7 @@ export default function Research() {
   }, [
     token,
     leagueId,
+    league,
     players.length,
     customPlayerIds,
     user?.id,
