@@ -59,6 +59,10 @@ import {
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
 import { researchPlayerCellTooltip } from "../domain/researchPlayerCellTooltip";
+import {
+  ResearchPlayerMetaBadges,
+  buildResearchPlayerMetaBadgeItems,
+} from "./ResearchPlayerMetaBadges";
 
 interface PlayerTableProps {
   players: Player[];
@@ -744,6 +748,14 @@ export default function PlayerTable({
                   maskEngineColumns,
                   researchDraftable: player.research_draftable,
                 });
+                const researchMetaBadgeItems = isResearchLayout
+                  ? buildResearchPlayerMetaBadgeItems({
+                      tags,
+                      isCustom: Boolean(isCustomPlayer?.(player.id)),
+                      draftedTeamName,
+                      draftedContractLabel,
+                    })
+                  : [];
 
                 return (
                   <tr
@@ -787,67 +799,63 @@ export default function PlayerTable({
                     </td>
 
                     <td className="td-player">
-                      <div
-                        className="player-cell"
-                        title={playerCellTitle}
-                      >
-                        <PlayerHeadshot
-                          src={player.headshot}
-                          name={player.name}
-                          isCustom={isCustomPlayer?.(player.id)}
-                        />
+                      {isResearchLayout ? (
                         <div
-                          className={
-                            "player-name-col" +
-                            (isResearchLayout ? " player-name-col--research" : "")
-                          }
+                          className="player-cell player-cell--research"
+                          title={playerCellTitle}
                         >
-                          <span className="player-name">
-                            {player.name}
-                            {player.injuryStatus && (
-                              <span className="pt-il-badge">
-                                {player.injuryStatus.replace("DL", "IL")}
-                              </span>
-                            )}
-                          </span>
+                          <PlayerHeadshot
+                            src={player.headshot}
+                            name={player.name}
+                            isCustom={isCustomPlayer?.(player.id)}
+                          />
+                          <div className="player-name-col player-name-col--research">
+                            <div className="pt-research-player-top">
+                              <span className="player-name">{player.name}</span>
+                              {player.injuryStatus && (
+                                <span className="pt-il-badge">
+                                  {player.injuryStatus.replace("DL", "IL")}
+                                </span>
+                              )}
+                            </div>
+                            <ResearchPlayerMetaBadges
+                              items={researchMetaBadgeItems}
+                            />
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="player-cell" title={playerCellTitle}>
+                          <PlayerHeadshot
+                            src={player.headshot}
+                            name={player.name}
+                            isCustom={isCustomPlayer?.(player.id)}
+                          />
+                          <div className="player-name-col">
+                            <span className="player-name">
+                              {player.name}
+                              {player.injuryStatus && (
+                                <span className="pt-il-badge">
+                                  {player.injuryStatus.replace("DL", "IL")}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </td>
 
-                    <td
-                      className={
-                        "td-pos" +
-                        (isResearchLayout ? " td-pos--research" : "")
-                      }
-                    >
+                    <td className="td-pos">
                       {player.positions && player.positions.length > 1 ? (
-                        isResearchLayout ? (
-                          <div
-                            className="pt-pos-cell-research"
-                            title={player.positions.join(" · ")}
-                          >
-                            <div className="pt-pos-multi pt-pos-multi--research">
-                              <PosBadge pos={player.positions[0]} />
-                              <span className="pt-pos-multi__rest">
-                                {player.positions.slice(1).map((pos) => (
-                                  <PosBadge key={pos} pos={pos} />
-                                ))}
-                              </span>
-                              <span
-                                className="pt-pos-multi__overflow"
-                                aria-hidden="true"
-                              >
-                                +{player.positions.length - 1}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="pt-pos-badges">
-                            {player.positions.map((pos) => (
-                              <PosBadge key={pos} pos={pos} />
-                            ))}
-                          </div>
-                        )
+                        <div
+                          className={
+                            "pt-pos-badges" +
+                            (isResearchLayout ? " pt-pos-badges--research" : "")
+                          }
+                        >
+                          {player.positions.map((pos) => (
+                            <PosBadge key={pos} pos={pos} />
+                          ))}
+                        </div>
                       ) : (
                         <PosBadge pos={player.position} />
                       )}

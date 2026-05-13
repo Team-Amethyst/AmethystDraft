@@ -502,6 +502,14 @@
   hyphens: none;
 }
 
+.pt-table.pt-table--research thead th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
 .pt-row {
   border-bottom: 1px solid rgba(255,255,255,0.03);
   transition: background 0.15s;
@@ -541,7 +549,7 @@
   vertical-align: middle;
 }
 
-/* Player column: single-line name + optional injury badge (trait chips live in title tooltip). */
+/* Player column: name + injury; Research adds a meta badge row (+N collapse when narrow). */
 .pt-table thead .th-player,
 .pt-table tbody .td-player {
   max-width: min(28rem, 48vw);
@@ -561,6 +569,10 @@
   min-width: 0;
 }
 
+.player-cell--research {
+  align-items: flex-start;
+}
+
 .player-name-col {
   position: relative;
   display: flex;
@@ -573,17 +585,27 @@
   flex: 1 1 auto;
 }
 
-/* Research: no second meta row — keep name on one line with ellipsis. */
+/* Research: name + injury on first row; category / custom / drafted badges below with +N when narrow. */
 .player-name-col--research {
-  flex-direction: row;
+  flex-direction: column;
+  align-items: stretch;
   flex-wrap: nowrap;
-  align-items: center;
-  align-content: center;
+  align-content: flex-start;
+  gap: 0.28rem;
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.player-name-col--research .player-name {
+.pt-research-player-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.pt-research-player-top .player-name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -591,7 +613,52 @@
   white-space: nowrap;
 }
 
-/* Legacy: category / drafted chips (removed from Research rows; keep for dev mocks). */
+.pt-research-player-top .pt-il-badge {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.pt-research-meta-badges {
+  width: 100%;
+  min-width: 0;
+}
+
+.pt-research-meta-badges__cq {
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: playerbadges;
+}
+
+.pt-research-meta-badges__full {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pt-research-meta-badges__compact {
+  display: none;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+@container playerbadges (max-width: 9.5rem) {
+  .pt-research-meta-badges--collapsible .pt-research-meta-badges__full {
+    display: none;
+  }
+
+  .pt-research-meta-badges--collapsible .pt-research-meta-badges__compact {
+    display: flex;
+  }
+}
+
+/* Legacy: category / drafted chip row patterns (see ResearchPlayerMetaBadges for Research). */
 .pt-meta-tags {
   display: flex;
   flex-wrap: nowrap;
@@ -756,55 +823,8 @@
   max-width: 100%;
 }
 
-/* Research: multi-position — full badges when cell is wide; first + "+N" when narrow (container query). */
-.pt-pos-cell-research {
-  width: 100%;
-  min-width: 0;
-  container-type: inline-size;
-  container-name: poscell;
-}
-
-.pt-pos-multi--research {
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-}
-
-.pt-pos-multi--research .pt-pos-multi__rest {
-  display: inline-flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-}
-
-.pt-pos-multi--research .pt-pos-multi__overflow {
-  display: none;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: 22px;
-  padding: 0 0.32rem;
-  border-radius: 5px;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #b8aad8;
-  background: rgba(139, 92, 246, 0.14);
-  border: 1px solid rgba(139, 92, 246, 0.32);
-}
-
-@container poscell (max-width: 5.75rem) {
-  .pt-pos-multi--research .pt-pos-multi__rest {
-    display: none;
-  }
-
-  .pt-pos-multi--research .pt-pos-multi__overflow {
-    display: inline-flex;
-  }
+.pt-pos-badges.pt-pos-badges--research {
+  flex-wrap: nowrap;
 }
 
 .pt-table .pos-badge {
@@ -1226,9 +1246,9 @@
   }
 
   .player-name-col--research {
-    flex-direction: row;
-    align-items: center;
-    align-self: center;
+    flex-direction: column;
+    align-items: stretch;
+    align-self: stretch;
     overflow-x: hidden;
   }
 
