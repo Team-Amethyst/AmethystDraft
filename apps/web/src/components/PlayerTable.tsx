@@ -814,13 +814,40 @@ export default function PlayerTable({
                       </div>
                     </td>
 
-                    <td className="td-pos">
+                    <td
+                      className={
+                        "td-pos" +
+                        (isResearchLayout ? " td-pos--research" : "")
+                      }
+                    >
                       {player.positions && player.positions.length > 1 ? (
-                        <div className="pt-pos-badges">
-                          {player.positions.map((pos) => (
-                            <PosBadge key={pos} pos={pos} />
-                          ))}
-                        </div>
+                        isResearchLayout ? (
+                          <div
+                            className="pt-pos-cell-research"
+                            title={player.positions.join(" · ")}
+                          >
+                            <div className="pt-pos-multi pt-pos-multi--research">
+                              <PosBadge pos={player.positions[0]} />
+                              <span className="pt-pos-multi__rest">
+                                {player.positions.slice(1).map((pos) => (
+                                  <PosBadge key={pos} pos={pos} />
+                                ))}
+                              </span>
+                              <span
+                                className="pt-pos-multi__overflow"
+                                aria-hidden="true"
+                              >
+                                +{player.positions.length - 1}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="pt-pos-badges">
+                            {player.positions.map((pos) => (
+                              <PosBadge key={pos} pos={pos} />
+                            ))}
+                          </div>
+                        )
                       ) : (
                         <PosBadge pos={player.position} />
                       )}

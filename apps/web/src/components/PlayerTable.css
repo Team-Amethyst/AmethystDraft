@@ -450,7 +450,7 @@
 
 .pt-table.pt-table--research .th-player,
 .pt-table.pt-table--research .td-player {
-  width: 32%;
+  width: 23%;
   max-width: none;
   min-width: 0;
   box-sizing: border-box;
@@ -458,7 +458,9 @@
 
 .pt-table.pt-table--research .th-pos,
 .pt-table.pt-table--research .td-pos {
-  width: 4.25rem;
+  width: 8.5rem;
+  min-width: 4.5rem;
+  max-width: none;
 }
 
 .pt-table.pt-table--research .th-team,
@@ -754,6 +756,57 @@
   max-width: 100%;
 }
 
+/* Research: multi-position — full badges when cell is wide; first + "+N" when narrow (container query). */
+.pt-pos-cell-research {
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: poscell;
+}
+
+.pt-pos-multi--research {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pt-pos-multi--research .pt-pos-multi__rest {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pt-pos-multi--research .pt-pos-multi__overflow {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 22px;
+  padding: 0 0.32rem;
+  border-radius: 5px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #b8aad8;
+  background: rgba(139, 92, 246, 0.14);
+  border: 1px solid rgba(139, 92, 246, 0.32);
+}
+
+@container poscell (max-width: 5.75rem) {
+  .pt-pos-multi--research .pt-pos-multi__rest {
+    display: none;
+  }
+
+  .pt-pos-multi--research .pt-pos-multi__overflow {
+    display: inline-flex;
+  }
+}
+
 .pt-table .pos-badge {
   display: inline-flex;
   align-items: center;
@@ -1032,6 +1085,14 @@
     box-shadow: 4px 0 14px -6px rgba(0, 0, 0, 0.65);
     /* Opaque edge so scrolled cells never show through subpixel gaps */
     border-right: 1px solid #12101f;
+  }
+
+  /* Research: slimmer sticky identity so POS / stats keep more horizontal space */
+  .pt-table.pt-table--research thead .th-player,
+  .pt-table.pt-table--research tbody .td-player {
+    width: min(32vw, 13rem);
+    min-width: min(8.75rem, 28vw);
+    max-width: min(32vw, 13rem);
   }
 
   .pt-table thead .th-rank,
