@@ -152,6 +152,49 @@ describe("sortPlayerTableRows", () => {
     expect(out.map((r) => r.player.id)).toEqual(["a", "b", "c"]);
   });
 
+  it("sorts by market ADP descending (missing still last)", () => {
+    const rows = [
+      {
+        player: player("a", {
+          name: "A",
+          catalog_rank: 1,
+          catalog_tier: 1,
+          market_adp: 5,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+      {
+        player: player("b", {
+          name: "B",
+          catalog_rank: 2,
+          catalog_tier: 1,
+          market_adp: 20,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+      {
+        player: player("c", {
+          name: "C",
+          catalog_rank: 3,
+          catalog_tier: 1,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+    ];
+    const out = sortPlayerTableRows(
+      rows,
+      { col: "market_adp", dir: "desc" },
+      batCols,
+      pitCols,
+      "auction_value",
+      basis,
+    );
+    expect(out.map((r) => r.player.id)).toEqual(["b", "a", "c"]);
+  });
+
   it("sorts by auction rank ascending (missing last)", () => {
     const rows = [
       {
@@ -193,6 +236,49 @@ describe("sortPlayerTableRows", () => {
       basis,
     );
     expect(out.map((r) => r.player.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("sorts by auction rank descending (missing still last)", () => {
+    const rows = [
+      {
+        player: player("a", {
+          name: "A",
+          catalog_rank: 1,
+          catalog_tier: 1,
+          auction_rank: 3,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+      {
+        player: player("b", {
+          name: "B",
+          catalog_rank: 2,
+          catalog_tier: 1,
+          auction_rank: 12,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+      {
+        player: player("c", {
+          name: "C",
+          catalog_rank: 3,
+          catalog_tier: 1,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+    ];
+    const out = sortPlayerTableRows(
+      rows,
+      { col: "auction_rank", dir: "desc" },
+      batCols,
+      pitCols,
+      "auction_value",
+      basis,
+    );
+    expect(out.map((r) => r.player.id)).toEqual(["b", "a", "c"]);
   });
 
   it("treats legacy adp sort key as catalog rank", () => {

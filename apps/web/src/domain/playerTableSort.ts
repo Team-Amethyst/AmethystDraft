@@ -12,15 +12,21 @@ function asFinite(n: unknown): number | undefined {
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
+/**
+ * Sort finite numeric keys; rows with missing values always sort to the end
+ * (ascending or descending), so "—" stays at the bottom of the table.
+ */
 function sortWithMissingLast(
   a: number | undefined,
   b: number | undefined,
   mult: number,
 ): number {
-  const big = 1e12;
-  const va = a ?? big;
-  const vb = b ?? big;
-  return mult * (va - vb);
+  const aMiss = a === undefined;
+  const bMiss = b === undefined;
+  if (aMiss && bMiss) return 0;
+  if (aMiss) return 1;
+  if (bMiss) return -1;
+  return mult * (a - b);
 }
 
 export type PlayerTableSortableRow = {
