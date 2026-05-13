@@ -1,4 +1,15 @@
 import { authHeaders, requestJson } from "./client";
+import {
+  executeBoardValuationRequest,
+  executePlayerValuationRequest,
+} from "./engineValuationExecute";
+import {
+  fetchBoardValuationWithCache,
+  fetchPlayerValuationWithCache,
+  type ValuationBoardCacheContext,
+} from "./valuationCache";
+
+export type { ValuationBoardCacheContext };
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
@@ -99,23 +110,26 @@ export async function getValuation(
   leagueId: string,
   token: string,
   userTeamId = "team_1",
+  cacheContext?: ValuationBoardCacheContext | null,
 ): Promise<ValuationResponse> {
-  return requestJson<ValuationResponse>(
-    `/api/engine/leagues/${leagueId}/valuation`,
-    {
-      method: "POST",
-      headers: authHeaders(token),
-      body: JSON.stringify({
-        user_team_id: userTeamId,
-        inflation_model: "replacement_slots_v2",
-      }),
-    },
-    "Valuation request failed",
-  );
+  if (cacheContext) {
+    return fetchBoardValuationWithCache({
+      leagueId,
+      token,
+      userTeamId,
+      cacheContext,
+    });
+  }
+  return executeBoardValuationRequest(leagueId, token, userTeamId);
 }
 
 export type ValuationPlayerResponse = ValuationResponse & {
   player?: ValuationResult;
+};
+
+export type GetValuationPlayerOptions = {
+  explainValuationRows?: boolean;
+  cacheContext?: ValuationBoardCacheContext;
 };
 
 export async function getValuationPlayer(
@@ -123,19 +137,25 @@ export async function getValuationPlayer(
   token: string,
   playerId: string,
   userTeamId = "team_1",
+  options?: GetValuationPlayerOptions,
 ): Promise<ValuationPlayerResponse> {
-  return requestJson<ValuationPlayerResponse>(
-    `/api/engine/leagues/${leagueId}/valuation/player`,
-    {
-      method: "POST",
-      headers: authHeaders(token),
-      body: JSON.stringify({
-        player_id: playerId,
-        user_team_id: userTeamId,
-        inflation_model: "replacement_slots_v2",
-      }),
-    },
-    "Valuation (player) request failed",
+  const { cacheContext, ...playerOptions } = options ?? {};
+  if (cacheContext) {
+    return fetchPlayerValuationWithCache({
+      leagueId,
+      token,
+      playerId,
+      userTeamId,
+      options: playerOptions,
+      cacheContext,
+    });
+  }
+  return executePlayerValuationRequest(
+    leagueId,
+    token,
+    playerId,
+    userTeamId,
+    playerOptions,
   );
 }
 

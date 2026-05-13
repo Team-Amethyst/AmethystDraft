@@ -27,6 +27,10 @@ import {
   updateRosterEntry,
   type RosterEntry,
 } from "../api/roster";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
 import { EmptyState, LoadingState } from "../components/ui/ScreenState";
@@ -364,6 +368,8 @@ export default function CommandCenterScreen({ route }: Props) {
   const [valuationSnapshot, setValuationSnapshot] =
     useState<ValuationPlayerResponse | null>(null);
   const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>([]);
+  /** Length of last successful board `valuations` array — gates /valuation/player until board exists. */
+  const [boardValuationsLen, setBoardValuationsLen] = useState(0);
 
   const [mockPredictions, setMockPredictions] = useState<MockPickPrediction[]>([]);
   const [loadingMockPicks, setLoadingMockPicks] = useState(false);
@@ -371,19 +377,49 @@ export default function CommandCenterScreen({ route }: Props) {
   const league = allLeagues.find((item) => item.id === leagueId);
   const { positionTargets } = useDraftPlan(leagueId);
 
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(roster),
+    [roster],
+  );
+
+  useEffect(() => {
+    setBoardValuationsLen(0);
+  }, [leagueId]);
+
   async function refreshRosterAndEngine() {
     if (!token) return;
 
-    const [rosterData, valuationData] = await Promise.all([
-      getRoster(leagueId, token),
-      getValuation(leagueId, token, "team_1").catch(() => null),
-    ]);
-
+    const rosterData = await getRoster(leagueId, token);
     setRoster(rosterData);
+    const cacheCtx = {
+      leagueConfigKey: leagueValuationKey,
+      rosterFingerprint: rosterValuationFingerprint(rosterData),
+    };
+    const valuationData = await getValuation(leagueId, token, "team_1", cacheCtx).catch(
+      () => null,
+    );
 
     if (valuationData) {
       setValuationSnapshot(valuationData);
       setValuationMarketNotes(valuationData.market_notes ?? []);
+      setBoardValuationsLen(valuationData.valuations?.length ?? 0);
+    } else {
+      setBoardValuationsLen(0);
     }
   }
 
@@ -392,19 +428,29 @@ export default function CommandCenterScreen({ route }: Props) {
       if (!token || !league) return;
 
       try {
-        const [playerData, rosterData, _notesLoaded, valuationData] = await Promise.all([
+        const [playerData, rosterData, _notesLoaded] = await Promise.all([
           getPlayers("adp", league.posEligibilityThreshold, league.playerPool),
           getRoster(leagueId, token),
           loadNotes(leagueId),
-          getValuation(leagueId, token, "team_1").catch(() => null),
         ]);
 
         setPlayers(playerData);
         setRoster(rosterData);
 
+        const cacheCtx = {
+          leagueConfigKey: leagueValuationKey,
+          rosterFingerprint: rosterValuationFingerprint(rosterData),
+        };
+        const valuationData = await getValuation(leagueId, token, "team_1", cacheCtx).catch(
+          () => null,
+        );
+
         if (valuationData) {
           setValuationSnapshot(valuationData);
           setValuationMarketNotes(valuationData.market_notes ?? []);
+          setBoardValuationsLen(valuationData.valuations?.length ?? 0);
+        } else {
+          setBoardValuationsLen(0);
         }
       } finally {
         setLoading(false);
@@ -412,7 +458,15 @@ export default function CommandCenterScreen({ route }: Props) {
     }
 
     void loadData();
-  }, [league, leagueId, loadNotes, token]);
+  }, [
+    leagueId,
+    token,
+    loadNotes,
+    leagueValuationKey,
+    league?.id,
+    league?.posEligibilityThreshold,
+    league?.playerPool,
+  ]);
 
   useEffect(() => {
     if (!selectedPlayer) return;
@@ -460,10 +514,18 @@ export default function CommandCenterScreen({ route }: Props) {
 
   useEffect(() => {
     if (!leagueId || !token || !selectedPlayer) return;
+    if (boardValuationsLen === 0) return;
+
+    const cacheCtx = {
+      leagueConfigKey: leagueValuationKey,
+      rosterFingerprint: rosterValuationKey,
+    };
 
     let cancelled = false;
 
-    void getValuationPlayer(leagueId, token, selectedPlayer.id, "team_1")
+    void getValuationPlayer(leagueId, token, selectedPlayer.id, "team_1", {
+      cacheContext: cacheCtx,
+    })
       .then((response) => {
         if (cancelled) return;
         setValuationSnapshot(response);
@@ -476,7 +538,14 @@ export default function CommandCenterScreen({ route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [leagueId, token, selectedPlayer?.id]);
+  }, [
+    leagueId,
+    token,
+    selectedPlayer?.id,
+    leagueValuationKey,
+    rosterValuationKey,
+    boardValuationsLen,
+  ]);
 
   const primaryPosition = useMemo(() => {
     if (!selectedPlayer) return null;

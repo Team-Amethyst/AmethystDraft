@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { getValuation, type ValuationResult } from "../api/engine";
+import { getRoster, type RosterEntry } from "../api/roster";
 import {
   getDepthChartCached,
   getPlayers,
@@ -30,6 +31,10 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import type { LeagueTabParamList } from "../navigation/types";
 import type { Player } from "../types/player";
+import {
+  leagueValuationConfigKey,
+  rosterValuationFingerprint,
+} from "../utils/valuationDeps";
 import {
   type StatBasis,
   formatResearchStatSummaryLine,
@@ -156,6 +161,43 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const league = allLeagues.find((item) => item.id === leagueId);
   const watchlist = getWatchlistForLeague(leagueId);
 
+  const [rosterForValuation, setRosterForValuation] = useState<RosterEntry[]>([]);
+
+  useEffect(() => {
+    if (!token || !leagueId) {
+      setRosterForValuation([]);
+      return;
+    }
+    void getRoster(leagueId, token)
+      .then(setRosterForValuation)
+      .catch(() => setRosterForValuation([]));
+  }, [token, leagueId]);
+
+  const leagueValuationKey = useMemo(
+    () => leagueValuationConfigKey(league ?? null),
+    [
+      league?.id,
+      league?.teams,
+      league?.budget,
+      league ? JSON.stringify(league.rosterSlots) : "",
+      league ? JSON.stringify(league.scoringCategories) : "",
+      league?.memberIds?.join(","),
+      league?.posEligibilityThreshold,
+      league?.playerPool,
+      league?.teamNames?.join("\u0001"),
+    ],
+  );
+
+  const rosterValuationKey = useMemo(
+    () => rosterValuationFingerprint(rosterForValuation),
+    [rosterForValuation],
+  );
+
+  const customPlayerIdsKey = useMemo(
+    () => customPlayers.map((p) => p.id).sort().join("\u0001"),
+    [customPlayers],
+  );
+
   const [selectedView, setSelectedView] =
     useState<ResearchView>("player-database");
 
@@ -273,11 +315,16 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
     let cancelled = false;
 
-    void getValuation(leagueId, token, "team_1")
+    void getValuation(leagueId, token, "team_1", {
+      leagueConfigKey: leagueValuationKey,
+      rosterFingerprint: rosterValuationKey,
+    })
       .then((response) => {
         if (cancelled) return;
 
-        const customPlayerIdSet = new Set(customPlayers.map((player) => player.id));
+        const customPlayerIdSet = new Set(
+          customPlayerIdsKey.length > 0 ? customPlayerIdsKey.split("\u0001") : [],
+        );
         const merged = new Map<string, ValuationResult>();
 
         for (const row of response.valuations) {
@@ -296,7 +343,14 @@ export default function ResearchScreen({ route, navigation }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [token, leagueId, players.length, customPlayers]);
+  }, [
+    token,
+    leagueId,
+    players.length,
+    customPlayerIdsKey,
+    leagueValuationKey,
+    rosterValuationKey,
+  ]);
 
   const loadDepthChart = useCallback(
     async (teamId: number, forceRefresh = false) => {
