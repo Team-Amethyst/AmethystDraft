@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import jwt from "jsonwebtoken";
 import {
   E2E_API_ORIGIN,
@@ -7,7 +7,10 @@ import {
   E2E_USER_ID,
 } from "./constants.ts";
 
-async function signInAndWaitForNewsSocket(page: Page): Promise<void> {
+async function signInAndWaitForNewsSocket(
+  page: Page,
+  request: APIRequestContext,
+): Promise<void> {
   const token = jwt.sign({ userId: E2E_USER_ID }, E2E_JWT_SECRET);
   const userPayload = {
     id: E2E_USER_ID,
@@ -45,11 +48,36 @@ async function signInAndWaitForNewsSocket(page: Page): Promise<void> {
       { message: "wait for Socket.IO (no amber disconnect ring)", timeout: 30_000 },
     )
     .toBe(true);
+
+  await expect
+    .poll(
+      async () => {
+        const debugRes = await request.get(
+          `${E2E_API_ORIGIN}/api/internal/news-signals/debug`,
+          {
+            headers: {
+              Authorization: `Bearer ${E2E_INTERNAL_API_KEY}`,
+            },
+          },
+        );
+        if (debugRes.status() !== 200) return 0;
+        const body = (await debugRes.json()) as {
+          socketIoConnections: number;
+        };
+        return body.socketIoConnections;
+      },
+      {
+        message:
+          "wait for backend debug endpoint to report a Socket.IO connection",
+        timeout: 30_000,
+      },
+    )
+    .toBeGreaterThanOrEqual(1);
 }
 
 test.describe("Intelligence alerts (news webhook → Socket.IO)", () => {
-  test.beforeEach(async ({ page }) => {
-    await signInAndWaitForNewsSocket(page);
+  test.beforeEach(async ({ page, request }) => {
+    await signInAndWaitForNewsSocket(page, request);
   });
 
   test("custom webhook shows toast and persists row in bell dropdown", async ({
