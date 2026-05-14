@@ -1,5 +1,15 @@
 import { authHeaders, requestJson, requestVoid } from "./client";
 
+const rosterCache = new Map<string, RosterEntry[]>();
+
+export function getRosterCached(leagueId: string): RosterEntry[] | null {
+  return rosterCache.get(leagueId) ?? null;
+}
+
+export function setRosterCache(leagueId: string, entries: RosterEntry[]): void {
+  rosterCache.set(leagueId, entries);
+}
+
 export interface RosterEntry {
   _id: string;
   leagueId: string;
@@ -34,13 +44,16 @@ export async function getRoster(
   leagueId: string,
   token: string,
 ): Promise<RosterEntry[]> {
-  return requestJson<RosterEntry[]>(
+  const entries = await requestJson<RosterEntry[]>(
     `/api/leagues/${leagueId}/roster`,
     {
       headers: authHeaders(token),
     },
     "Failed to fetch roster",
   );
+
+  setRosterCache(leagueId, entries);
+  return entries;
 }
 
 export async function addRosterEntry(
@@ -48,7 +61,7 @@ export async function addRosterEntry(
   data: RosterEntryPayload,
   token: string,
 ): Promise<RosterEntry> {
-  return requestJson<RosterEntry>(
+  const entry = await requestJson<RosterEntry>(
     `/api/leagues/${leagueId}/roster`,
     {
       method: "POST",
@@ -57,6 +70,13 @@ export async function addRosterEntry(
     },
     "Failed to add roster entry",
   );
+
+  const cached = rosterCache.get(leagueId);
+  if (cached) {
+    setRosterCache(leagueId, [...cached, entry]);
+  }
+
+  return entry;
 }
 
 export async function updateRosterEntry(
@@ -70,7 +90,7 @@ export async function updateRosterEntry(
   },
   token: string,
 ): Promise<RosterEntry> {
-  return requestJson<RosterEntry>(
+  const entry = await requestJson<RosterEntry>(
     `/api/leagues/${leagueId}/roster/${entryId}`,
     {
       method: "PATCH",
@@ -79,6 +99,16 @@ export async function updateRosterEntry(
     },
     "Failed to update roster entry",
   );
+
+  const cached = rosterCache.get(leagueId);
+  if (cached) {
+    setRosterCache(
+      leagueId,
+      cached.map((item) => (item._id === entryId ? entry : item)),
+    );
+  }
+
+  return entry;
 }
 
 export async function removeRosterEntry(
@@ -86,7 +116,7 @@ export async function removeRosterEntry(
   entryId: string,
   token: string,
 ): Promise<void> {
-  return requestVoid(
+  await requestVoid(
     `/api/leagues/${leagueId}/roster/${entryId}`,
     {
       method: "DELETE",
@@ -94,4 +124,12 @@ export async function removeRosterEntry(
     },
     "Failed to remove roster entry",
   );
+
+  const cached = rosterCache.get(leagueId);
+  if (cached) {
+    setRosterCache(
+      leagueId,
+      cached.filter((item) => item._id !== entryId),
+    );
+  }
 }

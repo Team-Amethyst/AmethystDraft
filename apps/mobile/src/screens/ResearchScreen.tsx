@@ -21,6 +21,7 @@ import {
   type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
+import PlayerDetailModal from "../components/PlayerDetailModal";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
@@ -45,6 +46,9 @@ import {
 type Props = BottomTabScreenProps<LeagueTabParamList, "Research">;
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
+type AvailabilityFilter = "all" | "available" | "drafted";
+type InjuryFilter = "all" | "healthy" | "injured";
+type StatViewFilter = "all" | "hitting" | "pitching";
 type PositionFilter =
   | "ALL"
   | "C"
@@ -125,7 +129,9 @@ function positionMatches(player: Player, filter: PositionFilter): boolean {
     .map((p) => p.trim().toUpperCase())
     .includes(filter);
 
-  const multi = (player.positions ?? []).map((p) => p.toUpperCase()).includes(filter);
+  const multi = (player.positions ?? [])
+    .map((p) => p.toUpperCase())
+    .includes(filter);
 
   if (direct || multi) return true;
 
@@ -136,6 +142,22 @@ function positionMatches(player: Player, filter: PositionFilter): boolean {
   }
 
   return false;
+}
+
+function isPitcher(player: Player): boolean {
+  const positions = [player.position, ...(player.positions ?? [])]
+    .join("/")
+    .toUpperCase();
+
+  return (
+    positions.includes("SP") ||
+    positions.includes("RP") ||
+    positions.includes("P")
+  );
+}
+
+function playerHasInjury(player: Player): boolean {
+  return Boolean(player.injuryStatus && player.injuryStatus.trim());
 }
 
 export default function ResearchScreen({ route, navigation }: Props) {
@@ -162,12 +184,18 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const watchlist = getWatchlistForLeague(leagueId);
 
   const [rosterForValuation, setRosterForValuation] = useState<RosterEntry[]>([]);
+  const [selectedModalPlayer, setSelectedModalPlayer] = useState<Player | null>(null);
+
+  const draftedIds = useMemo(() => {
+    return new Set(rosterForValuation.map((entry) => entry.externalPlayerId));
+  }, [rosterForValuation]);
 
   useEffect(() => {
     if (!token || !leagueId) {
       setRosterForValuation([]);
       return;
     }
+
     void getRoster(leagueId, token)
       .then(setRosterForValuation)
       .catch(() => setRosterForValuation([]));
@@ -226,6 +254,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [search, setSearch] = useState("");
   const [positionFilter, setPositionFilter] =
     useState<PositionFilter>("ALL");
+  const [availabilityFilter, setAvailabilityFilter] =
+    useState<AvailabilityFilter>("all");
+  const [injuryFilter, setInjuryFilter] =
+    useState<InjuryFilter>("all");
+  const [statViewFilter, setStatViewFilter] =
+    useState<StatViewFilter>("all");
+  const [starredOnly, setStarredOnly] = useState(false);
   const [statBasis, setStatBasis] = useState<StatBasis>("last-year");
 
   const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -392,9 +427,38 @@ export default function ResearchScreen({ route, navigation }: Props) {
     return allPlayers.filter((player) => {
       const nameMatch = player.name.toLowerCase().includes(q);
       const posMatch = positionMatches(player, positionFilter);
-      return nameMatch && posMatch;
+      const watched = isInWatchlist(leagueId, player.id);
+      const drafted = draftedIds.has(player.id);
+      const injured = playerHasInjury(player);
+      const pitcher = isPitcher(player);
+
+      if (!nameMatch || !posMatch) return false;
+
+      if (starredOnly && !watched) return false;
+
+      if (availabilityFilter === "available" && drafted) return false;
+      if (availabilityFilter === "drafted" && !drafted) return false;
+
+      if (injuryFilter === "healthy" && injured) return false;
+      if (injuryFilter === "injured" && !injured) return false;
+
+      if (statViewFilter === "hitting" && pitcher) return false;
+      if (statViewFilter === "pitching" && !pitcher) return false;
+
+      return true;
     });
-  }, [allPlayers, search, positionFilter]);
+  }, [
+    allPlayers,
+    search,
+    positionFilter,
+    starredOnly,
+    availabilityFilter,
+    injuryFilter,
+    statViewFilter,
+    draftedIds,
+    isInWatchlist,
+    leagueId,
+  ]);
 
   const tierBuckets = useMemo(() => {
     const grouped = new Map<number, Player[]>();
@@ -455,7 +519,12 @@ export default function ResearchScreen({ route, navigation }: Props) {
   }
 
   function handleOpenPlayer(player: Player) {
+    setSelectedModalPlayer(player);
+  }
+
+  function handleMoveToCommandCenter(player: Player) {
     setSelectedPlayer(player);
+    setSelectedModalPlayer(null);
     navigation.navigate("CommandCenter", { leagueId });
   }
 
@@ -599,6 +668,22 @@ export default function ResearchScreen({ route, navigation }: Props) {
     }
   }
 
+  const selectedEngineRow = selectedModalPlayer
+    ? valuationsByPlayerId.get(selectedModalPlayer.id)
+    : undefined;
+
+  const selectedDisplayValue = selectedModalPlayer
+    ? selectedEngineRow?.adjusted_value ?? selectedModalPlayer.value
+    : 0;
+
+  const selectedDisplayTier = selectedModalPlayer
+    ? selectedEngineRow?.tier ?? selectedModalPlayer.tier
+    : 0;
+
+  const selectedStatSummary = selectedModalPlayer
+    ? formatResearchStatSummaryLine(selectedModalPlayer, statBasis) ?? ""
+    : "";
+
   return (
     <SafeAreaView style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: "row", marginBottom: 14 }}>
@@ -642,6 +727,74 @@ export default function ResearchScreen({ route, navigation }: Props) {
               borderRadius: 10,
             }}
           />
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 12 }}
+          >
+            <AppChip
+              label="All"
+              selected={availabilityFilter === "all"}
+              onPress={() => setAvailabilityFilter("all")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="Available"
+              selected={availabilityFilter === "available"}
+              onPress={() => setAvailabilityFilter("available")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="Drafted"
+              selected={availabilityFilter === "drafted"}
+              onPress={() => setAvailabilityFilter("drafted")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label={starredOnly ? "Saved Only" : "Saved"}
+              selected={starredOnly}
+              onPress={() => setStarredOnly((value) => !value)}
+              style={{ marginRight: 8 }}
+            />
+          </ScrollView>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 12 }}
+          >
+            <AppChip
+              label="All Stats"
+              selected={statViewFilter === "all"}
+              onPress={() => setStatViewFilter("all")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="Hitters"
+              selected={statViewFilter === "hitting"}
+              onPress={() => setStatViewFilter("hitting")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="Pitchers"
+              selected={statViewFilter === "pitching"}
+              onPress={() => setStatViewFilter("pitching")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="Healthy"
+              selected={injuryFilter === "healthy"}
+              onPress={() => setInjuryFilter("healthy")}
+              style={{ marginRight: 8 }}
+            />
+            <AppChip
+              label="Injured"
+              selected={injuryFilter === "injured"}
+              onPress={() => setInjuryFilter("injured")}
+              style={{ marginRight: 8 }}
+            />
+          </ScrollView>
 
           <ScrollView
             horizontal
@@ -1152,6 +1305,45 @@ export default function ResearchScreen({ route, navigation }: Props) {
           )}
         </ScrollView>
       )}
+
+      <PlayerDetailModal
+        player={selectedModalPlayer}
+        visible={selectedModalPlayer !== null}
+        watched={
+          selectedModalPlayer
+            ? isInWatchlist(leagueId, selectedModalPlayer.id)
+            : false
+        }
+        custom={
+          selectedModalPlayer ? isCustomPlayer(selectedModalPlayer.id) : false
+        }
+        displayValue={selectedDisplayValue}
+        displayTier={selectedDisplayTier}
+        statSummary={selectedStatSummary}
+        onClose={() => setSelectedModalPlayer(null)}
+        onToggleWatchlist={() => {
+          if (selectedModalPlayer) {
+            void handleToggleWatchlist(selectedModalPlayer);
+          }
+        }}
+        onMoveToCommandCenter={() => {
+          if (selectedModalPlayer) {
+            handleMoveToCommandCenter(selectedModalPlayer);
+          }
+        }}
+        onEditCustom={() => {
+          if (selectedModalPlayer) {
+            startEditingCustomPlayer(selectedModalPlayer);
+            setSelectedModalPlayer(null);
+          }
+        }}
+        onRemoveCustom={() => {
+          if (selectedModalPlayer) {
+            void removeCustomPlayer(selectedModalPlayer.id);
+            setSelectedModalPlayer(null);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

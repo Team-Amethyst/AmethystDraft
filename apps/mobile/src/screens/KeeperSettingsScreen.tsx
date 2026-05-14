@@ -15,7 +15,9 @@ import { getPlayers, getPlayersCached } from "../api/players";
 import {
   addRosterEntry,
   getRoster,
+  getRosterCached,
   removeRosterEntry,
+  updateRosterEntry,
   type RosterEntry,
 } from "../api/roster";
 import AppCard from "../components/ui/AppCard";
@@ -63,6 +65,12 @@ function playerSearch(players: Player[], query: string, takenIds: Set<string>): 
     .slice(0, 12);
 }
 
+function positionsForEntry(entry: RosterEntry): string[] {
+  if (entry.positions?.length) return entry.positions;
+  if (entry.rosterSlot) return [entry.rosterSlot];
+  return ["UTIL"];
+}
+
 export default function KeeperSettingsScreen({ route, navigation }: Props) {
   const { leagueId } = route.params;
   const { token } = useAuth();
@@ -76,7 +84,9 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
   }, [league]);
 
   const [players, setPlayers] = useState<Player[]>([]);
-  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
+  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
+    () => getRosterCached(leagueId) ?? [],
+  );
   const [selectedTeamId, setSelectedTeamId] = useState("team_1");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -84,7 +94,15 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
   const [costRaw, setCostRaw] = useState("1");
   const [contract, setContract] = useState("");
   const [allowAnySlot, setAllowAnySlot] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editTeamId, setEditTeamId] = useState("team_1");
+  const [editSlot, setEditSlot] = useState("");
+  const [editCostRaw, setEditCostRaw] = useState("1");
+  const [editContract, setEditContract] = useState("");
+  const [editAllowAnySlot, setEditAllowAnySlot] = useState(false);
+
+  const [loading, setLoading] = useState(() => getRosterCached(leagueId) === null);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -104,13 +122,16 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
 
       setError("");
 
-      const cached = getPlayersCached(
+      const cachedPlayers = getPlayersCached(
         "adp",
         league.posEligibilityThreshold,
         league.playerPool,
       );
 
-      if (cached) setPlayers(cached);
+      if (cachedPlayers) setPlayers(cachedPlayers);
+
+      const cachedRoster = getRosterCached(league.id);
+      if (cachedRoster) setRosterEntries(cachedRoster);
 
       try {
         const [nextPlayers, nextRoster] = await Promise.all([
@@ -176,6 +197,24 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
 
   const activeSlotOptions = allowAnySlot ? rosterSlotNames : eligibleSlots;
 
+  const editingEntry = useMemo(() => {
+    return rosterEntries.find((entry) => entry._id === editingEntryId) ?? null;
+  }, [rosterEntries, editingEntryId]);
+
+  const editEligibleSlots = useMemo(() => {
+    if (!editingEntry) return [];
+
+    return getEligibleSlotsForPositions(
+      positionsForEntry(editingEntry),
+      rosterSlotNames,
+      editingEntry.rosterSlot,
+    );
+  }, [editingEntry, rosterSlotNames]);
+
+  const activeEditSlotOptions = editAllowAnySlot
+    ? rosterSlotNames
+    : editEligibleSlots;
+
   useEffect(() => {
     if (!selectedPlayer) {
       setSlot("");
@@ -185,7 +224,30 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
     const options = allowAnySlot ? rosterSlotNames : eligibleSlots;
     setSlot(options[0] ?? "");
     setCostRaw(String(Math.max(1, Math.round(selectedPlayer.value || 1))));
-  }, [selectedPlayer?.id, allowAnySlot, eligibleSlots.join("|"), rosterSlotNames.join("|")]);
+  }, [
+    selectedPlayer?.id,
+    allowAnySlot,
+    eligibleSlots.join("|"),
+    rosterSlotNames.join("|"),
+  ]);
+
+  function beginEdit(entry: RosterEntry) {
+    setEditingEntryId(entry._id);
+    setEditTeamId(entry.teamId || selectedTeamId);
+    setEditSlot(entry.rosterSlot);
+    setEditCostRaw(String(Math.max(1, Math.round(entry.price || 1))));
+    setEditContract(entry.keeperContract ?? "");
+    setEditAllowAnySlot(false);
+  }
+
+  function cancelEdit() {
+    setEditingEntryId(null);
+    setEditTeamId("team_1");
+    setEditSlot("");
+    setEditCostRaw("1");
+    setEditContract("");
+    setEditAllowAnySlot(false);
+  }
 
   async function handleAddKeeper() {
     if (!league || !token || !selectedPlayer) return;
@@ -233,6 +295,52 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
       Alert.alert(
         "Could not add keeper",
         err instanceof Error ? err.message : "Failed to add keeper.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveKeeperEdit(entry: RosterEntry) {
+    if (!league || !token) return;
+
+    const cost = Number.parseInt(editCostRaw, 10);
+
+    if (!Number.isFinite(cost) || cost < 1) {
+      Alert.alert("Invalid keeper cost", "Keeper cost must be at least $1.");
+      return;
+    }
+
+    if (!editSlot) {
+      Alert.alert("Missing slot", "Choose a roster slot.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const updated = await updateRosterEntry(
+        league.id,
+        entry._id,
+        {
+          price: cost,
+          rosterSlot: editSlot,
+          teamId: editTeamId,
+          keeperContract: editContract.trim() || undefined,
+        },
+        token,
+      );
+
+      setRosterEntries((current) =>
+        current.map((item) => (item._id === updated._id ? updated : item)),
+      );
+
+      cancelEdit();
+      await refreshLeagues();
+    } catch (err) {
+      Alert.alert(
+        "Could not update keeper",
+        err instanceof Error ? err.message : "Failed to update keeper.",
       );
     } finally {
       setSaving(false);
@@ -291,7 +399,7 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
         </Text>
 
         <Text style={{ color: colors.muted, marginTop: 4, marginBottom: 16 }}>
-          Add and remove keeper players by team, slot, price, and contract.
+          Add, edit, and remove keeper players by team, slot, price, and contract.
         </Text>
 
         {error ? <ErrorState label={error} /> : null}
@@ -460,33 +568,147 @@ export default function KeeperSettingsScreen({ route, navigation }: Props) {
               {selectedTeamKeepers.length === 0 ? (
                 <EmptyState label="No keepers for this team yet." />
               ) : (
-                selectedTeamKeepers.map((entry) => (
-                  <View
-                    key={entry._id}
-                    style={{
-                      borderTopWidth: 1,
-                      borderTopColor: colors.border,
-                      paddingVertical: 12,
-                    }}
-                  >
-                    <Text style={{ color: colors.text, fontWeight: "800" }}>
-                      {entry.playerName}
-                    </Text>
+                selectedTeamKeepers.map((entry) => {
+                  const editing = editingEntryId === entry._id;
 
-                    <Text style={{ color: colors.muted, marginTop: 3 }}>
-                      {entry.playerTeam || "FA"} • {entry.rosterSlot} • ${entry.price}
-                      {entry.keeperContract ? ` • ${entry.keeperContract}` : ""}
-                    </Text>
+                  return (
+                    <View
+                      key={entry._id}
+                      style={{
+                        borderTopWidth: 1,
+                        borderTopColor: colors.border,
+                        paddingVertical: 12,
+                      }}
+                    >
+                      <Text style={{ color: colors.text, fontWeight: "800" }}>
+                        {entry.playerName}
+                      </Text>
 
-                    <View style={{ marginTop: 10 }}>
-                      <Button
-                        title="Remove Keeper"
-                        color="#b91c1c"
-                        onPress={() => handleRemoveKeeper(entry)}
-                      />
+                      <Text style={{ color: colors.muted, marginTop: 3 }}>
+                        {entry.playerTeam || "FA"} • {entry.rosterSlot} • ${entry.price}
+                        {entry.keeperContract ? ` • ${entry.keeperContract}` : ""}
+                      </Text>
+
+                      {editing ? (
+                        <View style={{ marginTop: 12 }}>
+                          <Text style={{ color: colors.muted, marginBottom: 8 }}>
+                            Move team
+                          </Text>
+
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {teamNames.map((teamName, index) => {
+                              const teamId = teamIdFromIndex(index);
+
+                              return (
+                                <AppChip
+                                  key={teamId}
+                                  label={teamName}
+                                  selected={editTeamId === teamId}
+                                  onPress={() => setEditTeamId(teamId)}
+                                  style={{ marginRight: 8 }}
+                                />
+                              );
+                            })}
+                          </ScrollView>
+
+                          <Text style={{ color: colors.muted, marginTop: 12, marginBottom: 8 }}>
+                            Slot
+                          </Text>
+
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {activeEditSlotOptions.map((option) => (
+                              <AppChip
+                                key={option}
+                                label={option}
+                                selected={editSlot === option}
+                                tone="info"
+                                onPress={() => setEditSlot(option)}
+                                style={{ marginRight: 8 }}
+                              />
+                            ))}
+                          </ScrollView>
+
+                          <View style={{ marginTop: 10 }}>
+                            <AppChip
+                              label={editAllowAnySlot ? "Override: Any Slot" : "Eligible Slots Only"}
+                              selected={editAllowAnySlot}
+                              tone="danger"
+                              onPress={() => setEditAllowAnySlot((value) => !value)}
+                            />
+                          </View>
+
+                          <Text style={{ color: colors.muted, marginTop: 12 }}>
+                            Keeper cost
+                          </Text>
+
+                          <TextInput
+                            value={editCostRaw}
+                            onChangeText={setEditCostRaw}
+                            keyboardType="number-pad"
+                            style={{
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                              color: colors.text,
+                              borderRadius: 10,
+                              padding: 12,
+                              marginTop: 6,
+                            }}
+                          />
+
+                          <Text style={{ color: colors.muted, marginTop: 12 }}>
+                            Contract label
+                          </Text>
+
+                          <TextInput
+                            value={editContract}
+                            onChangeText={setEditContract}
+                            placeholder="Arb / 3Y / Prospect"
+                            placeholderTextColor={colors.muted}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                              color: colors.text,
+                              borderRadius: 10,
+                              padding: 12,
+                              marginTop: 6,
+                            }}
+                          />
+
+                          <View style={{ marginTop: 12 }}>
+                            <Button
+                              title={saving ? "Saving..." : "Save Keeper Edit"}
+                              disabled={saving || !editSlot}
+                              onPress={() => void handleSaveKeeperEdit(entry)}
+                            />
+                          </View>
+
+                          <View style={{ marginTop: 10 }}>
+                            <Button
+                              title="Cancel Edit"
+                              color="#6b7280"
+                              onPress={cancelEdit}
+                            />
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={{ marginTop: 10 }}>
+                          <Button
+                            title="Edit Keeper"
+                            onPress={() => beginEdit(entry)}
+                          />
+
+                          <View style={{ marginTop: 10 }}>
+                            <Button
+                              title="Remove Keeper"
+                              color="#b91c1c"
+                              onPress={() => handleRemoveKeeper(entry)}
+                            />
+                          </View>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </AppCard>
 

@@ -60,7 +60,7 @@ const depthChartCache = new Map<string, DepthChartResponse>();
 const depthChartCacheTime = new Map<string, number>();
 
 export function getPlayersCached(
-  sortBy: "adp" | "value" | "name" = "value",
+  sortBy: "adp" | "value" | "name" | "catalog_rank" = "value",
   posEligibilityThreshold?: number,
   playerPool?: "Mixed" | "AL" | "NL",
 ): Player[] | null {
@@ -75,7 +75,7 @@ export function getPlayersCached(
 }
 
 export async function getPlayers(
-  sortBy: "adp" | "value" | "name" = "value",
+  sortBy: "adp" | "value" | "name" | "catalog_rank" = "value",
   posEligibilityThreshold?: number,
   playerPool?: "Mixed" | "AL" | "NL",
 ): Promise<Player[]> {

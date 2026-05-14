@@ -1,16 +1,13 @@
 import { useState } from "react";
-import {
-  Alert,
-  Button,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { registerUser } from "../api/auth";
+import AppButton from "../components/ui/AppButton";
+import AppTextInput from "../components/ui/AppTextInput";
 import { useAuth } from "../contexts/AuthContext";
 import type { RootStackParamList } from "../navigation/types";
+import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Signup">;
 
@@ -20,18 +17,37 @@ export default function SignupScreen({ navigation }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSignup() {
+    const cleanName = displayName.trim();
+    const cleanEmail = email.trim();
+
+    if (!cleanName || !cleanEmail || !password) {
+      Alert.alert("Missing info", "Please enter your name, email, and password.");
+      return;
+    }
+
+    if (password !== confirm) {
+      Alert.alert("Passwords do not match", "Please retype the same password.");
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert("Password too short", "Use at least 8 characters.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const data = await registerUser(displayName, email, password);
+      const data = await registerUser(cleanName, cleanEmail, password);
       await login(data.token, data.user);
     } catch (err) {
       Alert.alert(
-        "Sign up failed",
-        err instanceof Error ? err.message : "Something went wrong",
+        "Signup failed",
+        err instanceof Error ? err.message : "Something went wrong.",
       );
     } finally {
       setLoading(false);
@@ -39,61 +55,67 @@ export default function SignupScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 20, justifyContent: "center" }}>
-      <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 20 }}>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        padding: 20,
+        justifyContent: "center",
+        backgroundColor: colors.bg,
+      }}
+    >
+      <Text style={{ fontSize: 32, fontWeight: "900", color: colors.text }}>
         Create Account
       </Text>
 
-      <TextInput
-        placeholder="Display name"
+      <Text style={{ color: colors.muted, marginTop: 6, marginBottom: 24 }}>
+        Join AmethystDraft and start building your draft room.
+      </Text>
+
+      <AppTextInput
+        label="Display name"
+        placeholder="Your name"
         value={displayName}
         onChangeText={setDisplayName}
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          marginBottom: 12,
-          padding: 12,
-          borderRadius: 8,
-        }}
       />
 
-      <TextInput
-        placeholder="Email"
+      <AppTextInput
+        label="Email"
+        placeholder="you@example.com"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          marginBottom: 12,
-          padding: 12,
-          borderRadius: 8,
-        }}
+        keyboardType="email-address"
       />
 
-      <TextInput
-        placeholder="Password"
+      <AppTextInput
+        label="Password"
+        placeholder="At least 8 characters"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          marginBottom: 12,
-          padding: 12,
-          borderRadius: 8,
-        }}
       />
 
-      <Button
-        title={loading ? "Creating account..." : "Create Account"}
-        onPress={handleSignup}
-        disabled={loading}
+      <AppTextInput
+        label="Confirm password"
+        placeholder="Retype password"
+        value={confirm}
+        onChangeText={setConfirm}
+        secureTextEntry
+      />
+
+      <AppButton
+        title="Create Account"
+        loading={loading}
+        onPress={() => void handleSignup()}
       />
 
       <View style={{ height: 12 }} />
 
-      <Button title="Go to Login" onPress={() => navigation.navigate("Login")} />
+      <AppButton
+        title="Back to Login"
+        variant="secondary"
+        onPress={() => navigation.navigate("Login")}
+      />
     </SafeAreaView>
   );
 }

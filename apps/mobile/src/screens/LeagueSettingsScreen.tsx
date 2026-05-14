@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Button,
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { updateLeague } from "../api/leagues";
+import AppButton from "../components/ui/AppButton";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
 import { EmptyState, ErrorState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import type { RootStackParamList } from "../navigation/types";
+import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "LeagueSettings">;
 
@@ -76,6 +76,16 @@ const DEFAULT_ROSTER_SLOTS: Record<string, number> = {
   SP: 5,
   RP: 2,
   BN: 3,
+};
+
+const inputStyle = {
+  borderWidth: 1,
+  borderColor: colors.border,
+  borderRadius: 10,
+  padding: 12,
+  marginBottom: 12,
+  backgroundColor: colors.surface2,
+  color: colors.text,
 };
 
 function normalizeTeamNames(teams: number, names?: string[]): string[] {
@@ -294,25 +304,25 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
   if (!league) {
     return (
-      <SafeAreaView style={{ flex: 1, padding: 16 }}>
+      <SafeAreaView style={{ flex: 1, padding: 16, backgroundColor: colors.bg }}>
         <EmptyState label="League not found." />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-        <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}>
+        <Text style={{ fontSize: 28, fontWeight: "900", color: colors.text, marginBottom: 4 }}>
           League Settings
         </Text>
 
-        <Text style={{ color: "#4b5563", marginBottom: 16 }}>
+        <Text style={{ color: colors.muted, marginBottom: 16 }}>
           Edit setup, scoring, team names, and roster slots.
         </Text>
 
         <View style={{ marginBottom: 12 }}>
-          <Button
+          <AppButton
             title="Manage Keepers"
             onPress={() =>
               navigation.navigate("KeeperSettings", {
@@ -358,72 +368,48 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
         {section === "setup" ? (
           <AppCard>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
               League Setup
             </Text>
 
-            <Text style={{ color: "#6b7280", marginBottom: 4 }}>
+            <Text style={{ color: colors.muted, marginBottom: 4 }}>
               League name
             </Text>
             <TextInput
               value={leagueName}
               onChangeText={setLeagueName}
-              style={{
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 12,
-              }}
+              style={inputStyle}
             />
 
-            <Text style={{ color: "#6b7280", marginBottom: 4 }}>Teams</Text>
+            <Text style={{ color: colors.muted, marginBottom: 4 }}>Teams</Text>
             <TextInput
               value={teamsRaw}
               onChangeText={setTeamsRaw}
               keyboardType="number-pad"
-              style={{
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 12,
-              }}
+              style={inputStyle}
             />
 
-            <Text style={{ color: "#6b7280", marginBottom: 4 }}>
+            <Text style={{ color: colors.muted, marginBottom: 4 }}>
               Budget ($)
             </Text>
             <TextInput
               value={budgetRaw}
               onChangeText={setBudgetRaw}
               keyboardType="number-pad"
-              style={{
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 12,
-              }}
+              style={inputStyle}
             />
 
-            <Text style={{ color: "#6b7280", marginBottom: 4 }}>
+            <Text style={{ color: colors.muted, marginBottom: 4 }}>
               Position eligibility minimum games
             </Text>
             <TextInput
               value={posEligibilityRaw}
               onChangeText={setPosEligibilityRaw}
               keyboardType="number-pad"
-              style={{
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 14,
-              }}
+              style={inputStyle}
             />
 
-            <Text style={{ color: "#6b7280", marginBottom: 8 }}>
+            <Text style={{ color: colors.muted, marginBottom: 8 }}>
               Player pool
             </Text>
 
@@ -443,11 +429,13 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
         {section === "scoring" ? (
           <AppCard>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
               Scoring Categories
             </Text>
 
-            <Text style={{ fontWeight: "700", marginBottom: 8 }}>Hitting</Text>
+            <Text style={{ color: colors.text, fontWeight: "800", marginBottom: 8 }}>
+              Hitting
+            </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {HITTING_STATS.map((stat) => (
                 <AppChip
@@ -462,7 +450,9 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
             <View style={{ height: 18 }} />
 
-            <Text style={{ fontWeight: "700", marginBottom: 8 }}>Pitching</Text>
+            <Text style={{ color: colors.text, fontWeight: "800", marginBottom: 8 }}>
+              Pitching
+            </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {PITCHING_STATS.map((stat) => (
                 <AppChip
@@ -479,24 +469,19 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
         {section === "teams" ? (
           <AppCard>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
               Team Names
             </Text>
 
             {teamNames.slice(0, teamCount).map((teamName, index) => (
               <View key={index} style={{ marginBottom: 12 }}>
-                <Text style={{ color: "#6b7280", marginBottom: 4 }}>
+                <Text style={{ color: colors.muted, marginBottom: 4 }}>
                   Team {index + 1}
                 </Text>
                 <TextInput
                   value={teamName}
                   onChangeText={(value) => updateTeamName(index, value)}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: "#d1d5db",
-                    borderRadius: 10,
-                    padding: 12,
-                  }}
+                  style={inputStyle}
                 />
               </View>
             ))}
@@ -505,11 +490,11 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
         {section === "roster" ? (
           <AppCard>
-            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 4 }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 4 }}>
               Roster Slots
             </Text>
 
-            <Text style={{ color: "#6b7280", marginBottom: 12 }}>
+            <Text style={{ color: colors.muted, marginBottom: 12 }}>
               Total roster spots: {totalRosterSpots}
             </Text>
 
@@ -521,20 +506,21 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
                   alignItems: "center",
                   justifyContent: "space-between",
                   borderTopWidth: 1,
-                  borderTopColor: "#f1f5f9",
+                  borderTopColor: colors.border,
                   paddingVertical: 10,
                 }}
               >
-                <Text style={{ fontWeight: "700", width: 80 }}>{position}</Text>
+                <Text style={{ color: colors.text, fontWeight: "800", width: 80 }}>
+                  {position}
+                </Text>
 
                 <TextInput
                   value={String(rosterSlots[position] ?? 0)}
                   onChangeText={(value) => updateRosterSlot(position, value)}
                   keyboardType="number-pad"
                   style={{
-                    borderWidth: 1,
-                    borderColor: "#d1d5db",
-                    borderRadius: 10,
+                    ...inputStyle,
+                    marginBottom: 0,
                     padding: 10,
                     width: 90,
                     textAlign: "center",
@@ -545,8 +531,9 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
             <View style={{ height: 12 }} />
 
-            <Button
+            <AppButton
               title="Reset roster defaults"
+              variant="secondary"
               onPress={() => setRosterSlots(DEFAULT_ROSTER_SLOTS)}
             />
           </AppCard>
@@ -554,15 +541,19 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
         <View style={{ height: 8 }} />
 
-        <Button
-          title={saving ? "Saving..." : "Save Settings"}
-          disabled={saving}
+        <AppButton
+          title="Save Settings"
+          loading={saving}
           onPress={() => void handleSave()}
         />
 
         <View style={{ height: 12 }} />
 
-        <Button title="Back" onPress={() => navigation.goBack()} />
+        <AppButton
+          title="Back"
+          variant="secondary"
+          onPress={() => navigation.goBack()}
+        />
       </ScrollView>
     </SafeAreaView>
   );

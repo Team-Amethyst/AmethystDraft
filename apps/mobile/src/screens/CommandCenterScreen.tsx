@@ -42,6 +42,7 @@ import { POSITION_PLAN, useDraftPlan } from "../hooks/useDraftPlan";
 import type { LeagueTabParamList } from "../navigation/types";
 import type { Player } from "../types/player";
 import { computeTeamData } from "../utils/commandCenterUtils";
+import BidDecisionCard from "../components/BidDecisionCard";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "CommandCenter">;
 type CommandTab = "Market" | "Teams" | "Standings";
@@ -1123,6 +1124,11 @@ export default function CommandCenterScreen({ route }: Props) {
                     Eligible: {selectedPlayer.positions.join(", ")}
                   </Text>
                 )}
+
+                <BidDecisionCard
+                  selectedPlayer={selectedPlayer}
+                  valuationRow={focusedValuation}
+                />
 
                 {focusedValuation ? (
                   <View
