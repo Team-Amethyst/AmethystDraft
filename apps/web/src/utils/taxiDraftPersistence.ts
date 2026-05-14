@@ -1,48 +1,63 @@
 import type { TaxiDraftState, TaxiRosterEntry } from "../types/taxiDraft";
+import { requestJson, requestVoid } from "../api/client";
 
 export async function saveTaxiDraftOrder(
   leagueId: string,
   taxiDraftOrder: string[],
 ): Promise<void> {
-  const response = await fetch(`/api/leagues/${leagueId}/taxi-draft-order`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  await requestVoid(
+    `/api/leagues/${leagueId}/taxi-draft-order`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ taxiDraftOrder }),
     },
-    body: JSON.stringify({ taxiDraftOrder }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to save taxi draft order: ${response.statusText}`);
-  }
+    "Failed to save taxi draft order",
+  );
 }
 
 export async function saveTaxiRosters(
   leagueId: string,
   taxiRosters: Record<string, TaxiRosterEntry[]>,
 ): Promise<void> {
-  const response = await fetch(`/api/leagues/${leagueId}/taxi-rosters`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  await requestVoid(
+    `/api/leagues/${leagueId}/taxi-rosters`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ taxiRosters }),
     },
-    body: JSON.stringify({ taxiRosters }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to save taxi rosters: ${response.statusText}`);
-  }
+    "Failed to save taxi rosters",
+  );
 }
 
 export async function loadTaxiDraftState(
   leagueId: string,
 ): Promise<TaxiDraftState | null> {
   try {
-    const response = await fetch(`/api/leagues/${leagueId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to load league: ${response.statusText}`);
+    const league = await requestJson<
+      | {
+          taxiDraftOrder?: string[];
+          taxiRosters?: Record<string, TaxiRosterEntry[]>;
+        }
+      | null
+    >(
+      `/api/leagues/${leagueId}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      },
+      "Failed to load league",
+    );
+
+    if (!league) {
+      return null;
     }
-    const league = await response.json();
+
     return {
       taxiDraftOrder: league.taxiDraftOrder || [],
       taxiRosters: league.taxiRosters || {},
