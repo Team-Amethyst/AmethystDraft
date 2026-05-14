@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Button,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -12,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { getPlayers, getPlayersCached } from "../api/players";
-import { getRoster, type RosterEntry } from "../api/roster";
+import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import AppCard from "../components/ui/AppCard";
 import { EmptyState, ErrorState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
@@ -31,7 +32,8 @@ import type { TaxiRosters } from "../types/taxiDraft";
 import {
   clearTaxiDraftState,
   loadTaxiDraftState,
-  saveTaxiDraftState,
+  saveTaxiDraftOrder,
+  saveTaxiRosters,
 } from "../utils/taxiDraftPersistence";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "TaxiDraft">;
@@ -75,70 +77,77 @@ export default function TaxiDraftScreen({ route }: Props) {
   const [activeTeamId, setActiveTeamId] = useState("0");
   const [searchQuery, setSearchQuery] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
-  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
+  const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>(
+    () => getRosterCached(leagueId) ?? [],
+  );
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [storageReady, setStorageReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
 
-  useEffect(() => {
-    async function loadTaxiState() {
-      if (!league) {
-        setTaxiDraftOrder([]);
-        setTaxiRosters({});
-        setStorageReady(true);
-        return;
-      }
-
-      const saved = await loadTaxiDraftState(league.id);
-
-      if (saved?.taxiDraftOrder?.length) {
-        setTaxiDraftOrder(saved.taxiDraftOrder);
-      } else {
-        setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
-      }
-
-      if (saved?.taxiRosters) {
-        setTaxiRosters(saved.taxiRosters);
-      } else {
-        setTaxiRosters({});
-      }
-
+  const loadTaxiState = useCallback(async () => {
+    if (!league) {
+      setTaxiDraftOrder([]);
+      setTaxiRosters({});
       setStorageReady(true);
+      return;
     }
 
-    setStorageReady(false);
-    void loadTaxiState();
-  }, [league?.id, leagueTeamNames.join("|")]);
+    const saved = await loadTaxiDraftState(league.id, token);
 
-  useEffect(() => {
-    if (!league || !storageReady) return;
+    if (saved?.taxiDraftOrder?.length) {
+      setTaxiDraftOrder(saved.taxiDraftOrder);
+    } else {
+      setTaxiDraftOrder(initializeTaxiDraftOrder(leagueTeamNames));
+    }
 
-    void saveTaxiDraftState(league.id, {
-      taxiDraftOrder,
-      taxiRosters,
-    });
-  }, [league, storageReady, taxiDraftOrder, taxiRosters]);
+    if (saved?.taxiRosters) {
+      setTaxiRosters(saved.taxiRosters);
+    } else {
+      setTaxiRosters({});
+    }
 
-  useEffect(() => {
-    async function loadData() {
+    setStorageReady(true);
+  }, [league, leagueTeamNames, token]);
+
+  const loadData = useCallback(
+    async (mode: "load" | "refresh" = "load") => {
       if (!league || !token) return;
 
-      setLoading(true);
+      if (mode === "load") {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
       setError("");
 
-      const cached = getPlayersCached(
-        "adp",
+      const cachedPlayers = getPlayersCached(
+        "catalog_rank",
         league.posEligibilityThreshold,
         league.playerPool,
       );
 
-      if (cached) {
-        setPlayers(cached);
+      if (cachedPlayers) {
+        setPlayers(cachedPlayers);
+      }
+
+      const cachedRoster = getRosterCached(league.id);
+
+      if (cachedRoster) {
+        setRosterEntries(cachedRoster);
       }
 
       try {
         const [playersFromApi, rosterFromApi] = await Promise.all([
-          getPlayers("adp", league.posEligibilityThreshold, league.playerPool),
+          getPlayers(
+            "catalog_rank",
+            league.posEligibilityThreshold,
+            league.playerPool,
+          ),
           getRoster(league.id, token),
         ]);
 
@@ -148,11 +157,40 @@ export default function TaxiDraftScreen({ route }: Props) {
         setError(err instanceof Error ? err.message : "Failed to load Taxi Draft");
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    }
+    },
+    [league, token],
+  );
 
-    void loadData();
-  }, [league?.id, token]);
+  useEffect(() => {
+    setStorageReady(false);
+    void loadTaxiState();
+  }, [loadTaxiState]);
+
+  useEffect(() => {
+    void loadData("load");
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!league || !storageReady) return;
+
+    setSaveStatus("saving");
+
+    void saveTaxiDraftOrder(league.id, taxiDraftOrder, token).then(() => {
+      setSaveStatus("saved");
+    });
+  }, [league, storageReady, taxiDraftOrder, token]);
+
+  useEffect(() => {
+    if (!league || !storageReady) return;
+
+    setSaveStatus("saving");
+
+    void saveTaxiRosters(league.id, taxiRosters, token).then(() => {
+      setSaveStatus("saved");
+    });
+  }, [league, storageReady, taxiRosters, token]);
 
   useEffect(() => {
     if (leagueTeamNames.length === 0) {
@@ -232,6 +270,11 @@ export default function TaxiDraftScreen({ route }: Props) {
     setTaxiDraftOrder((current) => [...current].reverse());
   }
 
+  async function handleRefresh() {
+    await loadTaxiState();
+    await loadData("refresh");
+  }
+
   async function handleClearTaxiDraft() {
     if (!league) return;
 
@@ -268,16 +311,35 @@ export default function TaxiDraftScreen({ route }: Props) {
       : "Team";
 
   const activeRoster = taxiRosters[activeTeamId] ?? [];
+  const totalTaxiCount = totalTaxiPlayers(taxiRosters);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void handleRefresh()}
+          />
+        }
+      >
         <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}>
           Taxi Draft
         </Text>
 
-        <Text style={{ color: "#4b5563", marginBottom: 16 }}>
+        <Text style={{ color: "#4b5563", marginBottom: 8 }}>
           Set taxi order, search eligible players, and manage taxi rosters.
+        </Text>
+
+        <Text style={{ color: "#6b7280", marginBottom: 16 }}>
+          {totalTaxiCount} total taxi player{totalTaxiCount === 1 ? "" : "s"} •{" "}
+          {saveStatus === "saving"
+            ? "Saving..."
+            : saveStatus === "saved"
+              ? "Saved"
+              : "Ready"}
         </Text>
 
         {error ? <ErrorState label={error} /> : null}
@@ -293,10 +355,22 @@ export default function TaxiDraftScreen({ route }: Props) {
             Taxi Draft Order
           </Text>
 
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-            <Button title="Reset" onPress={handleResetOrder} />
-            <Button title="Reverse" onPress={handleReverseOrder} />
-            <Button title="Clear" color="#b91c1c" onPress={() => void handleClearTaxiDraft()} />
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 12 }}>
+            <View style={{ marginRight: 8, marginBottom: 8 }}>
+              <Button title="Reset" onPress={handleResetOrder} />
+            </View>
+
+            <View style={{ marginRight: 8, marginBottom: 8 }}>
+              <Button title="Reverse" onPress={handleReverseOrder} />
+            </View>
+
+            <View style={{ marginBottom: 8 }}>
+              <Button
+                title="Clear"
+                color="#b91c1c"
+                onPress={() => void handleClearTaxiDraft()}
+              />
+            </View>
           </View>
 
           {taxiDraftOrder.length === 0 ? (
@@ -315,16 +389,19 @@ export default function TaxiDraftScreen({ route }: Props) {
                   {index + 1}. {teamName}
                 </Text>
 
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                  <Button
-                    title="Up"
-                    disabled={index === 0}
-                    onPress={() =>
-                      setTaxiDraftOrder((current) =>
-                        moveTaxiDraftOrderTeamUp(current, teamName),
-                      )
-                    }
-                  />
+                <View style={{ flexDirection: "row", marginTop: 8 }}>
+                  <View style={{ marginRight: 8 }}>
+                    <Button
+                      title="Up"
+                      disabled={index === 0}
+                      onPress={() =>
+                        setTaxiDraftOrder((current) =>
+                          moveTaxiDraftOrderTeamUp(current, teamName),
+                        )
+                      }
+                    />
+                  </View>
+
                   <Button
                     title="Down"
                     disabled={index === taxiDraftOrder.length - 1}
@@ -401,7 +478,9 @@ export default function TaxiDraftScreen({ route }: Props) {
           />
 
           {searchQuery.trim().length > 0 && searchResults.length === 0 ? (
-            <Text style={{ color: "#6b7280" }}>No eligible taxi players found.</Text>
+            <Text style={{ color: "#6b7280" }}>
+              No eligible taxi players found.
+            </Text>
           ) : null}
 
           {searchResults.map((player) => (
@@ -415,8 +494,10 @@ export default function TaxiDraftScreen({ route }: Props) {
               }}
             >
               <Text style={{ fontWeight: "700" }}>{player.name}</Text>
+
               <Text style={{ color: "#4b5563", marginTop: 2 }}>
-                {player.team} • {player.position} • ${player.value} • ADP {player.adp}
+                {player.team} • {player.position} • ${player.value} • ADP{" "}
+                {player.adp}
               </Text>
             </TouchableOpacity>
           ))}
@@ -428,7 +509,8 @@ export default function TaxiDraftScreen({ route }: Props) {
           </Text>
 
           <Text style={{ color: "#6b7280", marginBottom: 12 }}>
-            {activeRoster.length} taxi player{activeRoster.length === 1 ? "" : "s"}
+            {activeRoster.length} taxi player
+            {activeRoster.length === 1 ? "" : "s"}
           </Text>
 
           {activeRoster.length === 0 ? (
@@ -451,7 +533,8 @@ export default function TaxiDraftScreen({ route }: Props) {
                   </Text>
 
                   <Text style={{ color: "#4b5563", marginTop: 2 }}>
-                    {player?.team ?? "Unknown"} • {player?.position ?? "Unknown"}
+                    {player?.team ?? "Unknown"} •{" "}
+                    {player?.position ?? "Unknown"}
                   </Text>
 
                   <Text style={{ color: "#6b7280", marginTop: 2 }}>
@@ -463,7 +546,9 @@ export default function TaxiDraftScreen({ route }: Props) {
                     <Button
                       title="Remove"
                       color="#b91c1c"
-                      onPress={() => handleRemovePlayer(activeTeamId, entry.playerId)}
+                      onPress={() =>
+                        handleRemovePlayer(activeTeamId, entry.playerId)
+                      }
                     />
                   </View>
                 </View>

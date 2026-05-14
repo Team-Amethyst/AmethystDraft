@@ -1,17 +1,20 @@
 import { useEffect } from "react";
 import {
-  ActivityIndicator,
-  Button,
   FlatList,
+  RefreshControl,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import AppButton from "../components/ui/AppButton";
+import AppCard from "../components/ui/AppCard";
+import { LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import type { RootStackParamList } from "../navigation/types";
+import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Leagues">;
 
@@ -31,72 +34,88 @@ export default function LeaguesScreen({ navigation }: Props) {
   }, [refreshLeagues]);
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 6 }}>
-        Your Leagues
-      </Text>
-
-      <Text style={{ marginBottom: 16 }}>Welcome, {user?.displayName}</Text>
-
-      <Button
-        title="Create League"
-        onPress={() => navigation.navigate("CreateLeague")}
-      />
-
-      <View style={{ height: 12 }} />
-
-      <Button title="Logout" onPress={() => void logout()} />
-
-      <View style={{ height: 20 }} />
-
-      {loading ? (
-        <ActivityIndicator />
-      ) : (
-        <FlatList
-          data={allLeagues}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <FlatList
+        data={allLeagues}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => void refreshLeagues()}
+            tintColor={colors.purple2}
+          />
+        }
+        ListHeaderComponent={
+          <View>
+            <Text
               style={{
-                padding: 16,
-                borderWidth: 1,
-                borderColor: "#ddd",
-                borderRadius: 10,
-                marginBottom: 12,
-                backgroundColor: "white",
+                fontSize: 28,
+                fontWeight: "900",
+                color: colors.text,
+                marginBottom: 4,
               }}
             >
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("LeagueTabs", {
-                    leagueId: item.id,
-                    leagueName: item.name,
-                    screen: "Research",
-                    params: { leagueId: item.id },
-                  })
-                }
-              >
-                <Text style={{ fontSize: 18, fontWeight: "700" }}>
-                  {item.name}
-                </Text>
+              Your Leagues
+            </Text>
 
-                <Text style={{ color: "#4b5563", marginTop: 4 }}>
-                  {item.teams} teams • ${item.budget} budget
-                </Text>
+            <Text style={{ color: colors.muted, marginBottom: 16 }}>
+              Welcome, {user?.displayName}. Choose a draft room.
+            </Text>
 
-                <Text style={{ color: "#4b5563", marginTop: 2 }}>
-                  {statusLabel(item.draftStatus)}
-                  {item.draftDate
-                    ? ` • ${new Date(item.draftDate).toLocaleDateString()}`
-                    : ""}
-                </Text>
-              </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  title="Create League"
+                  onPress={() => navigation.navigate("CreateLeague")}
+                />
+              </View>
 
-              <View style={{ height: 12 }} />
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  title="Logout"
+                  variant="secondary"
+                  onPress={() => void logout()}
+                />
+              </View>
+            </View>
 
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            {loading && allLeagues.length === 0 ? (
+              <LoadingState label="Loading leagues..." />
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() =>
+              navigation.navigate("LeagueTabs", {
+                leagueId: item.id,
+                leagueName: item.name,
+                screen: "Research",
+                params: { leagueId: item.id },
+              })
+            }
+          >
+            <AppCard>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: "900" }}>
+                {item.name}
+              </Text>
+
+              <Text style={{ color: colors.muted, marginTop: 6 }}>
+                {item.teams} teams • ${item.budget} budget • {item.playerPool}
+              </Text>
+
+              <Text style={{ color: colors.muted, marginTop: 3 }}>
+                {statusLabel(item.draftStatus)}
+                {item.draftDate
+                  ? ` • ${new Date(item.draftDate).toLocaleDateString()}`
+                  : ""}
+              </Text>
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
                 <View style={{ flex: 1 }}>
-                  <Button
+                  <AppButton
                     title="Open"
                     onPress={() =>
                       navigation.navigate("LeagueTabs", {
@@ -110,8 +129,9 @@ export default function LeaguesScreen({ navigation }: Props) {
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <Button
+                  <AppButton
                     title="Settings"
+                    variant="secondary"
                     onPress={() =>
                       navigation.navigate("LeagueSettings", {
                         leagueId: item.id,
@@ -121,11 +141,22 @@ export default function LeaguesScreen({ navigation }: Props) {
                   />
                 </View>
               </View>
-            </View>
-          )}
-          ListEmptyComponent={<Text>No leagues found.</Text>}
-        />
-      )}
+            </AppCard>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          !loading ? (
+            <AppCard>
+              <Text style={{ color: colors.text, fontWeight: "800" }}>
+                No leagues yet.
+              </Text>
+              <Text style={{ color: colors.muted, marginTop: 4 }}>
+                Create your first fantasy baseball draft room.
+              </Text>
+            </AppCard>
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }

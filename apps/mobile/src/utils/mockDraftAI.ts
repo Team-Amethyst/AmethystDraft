@@ -16,12 +16,77 @@ export interface AIPick {
 
 const PITCHER_POSITIONS = new Set(["SP", "RP", "P"]);
 
+const DEFAULT_NEEDS: Record<string, number> = {
+  C: 1,
+  "1B": 1,
+  "2B": 1,
+  SS: 1,
+  "3B": 1,
+  OF: 3,
+  UTIL: 1,
+  SP: 2,
+  RP: 2,
+  BN: 4,
+};
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function playerAuctionValue(player: Player): number {
+  const data = player as Player & {
+    auction_value?: unknown;
+    adjusted_value?: unknown;
+    team_adjusted_value?: unknown;
+    recommended_bid?: unknown;
+  };
+
+  return (
+    finiteNumber(data.auction_value) ??
+    finiteNumber(data.team_adjusted_value) ??
+    finiteNumber(data.recommended_bid) ??
+    finiteNumber(data.adjusted_value) ??
+    finiteNumber(player.value) ??
+    0
+  );
+}
+
 function getPositionFromPlayer(player: Player): string {
   return player.positions?.[0] ?? player.position ?? "UTIL";
 }
 
 function isPitcher(player: Player): boolean {
-  return PITCHER_POSITIONS.has(getPositionFromPlayer(player));
+  const pos = getPositionFromPlayer(player);
+  return PITCHER_POSITIONS.has(pos);
+}
+
+function rosterSlotCount(rosterSlots: Record<string, number>, position: string): number {
+  return rosterSlots[position] ?? DEFAULT_NEEDS[position] ?? 0;
+}
+
+function totalRosterSlots(rosterSlots: Record<string, number>): number {
+  const configured = Object.values(rosterSlots).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+
+  if (configured > 0) {
+    return configured;
+  }
+
+  return Object.values(DEFAULT_NEEDS).reduce((sum, value) => sum + value, 0);
 }
 
 export function positionNeed(
@@ -29,8 +94,9 @@ export function positionNeed(
   position: string,
   rosterSlots: Record<string, number>,
 ): number {
-  const slots = rosterSlots[position] ?? 0;
+  const slots = rosterSlotCount(rosterSlots, position);
   const filled = roster.picks.filter((pick) => pick.slot === position).length;
+
   return Math.max(0, slots - filled);
 }
 
@@ -38,8 +104,7 @@ export function openSlots(
   roster: AIRoster,
   rosterSlots: Record<string, number>,
 ): number {
-  const total = Object.values(rosterSlots).reduce((sum, value) => sum + value, 0);
-  return total - roster.picks.length;
+  return Math.max(0, totalRosterSlots(rosterSlots) - roster.picks.length);
 }
 
 export function aiMaxBid(
@@ -63,28 +128,56 @@ export function aiMaxBid(
 
   if (need === 0 && !hasUtilRoom && !hasBenchRoom) return 0;
 
-  const baseValue = player.value ?? 0;
+  const baseValue = playerAuctionValue(player);
   if (baseValue <= 0) return 0;
 
-  const comparable = undraftedPlayers.filter((p) => {
-    return getPositionFromPlayer(p) === pos && (p.value ?? 0) >= baseValue * 0.7;
+  const comparable = undraftedPlayers.filter((candidate) => {
+    const candidatePosition = getPositionFromPlayer(candidate);
+    return (
+      candidatePosition === pos &&
+      playerAuctionValue(candidate) >= baseValue * 0.7
+    );
   });
 
   const scarcityMultiplier =
-    comparable.length <= 2 ? 1.25 : comparable.length <= 5 ? 1.1 : 1.0;
+    comparable.length <= 2 ? 1.25 :
+    comparable.length <= 5 ? 1.1 :
+    1.0;
 
-  const needMultiplier = need >= 2 ? 1.15 : need === 1 ? 1.05 : 0.85;
-  const maxWilling = Math.floor(baseValue * scarcityMultiplier * needMultiplier);
+  const needMultiplier =
+    need >= 2 ? 1.15 :
+    need === 1 ? 1.05 :
+    0.85;
+
+  const budgetPerOpenSlot = open > 0 ? spendable / open : 0;
+  const budgetMultiplier = budgetPerOpenSlot > baseValue * 1.5 ? 1.1 : 1.0;
+
+  const maxWilling = Math.floor(
+    baseValue * scarcityMultiplier * needMultiplier * budgetMultiplier,
+  );
 
   if (currentBid >= maxWilling) return 0;
 
-  const headroom = maxWilling - currentBid;
-  const increment =
-    currentBid <= 1
-      ? Math.max(2, Math.floor(maxWilling * 0.65))
-      : currentBid + Math.max(1, Math.floor(headroom * 0.45));
+  let nextBid = 0;
 
-  return Math.min(increment, spendable, maxWilling);
+  if (currentBid <= 1) {
+    nextBid = Math.max(2, Math.floor(maxWilling * 0.65));
+  } else {
+    const headroom = maxWilling - currentBid;
+
+    const incrementPct =
+      headroom > 20 ? 0.3 :
+      headroom > 10 ? 0.4 :
+      headroom > 5 ? 0.6 :
+      1.0;
+
+    const increment = Math.max(1, Math.floor(headroom * incrementPct));
+    nextBid = currentBid + increment;
+  }
+
+  if (nextBid > maxWilling || nextBid > spendable) return 0;
+
+  return Math.min(nextBid, spendable, maxWilling);
 }
 
 export function aiNominate(
@@ -94,20 +187,31 @@ export function aiNominate(
 ): Player | null {
   if (undraftedPlayers.length === 0) return null;
 
-  const neededPositions = Object.keys(rosterSlots)
-    .map((pos) => ({ pos, need: positionNeed(roster, pos, rosterSlots) }))
+  const neededPositions = Object.keys({
+    ...DEFAULT_NEEDS,
+    ...rosterSlots,
+  })
+    .map((pos) => ({
+      pos,
+      need: positionNeed(roster, pos, rosterSlots),
+    }))
     .filter((row) => row.need > 0)
     .sort((a, b) => b.need - a.need);
 
   for (const row of neededPositions) {
-    const best = undraftedPlayers
+    const candidates = undraftedPlayers
       .filter((player) => getPositionFromPlayer(player) === row.pos)
-      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
+      .sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a));
 
-    if (best) return best;
+    if (candidates.length > 0) {
+      const index = Math.random() < 0.75 ? 0 : Math.min(1, candidates.length - 1);
+      return candidates[index];
+    }
   }
 
-  return [...undraftedPlayers].sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0] ?? null;
+  return [...undraftedPlayers].sort(
+    (a, b) => playerAuctionValue(b) - playerAuctionValue(a),
+  )[0] ?? null;
 }
 
 export function suggestNomination(
@@ -120,39 +224,74 @@ export function suggestNomination(
 
   const availableWatchlist = watchlist
     .filter((player) => undraftedIds.has(player.id))
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    .sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a));
 
   if (availableWatchlist.length > 0) {
     const player = availableWatchlist[0];
     const pos = getPositionFromPlayer(player);
     const need = positionNeed(userRoster, pos, rosterSlots);
 
+    const comparableLeft = undraftedPlayers.filter((candidate) => {
+      return (
+        getPositionFromPlayer(candidate) === pos &&
+        playerAuctionValue(candidate) >= playerAuctionValue(player) * 0.8
+      );
+    }).length;
+
+    const reason =
+      need > 0
+        ? comparableLeft <= 3
+          ? `High-value ${pos}. Only ${comparableLeft} similar players left.`
+          : `Watchlist target who fills your ${pos} need.`
+        : "Top watchlist target still available. Consider bench or utility.";
+
     return {
       player,
-      reason: need > 0 ? `Watchlist target who fills ${pos}.` : "Top watchlist target still available.",
+      reason,
     };
   }
 
-  const neededPositions = Object.keys(rosterSlots)
-    .map((pos) => ({ pos, need: positionNeed(userRoster, pos, rosterSlots) }))
+  const neededPositions = Object.keys({
+    ...DEFAULT_NEEDS,
+    ...rosterSlots,
+  })
+    .map((pos) => ({
+      pos,
+      need: positionNeed(userRoster, pos, rosterSlots),
+    }))
     .filter((row) => row.need > 0)
     .sort((a, b) => b.need - a.need);
 
   for (const row of neededPositions) {
     const best = undraftedPlayers
       .filter((player) => getPositionFromPlayer(player) === row.pos)
-      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
+      .sort((a, b) => playerAuctionValue(b) - playerAuctionValue(a))[0];
 
     if (best) {
+      const remainingAtPosition = undraftedPlayers.filter(
+        (player) => getPositionFromPlayer(player) === row.pos,
+      ).length;
+
       return {
         player: best,
-        reason: `Best available ${row.pos} for your roster build.`,
+        reason:
+          remainingAtPosition <= 3
+            ? `Only ${remainingAtPosition} ${row.pos} players left. Nominate before the position dries up.`
+            : `Best available ${row.pos} for your roster build.`,
       };
     }
   }
 
-  const best = [...undraftedPlayers].sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
-  return best ? { player: best, reason: "Best available player overall." } : null;
+  const best = [...undraftedPlayers].sort(
+    (a, b) => playerAuctionValue(b) - playerAuctionValue(a),
+  )[0];
+
+  return best
+    ? {
+        player: best,
+        reason: "Best available player overall.",
+      }
+    : null;
 }
 
 export function buildSnakeOrder(numTeams: number, numRounds: number): number[] {
@@ -160,7 +299,11 @@ export function buildSnakeOrder(numTeams: number, numRounds: number): number[] {
 
   for (let round = 0; round < numRounds; round++) {
     const row = Array.from({ length: numTeams }, (_, index) => index);
-    if (round % 2 === 1) row.reverse();
+
+    if (round % 2 === 1) {
+      row.reverse();
+    }
+
     order.push(...row);
   }
 

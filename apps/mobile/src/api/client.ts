@@ -35,6 +35,10 @@ export function buildApiUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+export async function getApiOrigin(): Promise<string> {
+  return API_BASE;
+}
+
 export function authHeaders(token?: string): Record<string, string> {
   const trimmed = token?.trim();
 

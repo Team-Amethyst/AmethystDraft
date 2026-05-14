@@ -17,6 +17,8 @@ import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
+import { useNewsSignalsRealtime } from "../hooks/useNewsSignalsRealtime";
+import type { NewsSocketConnectionState } from "../hooks/useNewsSignalsRealtime";
 import type { LeagueTabParamList } from "../navigation/types";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "Alerts">;
@@ -99,6 +101,36 @@ function signalKey(signal: NewsSignal): string {
   ].join("|");
 }
 
+function socketStatusLabel(state: NewsSocketConnectionState): string {
+  if (state === null) return "Connecting";
+  if (state === true) return "Live";
+  return "Offline";
+}
+
+function socketStatusColor(state: NewsSocketConnectionState) {
+  if (state === null) {
+    return {
+      backgroundColor: "#fef3c7",
+      color: "#92400e",
+      borderColor: "#fde68a",
+    };
+  }
+
+  if (state === true) {
+    return {
+      backgroundColor: "#dcfce7",
+      color: "#166534",
+      borderColor: "#bbf7d0",
+    };
+  }
+
+  return {
+    backgroundColor: "#f3f4f6",
+    color: "#4b5563",
+    borderColor: "#e5e7eb",
+  };
+}
+
 export default function IntelligenceAlertsScreen(_props: Props) {
   const { token } = useAuth();
 
@@ -107,10 +139,16 @@ export default function IntelligenceAlertsScreen(_props: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [socketState, setSocketState] =
+    useState<NewsSocketConnectionState>(false);
+  const [liveNotice, setLiveNotice] = useState("");
 
   const loadSignals = useCallback(
     async (mode: "load" | "refresh" = "load") => {
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       if (mode === "load") {
         setLoading(true);
@@ -141,9 +179,25 @@ export default function IntelligenceAlertsScreen(_props: Props) {
     [token, filter],
   );
 
+  useNewsSignalsRealtime(
+    token,
+    Boolean(token),
+    () => {
+      setLiveNotice("Live update received. Refreshing alerts...");
+      void loadSignals("refresh");
+    },
+    (message) => {
+      setLiveNotice(message || "Webhook test received — live connection OK.");
+      void loadSignals("refresh");
+    },
+    setSocketState,
+  );
+
   useEffect(() => {
     void loadSignals("load");
   }, [loadSignals]);
+
+  const socketColors = socketStatusColor(socketState);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -161,9 +215,46 @@ export default function IntelligenceAlertsScreen(_props: Props) {
           Intelligence Alerts
         </Text>
 
-        <Text style={{ color: "#4b5563", marginBottom: 16 }}>
+        <Text style={{ color: "#4b5563", marginBottom: 12 }}>
           MLB injury, role, trade, promotion, and demotion signals from the Engine.
         </Text>
+
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 14,
+          }}
+        >
+          <Text
+            style={{
+              borderWidth: 1,
+              borderColor: socketColors.borderColor,
+              backgroundColor: socketColors.backgroundColor,
+              color: socketColors.color,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: "800",
+              overflow: "hidden",
+            }}
+          >
+            Realtime: {socketStatusLabel(socketState)}
+          </Text>
+
+          <Text style={{ marginLeft: 10, color: "#6b7280", fontSize: 12 }}>
+            Pull down to refresh manually
+          </Text>
+        </View>
+
+        {liveNotice ? (
+          <AppCard backgroundColor="#eef2ff" borderColor="#c7d2fe">
+            <Text style={{ color: "#3730a3", fontWeight: "700" }}>
+              {liveNotice}
+            </Text>
+          </AppCard>
+        ) : null}
 
         <ScrollView
           horizontal
@@ -203,7 +294,6 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                     style={{
                       flexDirection: "row",
                       justifyContent: "space-between",
-                      gap: 12,
                       marginBottom: 8,
                     }}
                   >
@@ -216,7 +306,7 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                     </Text>
                   </View>
 
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                     <Text
                       style={{
                         borderWidth: 1,
@@ -229,6 +319,9 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                         fontSize: 12,
                         fontWeight: "700",
                         textTransform: "uppercase",
+                        overflow: "hidden",
+                        marginRight: 8,
+                        marginBottom: 8,
                       }}
                     >
                       {signal.severity}
@@ -243,13 +336,15 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                         borderRadius: 999,
                         fontSize: 12,
                         fontWeight: "700",
+                        overflow: "hidden",
+                        marginBottom: 8,
                       }}
                     >
                       {formatAlertType(signal.signal_type)}
                     </Text>
                   </View>
 
-                  <Text style={{ marginTop: 10, color: "#111827", lineHeight: 20 }}>
+                  <Text style={{ marginTop: 4, color: "#111827", lineHeight: 20 }}>
                     {signal.description}
                   </Text>
 
