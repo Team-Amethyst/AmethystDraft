@@ -444,7 +444,12 @@ export default function MockDraftPage() {
                   </div>
                   <h2 className="md-auction-name">{state.nominatedPlayer.name}</h2>
                   <div className="md-auction-value">
-                    Proj Value <strong className="green">${state.nominatedPlayer.value}</strong>
+                    Auction Value{" "}
+                    <strong className="green">
+                      ${state.nominatedPlayer.auction_value
+                        ?? state.nominatedPlayer.adjusted_value
+                        ?? state.nominatedPlayer.value}
+                    </strong>
                   </div>
                 </div>
               </div>
