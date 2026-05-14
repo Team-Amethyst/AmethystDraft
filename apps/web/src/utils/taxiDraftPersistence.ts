@@ -1,17 +1,16 @@
 import type { TaxiDraftState, TaxiRosterEntry } from "../types/taxiDraft";
-import { requestJson, requestVoid } from "../api/client";
+import { authHeaders, requestJson, requestVoid } from "../api/client";
 
 export async function saveTaxiDraftOrder(
   leagueId: string,
   taxiDraftOrder: string[],
+  token?: string,
 ): Promise<void> {
   await requestVoid(
     `/api/leagues/${leagueId}/taxi-draft-order`,
     {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authHeaders(token),
       body: JSON.stringify({ taxiDraftOrder }),
     },
     "Failed to save taxi draft order",
@@ -21,14 +20,13 @@ export async function saveTaxiDraftOrder(
 export async function saveTaxiRosters(
   leagueId: string,
   taxiRosters: Record<string, TaxiRosterEntry[]>,
+  token?: string,
 ): Promise<void> {
   await requestVoid(
     `/api/leagues/${leagueId}/taxi-rosters`,
     {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authHeaders(token),
       body: JSON.stringify({ taxiRosters }),
     },
     "Failed to save taxi rosters",
@@ -37,6 +35,7 @@ export async function saveTaxiRosters(
 
 export async function loadTaxiDraftState(
   leagueId: string,
+  token?: string,
 ): Promise<TaxiDraftState | null> {
   try {
     const league = await requestJson<
@@ -49,7 +48,7 @@ export async function loadTaxiDraftState(
       `/api/leagues/${leagueId}`,
       {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(token),
       },
       "Failed to load league",
     );

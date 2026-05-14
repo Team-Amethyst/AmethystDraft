@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import {
@@ -39,6 +40,7 @@ export default function TaxiDraft() {
   const [addSearchOpen, setAddSearchOpen] = useState(false);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
+  const { token } = useAuth();
 
   useEffect(() => {
     if (!league) {
@@ -49,7 +51,7 @@ export default function TaxiDraft() {
     }
 
     const loadState = async () => {
-      const savedState = await loadTaxiDraftState(league.id);
+      const savedState = await loadTaxiDraftState(league.id, token ?? undefined);
       if (savedState?.taxiDraftOrder?.length) {
         setTaxiDraftOrder(savedState.taxiDraftOrder);
       } else {
@@ -62,31 +64,31 @@ export default function TaxiDraft() {
     };
 
     void loadState();
-  }, [league, leagueTeamNames]);
+  }, [league, leagueTeamNames, token]);
 
   useEffect(() => {
     if (!league?.id || !taxiDraftOrder.length) return;
     const saveOrder = async () => {
       try {
-        await saveTaxiDraftOrder(league.id, taxiDraftOrder);
+        await saveTaxiDraftOrder(league.id, taxiDraftOrder, token ?? undefined);
       } catch (error) {
         console.error("Failed to save taxi draft order:", error);
       }
     };
     void saveOrder();
-  }, [league?.id, taxiDraftOrder]);
+  }, [league?.id, taxiDraftOrder, token]);
 
   useEffect(() => {
     if (!league?.id) return;
     const saveRosters = async () => {
       try {
-        await saveTaxiRosters(league.id, taxiRosters);
+        await saveTaxiRosters(league.id, taxiRosters, token ?? undefined);
       } catch (error) {
         console.error("Failed to save taxi rosters:", error);
       }
     };
     void saveRosters();
-  }, [league?.id, taxiRosters]);
+  }, [league?.id, taxiRosters, token]);
 
   // Catalog for search: seed from cache, then always refresh via API (cache may be empty on cold load).
   useEffect(() => {
