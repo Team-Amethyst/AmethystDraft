@@ -17,12 +17,15 @@ export function searchRankedAvailablePlayers(
   allPlayers: Player[],
   draftedIds: Set<string>,
   rawQuery: string,
-  options?: { limit?: number },
+  options?: { limit?: number; excludedIds?: ReadonlySet<string> },
 ): Player[] {
   const limit = options?.limit ?? 8;
   if (rawQuery.length < 1) return [];
   const q = rawQuery.toLowerCase().trim();
-  const available = allPlayers.filter((p) => !draftedIds.has(p.id));
+  const excludedIds = options?.excludedIds;
+  const available = allPlayers.filter((p) =>
+    !draftedIds.has(p.id) && !(excludedIds?.has(p.id) ?? false),
+  );
   const scored = available.flatMap((p) => {
     const full = p.name.toLowerCase();
     const score = nameMatchScore(full, q);

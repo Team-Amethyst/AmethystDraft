@@ -47,4 +47,13 @@ describe("searchRankedAvailablePlayers", () => {
     const r = searchRankedAvailablePlayers(players, drafted, "guy", { limit: 8 });
     expect(r.map((x) => x.id)).not.toContain("d1");
   });
+
+  it("excludes taxi rostered player ids", () => {
+    const taxiRostered = new Set<string>(["a"]);
+    const r = searchRankedAvailablePlayers(players, drafted, "aaron", {
+      limit: 8,
+      excludedIds: taxiRostered,
+    });
+    expect(r.map((x) => x.id)).not.toContain("a");
+  });
 });

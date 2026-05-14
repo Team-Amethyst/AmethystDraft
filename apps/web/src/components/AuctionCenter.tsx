@@ -59,6 +59,7 @@ import {
   verdictFromValueMinusBid,
 } from "../domain/auctionCenterValuation";
 import { searchRankedAvailablePlayers } from "../domain/auctionPlayerSearch";
+import { getTaxiRosterPlayerIds } from "../domain/taxiDraft";
 import {
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
@@ -503,12 +504,18 @@ export function AuctionCenter({
     });
   }, [selectedPlayer?.id, selectedPlayerValuationKey, valuationMap]);
 
+  const taxiRosterIds = useMemo(
+    () => new Set(getTaxiRosterPlayerIds(league?.taxiRosters ?? {})),
+    [league?.taxiRosters],
+  );
+
   const dropdownResults = useMemo(
     () =>
       searchRankedAvailablePlayers(allPlayers, draftedIds, searchQuery, {
         limit: 8,
+        excludedIds: taxiRosterIds,
       }),
-    [allPlayers, draftedIds, searchQuery],
+    [allPlayers, draftedIds, searchQuery, taxiRosterIds],
   );
 
   const handleSelectPlayer = (player: Player) => {
