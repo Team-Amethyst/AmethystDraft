@@ -65,6 +65,8 @@ const playerPoolQuerySchema = z.preprocess((value) => {
   return value;
 }, playerPoolSchema.optional());
 
+const objectIdStringSchema = z.string().regex(/^[a-fA-F0-9]{24}$/, "Must be a 24-character hex ObjectId string");
+
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(1, "League name is required"),
   seasonYear: z.number().int().min(minYear, `Season year cannot be older than ${minYear}`).max(currentYear, "Season year cannot be in the future").optional(),
@@ -78,9 +80,22 @@ export const createLeagueSchema = z.object({
   draftDate: z.string().optional(),
   teamNames: z.array(z.string()).optional(),
   posEligibilityThreshold: z.number().int().min(1).optional(),
+  seasonYear: z.number().int().min(1900).max(2200).optional(),
+  leagueFamilyId: z.string().trim().min(1).max(128).optional(),
 });
 
-export const updateLeagueSchema = createLeagueSchema.partial();
+export const updateLeagueSchema = createLeagueSchema
+  .omit({ seasonYear: true, leagueFamilyId: true })
+  .partial();
+
+export const startNewSeasonSchema = z.object({
+  seasonYear: z.number().int().min(1900).max(2200).optional(),
+});
+
+export const importKeepersSchema = z.object({
+  fromLeagueId: objectIdStringSchema,
+  teamMapping: z.record(z.string(), z.string()).optional(),
+});
 
 // ─── Taxi Draft ───────────────────────────────────────────────────────────────
 

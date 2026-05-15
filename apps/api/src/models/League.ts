@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import mongoose, { Document, Schema } from "mongoose";
 
 export type DraftStatus = "pre-draft" | "in-progress" | "completed";
@@ -63,6 +64,12 @@ export interface ILeague extends Document {
   posEligibilityThreshold: number;
   taxiDraftOrder?: string[];
   taxiRosters?: ITaxiRosters;
+  /** Calendar season year for this league document (one document per season). */
+  seasonYear: number;
+  /** Stable id shared by all yearly `League` docs for the same real-world fantasy league. */
+  leagueFamilyId: string;
+  /** Prior season’s league `_id` when this row was created via “start new season”. */
+  previousSeasonLeagueId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -151,8 +158,26 @@ const leagueSchema = new Schema<ILeague>(
       type: Schema.Types.Mixed,
       default: {},
     },
+    seasonYear: {
+      type: Number,
+      default() {
+        return new Date().getFullYear();
+      },
+    },
+    leagueFamilyId: {
+      type: String,
+      default() {
+        return randomUUID();
+      },
+    },
+    previousSeasonLeagueId: {
+      type: Schema.Types.ObjectId,
+      ref: "League",
+    },
   },
   { timestamps: true },
 );
+
+leagueSchema.index({ leagueFamilyId: 1, seasonYear: -1 });
 
 export default mongoose.model<ILeague>("League", leagueSchema);

@@ -30,5 +30,8 @@ describe("League rosterSlots Mongo default", () => {
       scoringCategories: [],
     });
     expect(doc.rosterSlots).toEqual(DRAFTROOM_DEFAULT_ROSTER_SLOTS);
+    expect(typeof doc.seasonYear).toBe("number");
+    expect(typeof doc.leagueFamilyId).toBe("string");
+    expect(doc.leagueFamilyId.length).toBeGreaterThan(20);
   });
 });
