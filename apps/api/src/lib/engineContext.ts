@@ -9,6 +9,7 @@ import {
   type ValuationIncomingParsed,
   type RosterSlotsNormalized,
 } from "../validation/valuationRequestSchema";
+import { isMinorRosterSlot, isTaxiRosterSlot } from "./rosterSlotKind";
 
 export interface EngineRosterSlot {
   position: string;
@@ -150,16 +151,6 @@ function toDraftedPlayers(entries: IRosterEntry[]): EngineDraftedPlayer[] {
       roster_slot: e.rosterSlot,
     };
   });
-}
-
-function isMinorSlot(slot: string | undefined): boolean {
-  const normalized = (slot ?? "").toUpperCase();
-  return normalized.includes("MIN");
-}
-
-function isTaxiSlot(slot: string | undefined): boolean {
-  const normalized = (slot ?? "").toUpperCase();
-  return normalized.includes("TAXI");
 }
 
 function toTeamPlayersSections(
@@ -415,10 +406,13 @@ export async function buildValuationContext(
   const numTeams = resolveLeagueNumTeams(league);
 
   const keeperEntries = rosterEntries.filter((e) => e.isKeeper);
-  const minorsEntries = rosterEntries.filter((e) => isMinorSlot(e.rosterSlot));
-  const taxiEntries = rosterEntries.filter((e) => isTaxiSlot(e.rosterSlot));
+  const minorsEntries = rosterEntries.filter((e) => isMinorRosterSlot(e.rosterSlot));
+  const taxiEntries = rosterEntries.filter((e) => isTaxiRosterSlot(e.rosterSlot));
   const draftedEntries = rosterEntries.filter(
-    (e) => !e.isKeeper && !isMinorSlot(e.rosterSlot) && !isTaxiSlot(e.rosterSlot),
+    (e) =>
+      !e.isKeeper &&
+      !isMinorRosterSlot(e.rosterSlot) &&
+      !isTaxiRosterSlot(e.rosterSlot),
   );
   const drafted_players = toDraftedPlayers(draftedEntries);
 
