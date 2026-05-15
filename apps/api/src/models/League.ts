@@ -49,7 +49,6 @@ export interface ILeague extends Document {
   name: string;
   commissionerId: mongoose.Types.ObjectId;
   memberIds: mongoose.Types.ObjectId[];
-  seasonYear?: number;
   budget: number;
   hitterBudgetPct: number;
   teams: number;
@@ -137,11 +136,6 @@ const leagueSchema = new Schema<ILeague>(
       enum: ["Mixed", "AL", "NL"],
       default: "Mixed",
     },
-    seasonYear: {
-      type: Number,
-      default: new Date().getFullYear(),
-      index: true,
-    },
     teamNames: {
       type: [String],
       default: [],
@@ -163,6 +157,7 @@ const leagueSchema = new Schema<ILeague>(
       default() {
         return new Date().getFullYear();
       },
+      index: true,
     },
     leagueFamilyId: {
       type: String,

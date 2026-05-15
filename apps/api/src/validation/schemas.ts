@@ -80,7 +80,6 @@ export const createLeagueSchema = z.object({
   draftDate: z.string().optional(),
   teamNames: z.array(z.string()).optional(),
   posEligibilityThreshold: z.number().int().min(1).optional(),
-  seasonYear: z.number().int().min(1900).max(2200).optional(),
   leagueFamilyId: z.string().trim().min(1).max(128).optional(),
 });
 
