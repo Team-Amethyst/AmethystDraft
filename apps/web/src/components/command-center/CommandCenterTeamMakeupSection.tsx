@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { League } from "../../contexts/LeagueContext";
 import type { RosterEntry } from "../../api/roster";
 import { myDraftSlotsForPosition } from "../../constants/positionAllocationPlan";
+import { assignTeamEntriesToRosterRows } from "../../pages/command-center-utils/rosterAssignment";
 import PosBadge from "../PosBadge";
 
 export function CommandCenterTeamMakeupSection({
@@ -35,30 +36,23 @@ export function CommandCenterTeamMakeupSection({
   const viewingOwnTargets =
     myTeamId != null && makeupTeamId !== "" && makeupTeamId === myTeamId;
   const teamMakeupEntries = makeupTeamId
-    ? rosterEntries
-        .filter((e) => e.teamId === makeupTeamId)
-        .slice()
-        .sort(
-          (a, b) =>
-            new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
-            new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
-        )
+    ? rosterEntries.filter((e) => e.teamId === makeupTeamId)
     : [];
-  const teamEntriesBySlot = new Map<string, RosterEntry[]>();
-  teamMakeupEntries.forEach((entry) => {
-    const slotKey = entry.rosterSlot || "BN";
-    const curr = teamEntriesBySlot.get(slotKey) ?? [];
-    curr.push(entry);
-    teamEntriesBySlot.set(slotKey, curr);
-  });
+  const assignedRows =
+    league != null
+      ? assignTeamEntriesToRosterRows(league.rosterSlots, teamMakeupEntries)
+      : [];
   const teamMakeupRows = league
-    ? Object.entries(league.rosterSlots).flatMap(([slot, count]) => {
-        const entriesForSlot = teamEntriesBySlot.get(slot) ?? [];
+    ? assignedRows.map((row, idx) => {
+        const slot = row.position;
+        const count = league.rosterSlots[slot] ?? 1;
+        const slotIndex = assignedRows
+          .slice(0, idx)
+          .filter((r) => r.position === slot).length;
         const totalTargetForPosition = viewingOwnTargets
           ? (savedPositionTargets[slot] ??
             Math.round((count / totalSlots) * (league.budget ?? 260)))
           : Math.round((count / totalSlots) * (league.budget ?? 260));
-        /* My Draft “Per Slot” only for your team; other teams use even slot share of budget */
         const slotsForPerSlotDivisor = viewingOwnTargets
           ? (myDraftSlotsForPosition(slot) ?? count)
           : count;
@@ -66,17 +60,15 @@ export function CommandCenterTeamMakeupSection({
           slotsForPerSlotDivisor > 0 && Number.isFinite(totalTargetForPosition)
             ? totalTargetForPosition / slotsForPerSlotDivisor
             : null;
-        return Array.from({ length: count }, (_, idx) => {
-          const entry = entriesForSlot[idx];
-          return {
-            key: `${slot}-${idx}`,
-            slot,
-            playerName: entry?.playerName ?? "— empty —",
-            target: perSlotTarget,
-            price: entry?.price ?? null,
-            filled: !!entry,
-          };
-        });
+        const entry = row.entry;
+        return {
+          key: `${slot}-${slotIndex}`,
+          slot,
+          playerName: entry?.playerName ?? "— empty —",
+          target: perSlotTarget,
+          price: entry?.price ?? null,
+          filled: !!entry,
+        };
       })
     : [];
   const fmtDollar = (n: number | null | undefined) =>

@@ -18,24 +18,11 @@ import {
   computeRanks,
   normalizeCatName,
 } from "./commandCenterUtils";
+import {
+  assignTeamEntriesToRosterRows,
+  countAssignedRosterRows,
+} from "./command-center-utils/rosterAssignment";
 import "./LeagueOverview.css";
-
-// ─── Slot display order ───────────────────────────────────────────────────────
-
-const SLOT_ORDER = [
-  "C",
-  "1B",
-  "2B",
-  "3B",
-  "SS",
-  "MI",
-  "CI",
-  "OF",
-  "UTIL",
-  "SP",
-  "RP",
-  "BN",
-];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,34 +55,16 @@ function buildTeamData(
 ): TeamData {
   const teamId = `team_${teamIndex + 1}`;
   const teamEntries = entries.filter((e) => e.teamId === teamId);
+  const assigned = assignTeamEntriesToRosterRows(rosterSlots, teamEntries);
+  const slots: SlotRow[] = assigned.map((row) => ({
+    position: row.position,
+    playerName: row.entry?.playerName ?? null,
+    playerTeam: row.entry?.playerTeam ?? null,
+    price: row.entry?.price ?? null,
+    isKeeper: row.entry?.isKeeper ?? false,
+  }));
 
-  const orderedPositions = [
-    ...SLOT_ORDER.filter((pos) => rosterSlots[pos] !== undefined),
-    ...Object.keys(rosterSlots).filter((pos) => !SLOT_ORDER.includes(pos)),
-  ];
-
-  const slots: SlotRow[] = [];
-  const usedIds = new Set<string>();
-
-  for (const pos of orderedPositions) {
-    const count = rosterSlots[pos] ?? 0;
-    const posEntries = teamEntries.filter(
-      (e) => e.rosterSlot === pos && !usedIds.has(e._id),
-    );
-    for (let i = 0; i < count; i++) {
-      const entry = posEntries[i];
-      if (entry) usedIds.add(entry._id);
-      slots.push({
-        position: pos,
-        playerName: entry?.playerName ?? null,
-        playerTeam: entry?.playerTeam ?? null,
-        price: entry?.price ?? null,
-        isKeeper: entry?.isKeeper ?? false,
-      });
-    }
-  }
-
-  const filled = slots.filter((s) => s.playerName !== null).length;
+  const filled = countAssignedRosterRows(assigned);
   const totalSpent = teamEntries.reduce((sum, e) => sum + e.price, 0);
   const remaining = budget - totalSpent;
   const open = slots.length - filled;

@@ -19,6 +19,8 @@ import {
   auctionCenterCategoryImpactRows,
   availableSlotsForTeamName,
 } from "../pages/commandCenterUtils";
+import { pickRosterSlotForNewEntry } from "../pages/command-center-utils/rosterAssignment";
+import { validateRosterSlotAssignment } from "../validation/rosterSlot";
 import {
   getValuationPlayer,
   type ValuationResponse,
@@ -534,19 +536,69 @@ export function AuctionCenter({
     const userId = league.memberIds[teamIdx]; // undefined for unjoined teams
     const teamId = `team_${teamIdx + 1}`;
     const price = parseInt(finalPrice, 10) || 1;
+    const positions = selectedPlayer.positions?.length
+      ? selectedPlayer.positions
+      : [selectedPlayer.position];
+    const allSlotOptions = Object.keys(league.rosterSlots);
+    const teamEntries = rosterEntries.filter((e) => e.teamId === teamId);
+    const spent = teamEntries.reduce((s, e) => s + e.price, 0);
     const totalSlots = Object.values(league.rosterSlots).reduce(
       (a, b) => a + b,
       0,
     );
-    const teamEntries = rosterEntries.filter((e) => e.teamId === teamId);
-    const spent = teamEntries.reduce((s, e) => s + e.price, 0);
-    const open = Math.max(0, totalSlots - teamEntries.length);
+    const openSlots = Math.max(0, totalSlots - teamEntries.length);
     const remaining = Math.max(0, league.budget - spent);
-    const maxBid = open > 0 ? Math.max(1, remaining - (open - 1)) : 0;
+    const maxBid = openSlots > 0 ? Math.max(1, remaining - (openSlots - 1)) : 0;
     if (price > maxBid) {
       showToast(`$${price} exceeds ${wonBy}'s max bid of $${maxBid}`, "error");
       return;
     }
+
+    const eligible = getEligibleSlotsForPositions(
+      positions,
+      allSlotOptions,
+      selectedPlayer.position,
+    );
+    const available = availableSlotsForTeamName(
+      league,
+      wonBy,
+      allSlotOptions,
+      rosterEntries,
+    );
+    const autoSlot = pickRosterSlotForNewEntry(
+      league,
+      wonBy,
+      positions,
+      rosterEntries,
+    );
+    let slotToSave = autoSlot;
+    if (
+      draftedToSlot &&
+      available.has(draftedToSlot) &&
+      eligible.includes(draftedToSlot)
+    ) {
+      slotToSave = draftedToSlot;
+    }
+    if (!slotToSave) {
+      showToast(
+        "No open roster slot for this player on that team.",
+        "error",
+      );
+      return;
+    }
+
+    const slotCheck = validateRosterSlotAssignment(
+      league,
+      wonBy,
+      positions,
+      slotToSave,
+      rosterEntries,
+    );
+    if (!slotCheck.ok) {
+      showToast(slotCheck.message, "error");
+      return;
+    }
+
     const playerName = selectedPlayer.name;
     setSubmitting(true);
     setSelectedPlayer(null);
@@ -562,7 +614,7 @@ export function AuctionCenter({
             ? selectedPlayer.positions
             : [selectedPlayer.position],
           price,
-          rosterSlot: draftedToSlot,
+          rosterSlot: slotToSave,
           isKeeper: false,
           userId,
           teamId,
@@ -572,7 +624,7 @@ export function AuctionCenter({
       setRedoStack([]);
       refreshRoster();
       showToast(
-        `✓ ${playerName} drafted to ${draftedToSlot} for $${price}`,
+        `✓ ${playerName} drafted to ${slotToSave} for $${price}`,
         "success",
       );
     } catch (err) {
@@ -675,18 +727,25 @@ export function AuctionCenter({
     (c) => c.type === "pitching",
   );
 
-  // Auto-correct draftedToSlot when player or team changes
+  // Auto-pick first open eligible slot (OF before UTIL/BN) when player or team changes
   useEffect(() => {
-    if (
-      overrideSlotOptions.length > 0 &&
-      !overrideSlotOptions.includes(draftedToSlot)
-    ) {
-      setDraftedToSlot(
-        eligibleSlotOptions[0] ?? overrideSlotOptions[0],
-      );
+    if (!selectedPlayer || !league) return;
+    const positions = selectedPlayer.positions?.length
+      ? selectedPlayer.positions
+      : [selectedPlayer.position];
+    const next = pickRosterSlotForNewEntry(
+      league,
+      wonBy,
+      positions,
+      rosterEntries,
+    );
+    if (next) {
+      setDraftedToSlot(next);
+    } else if (overrideSlotOptions.length === 0) {
+      setDraftedToSlot("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPlayer?.id, wonBy]);
+  }, [selectedPlayer?.id, wonBy, rosterValuationKey]);
 
   return (
     <div className="cc-center">

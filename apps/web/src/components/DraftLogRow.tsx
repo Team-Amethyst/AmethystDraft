@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pencil, X } from "lucide-react";
 import type { RosterEntry } from "../api/roster";
 import { getEligibleSlotsForPositions } from "../utils/eligibility";
+import { validateRosterSlotAssignment } from "../validation/rosterSlot";
 import { RosterSlotPicker } from "./RosterSlotPicker";
 import "./DraftLogRow.css";
 
@@ -156,6 +157,23 @@ export function DraftLogRow({
     if (editKeeperContract.trim() !== (entry.keeperContract ?? "")) {
       data.keeperContract = editKeeperContract.trim();
     }
+    if (editSlot !== entry.rosterSlot || editTeamId !== entry.teamId) {
+      const targetTeam =
+        teamOptions.find((t) => t.id === editTeamId)?.name ?? editTeamId;
+      const slotCheck = validateRosterSlotAssignment(
+        { rosterSlots: leagueRosterSlots ?? {}, teamNames: teamOptions.map((t) => t.name) },
+        targetTeam,
+        entry.positions,
+        editSlot,
+        allRosterEntries ?? [],
+        entry._id,
+      );
+      if (!slotCheck.ok) {
+        alert(slotCheck.message);
+        return;
+      }
+    }
+
     if (Object.keys(data).length > 0) onUpdate(entry._id, data);
     setEditing(false);
   }
