@@ -11,6 +11,7 @@ import {
   formatLeagueDraftStatusLabel,
   leaguePrimarySeasonMetaLine,
 } from "../domain/leagueSeasonGroups";
+import { AppSelect } from "../components/AppSelect";
 
 export default function Leagues() {
   usePageTitle("My Leagues");
@@ -71,24 +72,24 @@ export default function Leagues() {
               <label htmlFor="seasonFilter" className="app-section-label">
                 Season
               </label>
-              <select
+              <AppSelect
                 id="seasonFilter"
-                className="leagues-season-select"
-                value={selectedSeason}
+                block
                 aria-label="Filter leagues by season"
-                onChange={(e) =>
-                  setSelectedSeason(
-                    e.target.value === "all" ? "all" : Number(e.target.value),
-                  )
+                value={
+                  selectedSeason === "all" ? "all" : String(selectedSeason)
                 }
-              >
-                <option value="all">All seasons</option>
-                {seasons.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) =>
+                  setSelectedSeason(v === "all" ? "all" : Number(v))
+                }
+                options={[
+                  { value: "all", label: "All seasons" },
+                  ...seasons.map((s) => ({
+                    value: String(s),
+                    label: String(s),
+                  })),
+                ]}
+              />
             </div>
           ) : null}
         </div>
