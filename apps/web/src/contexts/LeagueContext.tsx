@@ -15,6 +15,7 @@ export interface League {
   name: string;
   commissionerId: string;
   memberIds: string[];
+  seasonYear?: number;
   budget: number;
   hitterBudgetPct: number;
   teams: number;

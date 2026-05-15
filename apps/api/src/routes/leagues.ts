@@ -45,34 +45,41 @@ const createLeague: RequestHandler = async (
 ): Promise<void> => {
   try {
     const {
-      name,
-      teams,
-      budget,
-      hitterBudgetPct,
-      rosterSlots,
-      scoringFormat,
-      scoringCategories,
-      playerPool,
-      draftDate,
-      teamNames,
-      posEligibilityThreshold,
+        name,
+        seasonYear,
+        teams,
+        budget,
+        hitterBudgetPct,
+        rosterSlots,
+        scoringFormat,
+        scoringCategories,
+        playerPool,
+        draftDate,
+        teamNames,
+        posEligibilityThreshold,
     } = req.body;
 
-    const league = await League.create({
-      name: name.trim(),
-      commissionerId: req.user!._id,
-      memberIds: [req.user!._id],
-      teams: teams ?? 12,
-      budget: budget ?? 260,
-      hitterBudgetPct: hitterBudgetPct ?? 70,
-      rosterSlots: rosterSlots ?? undefined,
-      scoringFormat: scoringFormat ?? "5x5",
-      scoringCategories: scoringCategories ?? [],
-      playerPool: playerPool ?? "Mixed",
-      draftDate: draftDate ? new Date(draftDate) : undefined,
-      teamNames: teamNames ?? [],
-      posEligibilityThreshold: posEligibilityThreshold ?? 20,
-    });
+      const nowYear = new Date().getFullYear();
+      if (seasonYear !== undefined && seasonYear > nowYear) {
+        throw new ValidationError("Season year cannot be in the future", 400, "INVALID_SEASON_YEAR");
+      }
+
+      const league = await League.create({
+        name: name.trim(),
+        commissionerId: req.user!._id,
+        memberIds: [req.user!._id],
+        seasonYear: seasonYear ?? new Date().getFullYear(),
+        teams: teams ?? 12,
+        budget: budget ?? 260,
+        hitterBudgetPct: hitterBudgetPct ?? 70,
+        rosterSlots: rosterSlots ?? undefined,
+        scoringFormat: scoringFormat ?? "5x5",
+        scoringCategories: scoringCategories ?? [],
+        playerPool: playerPool ?? "Mixed",
+        draftDate: draftDate ? new Date(draftDate) : undefined,
+        teamNames: teamNames ?? [],
+        posEligibilityThreshold: posEligibilityThreshold ?? 20,
+      });
 
     res.status(201).json(serializeLeague(league));
   } catch (err) {
@@ -88,7 +95,13 @@ const getMyLeagues: RequestHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const leagues = await League.find({ memberIds: req.user!._id });
+    const q: Record<string, unknown> = { memberIds: req.user!._id };
+    const seasonYearParam = req.query.seasonYear;
+    if (seasonYearParam !== undefined) {
+      const parsed = Number(seasonYearParam);
+      if (!Number.isNaN(parsed)) q.seasonYear = parsed;
+    }
+    const leagues = await League.find(q as any);
     res.json(leagues.map(serializeLeague));
   } catch (err) {
     next(err);

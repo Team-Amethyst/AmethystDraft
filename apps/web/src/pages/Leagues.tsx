@@ -11,11 +11,27 @@ import "./Leagues.css";
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
+import { useMemo, useState } from "react";
 
 export default function Leagues() {
   usePageTitle("My Leagues");
   const navigate = useNavigate();
   const { allLeagues: leagues, loading } = useLeague();
+  const [selectedSeason, setSelectedSeason] = useState<number | "all">("all");
+
+  const seasons = useMemo(() => {
+    const s = new Set<number>();
+    for (const l of leagues) {
+      const year = l.seasonYear ?? new Date(l.createdAt).getFullYear();
+      s.add(year);
+    }
+    return Array.from(s).sort((a, b) => b - a);
+  }, [leagues]);
+
+  const filtered = useMemo(() => {
+    if (selectedSeason === "all") return leagues;
+    return leagues.filter((l) => (l.seasonYear ?? new Date(l.createdAt).getFullYear()) === selectedSeason);
+  }, [leagues, selectedSeason]);
 
   const handleCreateLeague = () => navigate("/leagues/create");
   const handleLeagueClick = (leagueId: string) =>
@@ -62,8 +78,19 @@ export default function Leagues() {
             <p className="empty-state-text">Loading leagues…</p>
           </div>
         ) : leagues.length > 0 ? (
-          <div className="leagues-grid">
-            {leagues.map((league) => (
+          <div>
+            <div className="leagues-filter">
+              <label htmlFor="seasonFilter">Season:</label>
+              <select id="seasonFilter" value={selectedSeason} onChange={(e) => setSelectedSeason(e.target.value === "all" ? "all" : Number(e.target.value))}>
+                <option value="all">All seasons</option>
+                {seasons.map((s) => (
+                  <option key={s} value={s}>Season {s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="leagues-grid">
+              {filtered.map((league) => (
               <div
                 key={league.id}
                 className="league-card"
@@ -71,7 +98,7 @@ export default function Leagues() {
               >
                 <div className="league-card-header">
                   <div className="league-card-info">
-                    <h3 className="league-card-title">{league.name}</h3>
+                    <h3 className="league-card-title">{league.name} {league.seasonYear && `(${league.seasonYear})`}</h3>
                   </div>
                   <div className="league-card-header-right">
                     <span
@@ -93,10 +120,10 @@ export default function Leagues() {
                     <Users />
                     <span>{league.teams} Teams</span>
                   </div>
-                  <div className="league-meta-item">
-                    <DollarSign />
-                    <span>${league.budget} Budget</span>
-                  </div>
+                    <div className="league-meta-item">
+                      <DollarSign />
+                      <span>{`$${league.budget} Budget`}</span>
+                    </div>
                   {league.draftDate && (
                     <div className="league-meta-item">
                       <Calendar />
@@ -107,7 +134,8 @@ export default function Leagues() {
                   )}
                 </div>
               </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : (
           <div className="empty-state">
