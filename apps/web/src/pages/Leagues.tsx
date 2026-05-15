@@ -1,28 +1,26 @@
-import {
-  Plus,
-  Users,
-  Calendar,
-  DollarSign,
-  Trophy,
-  Settings,
-} from "lucide-react";
+import { Plus, Trophy, Settings } from "lucide-react";
 import AuthNavbar from "../components/AuthNavbar";
 import "./Leagues.css";
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLeague } from "../contexts/LeagueContext";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   groupLeaguesByFamily,
-  leagueCurrentSeasonSummary,
+  effectiveSeasonYear,
   formatLeagueDraftStatusLabel,
+  leaguePrimarySeasonMetaLine,
 } from "../domain/leagueSeasonGroups";
 
 export default function Leagues() {
   usePageTitle("My Leagues");
   const navigate = useNavigate();
-  const { allLeagues: leagues, loading } = useLeague();
+  const { allLeagues: leagues, loading, refreshLeagues } = useLeague();
   const [selectedSeason, setSelectedSeason] = useState<number | "all">("all");
+
+  useEffect(() => {
+    refreshLeagues();
+  }, [refreshLeagues]);
 
   const seasons = useMemo(() => {
     const s = new Set<number>();
@@ -63,24 +61,21 @@ export default function Leagues() {
           </p>
         </div>
 
-        <div className="leagues-actions">
+        <div className="leagues-toolbar">
           <button className="btn-create-league" onClick={handleCreateLeague}>
             <Plus size={18} />
             Create League
           </button>
-        </div>
-
-        {loading ? (
-          <div className="empty-state">
-            <p className="empty-state-text">Loading leagues…</p>
-          </div>
-        ) : leagues.length > 0 ? (
-          <div>
-            <div className="leagues-filter">
-              <label htmlFor="seasonFilter">Season:</label>
+          {!loading && leagues.length > 0 ? (
+            <div className="leagues-season-field">
+              <label htmlFor="seasonFilter" className="app-section-label">
+                Season
+              </label>
               <select
                 id="seasonFilter"
+                className="leagues-season-select"
                 value={selectedSeason}
+                aria-label="Filter leagues by season"
                 onChange={(e) =>
                   setSelectedSeason(
                     e.target.value === "all" ? "all" : Number(e.target.value),
@@ -90,13 +85,20 @@ export default function Leagues() {
                 <option value="all">All seasons</option>
                 {seasons.map((s) => (
                   <option key={s} value={s}>
-                    Season {s}
+                    {s}
                   </option>
                 ))}
               </select>
             </div>
+          ) : null}
+        </div>
 
-            <div className="leagues-families">
+        {loading ? (
+          <div className="empty-state">
+            <p className="empty-state-text">Loading leagues…</p>
+          </div>
+        ) : leagues.length > 0 ? (
+          <div className="leagues-families">
               {familyGroups.map((group) => {
                 const [head, ...older] = group.seasons;
                 const current = head!.league;
@@ -118,11 +120,23 @@ export default function Leagues() {
                       tabIndex={0}
                     >
                       <div className="leagues-family-primary-header">
-                        <h2 className="leagues-family-name">{group.displayName}</h2>
+                        <div className="leagues-family-title-block">
+                          <h2 className="leagues-family-name">
+                            {group.displayName}
+                          </h2>
+                          <span className="leagues-family-season-badge">
+                            {effectiveSeasonYear(current)}
+                          </span>
+                        </div>
                         <div
                           className="league-card-header-right"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <span
+                            className={`league-card-status status-${current.draftStatus}`}
+                          >
+                            {formatLeagueDraftStatusLabel(current.draftStatus)}
+                          </span>
                           <button
                             type="button"
                             className="league-card-settings-btn"
@@ -133,34 +147,9 @@ export default function Leagues() {
                           </button>
                         </div>
                       </div>
-                      <p className="leagues-family-summary">
-                        {leagueCurrentSeasonSummary(current)}
+                      <p className="leagues-family-meta">
+                        {leaguePrimarySeasonMetaLine(current)}
                       </p>
-                      <div className="league-card-meta leagues-family-primary-meta">
-                        <div className="league-meta-item">
-                          <Users />
-                          <span>{current.teams} Teams</span>
-                        </div>
-                        <div className="league-meta-item">
-                          <DollarSign />
-                          <span>${current.budget} Budget</span>
-                        </div>
-                        {current.draftDate && (
-                          <div className="league-meta-item">
-                            <Calendar />
-                            <span>
-                              {new Date(current.draftDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                        <div className="league-meta-item">
-                          <span
-                            className={`league-card-status status-${current.draftStatus}`}
-                          >
-                            {formatLeagueDraftStatusLabel(current.draftStatus)}
-                          </span>
-                        </div>
-                      </div>
                     </div>
 
                     {older.length > 0 ? (
@@ -204,7 +193,6 @@ export default function Leagues() {
                   </article>
                 );
               })}
-            </div>
           </div>
         ) : (
           <div className="empty-state">

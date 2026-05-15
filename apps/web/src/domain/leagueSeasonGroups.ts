@@ -54,6 +54,24 @@ export function leagueCurrentSeasonSummary(league: League): string {
   return `${y} · ${status} · ${league.teams} teams · $${league.budget}`;
 }
 
+/** Secondary line for My Leagues primary card (teams, budget, optional draft date). */
+export function leaguePrimarySeasonMetaLine(league: League): string {
+  const parts = [`${league.teams} teams`, `$${league.budget} budget`];
+  if (league.draftDate) {
+    const d = new Date(league.draftDate);
+    if (!Number.isNaN(d.getTime())) {
+      parts.push(
+        `Draft ${d.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}`,
+      );
+    }
+  }
+  return parts.join(" · ");
+}
+
 export type LeagueSeasonRow = {
   league: League;
   seasonLabel: string;

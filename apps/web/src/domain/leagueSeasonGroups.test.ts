@@ -9,6 +9,7 @@ import {
   importKeepersFromLeagueId,
   leagueSeasonLabel,
   leagueCurrentSeasonSummary,
+  leaguePrimarySeasonMetaLine,
   draftStatusSummaryLabel,
   formatLeagueDraftStatusLabel,
 } from "./leagueSeasonGroups";
@@ -85,6 +86,14 @@ describe("leagueSeasonGroups", () => {
     });
     const all = [cur, L({ id: "other", leagueFamilyId: "f", seasonYear: 2025 })];
     expect(importKeepersFromLeagueId(cur, all)).toBe("explicit-old");
+  });
+
+  it("leaguePrimarySeasonMetaLine omits draft date when unset", () => {
+    expect(
+      leaguePrimarySeasonMetaLine(
+        L({ id: "x", teams: 2, budget: 260, draftStatus: "in-progress" }),
+      ),
+    ).toBe("2 teams · $260 budget");
   });
 
   it("leagueCurrentSeasonSummary formats year status teams budget", () => {

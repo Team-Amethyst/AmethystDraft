@@ -27,10 +27,63 @@
   font-size: 0.95rem;
 }
 
-.leagues-actions {
+.leagues-toolbar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.leagues-season-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: min(100%, 11.5rem);
+}
+
+.leagues-season-field .app-section-label {
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+
+.leagues-season-select {
+  height: 42px;
+  min-width: 11.5rem;
+  max-width: 100%;
+  padding: 0 2.25rem 0 13px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
+  background-color: color-mix(in srgb, var(--app-bg-alt) 88%, black 12%);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 10px;
+}
+
+.leagues-season-select:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 45%, transparent);
+}
+
+.leagues-season-select:focus-visible {
+  border-color: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 16%, transparent);
+}
+
+.leagues-season-select option {
+  background: #120b1f;
+  color: var(--app-text);
 }
 
 .btn-create-league {
@@ -108,10 +161,18 @@
 
 .leagues-family-primary-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.leagues-family-title-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  min-width: 0;
 }
 
 .leagues-family-name {
@@ -119,17 +180,34 @@
   font-weight: 700;
   color: #f0e6ff;
   margin: 0;
+  line-height: 1.25;
 }
 
-.leagues-family-summary {
-  margin: 0 0 1rem;
-  font-size: 0.95rem;
-  color: #c4b5dc;
+.leagues-family-season-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #d4c4f5;
+  background: rgba(139, 60, 247, 0.2);
+  border: 1px solid rgba(138, 43, 226, 0.35);
+}
+
+.leagues-family-meta {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--app-text-dim);
   letter-spacing: 0.01em;
+  line-height: 1.45;
 }
 
-.leagues-family-primary-meta {
-  flex-wrap: wrap;
+.leagues-family-primary .league-card-header-right {
+  flex-shrink: 0;
+  gap: 0.5rem;
 }
 
 .leagues-archive-list {
