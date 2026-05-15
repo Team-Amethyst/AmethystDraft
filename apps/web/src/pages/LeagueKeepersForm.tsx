@@ -381,7 +381,7 @@ export function LeagueKeepersForm({
                         <div className="ls-keeper-cc-head">
                           <span className="ls-keeper-cc-label">Keeper roster</span>
                           <select
-                            className="ls-keeper-team-select ls-keeper-team-select--cc"
+                            className="app-select app-select--compact ls-keeper-team-select ls-keeper-team-select--cc"
                             aria-label="Team to edit keepers for"
                             value={activeKeeperTeam}
                             onChange={(e) => {

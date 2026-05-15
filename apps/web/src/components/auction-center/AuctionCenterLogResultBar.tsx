@@ -38,7 +38,7 @@ export function AuctionCenterLogResultBar({
       <div className="log-result-grid log-result-grid--inline command-center-log-row">
         <div className="log-field">
           <select
-            className="log-select"
+            className="app-select app-select--compact log-select"
             value={wonBy}
             onChange={(e) => onWonByChange(e.target.value)}
           >

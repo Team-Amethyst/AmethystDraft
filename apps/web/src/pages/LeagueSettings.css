@@ -528,29 +528,9 @@
 }
 
 .ls-keeper-team-select {
-  height: 26px;
   min-width: 112px;
   max-width: 46%;
-  border-radius: 7px;
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  background: rgba(255, 255, 255, 0.04);
-  color: #d4c8e8;
-  padding: 0 28px 0 8px;
   font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  font-family: inherit;
-  outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 10px 10px;
-}
-
-.ls-keeper-team-select:focus {
-  border-color: rgba(167, 139, 250, 0.65);
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
 .ls-keeper-team-select--cc {

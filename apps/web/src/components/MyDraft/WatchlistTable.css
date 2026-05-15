@@ -57,42 +57,10 @@
   gap: 0.45rem;
 }
 
-/* Shared select style for My Draft (matches command-center control language). */
-.md-select {
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #d5caeb;
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 0.22rem 1.65rem 0.22rem 0.45rem;
-  font-family: "DM Sans", sans-serif;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.38rem center;
-  background-size: 10px 10px;
-}
-
-.md-select:hover {
-  border-color: rgba(167, 139, 250, 0.45);
-  color: #ebe4f5;
-}
-
-.md-select:focus-visible {
-  border-color: rgba(167, 139, 250, 0.65);
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
-  outline: none;
-}
-
-.md-select option {
-  background: #1a1330;
-  color: #d4c8e8;
-}
-
+/* My Draft toolbar selects — chrome from global `app-select`. */
 .md-select--compact {
   min-height: 1.55rem;
+  font-size: 0.64rem;
 }
 
 .watchlist-table {

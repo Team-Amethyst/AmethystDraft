@@ -25,6 +25,7 @@ export function ResearchDepthChartToolbar({
         <label htmlFor="depth-team-select">Team</label>
         <select
           id="depth-team-select"
+          className="app-select"
           value={selectedTeamId}
           onChange={(event) => {
             onTeamChange(Number(event.target.value));

@@ -85,7 +85,7 @@ export function CommandCenterTeamMakeupSection({
         <span className="market-section-label">TEAM MAKEUP</span>
         {league && league.teamNames.length > 0 ? (
           <select
-            className="cc-team-makeup-select"
+            className="app-select app-select--compact cc-team-makeup-select"
             aria-label="Roster to display"
             value={makeupTeamId}
             onChange={(e) => setMakeupTeamId(e.target.value)}

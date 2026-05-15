@@ -202,7 +202,10 @@
   font-size: 0.85rem;
 }
 
-.depth-chart-controls select,
+.depth-chart-controls .app-select {
+  min-width: 10rem;
+}
+
 .depth-chart-refresh-btn {
   background: rgba(18, 10, 30, 0.9);
   color: #f0e6ff;
@@ -210,9 +213,6 @@
   border-radius: 8px;
   padding: 0.45rem 0.65rem;
   font-size: 0.85rem;
-}
-
-.depth-chart-refresh-btn {
   cursor: pointer;
 }
 

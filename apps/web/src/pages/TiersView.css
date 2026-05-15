@@ -42,19 +42,8 @@
   font-weight: 500;
 }
 
-.tiers-control-group select {
-  background: rgba(18, 10, 30, 0.9);
-  color: #f0e6ff;
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  border-radius: 8px;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-  min-width: 120px;
-}
-
-.tiers-control-group select:hover {
-  border-color: rgba(168, 85, 247, 0.6);
+.tiers-control-group .app-select {
+  min-width: 8.5rem;
 }
 
 .tiers-list {

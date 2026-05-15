@@ -83,6 +83,7 @@ export default function TiersView({
             <label htmlFor="position-filter">Position</label>
             <select
               id="position-filter"
+              className="app-select"
               value={positionFilter}
               onChange={(e) => setPositionFilter(e.target.value)}
             >
@@ -99,6 +100,7 @@ export default function TiersView({
             <label htmlFor="sort-by">Sort By</label>
             <select
               id="sort-by"
+              className="app-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             >

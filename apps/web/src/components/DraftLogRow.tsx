@@ -312,7 +312,7 @@ export function DraftLogRow({
                 <label className="dl-modal-field">
                   <span className="dl-modal-label">Team</span>
                   <select
-                    className="dl-modal-select"
+                    className="app-select app-select--compact dl-modal-select"
                     value={editTeamId}
                     onChange={(e) => handleTeamChange(e.target.value)}
                   >

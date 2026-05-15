@@ -89,7 +89,7 @@ export function PlayerTableControls({
 
       <div className="pt-filters">
         <select
-          className="pt-select"
+          className="app-select app-select--compact"
           value={availabilityFilter}
           onChange={(e) =>
             onAvailabilityFilterChange(
@@ -104,7 +104,7 @@ export function PlayerTableControls({
 
         {onResearchDraftablePoolFilterChange && researchDraftablePoolFilter !== undefined && (
           <select
-            className="pt-select"
+            className="app-select app-select--compact"
             title={
               researchDraftablePoolFilterDisabled
                 ? "Draftable pool metadata unavailable from the last valuation"
@@ -134,7 +134,7 @@ export function PlayerTableControls({
         )}
 
         <select
-          className="pt-select"
+          className="app-select app-select--compact"
           value={statView}
           onChange={(e) => {
             const v = e.target.value as "all" | "hitting" | "pitching";
@@ -149,7 +149,7 @@ export function PlayerTableControls({
         </select>
 
         <select
-          className="pt-select"
+          className="app-select app-select--compact"
           value={positionFilter}
           onChange={(e) => onPositionChange(e.target.value)}
         >
@@ -162,7 +162,7 @@ export function PlayerTableControls({
         </select>
 
         <select
-          className="pt-select"
+          className="app-select app-select--compact"
           value={injuryFilter}
           onChange={(e) =>
             onInjuryFilterChange(e.target.value as "all" | "healthy" | "injured")

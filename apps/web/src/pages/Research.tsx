@@ -796,6 +796,7 @@ export default function Research() {
                   <label htmlFor="depth-team-select">Team</label>
                   <select
                     id="depth-team-select"
+                    className="app-select"
                     value={selectedDepthTeamId}
                     onChange={(event) => {
                       setSelectedDepthTeamId(Number(event.target.value));

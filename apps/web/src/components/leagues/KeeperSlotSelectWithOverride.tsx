@@ -87,7 +87,7 @@ export function KeeperSlotSelectWithOverride({
           </label>
         ) : null}
         <select
-          className={selectClassName}
+          className={`app-select app-select--compact ${selectClassName}`}
           value={value}
           disabled={disabled}
           aria-label={hideLabel ? "Roster slot" : undefined}

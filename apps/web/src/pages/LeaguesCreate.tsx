@@ -409,7 +409,11 @@ export default function LeagueCreate() {
 
                       <div className="league-create-field">
                         <label>SEASON YEAR</label>
-                        <select value={seasonYear} onChange={(e) => setSeasonYear(Number(e.target.value))}>
+                        <select
+                          className="app-select app-select--block"
+                          value={seasonYear}
+                          onChange={(e) => setSeasonYear(Number(e.target.value))}
+                        >
                           {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                             <option key={y} value={y}>{y}</option>
                           ))}
@@ -632,6 +636,7 @@ export default function LeagueCreate() {
                     </label>
                     <select
                       id="lc-import-keepers-src"
+                      className="app-select app-select--block"
                       value={keeperImportFromLeagueId}
                       onChange={(e) =>
                         setKeeperImportFromLeagueId(e.target.value)

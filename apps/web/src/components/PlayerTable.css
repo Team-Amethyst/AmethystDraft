@@ -294,7 +294,7 @@
 }
 
 /* As many per row as fit: grow from ~7.25rem, wrap when needed */
-.pt-filters > .pt-select,
+.pt-filters > .app-select,
 .pt-filters > .pt-toggle,
 .pt-filters > .pt-tag-wrap {
   flex: 1 1 7.25rem;
@@ -313,16 +313,8 @@
   box-sizing: border-box;
 }
 
-.pt-select {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 7px;
-  padding: 0.38rem 0.5rem;
-  font-size: 0.78rem;
-  color: #c4b5d4;
-  outline: none;
-  cursor: pointer;
-  font-family: DM Sans, sans-serif;
+/* Filter layout — visual chrome from `app-select` (global). */
+.pt-filters .app-select {
   min-width: 0;
   max-width: 100%;
 }
@@ -1288,15 +1280,14 @@
     width: 100%;
   }
 
-  .pt-filters > .pt-select,
+  .pt-filters > .app-select,
   .pt-filters > .pt-toggle,
   .pt-filters > .pt-tag-wrap {
     flex: 1 1 6.35rem;
   }
 
-  .pt-select,
+  .pt-filters .app-select,
   .pt-toggle {
-    padding: 0.34rem 0.45rem;
     font-size: 0.74rem;
   }
 

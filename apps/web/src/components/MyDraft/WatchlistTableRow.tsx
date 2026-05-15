@@ -128,7 +128,7 @@ export function WatchlistTableRow({
 
       <td onClick={(e) => e.stopPropagation()}>
         <select
-          className={`md-select md-select--priority priority-select ${priority.toLowerCase()}`}
+          className={`app-select app-select--compact md-select md-select--priority priority-select ${priority.toLowerCase()}`}
           value={priority}
           onChange={(e) =>
             onPriorityChange(player.id, e.target.value as Priority)

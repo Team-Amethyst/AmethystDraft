@@ -399,20 +399,10 @@
 }
 
 .dl-modal-select {
-  background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 5px;
-  color: #d4c8e8;
-  font-size: 0.72rem;
-  padding: 0.25rem 0.4rem;
-  outline: none;
-  cursor: pointer;
-  font-family: inherit;
   flex: 1;
   min-width: 0;
+  font-size: 0.72rem;
 }
-
-.dl-modal-select:focus { border-color: rgba(139, 92, 246, 0.45); }
 
 .dl-modal-price-wrap {
   display: flex;
