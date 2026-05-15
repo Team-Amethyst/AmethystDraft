@@ -13,6 +13,7 @@ type ErrorShape = {
   error?: {
     code?: string;
     message?: string;
+    details?: ValidationErr[];
   };
 };
 
@@ -68,6 +69,11 @@ async function parseApiError(
         "Too many requests. Please wait a moment and try again.";
     } else if (Array.isArray(data.errors) && data.errors.length > 0) {
       message = messageFromEngineValidation(data.errors);
+    } else if (
+      Array.isArray(data.error?.details) &&
+      data.error.details.length > 0
+    ) {
+      message = messageFromEngineValidation(data.error.details);
     } else {
       message = data.error?.message ?? data.message ?? fallbackMessage;
     }
