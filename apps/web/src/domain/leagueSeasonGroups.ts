@@ -89,6 +89,16 @@ function sortLeaguesSeasonDesc(a: League, b: League): number {
   return effectiveSeasonYear(b) - effectiveSeasonYear(a);
 }
 
+/** Navbar / flat lists: newest season first, then most recently created. */
+export function sortLeaguesNewestFirst(a: League, b: League): number {
+  const yearDiff = effectiveSeasonYear(b) - effectiveSeasonYear(a);
+  if (yearDiff !== 0) return yearDiff;
+  const ta = new Date(a.createdAt).getTime();
+  const tb = new Date(b.createdAt).getTime();
+  if (!Number.isNaN(ta) && !Number.isNaN(tb) && ta !== tb) return tb - ta;
+  return a.name.localeCompare(b.name);
+}
+
 /**
  * Group leagues by family, sort each family by `seasonYear` descending,
  * and mark the newest row + human-readable labels.

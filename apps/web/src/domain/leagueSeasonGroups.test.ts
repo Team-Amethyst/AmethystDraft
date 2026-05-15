@@ -8,6 +8,7 @@ import {
   groupLeaguesByFamily,
   importKeepersFromLeagueId,
   leagueSeasonLabel,
+  sortLeaguesNewestFirst,
   leagueCurrentSeasonSummary,
   leaguePrimarySeasonMetaLine,
   draftStatusSummaryLabel,
@@ -55,6 +56,34 @@ describe("leagueSeasonGroups", () => {
   it("formatSeasonYearLabel uses plain year for newest and archive for older", () => {
     expect(formatSeasonYearLabel(2026, 2026)).toBe("2026");
     expect(formatSeasonYearLabel(2025, 2026)).toBe("2025 archive");
+  });
+
+  it("sortLeaguesNewestFirst orders by season year then createdAt", () => {
+    const leagues = [
+      L({
+        id: "old",
+        leagueFamilyId: "f",
+        seasonYear: 2025,
+        createdAt: "2025-06-01T00:00:00.000Z",
+      }),
+      L({
+        id: "newer-year",
+        leagueFamilyId: "g",
+        seasonYear: 2026,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }),
+      L({
+        id: "same-year-late",
+        leagueFamilyId: "h",
+        seasonYear: 2026,
+        createdAt: "2026-03-01T00:00:00.000Z",
+      }),
+    ];
+    expect([...leagues].sort(sortLeaguesNewestFirst).map((l) => l.id)).toEqual([
+      "same-year-late",
+      "newer-year",
+      "old",
+    ]);
   });
 
   it("leagueSeasonLabel matches group semantics", () => {
