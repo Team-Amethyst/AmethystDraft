@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getPlayers } from "../api/players";
 import { getRoster, removeRosterEntry, updateRosterEntry } from "../api/roster";
 import type { RosterEntry } from "../api/roster";
-import type { League } from "../contexts/LeagueContext";
+import { useLeague, type League } from "../contexts/LeagueContext";
 import type { Player } from "../types/player";
 import { getValuation, type ValuationResponse } from "../api/engine";
 import {
@@ -26,6 +26,7 @@ export function useCommandCenterData({
   userTeamIdForValuation: string;
   valuationBoardLogPlayerId: string | undefined;
 }) {
+  const { refreshLeagues } = useLeague();
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [mlbPlayers, setMlbPlayers] = useState<Player[]>([]);
   const [engineMarket, setEngineMarket] = useState<ValuationResponse | null>(null);
@@ -176,6 +177,7 @@ export function useCommandCenterData({
     setRosterEntries((prev) => prev.filter((e) => e._id !== entryId));
     try {
       await removeRosterEntry(leagueId, entryId, token);
+      void refreshLeagues();
       return entry;
     } catch (err) {
       refreshRoster();
@@ -199,6 +201,7 @@ export function useCommandCenterData({
     );
     try {
       await updateRosterEntry(leagueId, entryId, data, token);
+      void refreshLeagues();
       return prev;
     } catch (err) {
       refreshRoster();

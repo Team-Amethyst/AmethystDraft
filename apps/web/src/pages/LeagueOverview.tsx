@@ -156,7 +156,7 @@ function TeamCard({ data }: { data: TeamData }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function LeagueOverview() {
-  const { league } = useLeague();
+  const { league, refreshLeagues } = useLeague();
   const { token, user } = useAuth();
   usePageTitle(league ? `${league.name} Overview` : "League Overview");
 
@@ -282,6 +282,7 @@ export default function LeagueOverview() {
     setEntries((prev) => prev.filter((e) => e._id !== entryId));
     try {
       await removeRosterEntry(league.id, entryId, token);
+      void refreshLeagues();
       showToast(`✕ Removed ${entry?.playerName ?? "pick"}`, "info");
     } catch {
       getRoster(league.id, token)

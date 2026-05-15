@@ -104,7 +104,7 @@ export function AuctionCenter({
   engineBoardError = null,
 }: AuctionCenterProps) {
   const { id: leagueId } = useParams<{ id: string }>();
-  const { league } = useLeague();
+  const { league, refreshLeagues } = useLeague();
   const { token, user } = useAuth();
   const { isInWatchlist } = useWatchlist();
   const { getNote, setNote } = usePlayerNotes();
@@ -623,6 +623,7 @@ export function AuctionCenter({
       );
       setRedoStack([]);
       refreshRoster();
+      void refreshLeagues();
       showToast(
         `✓ ${playerName} drafted to ${slotToSave} for $${price}`,
         "success",
@@ -649,6 +650,7 @@ export function AuctionCenter({
       await removeRosterEntry(leagueId, entry._id, token);
       setRedoStack((prev) => [...prev, entry]);
       refreshRoster();
+      void refreshLeagues();
       showToast(`↩ Undid ${entry.playerName}`, "info");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Undo failed", "error");
@@ -676,6 +678,7 @@ export function AuctionCenter({
       );
       setRedoStack((prev) => prev.slice(0, -1));
       refreshRoster();
+      void refreshLeagues();
       showToast(`↪ Redid ${entry.playerName}`, "info");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Redo failed", "error");
