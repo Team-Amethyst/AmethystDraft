@@ -17,7 +17,8 @@ import {
   type TeamKeeper,
 } from "../types/league";
 import { createLeague } from "../api/leagues";
-import { addRosterEntry } from "../api/roster";
+import { addRosterEntry, getRoster } from "../api/roster";
+import { rosterEntriesToTeamKeepersMap } from "../features/leagues/rosterEntriesToTeamKeepersMap";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { getPlayers, getPlayersCached } from "../api/players";
@@ -39,16 +40,25 @@ import {
 } from "../features/leagues/createFlow";
 import "./LeaguesCreate.css";
 import { MODEL_RANK_TOOLTIP } from "../domain/rankTierLabels";
+import {
+  LEAGUE_TEAMS_MAX,
+  LEAGUE_TEAMS_MIN,
+  leaguePayloadFromCreateForm,
+  validateLeaguePayload,
+} from "../validation/leaguePayload";
 
 export default function LeagueCreate() {
   usePageTitle("Create League");
   const navigate = useNavigate();
   const { token } = useAuth();
-  const { refreshLeagues } = useLeague();
+  const { refreshLeagues, allLeagues } = useLeague();
 
   const [step, setStep] = useState<LeagueCreateStep>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [keeperImportFromLeagueId, setKeeperImportFromLeagueId] =
+    useState("");
   const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
     const cached = getPlayersCached("catalog_rank");
     return cached
@@ -85,6 +95,7 @@ export default function LeagueCreate() {
     playerSearch,
     setPlayerSearch,
     teamKeepers,
+    setTeamKeepers,
     currentKeepers,
     filteredPlayers,
     toggleStat,
@@ -120,6 +131,49 @@ export default function LeagueCreate() {
     setKeeperDraftPlayerId(null);
   }, [activeKeeperTeam]);
 
+  useEffect(() => {
+    if (!keeperImportFromLeagueId || !token) {
+      if (!keeperImportFromLeagueId) {
+        setTeamKeepers({});
+      }
+      return;
+    }
+    const source = allLeagues.find((l) => l.id === keeperImportFromLeagueId);
+    if (!source) return;
+
+    let cancelled = false;
+    void getRoster(keeperImportFromLeagueId, token).then((entries) => {
+      if (cancelled) return;
+      const bySourceTeam = rosterEntriesToTeamKeepersMap(
+        entries,
+        source.teamNames,
+        { includeDraftedPlayers: true },
+      );
+      const names = teamNames.slice(0, teams);
+      const remapped: typeof teamKeepers = {};
+      source.teamNames.forEach((srcName, i) => {
+        const destName = names[i];
+        if (!destName) return;
+        const rows = bySourceTeam[srcName];
+        if (rows?.length) remapped[destName] = rows;
+      });
+      setTeamKeepers(remapped);
+      const first = names.find((n) => remapped[n]?.length) ?? names[0];
+      if (first) setActiveKeeperTeam(first);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    keeperImportFromLeagueId,
+    token,
+    allLeagues,
+    teamNames,
+    teams,
+    setTeamKeepers,
+    setActiveKeeperTeam,
+  ]);
+
   const goBack = () => {
     if (step === 1) {
       navigate("/leagues");
@@ -128,8 +182,42 @@ export default function LeagueCreate() {
     setStep((prev) => (prev - 1) as LeagueCreateStep);
   };
 
+  const buildCreatePayloadInput = () => {
+    const rosterSlotsMap = Object.fromEntries(
+      rosterSlots.map((s) => [s.position, s.count]),
+    );
+    return leaguePayloadFromCreateForm({
+      leagueName,
+      teams,
+      budget,
+      posEligibilityThreshold: Math.max(1, posEligibilityThreshold || 1),
+      rosterSlots: rosterSlotsMap,
+      scoringCategories: [
+        ...selectedHitting.map((s) => ({
+          name: extractStatAbbreviation(s),
+          type: "batting" as const,
+        })),
+        ...selectedPitching.map((s) => ({
+          name: extractStatAbbreviation(s),
+          type: "pitching" as const,
+        })),
+      ],
+      playerPool: poolFormToApi(playerPool),
+    });
+  };
+
   const goNext = async () => {
     if (step < 4) {
+      if (step === 1) {
+        const validation = validateLeaguePayload(buildCreatePayloadInput());
+        if (!validation.valid) {
+          setFieldErrors(validation.fieldErrors);
+          setError(validation.message);
+          return;
+        }
+        setFieldErrors({});
+        setError(null);
+      }
       setStep((prev) => (prev + 1) as LeagueCreateStep);
       return;
     }
@@ -138,9 +226,26 @@ export default function LeagueCreate() {
       rosterSlots.map((s) => [s.position, s.count]),
     );
 
+    const validation = validateLeaguePayload(buildCreatePayloadInput());
+    if (!validation.valid) {
+      setFieldErrors(validation.fieldErrors);
+      setError(validation.message);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
+    setFieldErrors({});
     try {
+      const sourceLeague = keeperImportFromLeagueId
+        ? allLeagues.find((l) => l.id === keeperImportFromLeagueId)
+        : undefined;
+      if (keeperImportFromLeagueId && !sourceLeague) {
+        setError("Selected source league is no longer available. Refresh and try again.");
+        setSubmitting(false);
+        return;
+      }
+
       const league = await createLeague(
         {
           name: leagueName,
@@ -161,11 +266,13 @@ export default function LeagueCreate() {
           ],
           playerPool: poolFormToApi(playerPool),
           teamNames: teamNames.slice(0, teams),
+          ...(sourceLeague
+            ? { leagueFamilyId: sourceLeague.leagueFamilyId }
+            : {}),
         },
         token!,
       );
 
-      // Save keepers for each team using explicit teamId so they land on the correct team
       const currentTeamNames = teamNames.slice(0, teams);
       const keeperAdds: Promise<unknown>[] = [];
       for (let i = 0; i < currentTeamNames.length; i++) {
@@ -264,9 +371,31 @@ export default function LeagueCreate() {
                         <label>TEAMS</label>
                         <input
                           type="number"
+                          min={LEAGUE_TEAMS_MIN}
+                          max={LEAGUE_TEAMS_MAX}
+                          step={1}
                           value={teams}
-                          onChange={(e) => setTeams(Number(e.target.value))}
+                          onChange={(e) => {
+                            setTeams(Number(e.target.value));
+                            if (fieldErrors.teams) {
+                              setFieldErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.teams;
+                                return next;
+                              });
+                            }
+                          }}
+                          aria-invalid={fieldErrors.teams ? true : undefined}
                         />
+                        {fieldErrors.teams ? (
+                          <p className="league-create-field-error">
+                            {fieldErrors.teams}
+                          </p>
+                        ) : (
+                          <p className="league-create-field-hint">
+                            {LEAGUE_TEAMS_MIN}–{LEAGUE_TEAMS_MAX} teams
+                          </p>
+                        )}
                       </div>
 
                       <div className="league-create-field">
@@ -496,6 +625,33 @@ export default function LeagueCreate() {
                     title={LEAGUE_CREATE_STEP_LABELS[4]}
                     lead="Pick a team tab, then add keepers from the list and edit the roster on the right."
                   />
+
+                  <div className="league-create-field">
+                    <label htmlFor="lc-import-keepers-src">
+                      Preload from an existing league season (optional)
+                    </label>
+                    <select
+                      id="lc-import-keepers-src"
+                      value={keeperImportFromLeagueId}
+                      onChange={(e) =>
+                        setKeeperImportFromLeagueId(e.target.value)
+                      }
+                    >
+                      <option value="">
+                        Start blank — add keepers manually below
+                      </option>
+                      {allLeagues.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} ({l.seasonYear})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="league-create-hint">
+                      Loads that season&apos;s keepers and drafted players into
+                      the editor below so you can review and edit before
+                      creating the league.
+                    </p>
+                  </div>
 
                   <div className="league-create-keepers-shell">
                     <div

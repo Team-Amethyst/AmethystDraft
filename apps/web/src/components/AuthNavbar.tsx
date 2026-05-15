@@ -25,6 +25,7 @@ import {
   useNewsSignalsRealtime,
   type NewsSocketConnectionState,
 } from "../hooks/useNewsSignalsRealtime";
+import { leagueSeasonLabel } from "../domain/leagueSeasonGroups";
 import "./AuthNavbar.css";
 
 const NEWS_LOOKBACK_DAYS = 7;
@@ -441,7 +442,12 @@ export default function AuthNavbar() {
               className="league-selector-btn"
               onClick={() => setLeagueDropdownOpen((o) => !o)}
             >
-              <span>{league.name}</span>
+              <span className="league-selector-btn-text">
+                <span className="league-selector-btn-name">{league.name}</span>
+                <span className="league-selector-btn-season">
+                  {leagueSeasonLabel(league, allLeagues)}
+                </span>
+              </span>
               <ChevronDown
                 size={14}
                 className={
@@ -467,7 +473,10 @@ export default function AuthNavbar() {
                         setLeagueDropdownOpen(false);
                       }}
                     >
-                      {l.name}
+                      <span className="league-selector-item-name">{l.name}</span>
+                      <span className="league-selector-item-season">
+                        {leagueSeasonLabel(l, allLeagues)}
+                      </span>
                     </button>
                     <button
                       className="league-selector-settings"
