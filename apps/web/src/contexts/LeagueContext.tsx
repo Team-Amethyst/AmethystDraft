@@ -28,6 +28,8 @@ export interface League {
   playerPool: "Mixed" | "AL" | "NL";
   teamNames: string[];
   posEligibilityThreshold: number;
+  leagueFamilyId: string;
+  previousSeasonLeagueId?: string;
   createdAt: string;
   taxiDraftOrder?: string[];
   taxiRosters?: Record<string, TaxiRosterEntry[]>;

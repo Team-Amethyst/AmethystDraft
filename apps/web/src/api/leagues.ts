@@ -11,9 +11,10 @@ export interface CreateLeaguePayload {
   scoringCategories: { name: string; type: "batting" | "pitching" }[];
   playerPool: "Mixed" | "AL" | "NL";
   draftDate?: string;
-  seasonYear?: number;
   teamNames?: string[];
   posEligibilityThreshold?: number;
+  seasonYear?: number;
+  leagueFamilyId?: string;
 }
 
 export async function createLeague(
@@ -54,5 +55,46 @@ export async function updateLeague(
       body: JSON.stringify(data),
     },
     "Failed to update league",
+  );
+}
+
+export type StartNewSeasonBody = {
+  seasonYear?: number;
+};
+
+export async function startNewSeason(
+  leagueId: string,
+  body: StartNewSeasonBody,
+  token: string,
+): Promise<League> {
+  return requestJson<League>(
+    `/api/leagues/${leagueId}/start-new-season`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(body),
+    },
+    "Failed to start new season",
+  );
+}
+
+export type ImportKeepersBody = {
+  fromLeagueId: string;
+  teamMapping?: Record<string, string>;
+};
+
+export async function importKeepers(
+  newLeagueId: string,
+  body: ImportKeepersBody,
+  token: string,
+): Promise<{ imported: number }> {
+  return requestJson<{ imported: number }>(
+    `/api/leagues/${newLeagueId}/import-keepers`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(body),
+    },
+    "Failed to import keepers",
   );
 }
