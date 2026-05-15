@@ -108,6 +108,7 @@ export default function LeagueCreate() {
   const [keeperDraftPlayerId, setKeeperDraftPlayerId] = useState<string | null>(
     null,
   );
+  const [seasonYear, setSeasonYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     if (step !== 4) {
@@ -143,6 +144,7 @@ export default function LeagueCreate() {
       const league = await createLeague(
         {
           name: leagueName,
+          seasonYear,
           teams,
           budget,
           posEligibilityThreshold: Math.max(1, posEligibilityThreshold || 1),
@@ -274,6 +276,15 @@ export default function LeagueCreate() {
                           value={budget}
                           onChange={(e) => setBudget(Number(e.target.value))}
                         />
+                      </div>
+
+                      <div className="league-create-field">
+                        <label>SEASON YEAR</label>
+                        <select value={seasonYear} onChange={(e) => setSeasonYear(Number(e.target.value))}>
+                          {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="league-create-field">

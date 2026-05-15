@@ -11,6 +11,7 @@ export interface CreateLeaguePayload {
   scoringCategories: { name: string; type: "batting" | "pitching" }[];
   playerPool: "Mixed" | "AL" | "NL";
   draftDate?: string;
+  seasonYear?: number;
   teamNames?: string[];
   posEligibilityThreshold?: number;
 }

@@ -60,8 +60,15 @@ const createLeague: RequestHandler = async (
     } = req.body;
 
       const nowYear = new Date().getFullYear();
-      if (seasonYear !== undefined && seasonYear > nowYear) {
-        throw new ValidationError("Season year cannot be in the future", 400, "INVALID_SEASON_YEAR");
+      const minYear = nowYear - 3;
+      if (seasonYear !== undefined) {
+        if (seasonYear > nowYear) {
+          throw new ValidationError("Season year cannot be in the future", 400, "INVALID_SEASON_YEAR");
+        }
+        if (seasonYear < minYear) {
+          throw new ValidationError(`Season year cannot be older than ${minYear}`, 400, "INVALID_SEASON_YEAR",
+          );
+        }
       }
 
       const league = await League.create({

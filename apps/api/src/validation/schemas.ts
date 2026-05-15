@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const currentYear = new Date().getFullYear();
+const minYear = currentYear - 3;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ const playerPoolQuerySchema = z.preprocess((value) => {
 
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(1, "League name is required"),
-  seasonYear: z.number().int().min(1900).max(currentYear, "Season year cannot be in the future").optional(),
+  seasonYear: z.number().int().min(minYear, `Season year cannot be older than ${minYear}`).max(currentYear, "Season year cannot be in the future").optional(),
   teams: z.number().int().min(2).max(30).optional(),
   budget: z.number().positive().optional(),
   hitterBudgetPct: z.number().min(0).max(100).optional(),
