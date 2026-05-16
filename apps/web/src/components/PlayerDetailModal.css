@@ -1014,6 +1014,20 @@
   box-sizing: border-box;
 }
 
+/* Ensure max bid explain text uses the same horizontal inset as explain sections */
+.pdm-valuation-explain > .pdm-max-bid-explain {
+  padding-left: var(--cc-space-16);
+  padding-right: var(--cc-space-16);
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-valuation-explain > .pdm-max-bid-explain {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
+}
+
 /* Baseline row is outside .pdm-explain-layout — match horizontal inset so $ doesn’t hug the card edge */
 .pdm-valuation-explain > .pdm-baseline-strength-dl {
   padding: var(--cc-gap-md) var(--cc-space-16) var(--cc-gap-md);
