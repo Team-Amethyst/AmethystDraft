@@ -553,7 +553,7 @@ export default function PlayerDetailModal({
               <div className="pdm-valuation-metric-grid pdm-valuation-strip__metrics" role="list">
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
-                    Auction Value
+                    League FMV
                   </span>
                   <span className="pdm-metric-value">
                     {maskEngineMetrics && marketValue == null ? (

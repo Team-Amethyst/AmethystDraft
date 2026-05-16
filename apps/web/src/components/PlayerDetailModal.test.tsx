@@ -50,7 +50,7 @@ describe("PlayerDetailModal valuation strip", () => {
       />,
     );
 
-    expect(screen.getByText("Auction Value")).toBeTruthy();
+    expect(screen.getByText("League FMV")).toBeTruthy();
     expect(screen.getByText("Recommended Bid")).toBeTruthy();
     expect(screen.getByText("Team Value")).toBeTruthy();
     expect(screen.getByText("Bid Edge")).toBeTruthy();

@@ -55,7 +55,7 @@ export function AuctionCenterLogResultBar({
               className="log-price-input"
               value={finalPrice}
               onChange={(e) => onFinalPriceChange(e.target.value)}
-              title="Winning bid amount; defaults to model Max Bid (capped by your Budget max), not Auction Value"
+              title="Winning bid amount; defaults to league FMV for the player. Budget max in the sidebar is your hard ceiling."
             />
           </div>
         </div>

@@ -238,8 +238,8 @@ describe("valuation helpers", () => {
       );
     });
 
-    it("Bid Edge tooltip explains Team Value − recommended bid", () => {
-      expect(BID_EDGE_TOOLTIP).toContain("Team Value minus recommended bid");
+    it("Bid Edge tooltip explains team value − suggested bid", () => {
+      expect(BID_EDGE_TOOLTIP).toContain("your team value minus suggested bid");
       expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toBe(BID_EDGE_TOOLTIP);
     });
 
@@ -248,20 +248,20 @@ describe("valuation helpers", () => {
         "Open a player",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "Recommended Bid",
+        "suggested bid",
       );
-      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain("Bid Edge");
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain("bid edge");
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).not.toContain(
         "Roster Edge",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "Baseline Strength",
+        "baseline strength",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "Team Value",
+        "team value",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "Auction Value",
+        "league FMV",
       );
     });
 
@@ -582,16 +582,15 @@ describe("valuation helpers", () => {
     expect(dec.maxExecutableBid).toBe(18);
     expect(dec.suggestedBid).toBe(18);
     expect(dec.budgetLimited).toBe(true);
-    expect(dec.aggressive).toBe(true);
+    expect(dec.baseUncapped).toBe(35);
     expect(dec.edge).toBe(5);
     expect(dec.notBidable).toBe(false);
     expect(dec.notBidableReason).toBeNull();
 
     const rowCon = { ...row, tier: 5, team_value: 16, edge: undefined };
     const dec2 = commandCenterBidDecision(rowCon, 5, caps);
-    expect(dec2.aggressive).toBe(false);
-    expect(dec2.suggestedBid).toBe(18);
-    expect(dec2.baseUncapped).toBe(35);
+    expect(dec2.suggestedBid).toBe(16);
+    expect(dec2.baseUncapped).toBe(16);
     expect(dec2.notBidable).toBe(false);
   });
 
@@ -674,6 +673,25 @@ describe("valuation helpers", () => {
     expect(metrics.dollarsPerSpot).toBeUndefined();
   });
 
+  it("commandCenterBidDecision prefers engine recommended_bid over team_value when cap allows", () => {
+    const caps = { maxBid: 50, budgetRemaining: 100, openSpots: 2 };
+    const row = {
+      player_id: "1",
+      name: "Judge",
+      position: "OF",
+      tier: 1,
+      baseline_value: 30,
+      auction_value: 38,
+      recommended_bid: 42,
+      team_value: 65,
+      edge: 23,
+      indicator: "Fair Value" as const,
+    };
+    const dec = commandCenterBidDecision(row, 38, caps);
+    expect(dec.suggestedBid).toBe(42);
+    expect(dec.baseUncapped).toBe(42);
+  });
+
   it("commandCenterBidDecision uses engine edge when present", () => {
     const caps = { maxBid: 50, budgetRemaining: 100, openSpots: 2 };
     const row = {
@@ -746,14 +764,14 @@ describe("valuation helpers", () => {
   });
 
   it("exposes compact labels and tooltip copy", () => {
-    expect(valuationSortLabel("auction_value")).toBe("Auction value");
-    expect(valuationSortLabel("team_value")).toBe("Team Value");
-    expect(valuationSortLabel("recommended_bid")).toBe("Recommended bid");
+    expect(valuationSortLabel("auction_value")).toBe("League FMV");
+    expect(valuationSortLabel("team_value")).toBe("Your team value");
+    expect(valuationSortLabel("recommended_bid")).toBe("Suggested bid");
     expect(valuationSortLabel("baseline_value")).toBe("Baseline Strength");
     expect(valuationTooltip("auction_value")).toContain("league-wide");
-    expect(valuationTooltip("auction_value")).toContain("not your bid cap");
-    expect(valuationTooltip("team_value")).toContain("Team Value");
-    expect(valuationTooltip("recommended_bid")).toContain("suggested");
+    expect(valuationTooltip("auction_value")).toContain("Not your bid cap");
+    expect(valuationTooltip("team_value")).toContain("Your team value");
+    expect(valuationTooltip("recommended_bid")).toContain("Suggested bid");
     expect(valuationTooltip("recommended_bid")).toContain(
       RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
     );
@@ -764,8 +782,8 @@ describe("valuation helpers", () => {
   });
 
   it("Command Center / Player Detail ladder: Recommended bid label, Bid Edge delta, and tooltips", () => {
-    expect(valuationSortLabel("recommended_bid")).toBe("Recommended bid");
-    expect(BID_EDGE_TOOLTIP).toContain("Team Value minus recommended bid");
+    expect(valuationSortLabel("recommended_bid")).toBe("Suggested bid");
+    expect(BID_EDGE_TOOLTIP).toContain("your team value minus suggested bid");
     expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_value: 23, recommended_bid: 44 }))).toBe(
       "-21",
     );

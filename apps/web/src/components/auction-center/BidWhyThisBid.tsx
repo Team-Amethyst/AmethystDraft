@@ -13,10 +13,14 @@ import {
   valuationExplainHasRiskRoleContent,
 } from "../../utils/valuation";
 import {
+  cleanedYourValueAndRecommendedBid,
+  commandCenterEdgeVsMaxBidRounded,
   engineFiniteOrNull,
   mergeDisplayValuationRow,
   valuationExplainHasBidContextTable,
 } from "../../domain/auctionCenterValuation";
+import { buildBidDecisionPlainSummary } from "../../domain/bidDecisionPlainSummary";
+import { leagueWideAuctionDollars } from "../../utils/valuation";
 import {
   formatSignedWhole,
   summarizeDriverReason,
@@ -146,9 +150,19 @@ function buildRiskRows(explain: ValuationExplain): { label: string; value: strin
 export function BidWhyThisBid({
   valuationRow,
   selectedPlayer,
+  displayBid = null,
+  displayYour = null,
+  notBidable = false,
+  notBidableReason = null,
+  budgetLimited = false,
 }: {
   valuationRow: ValuationResult | null | undefined;
   selectedPlayer: Player;
+  displayBid?: number | null;
+  displayYour?: number | null;
+  notBidable?: boolean;
+  notBidableReason?: string | null;
+  budgetLimited?: boolean;
 }) {
   const merged = mergeDisplayValuationRow(valuationRow ?? undefined, selectedPlayer);
   const row = merged ?? valuationRow ?? undefined;
@@ -198,6 +212,38 @@ export function BidWhyThisBid({
     !hasV2 &&
     !hasWhy;
 
+  const cleaned = cleanedYourValueAndRecommendedBid(row ?? null, selectedPlayer);
+  const leagueFmv =
+    engineFiniteOrNull(row?.auction_value) ??
+    leagueWideAuctionDollars(selectedPlayer) ??
+    null;
+  const bidForSummary = displayBid ?? cleaned?.bid ?? null;
+  const yourForSummary = displayYour ?? cleaned?.yourValue ?? null;
+  const edgeForSummary = commandCenterEdgeVsMaxBidRounded(
+    yourForSummary,
+    bidForSummary,
+  );
+  const plainSummary = buildBidDecisionPlainSummary({
+    valuationRow: row,
+    selectedPlayer,
+    leagueFmv,
+    suggestedBid: bidForSummary,
+    teamValue: yourForSummary,
+    bidEdge: edgeForSummary,
+    notBidable,
+    notBidableReason,
+    budgetLimited,
+  });
+
+  const hasTechnical =
+    baselineForWhy != null ||
+    rbNote !== "" ||
+    edgeNote !== "" ||
+    contextRows.length > 0 ||
+    riskRows.length > 0 ||
+    hasV2 ||
+    hasWhy;
+
   return (
     <details className="bdc-why-bid">
       <summary className="bdc-why-bid__summary">
@@ -205,12 +251,24 @@ export function BidWhyThisBid({
         <span className="bdc-why-bid__summary-text">
           <span className="bdc-why-bid__summary-label">Why this bid?</span>
           <span className="bdc-why-bid__summary-hint">
-            <span className="bdc-why-bid__hint-when-closed">Show engine reasoning</span>
+            <span className="bdc-why-bid__hint-when-closed">Summary and model details</span>
             <span className="bdc-why-bid__hint-when-open">Hide</span>
           </span>
         </span>
       </summary>
       <div className="bdc-why-bid__body">
+        {plainSummary ? (
+          <section className="bdc-why-plain" aria-label="Bid summary">
+            <p className="bdc-why-plain__headline">{plainSummary.headline}</p>
+            <p className="bdc-why-plain__detail">{plainSummary.detail}</p>
+          </section>
+        ) : null}
+        {hasTechnical ? (
+          <details className="bdc-why-technical">
+            <summary className="bdc-why-technical__summary">
+              Model and engine details
+            </summary>
+            <div className="bdc-why-technical__body">
         {baselineForWhy != null ? (
           <section className="bdc-why-panel bdc-why-panel--baseline" aria-label="Baseline strength">
             <WhyRow
@@ -220,7 +278,7 @@ export function BidWhyThisBid({
             />
           </section>
         ) : null}
-        {hasEngine ? (
+        {hasEngine || showFallback ? (
           <>
             {(rbNote !== "" || edgeNote !== "") && (
               <div className="bdc-why-notes">
@@ -336,6 +394,9 @@ export function BidWhyThisBid({
           </>
         ) : showFallback ? (
           <p className="bdc-why-fallback">Open player details for model explanation.</p>
+        ) : null}
+            </div>
+          </details>
         ) : null}
       </div>
     </details>

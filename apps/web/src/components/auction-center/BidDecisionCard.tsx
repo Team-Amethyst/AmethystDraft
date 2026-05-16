@@ -20,6 +20,7 @@ import {
   valueMinusBidDeltaRounded,
   verdictFromValueMinusBid,
 } from "../../domain/auctionCenterValuation";
+import { commandCenterActionVerdict } from "../../domain/commandCenterActionVerdict";
 import { AuctionMetricTile } from "./AuctionMetricTile";
 import { BidWhyThisBid } from "./BidWhyThisBid";
 import { displayAuctionTier } from "../../domain/playerRankTier";
@@ -167,20 +168,39 @@ export function BidDecisionCard({
   const teamValueHasValue = displayYour != null && Number.isFinite(displayYour);
   const bidEdgeHasValue = edgeVsMaxDisplay !== undefined;
 
+  const actionVerdict = commandCenterActionVerdict({
+    notBidable: bidDecision?.notBidable ?? false,
+    notBidableReason: bidDecision?.notBidableReason ?? null,
+    leagueFmv: auctionHasValue ? displayLeagueAuction : null,
+    suggestedBid: displayBid,
+    teamValue: teamValueHasValue ? displayYour : null,
+    bidEdge: edgeVsMaxDisplay,
+    budgetLimited: bidDecision?.budgetLimited,
+  });
+
   return (
     <div className="bdc-decision-stack">
       <div
         className={"bid-decision-card bdc-tone--" + decisionTone}
         aria-label="Bid recommendation"
       >
+        <div
+          className={
+            "bdc-decision-callout bdc-decision-callout--" + actionVerdict.kind
+          }
+          role="status"
+        >
+          <span className="bdc-decision-callout__label">{actionVerdict.label}</span>
+          <span className="bdc-decision-callout__hint">{actionVerdict.hint}</span>
+        </div>
         <div className="bdc-grid">
           <div className="bdc-metric-row">
             <div
               className="bdc-metric-grid bdc-metric-grid--ladder4 bdc-metric-grid--focus-boxes"
-              aria-label="Auction value, max bid, team value, bid edge"
+              aria-label="League FMV, suggested bid, your team value, bid edge"
             >
               <AuctionMetricTile
-                label="Auction Value"
+                label={valuationSortLabel("auction_value")}
                 title={valuationTooltip("auction_value")}
                 value={
                   <span className="bdc-focus-value">
@@ -231,7 +251,7 @@ export function BidDecisionCard({
                 }
               />
               <AuctionMetricTile
-                label="Team Value"
+                label={valuationSortLabel("team_value")}
                 title={valuationTooltip("team_value")}
                 value={
                   <span className="bdc-focus-value">
@@ -248,7 +268,7 @@ export function BidDecisionCard({
                 }
               />
               <AuctionMetricTile
-                label="Bid Edge"
+                label="Bid edge"
                 title={BID_EDGE_TOOLTIP}
                 value={
                   <span className="bdc-focus-value">
@@ -269,7 +289,15 @@ export function BidDecisionCard({
         </div>
       </div>
       <div className="bdc-why-wrap">
-        <BidWhyThisBid valuationRow={row} selectedPlayer={selectedPlayer} />
+        <BidWhyThisBid
+          valuationRow={row}
+          selectedPlayer={selectedPlayer}
+          displayBid={displayBid}
+          displayYour={displayYour}
+          notBidable={bidDecision?.notBidable ?? false}
+          notBidableReason={bidDecision?.notBidableReason ?? null}
+          budgetLimited={bidDecision?.budgetLimited}
+        />
       </div>
     </div>
   );

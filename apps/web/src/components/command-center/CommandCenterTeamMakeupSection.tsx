@@ -3,7 +3,10 @@ import { AppSelect } from "../AppSelect";
 import type { League } from "../../contexts/LeagueContext";
 import type { RosterEntry } from "../../api/roster";
 import { myDraftSlotsForPosition } from "../../constants/positionAllocationPlan";
-import { activeAuctionEntriesForTeam } from "../../pages/command-center-utils/roster";
+import {
+  activeAuctionEntriesForTeam,
+  isReserveRosterSlot,
+} from "../../pages/command-center-utils/roster";
 import { assignTeamEntriesToRosterRows } from "../../pages/command-center-utils/rosterAssignment";
 import PosBadge from "../PosBadge";
 import { resolvedLeagueTeamNames } from "../../utils/team";
@@ -43,6 +46,11 @@ export function CommandCenterTeamMakeupSection({
   const teamMakeupEntries = makeupTeamId
     ? activeAuctionEntriesForTeam(rosterEntries, makeupTeamId)
     : [];
+  const reserveCountForTeam = makeupTeamId
+    ? rosterEntries.filter(
+        (e) => e.teamId === makeupTeamId && isReserveRosterSlot(e.rosterSlot ?? ""),
+      ).length
+    : 0;
   const assignedRows =
     league != null
       ? assignTeamEntriesToRosterRows(league.rosterSlots, teamMakeupEntries)
@@ -163,6 +171,13 @@ export function CommandCenterTeamMakeupSection({
         })}
         {teamMakeupRows.length === 0 && <div className="dim">No slots available.</div>}
       </div>
+      <p className="team-makeup-footnote dim">
+        Active auction roster only—Minors and Taxi reserves are excluded from
+        these slots
+        {reserveCountForTeam > 0
+          ? ` (${reserveCountForTeam} reserve player${reserveCountForTeam === 1 ? "" : "s"} on this team; see League Overview).`
+          : " (see League Overview for reserves)."}
+      </p>
     </section>
   );
 }

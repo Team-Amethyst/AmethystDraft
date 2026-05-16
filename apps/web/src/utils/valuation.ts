@@ -46,26 +46,26 @@ export interface ValuationShape {
 
 /** Separates league fair value from bid guidance in modals. */
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
-  "Recommended bid is the suggested offer for your roster context. Max bid is the hard dollar cap—both can differ from league-wide auction value.";
+  "Suggested bid is the actionable offer for your roster—not league-wide fair market value. It can run above league FMV when your team needs the fit; max bid is the hard ceiling.";
 
 /** Research `PlayerTable` footer: Research rows show Auction Value only; open a player for the rest. */
 export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
-  "Open a player for Auction Value, Recommended Bid, Team Value, Bid Edge, Max Bid, and Baseline Strength under Why this value.";
+  "Open a player for league FMV, suggested bid, your team value, bid edge, max bid, and baseline strength under Why this value.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
-  "Auction Value: fair league-wide value—the roster-independent benchmark for this player.";
+  "League fair market value (FMV): what this player is worth league-wide in auction dollars—same as Auction Value in the engine. Not your bid cap.";
 
 export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
   "Max bid: hard stop for this player given your remaining budget and open roster slots (not the same as recommended bid).";
 
 /** Team Value: roster- and budget-specific worth to your team. */
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
-  "Team Value: what this player is worth to your roster given needs, inflation, and remaining budget (often differs from Auction Value).";
+  "Your team value: what this player is worth to your roster given needs, inflation, and remaining budget—often differs from league FMV.";
 
 /** Bid Edge (Team Value − Recommended bid). */
 export const BID_EDGE_TOOLTIP =
-  "Bid Edge = Team Value minus recommended bid. It describes how much roster surplus you retain if you pay the suggested bid.";
+  "Bid edge = your team value minus suggested bid. Positive means room if you pay the suggested offer; zero means the bid uses your full team value.";
 
 /** @deprecated Use {@link BID_EDGE_TOOLTIP}. */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP = BID_EDGE_TOOLTIP;
@@ -517,9 +517,13 @@ export function commandCenterBidDecision(
       auctionTier >= 1 &&
       auctionTier <= COMMAND_CENTER_TOP_TIER_MAX);
 
-  const baseAgg = firstFiniteDollar([rawTA, rawR, rawA, rawB, playerValue]);
-  const baseCon = firstFiniteDollar([rawR, rawTA, rawA, rawB, playerValue]);
-  const baseUncapped = aggressive ? baseAgg : baseCon;
+  const engineSuggested = firstFiniteDollar([rawR]);
+  const teamMarginal = firstFiniteDollar([rawTA]);
+  let baseUncapped =
+    engineSuggested ?? firstFiniteDollar([rawTA, rawA, rawB, playerValue]);
+  if (teamMarginal != null && baseUncapped != null) {
+    baseUncapped = Math.min(baseUncapped, teamMarginal);
+  }
 
   if (!caps) {
     const raw =
@@ -845,21 +849,21 @@ export function mergeCatalogPlayersWithValuations(
 }
 
 export function valuationSortLabel(field: ValuationSortField): string {
-  if (field === "auction_value") return "Auction value";
-  if (field === "team_value") return "Team Value";
-  if (field === "recommended_bid") return "Recommended bid";
+  if (field === "auction_value") return "League FMV";
+  if (field === "team_value") return "Your team value";
+  if (field === "recommended_bid") return "Suggested bid";
   return "Baseline Strength";
 }
 
 export function valuationTooltip(field: ValuationSortField): string {
   if (field === "auction_value") {
-    return "Fair league-wide auction value (Auction Value)—not roster-specific. This is the league benchmark, not your bid cap.";
+    return RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE;
   }
   if (field === "team_value") {
     return RESEARCH_TABLE_TOOLTIP_TEAM_VALUE;
   }
   if (field === "recommended_bid") {
-    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} The engine's suggested next bid for your roster context (already capped by max bid rules upstream).`;
+    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Shown here after wallet caps; can match your team value when the engine has little margin.`;
   }
   return BASELINE_STRENGTH_TOOLTIP;
 }

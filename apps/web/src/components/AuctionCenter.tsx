@@ -14,6 +14,7 @@ import { useWatchlist } from "../contexts/WatchlistContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import type { Player } from "../types/player";
 import { addRosterEntry, removeRosterEntry } from "../api/roster";
+import { invalidateValuationCachesForLeague } from "../api/valuationCache";
 import type { RosterEntry } from "../api/roster";
 import {
   auctionCenterCategoryImpactRows,
@@ -662,6 +663,7 @@ export function AuctionCenter({
         token,
       );
       setRedoStack([]);
+      invalidateValuationCachesForLeague(leagueId, "roster_pick_logged");
       refreshRoster();
       void refreshLeagues();
       showToast(
@@ -689,6 +691,7 @@ export function AuctionCenter({
     try {
       await removeRosterEntry(leagueId, entry._id, token);
       setRedoStack((prev) => [...prev, entry]);
+      invalidateValuationCachesForLeague(leagueId, "roster_pick_undone");
       refreshRoster();
       void refreshLeagues();
       showToast(`↩ Undid ${entry.playerName}`, "info");
@@ -717,6 +720,7 @@ export function AuctionCenter({
         token,
       );
       setRedoStack((prev) => prev.slice(0, -1));
+      invalidateValuationCachesForLeague(leagueId, "roster_pick_redone");
       refreshRoster();
       void refreshLeagues();
       showToast(`↪ Redid ${entry.playerName}`, "info");
