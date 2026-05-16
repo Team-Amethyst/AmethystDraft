@@ -554,11 +554,6 @@ export function AuctionCenter({
       return;
     }
 
-    const eligible = getEligibleSlotsForPositions(
-      positions,
-      allSlotOptions,
-      selectedPlayer.position,
-    );
     const available = availableSlotsForTeamName(
       league,
       wonBy,
@@ -572,11 +567,7 @@ export function AuctionCenter({
       rosterEntries,
     );
     let slotToSave = autoSlot;
-    if (
-      draftedToSlot &&
-      available.has(draftedToSlot) &&
-      eligible.includes(draftedToSlot)
-    ) {
+    if (draftedToSlot && available.has(draftedToSlot)) {
       slotToSave = draftedToSlot;
     }
     if (!slotToSave) {

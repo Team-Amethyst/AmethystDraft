@@ -60,4 +60,20 @@ describe("validateRosterSlotAssignment", () => {
     );
     expect(result.ok).toBe(true);
   });
+
+  it("allows a position-ineligible slot when it is open (commissioner override)", () => {
+    const leagueWithSp: Pick<League, "rosterSlots" | "teamNames"> = {
+      rosterSlots: { OF: 1, SP: 1, UTIL: 1 },
+      teamNames: ["Alpha"],
+    };
+    const roster = [entry({ _id: "a", rosterSlot: "OF", positions: ["OF"] })];
+    const result = validateRosterSlotAssignment(
+      leagueWithSp,
+      "Alpha",
+      ["OF"],
+      "SP",
+      roster,
+    );
+    expect(result.ok).toBe(true);
+  });
 });
