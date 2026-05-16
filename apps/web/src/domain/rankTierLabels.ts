@@ -13,10 +13,13 @@ export const STRENGTH_TIER_TOOLTIP =
   "Tier by baseline player strength before auction economics.";
 
 export const MODEL_TIER_TOOLTIP =
-  "Internal model grouping.";
+  "Model tier: catalog / preseason value bucket (1–5), before league auction values are applied.";
 
 export const AUCTION_TIER_TOOLTIP =
-  "Grouping by current auction value.";
+  "Auction tier: grouping from current league auction value in the Engine (after valuation).";
+
+/** Shown on tier badges when the pool uses auction tiers but this row has no auction tier yet. */
+export const MODEL_TIER_FALLBACK_TOOLTIP = "Model Tier fallback.";
 
 /** Column header when the Market ADP column is visible (multiple rows may mix sources). */
 export const MARKET_ADP_COLUMN_TOOLTIP =

@@ -89,6 +89,7 @@ import {
   RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
   type ResearchDraftablePoolFilter,
 } from "../domain/draftablePoolSemantics";
+import { readResearchModelColumnsPreference } from "../constants/playerTableStorage";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
@@ -131,6 +132,8 @@ export default function Research() {
   );
   const [depthChartError, setDepthChartError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [researchModelColumnsVisible, setResearchModelColumnsVisible] =
+    useState(() => readResearchModelColumnsPreference());
   const [positionFilter, setPositionFilter] = useState(() => {
     try {
       return localStorage.getItem("amethyst-research-position") ?? "all";
@@ -751,6 +754,10 @@ export default function Research() {
                       setResearchDraftablePoolFilter("all")
                     }
                     researchEngineBoardPhase={researchBoardPhase}
+                    researchModelColumnsVisible={researchModelColumnsVisible}
+                    onResearchModelColumnsVisibleChange={
+                      setResearchModelColumnsVisible
+                    }
                   />
                   {researchBoardPhase === "loading" ? (
                     <p className="research-board-engine-hint">
@@ -1023,6 +1030,8 @@ export default function Research() {
         }
         valuationExplainLoading={modalExplainLoading}
         researchEngineBoardPhase={researchBoardPhase}
+        researchSurface
+        researchShowModelMetrics={researchModelColumnsVisible}
       />
     </div>
   );

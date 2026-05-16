@@ -73,6 +73,13 @@ interface PlayerDetailModalProps {
   valuationContextDev?: Record<string, unknown> | null;
   /** Research: Engine board phase — loading masks auction / ladder dollars until first board. */
   researchEngineBoardPhase?: BoardValuationUiPhase;
+  /** Opened from Research: auction-first rail; strength tier/rank omitted. */
+  researchSurface?: boolean;
+  /**
+   * When `researchSurface`, show model rank / model tier only if the Research table has
+   * “Model rank & tiers” enabled.
+   */
+  researchShowModelMetrics?: boolean;
 }
 
 function valueOrDash(value: unknown): string {
@@ -315,6 +322,8 @@ export default function PlayerDetailModal({
   valuationContextDev,
   valuationExplainLoading = false,
   researchEngineBoardPhase = "ready",
+  researchSurface = false,
+  researchShowModelMetrics = false,
 }: PlayerDetailModalProps) {
   useEffect(() => {
     if (!isOpen || !player) return;
@@ -333,6 +342,10 @@ export default function PlayerDetailModal({
     researchEngineBoardPhase,
     player,
   );
+
+  const showResearchModelRail =
+    !researchSurface || researchShowModelMetrics;
+  const hideStrengthRail = researchSurface;
 
   const positions = player.positions?.length ? player.positions : [player.position];
   const batting = player.stats.batting;
@@ -428,8 +441,12 @@ export default function PlayerDetailModal({
                     </div>
                     <div className="pdm-rail-kv-stack">
                       <dl className="pdm-rail-kv-dl" aria-label="Ranks and tiers">
-                        <dt title={MODEL_RANK_TOOLTIP}>Model rank</dt>
-                        <dd>{valueOrDash(player.catalog_rank)}</dd>
+                        {showResearchModelRail ? (
+                          <>
+                            <dt title={MODEL_RANK_TOOLTIP}>Model rank</dt>
+                            <dd>{valueOrDash(player.catalog_rank)}</dd>
+                          </>
+                        ) : null}
                         {maskEngineMetrics ? (
                           <>
                             <dt title={AUCTION_RANK_TOOLTIP}>Auction rank</dt>
@@ -449,7 +466,8 @@ export default function PlayerDetailModal({
                             <dd>{player.auction_rank}</dd>
                           </>
                         ) : null}
-                        {typeof player.baseline_rank === "number" &&
+                        {!hideStrengthRail &&
+                        typeof player.baseline_rank === "number" &&
                         Number.isFinite(player.baseline_rank) ? (
                           <>
                             <dt title={STRENGTH_RANK_TOOLTIP}>Strength rank</dt>
@@ -465,8 +483,12 @@ export default function PlayerDetailModal({
                             <dd>{player.market_adp}</dd>
                           </>
                         ) : null}
-                        <dt title={MODEL_TIER_TOOLTIP}>Model tier</dt>
-                        <dd>{valueOrDash(player.catalog_tier)}</dd>
+                        {showResearchModelRail ? (
+                          <>
+                            <dt title={MODEL_TIER_TOOLTIP}>Model tier</dt>
+                            <dd>{valueOrDash(player.catalog_tier)}</dd>
+                          </>
+                        ) : null}
                         {typeof player.auction_tier === "number" &&
                         Number.isFinite(player.auction_tier) ? (
                           <>
@@ -474,7 +496,8 @@ export default function PlayerDetailModal({
                             <dd>{player.auction_tier}</dd>
                           </>
                         ) : null}
-                        {typeof player.baseline_tier === "number" &&
+                        {!hideStrengthRail &&
+                        typeof player.baseline_tier === "number" &&
                         Number.isFinite(player.baseline_tier) ? (
                           <>
                             <dt title={STRENGTH_TIER_TOOLTIP}>Strength tier</dt>

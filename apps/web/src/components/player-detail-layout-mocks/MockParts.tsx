@@ -25,7 +25,20 @@ export function MockIdentityBlock({
           <span className="pdlm-identity__sep">·</span>
           <span>Model rank {dash(player.catalog_rank)}</span>
           <span className="pdlm-identity__sep">·</span>
-          <span>Tier {dash(displayAuctionTier(player))}</span>
+          <span
+            title={
+              typeof player.auction_tier === "number" &&
+              Number.isFinite(player.auction_tier)
+                ? "Auction tier (prefers Engine; else model)"
+                : "Model tier (catalog / preseason)"
+            }
+          >
+            {typeof player.auction_tier === "number" &&
+            Number.isFinite(player.auction_tier)
+              ? "Auction tier"
+              : "Model tier"}{" "}
+            {dash(displayAuctionTier(player))}
+          </span>
         </div>
         <div className="pdlm-identity__pos">
           {positions.map((p) => (

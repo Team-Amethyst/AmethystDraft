@@ -63,3 +63,13 @@ rg -n 'valuation/calculate|x-api-key|AMETHYST_API_KEY|amethystapi\.com|Team-Amet
 ```
 
 Engine paths like `/valuation/calculate` belong in **`apps/api`** only. The SPA should call **`/api/engine/...`** on your Draftroom API host (`VITE_API_URL`).
+
+## Player tiers (Research UI)
+
+Three tier concepts appear in product copy (Engine fields are unchanged):
+
+- **Auction tier** — Default grouping in Research when any player in the pool has `auction_tier`: tier by **current league auction value** after valuation.
+- **Model tier** (`catalog_tier`) — **Catalog / preseason** value bucket (1–5). Shown as the main tier column only when auction tiers are not loaded yet, or when the user turns on **Model rank & tiers** in Research.
+- **Strength tier** (`baseline_tier`) — Tier by **baseline player strength** before auction economics. It is **not** shown in the default Research table or Research player modal; it remains available in Command Center and other draft contexts where baseline metrics are surfaced.
+
+When auction tiers exist for the pool but a specific row is still missing `auction_tier`, the UI badge falls back to model tier and uses the tooltip **“Model Tier fallback.”**

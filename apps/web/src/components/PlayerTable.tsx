@@ -23,7 +23,10 @@ import {
 } from "../domain/playerTableColumns";
 import { sortPlayerTableRows } from "../domain/playerTableSort";
 import { playerTableRowsMatchingTagFilter } from "../domain/playerTableTagFilter";
-import { PLAYER_TABLE_STORAGE_KEYS } from "../constants/playerTableStorage";
+import {
+  PLAYER_TABLE_STORAGE_KEYS,
+  readResearchModelColumnsPreference,
+} from "../constants/playerTableStorage";
 import { PlayerTableControls } from "./PlayerTableControls";
 import {
   NoteCell,
@@ -49,7 +52,9 @@ import {
 } from "../domain/rankTierLabels";
 import {
   displayAuctionTier,
+  poolHasAuctionTier,
   poolHasMarketAdp,
+  tierBadgeTooltip,
 } from "../domain/playerRankTier";
 import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
 import {
@@ -95,24 +100,16 @@ interface PlayerTableProps {
   onResearchTableFilterReset?: () => void;
   /** Research: Engine board snapshot phase (loading masks auction $ / rank until first board). */
   researchEngineBoardPhase?: BoardValuationUiPhase;
+  /**
+   * When set with `onResearchModelColumnsVisibleChange`, Research owns “Model rank & tiers” visibility
+   * (e.g. so Player detail can match the table).
+   */
+  researchModelColumnsVisible?: boolean;
+  onResearchModelColumnsVisibleChange?: (visible: boolean) => void;
 }
 
 type PlayerTableColumnLayout = "default" | "research";
 type ClientSortState = { col: string; dir: "asc" | "desc" };
-
-function readResearchModelColumnsFromLS(
-  columnLayout: PlayerTableColumnLayout,
-): boolean {
-  if (columnLayout !== "research") return false;
-  try {
-    return (
-      localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.researchModelColumns) ===
-      "true"
-    );
-  } catch {
-    return false;
-  }
-}
 
 function sortUsesHiddenResearchModelColumns(
   col: string,
@@ -178,6 +175,8 @@ export default function PlayerTable({
   researchDraftablePoolFilterDisabled = false,
   onResearchTableFilterReset,
   researchEngineBoardPhase = "ready",
+  researchModelColumnsVisible: researchModelColumnsVisibleProp,
+  onResearchModelColumnsVisibleChange,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -239,14 +238,26 @@ export default function PlayerTable({
   );
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const isResearchModelControlled =
+    columnLayout === "research" &&
+    typeof researchModelColumnsVisibleProp === "boolean" &&
+    typeof onResearchModelColumnsVisibleChange === "function";
+
+  const [internalResearchModelColumns, setInternalResearchModelColumns] =
+    useState(() => readResearchModelColumnsPreference());
+
+  const researchModelColumns = isResearchModelControlled
+    ? researchModelColumnsVisibleProp
+    : internalResearchModelColumns;
+
   const [clientSort, setClientSort] = useState<ClientSortState>(() =>
     readClientSortFromLS(
       columnLayout,
-      readResearchModelColumnsFromLS(columnLayout),
+      columnLayout === "research" &&
+        typeof researchModelColumnsVisibleProp === "boolean"
+        ? researchModelColumnsVisibleProp
+        : readResearchModelColumnsPreference(),
     ),
-  );
-  const [researchModelColumns, setResearchModelColumns] = useState(() =>
-    readResearchModelColumnsFromLS(columnLayout),
   );
   const valuationSortField: ValuationSortField = defaultValuationSortField;
 
@@ -495,12 +506,7 @@ export default function PlayerTable({
   );
   const showMarketAdpCol = useMemo(() => poolHasMarketAdp(players), [players]);
   const tierHeaderUsesAuction = useMemo(
-    () =>
-      players.some(
-        (p) =>
-          typeof p.auction_tier === "number" &&
-          Number.isFinite(p.auction_tier),
-      ),
+    () => poolHasAuctionTier(players),
     [players],
   );
   const isResearchLayout = columnLayout === "research";
@@ -569,16 +575,20 @@ export default function PlayerTable({
         onResearchModelColumnsToggle={
           columnLayout === "research"
             ? () => {
-                setResearchModelColumns((shown) => {
-                  if (shown) {
-                    setClientSort((prev) =>
-                      sortUsesHiddenResearchModelColumns(prev.col, false)
-                        ? { col: "value", dir: "desc" }
-                        : prev,
-                    );
-                  }
-                  return !shown;
-                });
+                const wasShown = researchModelColumns;
+                const next = !wasShown;
+                if (isResearchModelControlled) {
+                  onResearchModelColumnsVisibleChange?.(next);
+                } else {
+                  setInternalResearchModelColumns(next);
+                }
+                if (wasShown) {
+                  setClientSort((prev) =>
+                    sortUsesHiddenResearchModelColumns(prev.col, false)
+                      ? { col: "value", dir: "desc" }
+                      : prev,
+                  );
+                }
               }
             : undefined
         }
@@ -756,6 +766,17 @@ export default function PlayerTable({
                       draftedContractLabel,
                     })
                   : [];
+                const tierBadgeTitle = tierBadgeTooltip(
+                  player,
+                  tierHeaderUsesAuction,
+                );
+                const tierCellTitle =
+                  typeof player.auction_tier === "number" &&
+                  Number.isFinite(player.auction_tier) &&
+                  typeof player.catalog_tier === "number" &&
+                  player.auction_tier !== player.catalog_tier
+                    ? `${tierBadgeTitle} Model tier ${player.catalog_tier}.`
+                    : tierBadgeTitle;
 
                 return (
                   <tr
@@ -863,16 +884,11 @@ export default function PlayerTable({
                     <td className="td-team">{player.team}</td>
 
                     {showTierModelCols && (
-                      <td
-                        className="td-tier"
-                        title={
-                          typeof player.auction_tier === "number" &&
-                          player.auction_tier !== player.catalog_tier
-                            ? `Model tier ${player.catalog_tier}`
-                            : undefined
-                        }
-                      >
-                        <TierBadge tier={displayAuctionTier(player) ?? 1} />
+                      <td className="td-tier" title={tierCellTitle}>
+                        <TierBadge
+                          tier={displayAuctionTier(player) ?? 1}
+                          title={tierBadgeTitle}
+                        />
                       </td>
                     )}
 

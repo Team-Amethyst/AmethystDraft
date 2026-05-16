@@ -3,6 +3,11 @@ import type { Player } from "../types/player";
 import "./TiersView.css";
 import { groupPlayersByTier, calculateTierStats, sortPlayersByValue, formatCurrency } from "../utils/tiers";
 import { leagueWideAuctionDollars, valuationSortLabel } from "../utils/valuation";
+import { poolHasAuctionTier } from "../domain/playerRankTier";
+import {
+  AUCTION_TIER_TOOLTIP,
+  MODEL_TIER_FALLBACK_TOOLTIP,
+} from "../domain/rankTierLabels";
 
 type Props = {
   players: Player[];
@@ -17,8 +22,18 @@ type Props = {
   isCustomPlayer?: (id: string) => boolean;
 };
 
-function TierBadge({ tier }: { tier: string | number }) {
-  return <span className={`tier-badge tier-${tier}`}>{tier}</span>;
+function TierBadge({
+  tier,
+  title,
+}: {
+  tier: string | number;
+  title?: string;
+}) {
+  return (
+    <span className={`tier-badge tier-${tier}`} title={title}>
+      {tier}
+    </span>
+  );
 }
 
 export default function TiersView({
@@ -43,6 +58,10 @@ export default function TiersView({
 
   const groups = useMemo(() => groupPlayersByTier(players), [players]);
   const stats = useMemo(() => calculateTierStats(groups, draftedIds), [groups, draftedIds]);
+  const poolUsesAuctionTier = useMemo(
+    () => poolHasAuctionTier(players),
+    [players],
+  );
 
   const filteredStats = useMemo(() => {
     if (positionFilter === "all") return stats;
@@ -74,8 +93,14 @@ export default function TiersView({
     <div className="tiers-view">
       <div className="tiers-header">
         <div>
-          <h2>Tiers</h2>
-          <p>Strategic tier breakdown with position scarcity and value cliffs to guide draft decisions</p>
+          <h2 title={poolUsesAuctionTier ? undefined : MODEL_TIER_FALLBACK_TOOLTIP}>
+            {poolUsesAuctionTier ? "Auction tiers" : "Model tiers"}
+          </h2>
+          <p>
+            {poolUsesAuctionTier
+              ? "Players grouped by Engine auction tier (current league auction value), with position scarcity and value cliffs."
+              : "Grouped by catalog model tier until league auction tiers are available for this pool. Same 1–5 buckets as preseason catalog value."}
+          </p>
         </div>
 
         <div className="tiers-controls">
@@ -124,7 +149,14 @@ export default function TiersView({
             <div className="tier-group__header">
               <div className="tier-group__header-left">
                 <div className="tier-header-badge">
-                  <TierBadge tier={tierStat.tier} />
+                  <TierBadge
+                    tier={tierStat.tier}
+                    title={
+                      poolUsesAuctionTier
+                        ? AUCTION_TIER_TOOLTIP
+                        : MODEL_TIER_FALLBACK_TOOLTIP
+                    }
+                  />
                   <span className="tier-available">
                     {tierStat.availableCount}/{tierStat.players.length}
                   </span>
