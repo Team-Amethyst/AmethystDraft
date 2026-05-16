@@ -97,6 +97,9 @@ const leagueFixtureSchema = z.object({
   team_names: z.array(z.string().min(1)).optional(),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: z
+    .enum(["linear_v1", "tiered_surplus_v1", "adaptive_surplus_v1"])
+    .optional(),
 });
 
 /**
@@ -118,6 +121,9 @@ export const valuationRequestSchema = z.object({
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: z
+    .enum(["linear_v1", "tiered_surplus_v1", "adaptive_surplus_v1"])
+    .optional(),
 });
 
 export type ValuationRequestFixture = z.infer<typeof valuationRequestSchema>;
@@ -150,6 +156,9 @@ export const valuationFlatRequestSchema = z.object({
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: z
+    .enum(["linear_v1", "tiered_surplus_v1", "adaptive_surplus_v1"])
+    .optional(),
 });
 
 export type ValuationFlatRequest = z.infer<typeof valuationFlatRequestSchema>;

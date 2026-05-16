@@ -82,6 +82,14 @@ describe("shapeValuationResponseForDraft", () => {
     expect(ms).not.toHaveProperty("budget_left");
   });
 
+  it("echoes auction_curve_model for debug visibility", () => {
+    const shaped = shapeValuationResponseForDraft(
+      { ...sampleEngineResponse(), auction_curve_model: "tiered_surplus_v1" },
+      { debug: false },
+    ) as Record<string, unknown>;
+    expect(shaped.auction_curve_model).toBe("tiered_surplus_v1");
+  });
+
   it("exposes Draft contract field names and edge = team_value - recommended_bid", () => {
     const shaped = shapeValuationResponseForDraft(sampleEngineResponse(), {
       debug: false,

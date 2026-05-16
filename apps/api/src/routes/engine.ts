@@ -21,6 +21,7 @@ import {
   readCheckpointFixtureJson,
   isEngineCheckpointId,
 } from "../lib/engineCheckpointCatalog";
+import { resolveAuctionCurveModelForDraftRequest } from "../lib/auctionCurveModel";
 import {
   valuationDiagnosticsEnabled,
   safeJsonByteLength,
@@ -133,6 +134,7 @@ const calculateValuation: RequestHandler = async (
     const body = req.body as {
       explain_valuation_rows?: boolean;
       recommended_bid_soft_cap_ratio?: number;
+      auction_curve_model?: "linear_v1" | "tiered_surplus_v1";
     };
 
     const userTeamId = resolveUserTeamId(req, league);
@@ -141,6 +143,7 @@ const calculateValuation: RequestHandler = async (
     const tContext = Date.now();
     const context = await buildValuationContext(league, entries, {
       userTeamId,
+      auctionCurveModel: body.auction_curve_model,
     });
     msContext = Date.now() - tContext;
 
@@ -307,20 +310,23 @@ const calculateValuationPlayer: RequestHandler = async (
     const entries = await RosterEntry.find({ leagueId: league._id });
     msRoster = Date.now() - tRoster;
 
+    const body = req.body as {
+      player_id: string;
+      explain_valuation_rows?: boolean;
+      recommended_bid_soft_cap_ratio?: number;
+      auction_curve_model?: "linear_v1" | "tiered_surplus_v1";
+    };
+
     const userTeamId = resolveUserTeamId(req, league);
     userTeamIdForLog = userTeamId;
 
     const tContext = Date.now();
     const context = await buildValuationContext(league, entries, {
       userTeamId,
+      auctionCurveModel: body.auction_curve_model,
     });
     msContext = Date.now() - tContext;
 
-    const body = req.body as {
-      player_id: string;
-      explain_valuation_rows?: boolean;
-      recommended_bid_soft_cap_ratio?: number;
-    };
     const base = finalizeEngineValuationPostPayload({
       ...context,
       ...(body.explain_valuation_rows === true
@@ -590,6 +596,7 @@ const calculateValuationFromCheckpoint: RequestHandler = async (
     checkpoint_key: (typeof CHECKPOINT_CATALOG_ENTRIES)[number]["id"];
     user_team_id?: string;
     inflation_model?: "replacement_slots_v2";
+    auction_curve_model?: "linear_v1" | "tiered_surplus_v1";
     explain_valuation_rows?: boolean;
     recommended_bid_soft_cap_ratio?: number;
   };
@@ -619,6 +626,9 @@ const calculateValuationFromCheckpoint: RequestHandler = async (
     ...context,
     user_team_id: userTeamId,
     ...(body.inflation_model ? { inflation_model: body.inflation_model } : {}),
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: body.auction_curve_model,
+    }),
     ...(body.explain_valuation_rows === true
       ? { explain_valuation_rows: true }
       : {}),

@@ -2,6 +2,7 @@
 
 exports[`valuation fixtures -> engine POST body > maps after_10.json to stable engine payload 1`] = `
 {
+  "auction_curve_model": "adaptive_surplus_v1",
   "budget_by_team_id": {
     "team_1": 182,
     "team_2": 149,
@@ -2962,6 +2963,7 @@ exports[`valuation fixtures -> engine POST body > maps after_10.json to stable e
 
 exports[`valuation fixtures -> engine POST body > maps after_50.json to stable engine payload 1`] = `
 {
+  "auction_curve_model": "adaptive_surplus_v1",
   "budget_by_team_id": {
     "team_1": 33,
     "team_2": 32,
@@ -6493,6 +6495,7 @@ exports[`valuation fixtures -> engine POST body > maps after_50.json to stable e
 
 exports[`valuation fixtures -> engine POST body > maps after_100.json to stable engine payload 1`] = `
 {
+  "auction_curve_model": "adaptive_surplus_v1",
   "budget_by_team_id": {
     "team_1": 1,
     "team_2": 8,
@@ -10747,6 +10750,7 @@ exports[`valuation fixtures -> engine POST body > maps after_100.json to stable 
 
 exports[`valuation fixtures -> engine POST body > maps after_130.json to stable engine payload 1`] = `
 {
+  "auction_curve_model": "adaptive_surplus_v1",
   "budget_by_team_id": {
     "team_1": 0,
     "team_2": 0,
@@ -15428,6 +15432,7 @@ exports[`valuation fixtures -> engine POST body > maps after_130.json to stable 
 
 exports[`valuation fixtures -> engine POST body > maps finished_league.json to stable engine payload 1`] = `
 {
+  "auction_curve_model": "adaptive_surplus_v1",
   "budget_by_team_id": {
     "team_1": 0,
     "team_2": 0,
@@ -20151,6 +20156,7 @@ exports[`valuation fixtures -> engine POST body > maps finished_league.json to s
 
 exports[`valuation fixtures -> engine POST body > maps pre_draft.json to stable engine payload 1`] = `
 {
+  "auction_curve_model": "adaptive_surplus_v1",
   "budget_by_team_id": {
     "team_1": 182,
     "team_2": 149,

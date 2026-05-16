@@ -571,5 +571,6 @@ describe("buildEngineValuationCalculateBodyFromFlat", () => {
     expect(body.schema_version).toBe("1.0.0");
     expect(body.user_team_id).toBe("team_3");
     expect(body.inflation_model).toBe("replacement_slots_v2");
+    expect(body.auction_curve_model).toBe("adaptive_surplus_v1");
   });
 });

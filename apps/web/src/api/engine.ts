@@ -126,9 +126,18 @@ export interface ValuationDiagnosticsPayload {
   engine_response: unknown;
 }
 
+export type AuctionCurveModel =
+  | "linear_v1"
+  | "tiered_surplus_v1"
+  | "adaptive_surplus_v1";
+
 export interface ValuationResponse {
   inflation_factor: number;
   inflation_model?: "replacement_slots_v2";
+  /** Engine surplus curve (debug / contract echo). */
+  auction_curve_model?: AuctionCurveModel;
+  auction_curve_reason?: string;
+  internal_allocation_mode?: string;
   inflation_index_vs_opening_auction?: number;
   total_budget_remaining: number;
   players_remaining: number;

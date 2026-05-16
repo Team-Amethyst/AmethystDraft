@@ -307,6 +307,30 @@ export function shapeValuationResponseForDraft(
   if (inflation_model === "replacement_slots_v2") {
     out.inflation_model = "replacement_slots_v2";
   }
+  const auction_curve_model = src.auction_curve_model ?? src.auctionCurveModel;
+  if (
+    auction_curve_model === "linear_v1" ||
+    auction_curve_model === "tiered_surplus_v1" ||
+    auction_curve_model === "adaptive_surplus_v1"
+  ) {
+    out.auction_curve_model = auction_curve_model;
+  }
+  const auction_curve_reason = src.auction_curve_reason ?? src.auctionCurveReason;
+  if (typeof auction_curve_reason === "string") {
+    out.auction_curve_reason = auction_curve_reason;
+  }
+  if (isRecord(src.curve_inputs)) out.curve_inputs = src.curve_inputs;
+  if (isRecord(src.curve_guardrails)) out.curve_guardrails = src.curve_guardrails;
+  if (Array.isArray(src.curve_guardrails_applied)) {
+    out.curve_guardrails_applied = src.curve_guardrails_applied;
+  }
+  const tls = readFinite(src.top10_linear_spread ?? src.top10LinearSpread);
+  if (tls !== undefined) out.top10_linear_spread = tls;
+  if (isRecord(src.selected_weights)) out.selected_weights = src.selected_weights;
+  const scd = readFinite(src.surplus_conservation_delta ?? src.surplusConservationDelta);
+  if (scd !== undefined) out.surplus_conservation_delta = scd;
+  const iam = src.internal_allocation_mode ?? src.internalAllocationMode;
+  if (typeof iam === "string") out.internal_allocation_mode = iam;
   if (inflation_index_vs_opening_auction !== undefined) {
     out.inflation_index_vs_opening_auction = inflation_index_vs_opening_auction;
   }

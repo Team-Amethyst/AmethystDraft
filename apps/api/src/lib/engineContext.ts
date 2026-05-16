@@ -10,6 +10,10 @@ import {
   type RosterSlotsNormalized,
 } from "../validation/valuationRequestSchema";
 import { isMinorRosterSlot, isTaxiRosterSlot } from "./rosterSlotKind";
+import {
+  resolveAuctionCurveModelForDraftRequest,
+  type AuctionCurveModel,
+} from "./auctionCurveModel";
 
 export interface EngineRosterSlot {
   position: string;
@@ -87,6 +91,8 @@ export interface EngineValuationContext {
   seed?: number;
   user_team_id?: string;
   inflation_model?: "replacement_slots_v2";
+  /** Surplus → auction dollar curve (`linear_v1` default; demo keeper uses `tiered_surplus_v1`). */
+  auction_curve_model?: AuctionCurveModel;
   /** When true, Engine may attach row-level explain payloads (larger response). */
   explain_valuation_rows?: boolean;
   /** Optional bid-cap hint for Engine experiments; omit in Draftroom by default. */
@@ -297,6 +303,7 @@ export function summarizeEngineValuationPayload(
     budget_by_team_id: payload.budget_by_team_id,
     budget_by_team_id_sum,
     inflation_model: payload.inflation_model,
+    auction_curve_model: payload.auction_curve_model,
     user_team_id: payload.user_team_id,
   };
 }
@@ -400,7 +407,7 @@ export function playerDataToInjuryOverrides(
 export async function buildValuationContext(
   league: ILeague,
   rosterEntries: IRosterEntry[],
-  options?: { userTeamId?: string },
+  options?: { userTeamId?: string; auctionCurveModel?: AuctionCurveModel },
 ): Promise<EngineValuationContext> {
   const rosterSlots = leagueRosterSlotsForEngine(league);
   const numTeams = resolveLeagueNumTeams(league);
@@ -471,6 +478,9 @@ export async function buildValuationContext(
     ...(valuationPlayerIds.length > 0 ? { player_ids: valuationPlayerIds } : {}),
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: options?.auctionCurveModel,
+    }),
     pre_draft_rosters: toTeamPlayersSections(keeperEntries),
     minors: toTeamPlayersSections(minorsEntries),
     taxi: toTeamPlayersSections(taxiEntries),
@@ -690,6 +700,9 @@ export function buildEngineValuationCalculateBodyFromFixture(
     user_team_id: fixture.user_team_id ?? fixture.league.user_team_id ?? "team_1",
     inflation_model:
       fixture.inflation_model ?? fixture.league.inflation_model ?? "replacement_slots_v2",
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: fixture.auction_curve_model,
+    }),
   };
 
   return body;
@@ -756,6 +769,9 @@ export function buildEngineValuationCalculateBodyFromFlat(
     ...(flat.seed !== undefined ? { seed: flat.seed } : {}),
     user_team_id: flat.user_team_id ?? "team_1",
     inflation_model: flat.inflation_model ?? "replacement_slots_v2",
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: flat.auction_curve_model,
+    }),
   };
 
   return body;

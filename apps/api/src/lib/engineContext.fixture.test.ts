@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "fs";
 import path from "path";
 import { buildEngineValuationCalculateBodyFromFixture } from "./engineContext";
 import { valuationRequestSchema } from "../validation/valuationRequestSchema";
+import { PRODUCTION_AUCTION_CURVE_MODEL } from "./auctionCurveModel";
 
 /** Resolved from apps/api when tests run via `pnpm --filter api test`. */
 const checkpointsDir = path.join(
@@ -22,6 +23,22 @@ describe("valuation fixtures -> engine POST body", () => {
     const fixture = valuationRequestSchema.parse(raw);
     const body = buildEngineValuationCalculateBodyFromFixture(fixture);
     expect(body).toMatchSnapshot();
+  });
+});
+
+describe("auction curve on fixtures", () => {
+  it("sends production adaptive model (no checkpoint hardcode)", () => {
+    const checkpointFiles = readdirSync(checkpointsDir).filter((f) =>
+      f.endsWith(".json"),
+    );
+    for (const file of checkpointFiles) {
+      const raw = JSON.parse(
+        readFileSync(path.join(checkpointsDir, file), "utf8"),
+      ) as unknown;
+      const fixture = valuationRequestSchema.parse(raw);
+      const body = buildEngineValuationCalculateBodyFromFixture(fixture);
+      expect(body.auction_curve_model).toBe(PRODUCTION_AUCTION_CURVE_MODEL);
+    }
   });
 });
 

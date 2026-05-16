@@ -138,10 +138,17 @@ export const newsSignalsQuerySchema = z.object({
   signal_type: z.string().min(1).optional(),
 });
 
+export const auctionCurveModelSchema = z.enum([
+  "linear_v1",
+  "tiered_surplus_v1",
+  "adaptive_surplus_v1",
+]);
+
 /** Body for POST …/leagues/:leagueId/valuation — forwarded fields merged into Engine payload. */
 export const valuationBoardBodySchema = z.object({
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: auctionCurveModelSchema.optional(),
   explain_valuation_rows: z.boolean().optional(),
   recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
 });
@@ -177,6 +184,7 @@ export const valuationPlayerBodySchema = z.object({
   player_id: z.string().min(1, "player_id is required"),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: auctionCurveModelSchema.optional(),
   explain_valuation_rows: z.boolean().optional(),
   recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
 });
