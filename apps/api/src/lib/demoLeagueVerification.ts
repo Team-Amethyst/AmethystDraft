@@ -1,6 +1,10 @@
 import { readFileSync, existsSync } from "fs";
 import path from "path";
-import type { ValuationIncomingParsed } from "../validation/valuationRequestSchema";
+import type {
+  ValuationFlatRequest,
+  ValuationIncomingParsed,
+  ValuationRequestFixture,
+} from "../validation/valuationRequestSchema";
 import { valuationIncomingSchema } from "../validation/schemas";
 import {
   extractCheckpointLeagueAndRoster,
@@ -52,11 +56,10 @@ export function statsFromCheckpointJson(
   const parsed: ValuationIncomingParsed = valuationIncomingSchema.parse(raw);
   const extracted = extractCheckpointLeagueAndRoster(parsed);
 
-  const league =
-    parsed.format === "nested" ? parsed.data.league : parsed.data.league;
   const budgets =
-    (league as { budget_by_team_id?: Record<string, number> })
-      .budget_by_team_id ?? {};
+    parsed.format === "nested"
+      ? (parsed.data as ValuationRequestFixture).league.budget_by_team_id ?? {}
+      : (parsed.data as ValuationFlatRequest).budget_by_team_id ?? {};
 
   const keeperCountsByFantasy = countByFantasy(
     (r) => r.isKeeper && !isReserveRosterSlot(r.rosterSlot),
