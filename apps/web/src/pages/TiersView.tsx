@@ -3,6 +3,7 @@ import type { Player } from "../types/player";
 import "./TiersView.css";
 import { groupPlayersByTier, calculateTierStats, sortPlayersByValue, formatCurrency } from "../utils/tiers";
 import { leagueWideAuctionDollars, valuationSortLabel } from "../utils/valuation";
+import { playerIdentityPositionPresentation } from "../utils/eligibility";
 import { poolHasAuctionTier } from "../domain/playerRankTier";
 import {
   AUCTION_TIER_TOOLTIP,
@@ -20,6 +21,7 @@ type Props = {
   getNote?: (playerId: string) => string;
   onNoteChange?: (playerId: string, note: string) => void;
   isCustomPlayer?: (id: string) => boolean;
+  draftDisplaySlotKeys?: string[];
 };
 
 function TierBadge({
@@ -44,10 +46,11 @@ export default function TiersView({
   isInWatchlist,
   addToWatchlist,
   removeFromWatchlist,
+  draftDisplaySlotKeys,
 }: Props) {
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortBy, setSortBy] = useState<
-    "auction_value" | "recommended_bid" | "team_adjusted_value"
+    "auction_value" | "recommended_bid" | "team_value"
   >("auction_value");
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -135,8 +138,8 @@ export default function TiersView({
               <option value="recommended_bid">
                 {valuationSortLabel("recommended_bid")}
               </option>
-              <option value="team_adjusted_value">
-                {valuationSortLabel("team_adjusted_value")}
+              <option value="team_value">
+                {valuationSortLabel("team_value")}
               </option>
             </select>
           </div>
@@ -204,7 +207,12 @@ export default function TiersView({
                       ? leagueWideAuctionDollars(player) ?? 0
                       : sortBy === "recommended_bid"
                         ? player.recommended_bid ?? 0
-                        : player.team_adjusted_value ?? 0;
+                        : player.team_value ?? 0;
+                  const { primaryTags, draftableSlots } =
+                    playerIdentityPositionPresentation(
+                      player,
+                      draftDisplaySlotKeys ?? null,
+                    );
 
                   return (
                     <div
@@ -224,9 +232,20 @@ export default function TiersView({
                         }}
                       >
                         <div>
-                          <div className="tier-player-row__name">{player.name}</div>
+                          <div className="tier-player-row__name">
+                            <span>{player.name}</span>
+                            {primaryTags.length > 0 ? (
+                              <span className="tier-player-row__name-pos">
+                                {primaryTags.join(" / ")}
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="tier-player-row__meta">
-                            <span className="chip">{player.position}</span>
+                            {draftableSlots.length > 0 ? (
+                              <span className="chip chip--slots" title="Roster slots you can draft into">
+                                Slots: {draftableSlots.join(" · ")}
+                              </span>
+                            ) : null}
                             <span className="chip">{player.team}</span>
                           </div>
                         </div>

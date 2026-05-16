@@ -3,6 +3,7 @@ import type { ValuationExplain, ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
   commandCenterBidDecision,
+  commandCenterBidContextMetrics,
   commandCenterConstrainedMoney,
   commandCenterMaxExecutableBid,
   commandCenterValuationMoney,
@@ -70,18 +71,16 @@ describe("valuation helpers", () => {
       auction_tier: 2,
       baseline_value: 20,
       auction_value: 28,
-      adjusted_value: 26,
       recommended_bid: 29,
-      team_adjusted_value: 31,
+      team_value: 31,
       inflation_model: "replacement_slots_v2",
       indicator: "Steal",
     });
     expect(merged.auction_tier).toBe(2);
     expect(merged.baseline_value).toBe(20);
     expect(merged.auction_value).toBe(28);
-    expect(merged.adjusted_value).toBe(26);
     expect(merged.recommended_bid).toBe(29);
-    expect(merged.team_adjusted_value).toBe(31);
+    expect(merged.team_value).toBe(31);
     expect(merged.inflation_model).toBe("replacement_slots_v2");
     expect(merged.indicator).toBe("Steal");
   });
@@ -141,9 +140,8 @@ describe("valuation helpers", () => {
     const boardRow = {
       player_id: "1",
       auction_value: 30,
-      adjusted_value: 28,
       recommended_bid: 32,
-      team_adjusted_value: 34,
+      team_value: 34,
       baseline_value: 22,
       edge: 2,
     };
@@ -198,9 +196,9 @@ describe("valuation helpers", () => {
     it("fills a core dollar from focused when the board row omits that field", () => {
       const partialBoard = {
         player_id: "1",
-        adjusted_value: 26,
+        auction_value: 26,
         recommended_bid: 10,
-        team_adjusted_value: 20,
+        team_value: 20,
         baseline_value: 15,
         edge: 10,
       };
@@ -213,8 +211,7 @@ describe("valuation helpers", () => {
           auction_value: 44,
         },
       );
-      expect(merged.auction_value).toBe(44);
-      expect(merged.adjusted_value).toBe(26);
+      expect(merged.auction_value).toBe(26);
     });
   });
 
@@ -241,14 +238,8 @@ describe("valuation helpers", () => {
       );
     });
 
-    it("Bid Edge tooltip explains Team − Max and elite caveat", () => {
-      expect(BID_EDGE_TOOLTIP).toContain("Team Value minus Max Bid");
-      expect(BID_EDGE_TOOLTIP).toContain(
-        "Negative values mean Team Value is below Max Bid",
-      );
-      expect(BID_EDGE_TOOLTIP).toContain(
-        "For elite players, this can be normal because Max Bid is an aggressive bid anchor",
-      );
+    it("Bid Edge tooltip explains Team Value − recommended bid", () => {
+      expect(BID_EDGE_TOOLTIP).toContain("Team Value minus recommended bid");
       expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toBe(BID_EDGE_TOOLTIP);
     });
 
@@ -257,9 +248,12 @@ describe("valuation helpers", () => {
         "Open a player",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "Roster Edge",
+        "Recommended Bid",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain("Bid Edge");
+      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).not.toContain(
+        "Roster Edge",
+      );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
         "Baseline Strength",
       );
@@ -276,16 +270,16 @@ describe("valuation helpers", () => {
         playerValuationEdgeOrDiff({
           edge: 12,
           recommended_bid: 50,
-          team_adjusted_value: 10,
+          team_value: 10,
         }),
       ).toBe(12);
     });
 
-    it("playerValuationEdgeOrDiff falls back to Team Value minus Max Bid", () => {
+    it("playerValuationEdgeOrDiff falls back to Team Value minus recommended bid", () => {
       expect(
         playerValuationEdgeOrDiff({
           recommended_bid: 30,
-          team_adjusted_value: 40,
+          team_value: 40,
         }),
       ).toBe(10);
     });
@@ -293,7 +287,7 @@ describe("valuation helpers", () => {
     it("playerValuationEdgeOrDiff returns undefined when surplus cannot be derived", () => {
       expect(playerValuationEdgeOrDiff({})).toBeUndefined();
       expect(playerValuationEdgeOrDiff({ recommended_bid: 5 })).toBeUndefined();
-      expect(playerValuationEdgeOrDiff({ team_adjusted_value: 5 })).toBeUndefined();
+      expect(playerValuationEdgeOrDiff({ team_value: 5 })).toBeUndefined();
     });
 
     it("playerValuationEdgeOrDiff reads numeric strings for edge and Team − Max inputs", () => {
@@ -303,28 +297,27 @@ describe("valuation helpers", () => {
       expect(
         playerValuationEdgeOrDiff({
           recommended_bid: "30",
-          team_adjusted_value: "26",
+          team_value: "26",
         } as unknown as Player),
       ).toBe(-4);
     });
 
     it("playerBidEdgeDollars matches playerValuationEdgeOrDiff", () => {
-      const p = { recommended_bid: 30, team_adjusted_value: 44 };
+      const p = { recommended_bid: 30, team_value: 44 };
       expect(playerBidEdgeDollars(p)).toBe(playerValuationEdgeOrDiff(p));
     });
 
     it("playerRosterEdgeDollars is Team Value minus Auction Value", () => {
       expect(
         playerRosterEdgeDollars({
-          team_adjusted_value: 40,
+          team_value: 40,
           auction_value: 35,
-          adjusted_value: 99,
         }),
       ).toBe(5);
       expect(
         playerRosterEdgeDollars({
-          team_adjusted_value: 40,
-          adjusted_value: 45,
+          team_value: 40,
+          auction_value: 45,
         }),
       ).toBe(-5);
       expect(playerRosterEdgeDollars({})).toBeUndefined();
@@ -399,7 +392,6 @@ describe("valuation helpers", () => {
     expect(
       leagueWideAuctionDollarsForDisplay({
         auction_value: 40,
-        adjusted_value: 35,
         valuation_eligible: false,
       }),
     ).toBeUndefined();
@@ -409,7 +401,6 @@ describe("valuation helpers", () => {
     expect(
       leagueWideAuctionDollarsForDisplay({
         auction_value: 99,
-        adjusted_value: 88,
         valuation_eligible: false,
       }),
     ).toBeUndefined();
@@ -470,13 +461,13 @@ describe("valuation helpers", () => {
     player.baseline_value = 21;
     expect(resolveValuationNumber(player)).toBe(21);
 
-    player.adjusted_value = 25;
+    player.auction_value = 25;
     expect(resolveValuationNumber(player)).toBe(25);
 
     player.recommended_bid = 27;
     expect(resolveValuationNumber(player)).toBe(25);
 
-    player.team_adjusted_value = 30;
+    player.team_value = 30;
     expect(resolveValuationNumber(player)).toBe(25);
 
     player.auction_value = 33;
@@ -502,9 +493,9 @@ describe("valuation helpers", () => {
       position: "OF",
       tier: 1,
       baseline_value: 10,
-      adjusted_value: 20,
+      auction_value: 20,
       recommended_bid: 30,
-      team_adjusted_value: 40,
+      team_value: 40,
       indicator: "Fair Value" as const,
     };
     const m = commandCenterValuationMoney(row);
@@ -518,7 +509,7 @@ describe("valuation helpers", () => {
       position: "OF",
       tier: 1,
       baseline_value: 10,
-      adjusted_value: 20,
+      auction_value: 20,
       indicator: "Fair Value" as const,
     } as ValuationResult;
     const m2 = commandCenterValuationMoney(partial);
@@ -537,9 +528,8 @@ describe("valuation helpers", () => {
       tier: 1,
       baseline_value: 5,
       auction_value: 55,
-      adjusted_value: 20,
       recommended_bid: 30,
-      team_adjusted_value: 40,
+      team_value: 40,
       indicator: "Fair Value" as const,
     };
     const m = commandCenterValuationMoney(row);
@@ -560,9 +550,9 @@ describe("valuation helpers", () => {
       position: "OF",
       tier: 1,
       baseline_value: 5,
-      adjusted_value: 20,
+      auction_value: 20,
       recommended_bid: 35,
-      team_adjusted_value: 40,
+      team_value: 40,
       indicator: "Fair Value" as const,
     };
     const caps = { maxBid: 18, budgetRemaining: 40, openSpots: 3 };
@@ -582,9 +572,9 @@ describe("valuation helpers", () => {
       position: "OF",
       tier: 3,
       baseline_value: 5,
-      adjusted_value: 20,
+      auction_value: 20,
       recommended_bid: 35,
-      team_adjusted_value: 40,
+      team_value: 40,
       edge: 5,
       indicator: "Fair Value" as const,
     };
@@ -594,12 +584,94 @@ describe("valuation helpers", () => {
     expect(dec.budgetLimited).toBe(true);
     expect(dec.aggressive).toBe(true);
     expect(dec.edge).toBe(5);
+    expect(dec.notBidable).toBe(false);
+    expect(dec.notBidableReason).toBeNull();
 
-    const rowCon = { ...row, tier: 5, team_adjusted_value: 16, edge: undefined };
+    const rowCon = { ...row, tier: 5, team_value: 16, edge: undefined };
     const dec2 = commandCenterBidDecision(rowCon, 5, caps);
     expect(dec2.aggressive).toBe(false);
     expect(dec2.suggestedBid).toBe(18);
     expect(dec2.baseUncapped).toBe(35);
+    expect(dec2.notBidable).toBe(false);
+  });
+
+  it("commandCenterBidDecision marks notBidable when executable budget is zero", () => {
+    const caps = { maxBid: 0, budgetRemaining: 0, openSpots: 2 };
+    const row = {
+      player_id: "1",
+      name: "Z",
+      position: "SS",
+      tier: 3,
+      baseline_value: 5,
+      auction_value: 30,
+      recommended_bid: 22,
+      team_value: 38,
+      edge: 16,
+      indicator: "Fair Value" as const,
+    };
+    const dec = commandCenterBidDecision(row, 30, caps);
+    expect(dec.notBidable).toBe(true);
+    expect(dec.suggestedBid).toBe(0);
+    expect(dec.maxExecutableBid).toBe(0);
+    expect(dec.edge).toBeUndefined();
+    expect(dec.notBidableReason).toMatch(/executable budget/i);
+  });
+
+  it("commandCenterBidDecision marks notBidable when no open roster spots", () => {
+    const caps = { maxBid: 0, budgetRemaining: 40, openSpots: 0 };
+    const row = {
+      player_id: "1",
+      name: "A",
+      position: "OF",
+      tier: 3,
+      auction_value: 20,
+      recommended_bid: 15,
+      team_value: 40,
+      indicator: "Fair Value" as const,
+    };
+    const dec = commandCenterBidDecision(row, 5, caps);
+    expect(dec.notBidable).toBe(true);
+    expect(dec.notBidableReason).toMatch(/open roster slot/i);
+  });
+
+  it("commandCenterWalletCapsFromMyTeam uses assignment open spots, not raw entry count", () => {
+    const league = {
+      rosterSlots: { OF: 3, UTIL: 1, BN: 1, C: 1, "1B": 1 },
+      budget: 260,
+    } as Pick<League, "rosterSlots" | "budget">;
+    const entries = Array.from({ length: 8 }, (_, i) => ({
+      price: 10,
+      positions: ["OF"],
+      position: "OF",
+    })) as never[];
+    const caps = commandCenterWalletCapsFromMyTeam(league, entries);
+    expect(caps).not.toBeNull();
+    expect(entries.length).toBe(8);
+    expect(caps!.openSpots).toBeGreaterThan(0);
+    expect(caps!.maxBid).toBeGreaterThan(0);
+  });
+
+  it("commandCenterBidContextMetrics hides bid fields when roster is full", () => {
+    const caps = { maxBid: 0, budgetRemaining: 182, openSpots: 0 };
+    const dec = commandCenterBidDecision(
+      {
+        player_id: "1",
+        name: "A",
+        position: "OF",
+        tier: 3,
+        auction_value: 20,
+        recommended_bid: 15,
+        team_value: 40,
+        indicator: "Fair Value" as const,
+      },
+      5,
+      caps,
+    );
+    const metrics = commandCenterBidContextMetrics(caps, dec);
+    expect(metrics.suggestedBid).toBeUndefined();
+    expect(metrics.maxBid).toBeUndefined();
+    expect(metrics.budgetLeft).toBe(182);
+    expect(metrics.dollarsPerSpot).toBeUndefined();
   });
 
   it("commandCenterBidDecision uses engine edge when present", () => {
@@ -610,15 +682,30 @@ describe("valuation helpers", () => {
       position: "OF",
       tier: 5,
       baseline_value: 1,
-      adjusted_value: 10,
+      auction_value: 10,
       recommended_bid: 10,
-      team_adjusted_value: 12,
+      team_value: 12,
       edge: 10,
       indicator: "Fair Value" as const,
     };
     const dec = commandCenterBidDecision(row, 5, caps);
     expect(dec.aggressive).toBe(true);
     expect(dec.edge).toBe(10);
+    expect(dec.notBidable).toBe(false);
+  });
+
+  it("commandCenterWalletCapsFromMyTeam yields maxBid 0 when budget is exhausted", () => {
+    const league = {
+      rosterSlots: { SP: 2 },
+      budget: 100,
+    } as Pick<League, "rosterSlots" | "budget">;
+    const caps = commandCenterWalletCapsFromMyTeam(league, [
+      { price: 100 } as never,
+    ]);
+    expect(caps).not.toBeNull();
+    expect(caps!.budgetRemaining).toBe(0);
+    expect(caps!.openSpots).toBe(2);
+    expect(caps!.maxBid).toBe(0);
   });
 
   it("commandCenterWalletCapsFromMyTeam mirrors roster math", () => {
@@ -631,6 +718,20 @@ describe("valuation helpers", () => {
     expect(caps!.openSpots).toBe(5);
     expect(caps!.budgetRemaining).toBe(260);
     expect(caps!.maxBid).toBe(256);
+  });
+
+  it("commandCenterWalletCapsFromMyTeam sums array-shaped rosterSlots (Mongo Mixed)", () => {
+    const league = {
+      rosterSlots: [
+        { position: "SP", count: 5 },
+        { position: "C", count: 1 },
+      ],
+      budget: 260,
+    } as unknown as Pick<League, "rosterSlots" | "budget">;
+    const caps = commandCenterWalletCapsFromMyTeam(league, []);
+    expect(caps).not.toBeNull();
+    expect(caps!.openSpots).toBe(6);
+    expect(caps!.maxBid).toBe(255);
   });
 
   it("formatCurrencyWhole puts the minus before the dollar sign", () => {
@@ -646,30 +747,26 @@ describe("valuation helpers", () => {
 
   it("exposes compact labels and tooltip copy", () => {
     expect(valuationSortLabel("auction_value")).toBe("Auction value");
-    expect(valuationSortLabel("team_adjusted_value")).toBe("Team Value");
-    expect(valuationSortLabel("recommended_bid")).toBe("Max Bid");
-    expect(valuationSortLabel("adjusted_value")).toBe("League context $");
+    expect(valuationSortLabel("team_value")).toBe("Team Value");
+    expect(valuationSortLabel("recommended_bid")).toBe("Recommended bid");
     expect(valuationSortLabel("baseline_value")).toBe("Baseline Strength");
     expect(valuationTooltip("auction_value")).toContain("league-wide");
     expect(valuationTooltip("auction_value")).toContain("not your bid cap");
-    expect(valuationTooltip("team_adjusted_value")).toContain("roster needs");
-    expect(valuationTooltip("team_adjusted_value")).toContain("draft start");
-    expect(valuationTooltip("recommended_bid")).toContain("Strategic bid");
-    expect(valuationTooltip("recommended_bid")).toContain("recommended_bid");
+    expect(valuationTooltip("team_value")).toContain("Team Value");
+    expect(valuationTooltip("recommended_bid")).toContain("suggested");
     expect(valuationTooltip("recommended_bid")).toContain(
       RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
     );
-    expect(valuationTooltip("adjusted_value")).toContain("adjusted_value");
     expect(valuationTooltip("baseline_value")).toContain("Baseline Strength");
     expect(valuationTooltip("baseline_value")).toContain(
       "pre-auction model strength",
     );
   });
 
-  it("Command Center / Player Detail ladder: Max Bid label, Bid Edge delta, and tooltips", () => {
-    expect(valuationSortLabel("recommended_bid")).toBe("Max Bid");
-    expect(BID_EDGE_TOOLTIP).toContain("Team Value minus Max Bid");
-    expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_adjusted_value: 23, recommended_bid: 44 }))).toBe(
+  it("Command Center / Player Detail ladder: Recommended bid label, Bid Edge delta, and tooltips", () => {
+    expect(valuationSortLabel("recommended_bid")).toBe("Recommended bid");
+    expect(BID_EDGE_TOOLTIP).toContain("Team Value minus recommended bid");
+    expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_value: 23, recommended_bid: 44 }))).toBe(
       "-21",
     );
   });
@@ -679,18 +776,16 @@ describe("valuation helpers", () => {
       player_id: "x",
       recommended_bid: 44,
       auction_value: 19,
-      team_adjusted_value: 23,
+      team_value: 23,
     } as ValuationResult;
     expect(actionableBidFromRecommendedAndMaxBid(row, 100)).toBe(44);
     expect(actionableBidFromRecommendedAndMaxBid(row, 30)).toBe(30);
     expect(actionableBidFromRecommendedAndMaxBid(row, null)).toBe(44);
   });
 
-  it("leagueWideAuctionDollars prefers auction_value over adjusted_value", () => {
-    expect(
-      leagueWideAuctionDollars({ auction_value: 12, adjusted_value: 99 }),
-    ).toBe(12);
-    expect(leagueWideAuctionDollars({ adjusted_value: 44 })).toBe(44);
+  it("leagueWideAuctionDollars uses auction_value only", () => {
+    expect(leagueWideAuctionDollars({ auction_value: 12 })).toBe(12);
+    expect(leagueWideAuctionDollars({ auction_value: 44 })).toBe(44);
     expect(leagueWideAuctionDollars({})).toBeUndefined();
   });
 
@@ -698,22 +793,20 @@ describe("valuation helpers", () => {
     it("uses auction_value as the primary dollar (not baseline_value)", () => {
       const row = {
         auction_value: 29,
-        adjusted_value: 40,
         baseline_value: 99,
         recommended_bid: 51,
-        team_adjusted_value: 29,
+        team_value: 29,
       };
       expect(leagueWideAuctionDollars(row)).toBe(29);
       expect(formatCurrencyWhole(leagueWideAuctionDollars(row))).toBe("$29");
       expect(formatCurrencyWhole(row.baseline_value)).toBe("$99");
     });
 
-    it("does not use recommended_bid or team_adjusted_value for the table primary $", () => {
+    it("does not use recommended_bid or team_value for the table primary $", () => {
       const row = {
         auction_value: 30,
-        adjusted_value: 99,
         recommended_bid: 60,
-        team_adjusted_value: 45,
+        team_value: 45,
       };
       expect(leagueWideAuctionDollars(row)).toBe(30);
       expect(formatCurrencyWhole(leagueWideAuctionDollars(row))).toBe("$30");

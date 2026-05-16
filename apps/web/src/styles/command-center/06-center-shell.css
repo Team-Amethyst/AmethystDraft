@@ -128,12 +128,12 @@
 .pic-player-col {
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .pic-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-width: 0;
   width: 100%;
@@ -142,6 +142,101 @@
 .pic-identity-text {
   min-width: 0;
   flex: 1;
+}
+
+.pic-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.pic-name-pos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.pic-position-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  margin: 0.12rem 0 0.38rem;
+  min-width: 0;
+}
+
+.pic-primary-pos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+.pic-primary-pos-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pic-pos-sep {
+  color: rgba(200, 190, 230, 0.45);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pic-primary-pos-badge {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.38rem;
+}
+
+.pic-slot-elig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: rgba(200, 190, 230, 0.72);
+  min-width: 0;
+}
+
+.pic-slot-elig-label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(180, 165, 220, 0.55);
+  margin-right: 0.12rem;
+}
+
+.pic-slot-elig-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.pic-slot-elig-badge {
+  font-size: 0.6rem;
+  padding: 0.06rem 0.32rem;
+  opacity: 0.92;
+}
+
+.pic-role-line {
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: rgba(200, 190, 230, 0.62);
+}
+
+.pic-role-main {
+  font-weight: 600;
+}
+
+.pic-role-note {
+  font-style: italic;
+  color: rgba(200, 190, 230, 0.52);
 }
 
 .pic-notes-col {

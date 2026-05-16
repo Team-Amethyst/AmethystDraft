@@ -8,17 +8,17 @@ import {
   formatPoolToSlotRatio,
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
-  leagueWideAuctionDollars,
-  playerRosterEdgeDollars,
+  BID_EDGE_TOOLTIP,
   formatSignedDollarWhole,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
   BASELINE_STRENGTH_TOOLTIP,
   REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
   RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
-  ROSTER_EDGE_TOOLTIP,
   valuationExplainHasRiskRoleContent,
+  valuationTooltip,
 } from "../utils/valuation";
+import { buildPlayerDetailValuationLadder } from "../domain/playerDetailValuationLadder";
 import {
   formatSignedWhole,
   summarizeDriverReason,
@@ -26,6 +26,7 @@ import {
 } from "../utils/explainV2Ui";
 import { useEffect } from "react";
 import PosBadge from "./PosBadge";
+import { playerIdentityPositionPresentation } from "../utils/eligibility";
 import "./PlayerDetailModal.css";
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
@@ -80,6 +81,8 @@ interface PlayerDetailModalProps {
    * “Model rank & tiers” enabled.
    */
   researchShowModelMetrics?: boolean;
+  /** League roster keys for header position chips (hides DH / UTIL / BN). */
+  draftDisplaySlotKeys?: string[];
 }
 
 function valueOrDash(value: unknown): string {
@@ -324,6 +327,7 @@ export default function PlayerDetailModal({
   researchEngineBoardPhase = "ready",
   researchSurface = false,
   researchShowModelMetrics = false,
+  draftDisplaySlotKeys,
 }: PlayerDetailModalProps) {
   useEffect(() => {
     if (!isOpen || !player) return;
@@ -347,29 +351,25 @@ export default function PlayerDetailModal({
     !researchSurface || researchShowModelMetrics;
   const hideStrengthRail = researchSurface;
 
-  const positions = player.positions?.length ? player.positions : [player.position];
+  const {
+    primaryTags: positionPrimaryTags,
+    draftableSlots: positionDraftableSlots,
+  } = playerIdentityPositionPresentation(player, draftDisplaySlotKeys);
   const batting = player.stats.batting;
   const pitching = player.stats.pitching;
   const projectionBat = player.projection.batting;
   const projectionPit = player.projection.pitching;
   const stats3yrBat = player.stats3yr?.batting;
   const stats3yrPit = player.stats3yr?.pitching;
-  const rosterEdge = playerRosterEdgeDollars(player);
-  const yourValue =
-    typeof player.team_adjusted_value === "number" &&
-    Number.isFinite(player.team_adjusted_value)
-      ? player.team_adjusted_value
-      : null;
-  const leagueAuction = leagueWideAuctionDollars(player);
-  const marketValue =
-    typeof leagueAuction === "number" && Number.isFinite(leagueAuction)
-      ? leagueAuction
-      : null;
-  const maxBid =
-    typeof player.recommended_bid === "number" &&
-    Number.isFinite(player.recommended_bid)
-      ? player.recommended_bid
-      : null;
+  const valuationLadder = buildPlayerDetailValuationLadder(player);
+  const {
+    auctionValue: marketValue,
+    recommendedBid,
+    teamValue: yourValue,
+    maxBid,
+    bidEdge,
+    maxBidEqualsRecommended,
+  } = valuationLadder;
 
   const showValuationContextDebug =
     isValuationContextDebugEnabled() &&
@@ -418,21 +418,38 @@ export default function PlayerDetailModal({
                 <div className="pdm-rail__identity">
                   <img className="pdm-headshot" src={player.headshot} alt={player.name} />
                   <div className="pdm-identity-text">
-                    <h2 className="pdm-title pdm-title--rail">
-                      {gluePlayerNameSuffixForDisplay(player.name)}
-                    </h2>
+                    <div className="pdm-rail-name-row">
+                      <h2 className="pdm-title pdm-title--rail">
+                        {gluePlayerNameSuffixForDisplay(player.name)}
+                      </h2>
+                      {positionPrimaryTags.length > 0 ? (
+                        <span
+                          className="pdm-rail-name-pos"
+                          title="Primary positions"
+                          aria-label="Primary positions"
+                        >
+                          {positionPrimaryTags.map((pos) => (
+                            <PosBadge key={pos} pos={pos} />
+                          ))}
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="pdm-rail-team-row">
                       <span className="pdm-meta-team-abbr">{player.team}</span>
-                      <div
-                        className="pdm-header-positions pdm-header-positions--rail"
-                        role="list"
-                        aria-label="Eligible positions"
-                      >
-                        {positions.map((pos) => (
-                          <PosBadge key={pos} pos={pos} />
-                        ))}
-                      </div>
                     </div>
+                    {positionDraftableSlots.length > 0 ? (
+                      <div
+                        className="pdm-slot-elig-line"
+                        title="Roster slots you can draft this player into"
+                      >
+                        <span className="pdm-slot-elig-label">Slots:</span>
+                        <span className="pdm-slot-elig-badges">
+                          {positionDraftableSlots.map((s) => (
+                            <PosBadge key={s} pos={s} className="pdm-slot-elig-badge" />
+                          ))}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="pdm-header-context">
                       {player.injuryStatus && <span className="pdm-chip pdm-chip--inj">{player.injuryStatus}</span>}
                       {isCustomPlayer && <span className="pdm-chip">Custom</span>}
@@ -547,6 +564,21 @@ export default function PlayerDetailModal({
                   </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
+                  <span
+                    className="pdm-metric-label"
+                    title={valuationTooltip("recommended_bid")}
+                  >
+                    Recommended Bid
+                  </span>
+                  <span className="pdm-metric-value">
+                    {maskEngineMetrics && recommendedBid == null ? (
+                      <ResearchEngineValueLoading label="Loading recommended bid" />
+                    ) : (
+                      formatCurrencyWhole(recommendedBid)
+                    )}
+                  </span>
+                </div>
+                <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
                     Team Value
                   </span>
@@ -559,29 +591,31 @@ export default function PlayerDetailModal({
                   </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={ROSTER_EDGE_TOOLTIP}>
-                    Roster Edge
+                  <span className="pdm-metric-label" title={BID_EDGE_TOOLTIP}>
+                    Bid Edge
                   </span>
                   <span className="pdm-metric-value">
-                    {maskEngineMetrics && rosterEdge === undefined ? (
-                      <ResearchEngineValueLoading label="Loading roster edge" />
+                    {maskEngineMetrics && bidEdge === undefined ? (
+                      <ResearchEngineValueLoading label="Loading bid edge" />
                     ) : (
-                      formatSignedDollarWhole(rosterEdge)
+                      formatSignedDollarWhole(bidEdge)
                     )}
                   </span>
                 </div>
-                <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
-                    Max Bid
-                  </span>
-                  <span className="pdm-metric-value">
-                    {maskEngineMetrics && maxBid == null ? (
-                      <ResearchEngineValueLoading label="Loading max bid" />
-                    ) : (
-                      formatCurrencyWhole(maxBid)
-                    )}
-                  </span>
-                </div>
+                {!maxBidEqualsRecommended && maxBid != null ? (
+                  <div className="pdm-metric pdm-metric--secondary" role="listitem">
+                    <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
+                      Max Bid
+                    </span>
+                    <span className="pdm-metric-value">
+                      {maskEngineMetrics ? (
+                        <ResearchEngineValueLoading label="Loading max bid" />
+                      ) : (
+                        formatCurrencyWhole(maxBid)
+                      )}
+                    </span>
+                  </div>
+                ) : null}
               </div>
               {player.recommended_bid_note?.trim() ? (
                 <p className="pdm-engine-note">{player.recommended_bid_note.trim()}</p>
@@ -655,6 +689,18 @@ export default function PlayerDetailModal({
                       <dt title={BASELINE_STRENGTH_TOOLTIP}>Baseline Strength</dt>
                       <dd>{formatCurrencyWhole(player.baseline_value)}</dd>
                     </dl>
+                  ) : null}
+                  {maxBid != null ? (
+                    <p className="pdm-max-bid-explain">
+                      <strong title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>Max Bid:</strong>{" "}
+                      {formatCurrencyWhole(maxBid)} hard stop
+                      {maxBidEqualsRecommended ? (
+                        <span className="pdm-max-bid-explain-note">
+                          {" "}
+                          (same as Recommended Bid)
+                        </span>
+                      ) : null}
+                    </p>
                   ) : null}
                   <ValuationExplainSections
                     explain={player.valuation_explain ?? null}

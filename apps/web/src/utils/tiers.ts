@@ -60,7 +60,7 @@ export function calculateTierStats(
       const value =
         leagueWideAuctionDollars(p) ??
         p.recommended_bid ??
-        p.team_adjusted_value ??
+        p.team_value ??
         0;
       totalValue += value;
       minValue = Math.min(minValue, value);
@@ -102,15 +102,15 @@ export function sortPlayersByValue(
   sortBy:
     | "auction_value"
     | "recommended_bid"
-    | "team_adjusted_value"
-    | "adjusted_value" = "auction_value",
+    | "team_value"
+    | "auction_value" = "auction_value",
 ): Player[] {
   return [...players].sort((a, b) => {
     const getVal = (p: Player) => {
       if (sortBy === "auction_value") return leagueWideAuctionDollars(p) ?? 0;
       if (sortBy === "recommended_bid") return p.recommended_bid ?? 0;
-      if (sortBy === "team_adjusted_value") return p.team_adjusted_value ?? 0;
-      return p.adjusted_value ?? 0;
+      if (sortBy === "team_value") return p.team_value ?? 0;
+      return p.auction_value ?? 0;
     };
     return getVal(b) - getVal(a);
   });

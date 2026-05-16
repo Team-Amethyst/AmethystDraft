@@ -23,7 +23,7 @@ import {
 } from "../api/checkpoints";
 import type { ValuationBoardCacheContext } from "../api/valuationCache";
 import { mergeCatalogPlayersWithValuations } from "../utils/valuation";
-import { resolveUserTeamId } from "../utils/team";
+import { resolveUserTeamId, resolvedLeagueTeamNames } from "../utils/team";
 import {
   leagueValuationConfigKey,
   rosterValuationFingerprint,
@@ -34,6 +34,7 @@ import { planMockDraftFromCheckpointJson } from "../domain/checkpointMockDraft";
 import { useMockDraft } from "../hooks/useMockDraft";
 import type { Player } from "../types/player";
 import PosBadge from "../components/PosBadge";
+import { AppSelect, type AppSelectOption } from "../components/AppSelect";
 import "./MockDraftPage.css";
 
 // ─── Default roster slots if league not configured ────────────────────────────
@@ -180,6 +181,19 @@ function SetupScreen({
   const checkpointPickerDisabled =
     catalogLoading || checkpointBusy || checkpoints.length === 0;
 
+  const checkpointOptions = useMemo((): AppSelectOption[] => {
+    if (catalogLoading) {
+      return [{ value: "", label: "Loading checkpoints…", disabled: true }];
+    }
+    if (checkpoints.length === 0) {
+      return [{ value: "", label: "— Fresh draft —" }];
+    }
+    return [
+      { value: "", label: "— Fresh draft —" },
+      ...checkpoints.map((c) => ({ value: c.id, label: c.title })),
+    ];
+  }, [catalogLoading, checkpoints]);
+
   return (
     <div className="md-setup">
       <div className="md-setup-card">
@@ -193,20 +207,15 @@ function SetupScreen({
           <label className="md-setup-checkpoint-label" htmlFor="md-engine-checkpoint">
             Engine checkpoint (optional)
           </label>
-          <select
+          <AppSelect
             id="md-engine-checkpoint"
-            className="md-setup-checkpoint-select"
+            block
             value={selectedCheckpointKey}
+            onChange={onCheckpointChange}
+            options={checkpointOptions}
             disabled={checkpointPickerDisabled}
-            onChange={(e) => onCheckpointChange(e.target.value)}
-          >
-            <option value="">— Fresh draft —</option>
-            {checkpoints.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+            aria-label="Engine checkpoint (optional)"
+          />
           <p className="md-setup-checkpoint-note">
             Loads bundled Draft fixtures under{" "}
             <code>apps/api/test-fixtures/player-api/checkpoints/</code> (same JSON as Activity #9).
@@ -296,10 +305,10 @@ export default function MockDraftPage() {
   const budgetBase = league?.budget ?? DEFAULT_BUDGET;
 
   const teamNamesBase = useMemo(() => {
-    if (league?.teamNames?.length) return league.teamNames;
+    if (league) return resolvedLeagueTeamNames(league);
     const count = 10;
     return ["My Team", ...Array.from({ length: count - 1 }, (_, i) => `AI Team ${i + 2}`)];
-  }, [league?.teamNames]);
+  }, [league?.teams, league?.teamNames?.join("\u0001")]);
 
   const { token, user } = useAuth();
 
@@ -485,7 +494,7 @@ export default function MockDraftPage() {
       const plan = planMockDraftFromCheckpointJson({
         checkpointKey: selectedCheckpointKey,
         checkpointJson: json,
-        leagueTeamNames: league?.teamNames ?? [],
+        leagueTeamNames: league ? resolvedLeagueTeamNames(league) : [],
         allPlayers,
       });
       if ("error" in plan) {
@@ -622,7 +631,7 @@ export default function MockDraftPage() {
                     Auction Value{" "}
                     <strong className="green">
                       ${state.nominatedPlayer.auction_value
-                        ?? state.nominatedPlayer.adjusted_value
+                        ?? state.nominatedPlayer.auction_value
                         ?? state.nominatedPlayer.value}
                     </strong>
                   </div>
@@ -720,7 +729,7 @@ export default function MockDraftPage() {
                             <span className="md-sr-name">{p.name}</span>
                             <span className="md-sr-team">{p.team}</span>
                             <span className="md-sr-val">
-                              ${p.auction_value ?? p.adjusted_value ?? p.value}
+                              ${p.auction_value ?? p.auction_value ?? p.value}
                             </span>
                           </button>
                         ))}
@@ -755,7 +764,7 @@ export default function MockDraftPage() {
               <span className="md-sug-name">{state.suggestion.player.name}</span>
               <span className="md-sug-val">
                 ${state.suggestion.player.auction_value
-                  ?? state.suggestion.player.adjusted_value
+                  ?? state.suggestion.player.auction_value
                   ?? state.suggestion.player.value}
               </span>
             </div>

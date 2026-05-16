@@ -5,6 +5,7 @@ import {
   auctionValueForCommandCenterPrefill,
   bidReasonDisclosureHasEngineContent,
   commandCenterEdgeVsMaxBidRounded,
+  commandCenterSearchDropdownAuctionDollars,
   engineRowHasFocusedExplainPayload,
   mergeDisplayValuationRow,
   valuationExplainHasBidContextTable,
@@ -47,6 +48,36 @@ describe("auctionValueForCommandCenterPrefill", () => {
   });
 });
 
+describe("commandCenterSearchDropdownAuctionDollars", () => {
+  it("prefers Engine board auction_value over catalog list value", () => {
+    const player = minimalPlayer({ value: 112, auction_value: undefined });
+    const row = {
+      player_id: "p1",
+      auction_value: 36,
+    } as ValuationResult;
+    expect(commandCenterSearchDropdownAuctionDollars(player, row)).toBe(36);
+  });
+
+  it("falls back to catalog auction_value when board row is missing", () => {
+    const player = minimalPlayer({ value: 99, auction_value: 41 });
+    expect(commandCenterSearchDropdownAuctionDollars(player, undefined)).toBe(41);
+  });
+
+  it("returns null when only catalog list value exists (no Engine auction)", () => {
+    const player = minimalPlayer({ value: 112 });
+    expect(commandCenterSearchDropdownAuctionDollars(player, undefined)).toBeNull();
+  });
+
+  it("hides auction for valuation-ineligible catalog rows", () => {
+    const player = minimalPlayer({
+      value: 200,
+      auction_value: 5,
+      valuation_eligible: false,
+    });
+    expect(commandCenterSearchDropdownAuctionDollars(player, undefined)).toBeNull();
+  });
+});
+
 describe("commandCenterEdgeVsMaxBidRounded (BidDecisionCard ladder)", () => {
   it("is Team Value − Max Bid even when Engine edge would differ", () => {
     expect(commandCenterEdgeVsMaxBidRounded(40, 30)).toBe(10);
@@ -85,7 +116,7 @@ describe("Command Center bid reasoning helpers", () => {
       position: "OF",
       tier: 2,
       baseline_value: 40,
-      adjusted_value: 30,
+      auction_value: 30,
       indicator: "Fair Value",
       valuation_explain: {
         replacement_key_used: "OF5",
@@ -102,7 +133,7 @@ describe("Command Center bid reasoning helpers", () => {
       position: "OF",
       tier: 2,
       baseline_value: 40,
-      adjusted_value: 30,
+      auction_value: 30,
       indicator: "Fair Value",
     } as ValuationResult;
     expect(bidReasonDisclosureHasEngineContent(row, minimalPlayer())).toBe(false);
@@ -123,7 +154,7 @@ describe("Command Center bid reasoning helpers", () => {
       position: "OF",
       tier: 2,
       baseline_value: 40,
-      adjusted_value: 30,
+      auction_value: 30,
       indicator: "Fair Value",
     } as ValuationResult;
     const merged = mergeDisplayValuationRow(row, minimalPlayer({ explain_v2: v2, why: ["a"] }));

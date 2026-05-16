@@ -11,9 +11,9 @@ import { playerFromWatchlistEntry } from "../domain/watchlistToPlayer";
 
 export type MyDraftWatchlistRow = WatchlistPlayer & {
   baseline_value?: number;
-  adjusted_value?: number;
+  auction_value?: number;
   recommended_bid?: number;
-  team_adjusted_value?: number;
+  team_value?: number;
 };
 
 export function useMyDraftWatchlistDerived(
@@ -36,9 +36,9 @@ export function useMyDraftWatchlistDerived(
       return {
         ...p,
         baseline_value: merged.baseline_value,
-        adjusted_value: merged.adjusted_value,
+        auction_value: merged.auction_value,
         recommended_bid: merged.recommended_bid,
-        team_adjusted_value: merged.team_adjusted_value,
+        team_value: merged.team_value,
       };
     });
   }, [watchlist, valuationsByPlayerId]);
@@ -48,7 +48,7 @@ export function useMyDraftWatchlistDerived(
     for (const player of effectiveWatchlist) {
       targetTotal +=
         targetOverrides[player.id] ??
-        Math.round(resolveValuationNumber(player, "team_adjusted_value"));
+        Math.round(resolveValuationNumber(player, "team_value"));
     }
 
     let filtered = [...effectiveWatchlist];

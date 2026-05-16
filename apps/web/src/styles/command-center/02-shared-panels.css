@@ -142,21 +142,8 @@
   white-space: nowrap;
 }
 
-.cc-team-makeup-select {
-  flex-shrink: 0;
-  max-width: min(11rem, 46vw);
-  font-size: 0.64rem;
-  letter-spacing: 0.02em;
-}
-
-.cc-team-makeup-select:focus-visible {
-  border-color: rgba(167, 139, 250, 0.65);
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
-}
-
-.cc-team-makeup-select option {
-  background: #120b1f;
-  color: #e2d9f3;
+.cc-team-makeup-head.cc-panel-controls {
+  align-items: center;
 }
 
 .cc-left .cc-team-makeup-card .team-makeup-slots {

@@ -43,7 +43,7 @@ export function logDevValuationPlayerHttpResponse(args: {
     selected_player_id: playerId,
     response_player_id: args.row?.player_id ?? null,
     recommended_bid: args.row?.recommended_bid ?? null,
-    team_adjusted_value: args.row?.team_adjusted_value ?? null,
+    team_value: args.row?.team_value ?? null,
     edge: args.row?.edge ?? null,
   });
 }
@@ -60,9 +60,9 @@ export function logDevCcValuationPlayerResponseBody(args: {
     requested_id: playerId,
     player: p,
     numeric_fields: p && {
-      team_adjusted_value: p.team_adjusted_value,
+      team_value: p.team_value,
       recommended_bid: p.recommended_bid,
-      adjusted_value: p.adjusted_value,
+      auction_value: p.auction_value,
       baseline_value: p.baseline_value,
     },
     valuations_len: args.valuationsLen,
@@ -92,8 +92,8 @@ export function runDevMergedValuationPipelineLog(args: {
     player_id: p.id,
     name: p.name,
     recommended_bid: null,
-    team_adjusted_value: null,
-    adjusted_value: null,
+    team_value: null,
+    auction_value: null,
     baseline_value: null,
     edge: null,
     finite_recommended_bid: null as number | null,
@@ -105,8 +105,8 @@ export function runDevMergedValuationPipelineLog(args: {
     player_id: p.id,
     name: p.name,
     recommended_bid: p.recommended_bid ?? null,
-    team_adjusted_value: p.team_adjusted_value ?? null,
-    adjusted_value: p.adjusted_value ?? null,
+    team_value: p.team_value ?? null,
+    auction_value: p.auction_value ?? null,
     baseline_value: p.baseline_value ?? null,
     edge: null,
     finite_recommended_bid: engineFiniteOrNull(p.recommended_bid),
@@ -119,8 +119,8 @@ export function runDevMergedValuationPipelineLog(args: {
         player_id: eng.player_id,
         name: eng.name,
         recommended_bid: eng.recommended_bid ?? null,
-        team_adjusted_value: eng.team_adjusted_value ?? null,
-        adjusted_value: eng.adjusted_value ?? null,
+        team_value: eng.team_value ?? null,
+        auction_value: eng.auction_value ?? null,
         baseline_value: eng.baseline_value ?? null,
         edge: eng.edge ?? null,
         finite_recommended_bid: engineFiniteOrNull(eng.recommended_bid),
@@ -134,8 +134,8 @@ export function runDevMergedValuationPipelineLog(args: {
         player_id: cardRow.player_id,
         name: cardRow.name,
         recommended_bid: cardRow.recommended_bid ?? null,
-        team_adjusted_value: cardRow.team_adjusted_value ?? null,
-        adjusted_value: cardRow.adjusted_value ?? null,
+        team_value: cardRow.team_value ?? null,
+        auction_value: cardRow.auction_value ?? null,
         baseline_value: cardRow.baseline_value ?? null,
         edge: cardRow.edge ?? null,
         finite_recommended_bid: engineFiniteOrNull(cardRow.recommended_bid),
@@ -157,11 +157,11 @@ export function runDevMergedValuationPipelineLog(args: {
             (eng.recommended_bid == null || !Number.isFinite(eng.recommended_bid)) &&
             p.recommended_bid != null &&
             Number.isFinite(p.recommended_bid),
-          team_adjusted_value:
-            (eng.team_adjusted_value == null ||
-              !Number.isFinite(eng.team_adjusted_value)) &&
-            p.team_adjusted_value != null &&
-            Number.isFinite(p.team_adjusted_value),
+          team_value:
+            (eng.team_value == null ||
+              !Number.isFinite(eng.team_value)) &&
+            p.team_value != null &&
+            Number.isFinite(p.team_value),
         }
       : null,
     merge_recovered_field:
@@ -171,11 +171,11 @@ export function runDevMergedValuationPipelineLog(args: {
               (eng.recommended_bid == null || !Number.isFinite(eng.recommended_bid)) &&
               merged.recommended_bid != null &&
               Number.isFinite(merged.recommended_bid),
-            team_adjusted_value:
-              (eng.team_adjusted_value == null ||
-                !Number.isFinite(eng.team_adjusted_value)) &&
-              merged.team_adjusted_value != null &&
-              Number.isFinite(merged.team_adjusted_value),
+            team_value:
+              (eng.team_value == null ||
+                !Number.isFinite(eng.team_value)) &&
+              merged.team_value != null &&
+              Number.isFinite(merged.team_value),
           }
         : null,
   });
@@ -193,9 +193,9 @@ export function runDevMergedValuationPipelineLog(args: {
     catalog_player_valuation_fields: {
       player_id: p.id,
       recommended_bid: p.recommended_bid ?? null,
-      team_adjusted_value: p.team_adjusted_value ?? null,
+      team_value: p.team_value ?? null,
       edge: null,
-      adjusted_value: p.adjusted_value ?? null,
+      auction_value: p.auction_value ?? null,
       baseline_value: p.baseline_value ?? null,
       value: p.value,
     },
@@ -224,15 +224,15 @@ export function runDevEngineBoardRowConsistencyCheck(args: {
   if (
     typeof vr.recommended_bid !== "number" ||
     !Number.isFinite(vr.recommended_bid) ||
-    typeof vr.team_adjusted_value !== "number" ||
-    !Number.isFinite(vr.team_adjusted_value)
+    typeof vr.team_value !== "number" ||
+    !Number.isFinite(vr.team_value)
   ) {
     console.warn(
-      "[AuctionCenter] valuation row for board player missing recommended_bid or team_adjusted_value",
+      "[AuctionCenter] valuation row for board player missing recommended_bid or team_value",
       {
         player_id: nid,
         recommended_bid: vr.recommended_bid,
-        team_adjusted_value: vr.team_adjusted_value,
+        team_value: vr.team_value,
       },
     );
   }
@@ -256,14 +256,14 @@ export function runDevValuationRowChangeLog(args: {
     t: new Date().toISOString(),
     player_id: v.player_id,
     baseline_value: v.baseline_value,
-    adjusted_value: v.adjusted_value,
+    auction_value: v.auction_value,
     recommended_bid: v.recommended_bid,
-    team_adjusted_value: v.team_adjusted_value,
+    team_value: v.team_value,
     reason: "valuation_row_key_changed",
   });
-  const y = v.team_adjusted_value;
+  const y = v.team_value;
   const l = v.recommended_bid;
-  const m = v.adjusted_value;
+  const m = v.auction_value;
   if (
     y !== undefined &&
     l !== undefined &&
@@ -274,7 +274,7 @@ export function runDevValuationRowChangeLog(args: {
     l === m
   ) {
     console.warn(
-      "[cc-valuation-change] team_adjusted_value, recommended_bid, and adjusted_value are identical — check Engine payload.",
+      "[cc-valuation-change] team_value, recommended_bid, and auction_value are identical — check Engine payload.",
     );
   }
 }

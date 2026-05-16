@@ -2,12 +2,14 @@ import type { Player } from "../types/player";
 import type { ValuationExplain, ValuationResult } from "../api/engine";
 import type { League } from "../contexts/LeagueContext";
 import type { RosterEntry } from "../api/roster";
+import { rosterSlotsToRecord } from "../pages/command-center-utils/roster";
+import { filterActiveAuctionEntries } from "../pages/command-center-utils/roster";
+import { teamRosterSlotCounts } from "../pages/command-center-utils/rosterAssignment";
 
 export type ValuationSortField =
   | "auction_value"
-  | "team_adjusted_value"
+  | "team_value"
   | "recommended_bid"
-  | "adjusted_value"
   | "baseline_value";
 
 export interface ValuationShape {
@@ -28,9 +30,9 @@ export interface ValuationShape {
   adp?: number;
   baseline_value?: number;
   auction_value?: number;
-  adjusted_value?: number;
   recommended_bid?: number;
-  team_adjusted_value?: number;
+  max_bid?: number;
+  team_value?: number;
   edge?: number;
   inflation_model?: "replacement_slots_v2";
   indicator?: "Steal" | "Reach" | "Fair Value";
@@ -42,33 +44,33 @@ export interface ValuationShape {
   edge_note?: string;
 }
 
-/** Shown near max-bid guidance / modals to separate bid anchor from league auction FMV. */
+/** Separates league fair value from bid guidance in modals. */
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
-  "Max bid is a strategic anchor and may exceed auction value on elite players.";
+  "Recommended bid is the suggested offer for your roster context. Max bid is the hard dollar cap—both can differ from league-wide auction value.";
 
 /** Research `PlayerTable` footer: Research rows show Auction Value only; open a player for the rest. */
 export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
-  "Open a player for Auction Value, Team Value, Roster Edge, Max Bid, Bid Edge, and Baseline Strength under Why this value.";
+  "Open a player for Auction Value, Recommended Bid, Team Value, Bid Edge, Max Bid, and Baseline Strength under Why this value.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
   "Auction Value: fair league-wide value—the roster-independent benchmark for this player.";
 
 export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
-  "Max Bid: strategic bid anchor; may be higher than auction value for elite players.";
+  "Max bid: hard stop for this player given your remaining budget and open roster slots (not the same as recommended bid).";
 
-/** Team Value (`team_adjusted_value`): complements Auction Value; neither replaces the other. */
+/** Team Value: roster- and budget-specific worth to your team. */
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
-  "Value adjusted for your roster needs and budget. At draft start this may match Auction Value.";
+  "Team Value: what this player is worth to your roster given needs, inflation, and remaining budget (often differs from Auction Value).";
 
-/** Bid Edge (Team Value − Max Bid). Used in Command Center / Auction Center (not the Research table row). */
+/** Bid Edge (Team Value − Recommended bid). */
 export const BID_EDGE_TOOLTIP =
-  "Bid Edge = Team Value minus Max Bid. Negative values mean Team Value is below Max Bid. For elite players, this can be normal because Max Bid is an aggressive bid anchor.";
+  "Bid Edge = Team Value minus recommended bid. It describes how much roster surplus you retain if you pay the suggested bid.";
 
 /** @deprecated Use {@link BID_EDGE_TOOLTIP}. */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP = BID_EDGE_TOOLTIP;
 
-/** Roster Edge (Team Value − Auction Value). Used in Player Detail. */
+/** @deprecated Product UI uses {@link BID_EDGE_TOOLTIP} (Team Value − recommended bid). */
 export const ROSTER_EDGE_TOOLTIP =
   "Roster Edge = Team Value minus Auction Value.";
 
@@ -84,22 +86,18 @@ export const REPLACEMENT_COMPARISON_SLOT_TOOLTIP =
 
 export const VALUATION_FALLBACK_ORDER: ValuationSortField[] = [
   "auction_value",
-  "team_adjusted_value",
+  "team_value",
   "recommended_bid",
-  "adjusted_value",
   "baseline_value",
 ];
 
 /**
- * League-wide canonical dollars: Engine `auction_value`, else `adjusted_value`
- * (Engine treats the latter as the same semantic when auction is omitted).
+ * League-wide canonical auction dollars (`auction_value` from the valuation contract).
  */
 export function leagueWideAuctionDollars(
-  player: Pick<Player, "auction_value" | "adjusted_value">,
+  player: Pick<Player, "auction_value">,
 ): number | undefined {
-  const a = coerceNumber(player.auction_value);
-  if (a !== undefined) return a;
-  return coerceNumber(player.adjusted_value);
+  return coerceNumber(player.auction_value);
 }
 
 /**
@@ -107,7 +105,7 @@ export function leagueWideAuctionDollars(
  * when `valuation_eligible === false` (e.g. `market_only` rows).
  */
 export function leagueWideAuctionDollarsForDisplay(
-  player: Pick<Player, "auction_value" | "adjusted_value" | "valuation_eligible">,
+  player: Pick<Player, "auction_value" | "valuation_eligible">,
 ): number | undefined {
   if (player.valuation_eligible === false) return undefined;
   return leagueWideAuctionDollars(player);
@@ -150,29 +148,29 @@ function preferFiniteNumber(
 }
 
 /**
- * Bid Edge dollars: prefer Engine `edge` when present (same surplus definition when in sync);
- * else `team_adjusted_value - recommended_bid` (Team Value minus Max Bid).
+ * Bid Edge dollars: prefer Engine `edge` when present;
+ * else `team_value - recommended_bid`.
  */
 export function playerValuationEdgeOrDiff(player: {
   edge?: number | null;
   recommended_bid?: number | null;
-  team_adjusted_value?: number | null;
+  team_value?: number | null;
 }): number | undefined {
   const edge = readFiniteScalar(player.edge);
   if (edge !== undefined) return edge;
   const likelyBid = readFiniteScalar(player.recommended_bid);
-  const yourValue = readFiniteScalar(player.team_adjusted_value);
+  const yourValue = readFiniteScalar(player.team_value);
   if (likelyBid !== undefined && yourValue !== undefined) {
     return yourValue - likelyBid;
   }
   return undefined;
 }
 
-/** Team Value minus Auction Value (`auction_value ?? adjusted_value`). */
+/** Team Value minus Auction Value. */
 export function playerRosterEdgeDollars(
-  player: Pick<Player, "team_adjusted_value" | "auction_value" | "adjusted_value">,
+  player: Pick<Player, "team_value" | "auction_value">,
 ): number | undefined {
-  const ta = readFiniteScalar(player.team_adjusted_value);
+  const ta = readFiniteScalar(player.team_value);
   const auction = leagueWideAuctionDollars(player);
   if (ta === undefined || auction === undefined) return undefined;
   return ta - auction;
@@ -355,13 +353,13 @@ function firstFiniteDollar(
 
 /**
  * Command Center header lines: one engine field each (no cross-field fallbacks).
- * Your → team_adjusted_value; Likely bid anchor → recommended_bid; League-wide → auction_value ?? adjusted_value.
+ * Your → team_value; Likely bid anchor → recommended_bid; League-wide → auction_value.
  */
 export function commandCenterValuationMoney(
   row: ValuationResult | undefined | null,
 ): { your: number | undefined; likely: number | undefined; market: number | undefined } {
   return {
-    your: coerceNumber(row?.team_adjusted_value),
+    your: coerceNumber(row?.team_value),
     likely: coerceNumber(row?.recommended_bid),
     market: row ? leagueWideAuctionDollars(row) : undefined,
   };
@@ -374,31 +372,81 @@ export type CommandCenterWalletCaps = {
   openSpots: number;
 };
 
+/** Minimum dollars assumed reserved per *other* open roster slot when sizing the next legal bid. */
+export const COMMAND_CENTER_MIN_RESERVE_PER_OPEN_SLOT = 1;
+
 export function commandCenterWalletCapsFromMyTeam(
   league: Pick<League, "rosterSlots" | "budget"> | null | undefined,
   myTeamEntries: RosterEntry[],
 ): CommandCenterWalletCaps | null {
   if (!league?.rosterSlots) return null;
-  const totalSlots = Object.values(league.rosterSlots).reduce((a, b) => a + b, 0);
-  const filled = myTeamEntries.length;
-  const spent = myTeamEntries.reduce((s, e) => s + e.price, 0);
-  const openSpots = Math.max(0, totalSlots - filled);
+  const activeEntries = filterActiveAuctionEntries(myTeamEntries);
+  const spent = activeEntries.reduce((s, e) => s + e.price, 0);
+  const { open: openSpots } = teamRosterSlotCounts(
+    rosterSlotsToRecord(league.rosterSlots),
+    activeEntries,
+  );
   const budgetRemaining = Math.max(0, (league.budget ?? 0) - spent);
   const maxBid =
-    openSpots > 0 ? Math.max(1, budgetRemaining - (openSpots - 1)) : 0;
+    openSpots <= 0
+      ? 0
+      : Math.max(
+          0,
+          budgetRemaining -
+            COMMAND_CENTER_MIN_RESERVE_PER_OPEN_SLOT *
+              Math.max(0, openSpots - 1),
+        );
   return { maxBid, budgetRemaining, openSpots };
 }
 
 /**
  * Max dollars legally executable on the next bid (Command Center constraint only).
- * min(max_bid, budget_remaining - (open_spots - 1))
+ * min(max_bid, budget_remaining - min_reserve * max(open_spots - 1, 0))
  */
 export function commandCenterMaxExecutableBid(caps: CommandCenterWalletCaps): number {
   const stretchCap = Math.max(
     0,
-    caps.budgetRemaining - Math.max(0, caps.openSpots - 1),
+    caps.budgetRemaining -
+      COMMAND_CENTER_MIN_RESERVE_PER_OPEN_SLOT *
+        Math.max(0, caps.openSpots - 1),
   );
   return Math.min(caps.maxBid, stretchCap);
+}
+
+/** Sidebar bid-context row values (hide $0 when the roster cannot take another player). */
+export function commandCenterBidContextMetrics(
+  caps: CommandCenterWalletCaps | null,
+  decision: Pick<CommandCenterBidDecision, "suggestedBid" | "notBidable">,
+): {
+  suggestedBid: number | undefined;
+  maxBid: number | undefined;
+  budgetLeft: number | undefined;
+  dollarsPerSpot: number | undefined;
+} {
+  if (!caps) {
+    return {
+      suggestedBid: undefined,
+      maxBid: undefined,
+      budgetLeft: undefined,
+      dollarsPerSpot: undefined,
+    };
+  }
+  const budgetLeft = caps.budgetRemaining;
+  if (caps.openSpots <= 0 || decision.notBidable) {
+    return {
+      suggestedBid: undefined,
+      maxBid: undefined,
+      budgetLeft,
+      dollarsPerSpot: undefined,
+    };
+  }
+  const maxBid = commandCenterMaxExecutableBid(caps);
+  return {
+    suggestedBid: decision.suggestedBid,
+    maxBid: maxBid > 0 ? maxBid : undefined,
+    budgetLeft,
+    dollarsPerSpot: +(budgetLeft / caps.openSpots).toFixed(1),
+  };
 }
 
 const COMMAND_CENTER_EDGE_AGGRESSIVE_USD = 3;
@@ -417,13 +465,13 @@ export function commandCenterRoundBidIncrement(
 }
 
 export type CommandCenterBidDecision = {
-  /** Engine `team_adjusted_value` only (no fallbacks). */
+  /** Engine team-specific value (no fallbacks). */
   yourValue: number | undefined;
   /** Primary actionable bid (capped + rounded). */
   suggestedBid: number;
   /** Raw cap before rounding (same units as engine dollars). */
   maxExecutableBid: number;
-  /** Engine `edge` only (no client-side recompute). */
+  /** Engine `edge` only (no client-side recompute); suppressed when {@link notBidable}. */
   edge: number | undefined;
   /** True when the executable cap binds below uncapped base (shows “budget-limited”). */
   budgetLimited: boolean;
@@ -434,6 +482,10 @@ export type CommandCenterBidDecision = {
   likelyBid: number | undefined;
   marketValue: number | undefined;
   playerStrength: number | undefined;
+  /** No dollars can legally be bid for the capped roster (do not show positive Bid Edge). */
+  notBidable: boolean;
+  /** Human-readable reason when {@link notBidable}. */
+  notBidableReason: string | null;
 };
 
 /**
@@ -444,7 +496,7 @@ export function commandCenterBidDecision(
   playerValue: number | undefined,
   caps: CommandCenterWalletCaps | null,
 ): CommandCenterBidDecision {
-  const rawTA = row?.team_adjusted_value;
+  const rawTA = row?.team_value;
   const rawR = row?.recommended_bid;
   const rawA = row ? leagueWideAuctionDollars(row) : undefined;
   const rawB = row?.baseline_value;
@@ -487,18 +539,30 @@ export function commandCenterBidDecision(
       likelyBid,
       marketValue,
       playerStrength,
+      notBidable: false,
+      notBidableReason: null,
     };
   }
 
   const maxExecutableBid = Math.max(0, commandCenterMaxExecutableBid(caps));
+  const notBidable =
+    maxExecutableBid <= 0 ||
+    caps.openSpots <= 0 ||
+    !Number.isFinite(maxExecutableBid);
+  const notBidableReason = notBidable
+    ? caps.openSpots <= 0
+      ? "No open roster slots for selected team"
+      : "No executable budget for selected team"
+    : null;
+
   const baseNum = baseUncapped ?? 0;
-  const rawSuggested = Math.min(baseNum, maxExecutableBid);
-  const suggestedBid = commandCenterRoundBidIncrement(
-    rawSuggested,
-    maxExecutableBid,
-  );
+  const rawSuggested = notBidable ? 0 : Math.min(baseNum, maxExecutableBid);
+  const suggestedBid = notBidable
+    ? 0
+    : commandCenterRoundBidIncrement(rawSuggested, maxExecutableBid);
 
   const budgetLimited =
+    !notBidable &&
     typeof baseUncapped === "number" &&
     Number.isFinite(baseUncapped) &&
     baseUncapped > maxExecutableBid + 1e-6;
@@ -507,13 +571,15 @@ export function commandCenterBidDecision(
     yourValue,
     suggestedBid,
     maxExecutableBid,
-    edge: edgeFromRow,
+    edge: notBidable ? undefined : edgeFromRow,
     budgetLimited,
     baseUncapped,
     aggressive,
     likelyBid,
     marketValue,
     playerStrength,
+    notBidable,
+    notBidableReason,
   };
 }
 
@@ -522,7 +588,7 @@ export type CommandCenterConstrainedMoney = {
   yourIntrinsic: number | undefined;
   /** Defaults log bid input — same as suggested bid (integer dollars). */
   youCanPay: number;
-  /** League-wide auction dollars (`auction_value` ?? `adjusted_value`), uncapped reference line. */
+  /** League-wide auction dollars (`auction_value`), uncapped reference line. */
   market: number | undefined;
   /** min(recommended guidance, max executable); for log default / internal use. */
   likelyActionable: number | undefined;
@@ -575,9 +641,8 @@ export function resolveValuationNumber(
     | "value"
     | "baseline_value"
     | "auction_value"
-    | "adjusted_value"
     | "recommended_bid"
-    | "team_adjusted_value"
+    | "team_value"
     | "valuation_eligible"
   >,
   preferredField?: ValuationSortField,
@@ -674,11 +739,10 @@ export function mergePlayerWithValuation(
     ),
     baseline_value: coerceNumber(valuation.baseline_value) ?? player.baseline_value,
     auction_value: coerceNumber(valuation.auction_value) ?? player.auction_value,
-    adjusted_value: coerceNumber(valuation.adjusted_value) ?? player.adjusted_value,
     recommended_bid:
       coerceNumber(valuation.recommended_bid) ?? player.recommended_bid,
-    team_adjusted_value:
-      coerceNumber(valuation.team_adjusted_value) ?? player.team_adjusted_value,
+    max_bid: coerceNumber(valuation.max_bid) ?? player.max_bid,
+    team_value: coerceNumber(valuation.team_value) ?? player.team_value,
     edge: coerceNumber(valuation.edge) ?? player.edge,
     inflation_model: valuation.inflation_model ?? player.inflation_model,
     indicator: valuation.indicator ?? player.indicator,
@@ -695,9 +759,9 @@ export function mergePlayerWithValuation(
 /** Modal display dollars that stay pinned to the board row when the board already sent finite values. */
 const MODAL_PRESERVED_DOLLAR_FIELDS = [
   "auction_value",
-  "adjusted_value",
   "recommended_bid",
-  "team_adjusted_value",
+  "team_value",
+  "max_bid",
   "baseline_value",
   "edge",
 ] as const satisfies readonly (keyof ValuationShape)[];
@@ -782,24 +846,20 @@ export function mergeCatalogPlayersWithValuations(
 
 export function valuationSortLabel(field: ValuationSortField): string {
   if (field === "auction_value") return "Auction value";
-  if (field === "team_adjusted_value") return "Team Value";
-  if (field === "recommended_bid") return "Max Bid";
-  if (field === "adjusted_value") return "League context $";
+  if (field === "team_value") return "Team Value";
+  if (field === "recommended_bid") return "Recommended bid";
   return "Baseline Strength";
 }
 
 export function valuationTooltip(field: ValuationSortField): string {
   if (field === "auction_value") {
-    return "Fair league-wide auction value (Auction Value)—not roster-specific and not your bid cap. Uses engine auction_value, or adjusted_value when auction_value is omitted.";
+    return "Fair league-wide auction value (Auction Value)—not roster-specific. This is the league benchmark, not your bid cap.";
   }
-  if (field === "team_adjusted_value") {
+  if (field === "team_value") {
     return RESEARCH_TABLE_TOOLTIP_TEAM_VALUE;
   }
   if (field === "recommended_bid") {
-    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Strategic bid ceiling / anchor (engine recommended_bid), not fair market list value.`;
-  }
-  if (field === "adjusted_value") {
-    return "Engine adjusted_value — same semantic as auction_value when the Engine mirrors compatibility fields.";
+    return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} The engine's suggested next bid for your roster context (already capped by max bid rules upstream).`;
   }
   return BASELINE_STRENGTH_TOOLTIP;
 }

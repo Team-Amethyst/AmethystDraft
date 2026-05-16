@@ -89,6 +89,11 @@ export default function MyDraft() {
   const totalBudget = league?.budget ?? 260;
   const navigate = useNavigate();
 
+  const watchlistDraftSlotKeys = useMemo(
+    () => (league?.rosterSlots ? Object.keys(league.rosterSlots) : undefined),
+    [league?.rosterSlots],
+  );
+
   const { setSelectedPlayer } = useSelectedPlayer();
   const { watchlist, removeFromWatchlist } = useWatchlist();
   const { getNote, setNote } = usePlayerNotes();
@@ -512,6 +517,7 @@ export default function MyDraft() {
             onRowClick={handleWatchlistRowClick}
             valuationBoardPhase={myDraftBoardPhase}
             valuationBoardError={myDraftBoardError}
+            draftDisplaySlotKeys={watchlistDraftSlotKeys}
           />
         </section>
 

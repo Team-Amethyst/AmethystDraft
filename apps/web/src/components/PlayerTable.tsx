@@ -11,6 +11,11 @@ import {
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
+import {
+  playerDisplayPositionBadges,
+  playerDisplaySlotEligibilityBadges,
+  researchTablePrimaryPositionParts,
+} from "../utils/eligibility";
 import { ResearchEngineValueLoading } from "./research/ResearchEngineValueLoading";
 import "./PlayerTable.css";
 import {
@@ -106,6 +111,8 @@ interface PlayerTableProps {
    */
   researchModelColumnsVisible?: boolean;
   onResearchModelColumnsVisibleChange?: (visible: boolean) => void;
+  /** League roster keys for Pos column (hides DH / UTIL / BN chips). */
+  draftDisplaySlotKeys?: string[];
 }
 
 type PlayerTableColumnLayout = "default" | "research";
@@ -177,6 +184,7 @@ export default function PlayerTable({
   researchEngineBoardPhase = "ready",
   researchModelColumnsVisible: researchModelColumnsVisibleProp,
   onResearchModelColumnsVisibleChange,
+  draftDisplaySlotKeys,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -866,20 +874,79 @@ export default function PlayerTable({
                     </td>
 
                     <td className="td-pos">
-                      {player.positions && player.positions.length > 1 ? (
-                        <div
-                          className={
-                            "pt-pos-badges" +
-                            (isResearchLayout ? " pt-pos-badges--research" : "")
-                          }
-                        >
-                          {player.positions.map((pos) => (
-                            <PosBadge key={pos} pos={pos} />
-                          ))}
-                        </div>
-                      ) : (
-                        <PosBadge pos={player.position} />
-                      )}
+                      {isResearchLayout
+                        ? (() => {
+                            const parts = researchTablePrimaryPositionParts(
+                              player,
+                              draftDisplaySlotKeys,
+                            );
+                            if (parts.length === 0) {
+                              return <span className="td-pos-empty">—</span>;
+                            }
+                            if (parts.length === 1) {
+                              return <PosBadge pos={parts[0]} />;
+                            }
+                            return (
+                              <div className="pt-pos-badges pt-pos-badges--research">
+                                {parts.map((pos) => (
+                                  <PosBadge
+                                    key={`${player.id}-pos-${pos}`}
+                                    pos={pos}
+                                  />
+                                ))}
+                              </div>
+                            );
+                          })()
+                        : (() => {
+                            const chips = playerDisplayPositionBadges(
+                              player,
+                              draftDisplaySlotKeys,
+                            );
+                            const slotChips = playerDisplaySlotEligibilityBadges(
+                              player,
+                              draftDisplaySlotKeys,
+                            );
+                            const primaryBlock =
+                              chips.length > 1 ? (
+                                <div className="pt-pos-badges">
+                                  {chips.map((pos) => (
+                                    <PosBadge
+                                      key={`${player.id}-${pos}`}
+                                      pos={pos}
+                                    />
+                                  ))}
+                                </div>
+                              ) : chips.length === 1 ? (
+                                <PosBadge pos={chips[0]} />
+                              ) : (
+                                <span className="td-pos-empty">—</span>
+                              );
+                            if (slotChips.length === 0) {
+                              return primaryBlock;
+                            }
+                            return (
+                              <div className="pt-pos-cell">
+                                {primaryBlock}
+                                <div
+                                  className="pt-pos-slots"
+                                  title="Roster slots this player can fill"
+                                >
+                                  <span className="pt-pos-slots-label">
+                                    Slots
+                                  </span>
+                                  <span className="pt-pos-slots-badges">
+                                    {slotChips.map((s) => (
+                                      <PosBadge
+                                        key={`${player.id}-slot-${s}`}
+                                        pos={s}
+                                        className="pos-badge--slot-elig"
+                                      />
+                                    ))}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                     </td>
                     <td className="td-team">{player.team}</td>
 

@@ -6,7 +6,8 @@ export type EngineCheckpointCatalogEntry = {
     | "after_pick_10"
     | "after_pick_50"
     | "after_pick_100"
-    | "after_pick_130";
+    | "after_pick_130"
+    | "finished_league";
   title: string;
   draft_fixture_file: string;
   engine_portal_file: string;

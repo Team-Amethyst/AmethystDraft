@@ -200,6 +200,90 @@
   min-width: 0;
 }
 
+.pdm-rail-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.pdm-rail-name-pos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.pdm-identity-pos-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  margin-top: 0.28rem;
+  min-width: 0;
+}
+
+.pdm-primary-pos-row {
+  justify-content: flex-start;
+}
+
+.pdm-primary-pos-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pdm-pos-sep {
+  color: color-mix(in srgb, var(--app-text-muted) 70%, transparent);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.pdm-slot-elig-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--app-text) 55%, var(--app-text-muted) 45%);
+}
+
+.pdm-slot-elig-label {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-dim);
+}
+
+.pdm-slot-elig-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.pdm-slot-elig-badge {
+  font-size: 0.58rem;
+  padding: 0.05rem 0.28rem;
+  opacity: 0.92;
+}
+
+.pdm-role-line {
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--app-text) 52%, var(--app-text-muted) 48%);
+}
+
+.pdm-role-main {
+  font-weight: 600;
+}
+
+.pdm-role-note {
+  font-style: italic;
+  color: var(--app-text-dim);
+}
+
 .pdm-header-positions {
   margin-top: 0;
   display: flex;
@@ -539,6 +623,28 @@
     font-size: 0.62rem;
     letter-spacing: 0.085em;
   }
+}
+
+.pdm-metric--secondary .pdm-metric-label {
+  font-size: 0.62rem;
+  opacity: 0.88;
+}
+
+.pdm-metric--secondary .pdm-metric-value {
+  font-size: 0.95rem;
+  opacity: 0.92;
+}
+
+.pdm-max-bid-explain {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--app-text) 72%, var(--app-text-muted) 28%);
+}
+
+.pdm-max-bid-explain-note {
+  font-weight: 500;
+  color: var(--app-text-dim);
 }
 
 .pdm-valuation-metric-grid .pdm-metric-label {

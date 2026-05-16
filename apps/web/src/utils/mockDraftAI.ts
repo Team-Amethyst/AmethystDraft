@@ -12,7 +12,7 @@ import type { Player } from "../types/player";
 
 /**
  * Returns the Amethyst Engine auction value for a player.
- * Priority: auction_value → adjusted_value → value (legacy fallback).
+ * Priority: auction_value → catalog value (legacy fallback).
  * Mirrors leagueWideAuctionDollars from valuation.ts — use this everywhere
  * in the mock draft so AI decisions use your real valuations, not the
  * legacy catalog `value` field which may differ significantly.
@@ -20,9 +20,6 @@ import type { Player } from "../types/player";
 function playerAuctionValue(player: Player): number {
   if (typeof player.auction_value === "number" && Number.isFinite(player.auction_value)) {
     return player.auction_value;
-  }
-  if (typeof player.adjusted_value === "number" && Number.isFinite(player.adjusted_value)) {
-    return player.adjusted_value;
   }
   return typeof player.value === "number" && Number.isFinite(player.value)
     ? player.value

@@ -8,6 +8,7 @@ import type { AIRoster, AIPick } from "../utils/mockDraftAI";
 import { buildSnakeOrder } from "../utils/mockDraftAI";
 import type { DraftLogEntry, MockDraftState } from "./mockDraftState";
 import { initialMockDraftState } from "./mockDraftState";
+import { defaultTeamDisplayNameForIndex } from "./fantasyTeamNames";
 
 type FixturePickRow = {
   player_id: string;
@@ -86,7 +87,11 @@ export function alignTeamNamesForCheckpoint(
   const out: string[] = [];
   for (let i = 0; i < numTeams; i++) {
     const name = leagueNames[i]?.trim();
-    out.push(name && name.length > 0 ? name : `Team ${i + 1}`);
+    out.push(
+      name && name.length > 0
+        ? name
+        : defaultTeamDisplayNameForIndex(i, numTeams),
+    );
   }
   return out;
 }

@@ -230,30 +230,38 @@ textarea.pac-notes.pac-notes--compact {
   overflow-y: auto;
 }
 
+/* Base segmented toggle — panel headers add `.cc-panel-controls` for density (see app-control-chrome.css). */
 .stat-view-toggle {
   display: flex;
   gap: 0.25rem;
-  background: rgba(255,255,255,0.04);
-  border-radius: 7px;
-  padding: 0.2rem;
+  background: var(--app-control-track-bg);
+  border-radius: var(--app-control-track-radius);
+  padding: var(--app-control-track-padding);
 }
 
 .svt-btn {
   background: transparent;
   border: none;
   border-radius: 5px;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.72rem;
+  padding: var(--app-control-segment-padding);
+  font-size: var(--app-control-trigger-font-size);
   font-weight: 600;
-  color: #6b4fa0;
+  color: var(--app-control-segment-idle-fg);
   cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
-  transition: all 0.2s;
+  font-family: var(--app-font-family);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .svt-btn.active {
-  background: rgba(139, 92, 246, 0.25);
-  color: #c4b5fd;
+  background: var(--app-control-segment-active-bg);
+  color: var(--app-control-segment-active-fg);
+}
+
+.svt-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
 }
 
 .pac-stat-boxes {

@@ -78,8 +78,8 @@ export function sortPlayerTableRows(
         if (valuationSortField === "recommended_bid") {
           return asFinite(p.recommended_bid) ?? -Infinity;
         }
-        if (valuationSortField === "team_adjusted_value") {
-          return asFinite(p.team_adjusted_value) ?? -Infinity;
+        if (valuationSortField === "team_value") {
+          return asFinite(p.team_value) ?? -Infinity;
         }
         return asFinite(p[valuationSortField]) ?? -Infinity;
       };

@@ -27,7 +27,7 @@
 
 .cc-dropdown-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.6rem;
   padding: 0.55rem var(--cc-pad-x);
   background: transparent;
@@ -42,6 +42,50 @@
 
 .cc-dropdown-item:last-child { border-bottom: none; }
 .cc-dropdown-item:hover { background: var(--app-accent-border-faint); }
+
+.cc-dd-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.cc-dd-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.cc-dd-name-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2d9f3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.cc-dd-play-pos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.cc-dd-slot-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.18rem;
+  max-width: 100%;
+}
 
 .cc-dd-name {
   flex: 1;
@@ -68,6 +112,53 @@
   font-size: 0.78rem;
   font-weight: 700;
   color: #22c55e;
+}
+
+.cc-dd-pos-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.cc-dd-lead-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.22rem;
+  flex-shrink: 0;
+  min-width: 2.5rem;
+}
+
+.cc-dd-slot-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: 8.5rem;
+}
+
+.cc-dd-slot-label {
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(160, 140, 200, 0.55);
+}
+
+.cc-dd-slot-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.18rem;
+}
+
+.cc-dd-slot-badge {
+  font-size: 0.54rem !important;
+  padding: 0.04rem 0.22rem !important;
+  width: auto !important;
+  min-width: 1.35rem !important;
+  opacity: 0.92;
 }
 
 .cc-clear-btn {

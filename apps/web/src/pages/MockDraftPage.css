@@ -404,16 +404,6 @@
   margin-bottom: 0.45rem;
 }
 
-.md-setup-checkpoint-select {
-  width: 100%;
-  padding: 0.45rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid var(--app-accent-border);
-  background: rgba(0, 0, 0, 0.25);
-  color: #e2d9f3;
-  font-size: 0.85rem;
-}
-
 .md-setup-checkpoint-note {
   font-size: 0.72rem;
   color: #6b4fa0;

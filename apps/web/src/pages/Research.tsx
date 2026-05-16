@@ -53,7 +53,7 @@ import {
 } from "../domain/rosterMaps";
 import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
 import TiersView from "./TiersView";
-import { resolveUserTeamId } from "../utils/team";
+import { resolveUserTeamId, resolvedLeagueTeamNames } from "../utils/team";
 import {
   leagueValuationConfigKey,
   rosterValuationFingerprint,
@@ -182,6 +182,10 @@ export default function Research() {
   const [researchBoardError, setResearchBoardError] = useState<string | null>(
     null,
   );
+  const researchPositionSlotKeys = useMemo(
+    () => (league?.rosterSlots ? Object.keys(league.rosterSlots) : undefined),
+    [league?.rosterSlots],
+  );
   const researchBoardSuccessKeyRef = useRef<string | null>(null);
   const lastResearchBoardRef = useRef<ValuationResponse | null>(null);
 
@@ -264,8 +268,12 @@ export default function Research() {
   );
 
   const draftedByTeam = useMemo(
-    () => buildDraftedByTeamMap(rosterEntries, league?.teamNames),
-    [rosterEntries, league?.teamNames],
+    () =>
+      buildDraftedByTeamMap(
+        rosterEntries,
+        league ? resolvedLeagueTeamNames(league) : undefined,
+      ),
+    [rosterEntries, league?.teams, league?.teamNames?.join("\u0001")],
   );
 
   const draftedContractByPlayerId = useMemo(
@@ -758,6 +766,7 @@ export default function Research() {
                     onResearchModelColumnsVisibleChange={
                       setResearchModelColumnsVisible
                     }
+                    draftDisplaySlotKeys={researchPositionSlotKeys}
                   />
                   {researchBoardPhase === "loading" ? (
                     <p className="research-board-engine-hint">
@@ -788,6 +797,7 @@ export default function Research() {
               addToWatchlist={addToWatchlist}
               removeFromWatchlist={removeFromWatchlist}
               onMoveToCommandCenter={handleMoveToCommandCenter}
+              draftDisplaySlotKeys={researchPositionSlotKeys}
             />
           )}
           {selectedView === "depth-charts" && (
@@ -1032,6 +1042,7 @@ export default function Research() {
         researchEngineBoardPhase={researchBoardPhase}
         researchSurface
         researchShowModelMetrics={researchModelColumnsVisible}
+        draftDisplaySlotKeys={researchPositionSlotKeys}
       />
     </div>
   );

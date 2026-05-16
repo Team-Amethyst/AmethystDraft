@@ -217,9 +217,20 @@
 }
 
 .tier-player-row__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
   font-weight: 600;
   color: #f8f2ff;
   font-size: 0.9rem;
+}
+
+.tier-player-row__name-pos {
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: #c4b5e8;
 }
 
 .tier-player-row__meta {
@@ -240,6 +251,15 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   font-weight: 500;
+}
+
+.chip.chip--slots {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.62rem;
+  border-color: rgba(139, 92, 246, 0.28);
+  background: rgba(139, 92, 246, 0.08);
+  color: rgba(212, 194, 237, 0.88);
 }
 
 .tier-player-row__value {
