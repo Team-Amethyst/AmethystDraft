@@ -261,6 +261,13 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(body.pre_draft_rosters[0]?.players[0]?.player_id).toBe("k1");
       expect(body.minors[0]?.players[0]?.player_id).toBe("m1");
       expect(body.taxi[0]?.players[0]?.player_id).toBe("t1");
+      const budgetPayload = payload as {
+        budget_by_team_id?: Record<string, number>;
+      };
+      expect(budgetPayload.budget_by_team_id).toEqual({
+        team_1: 250,
+        team_2: 243,
+      });
     });
   });
 

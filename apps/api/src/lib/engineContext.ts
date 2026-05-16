@@ -422,6 +422,11 @@ export async function buildValuationContext(
       !isTaxiRosterSlot(e.rosterSlot),
   );
   const drafted_players = toDraftedPlayers(draftedEntries);
+  // Keeper salaries live in pre_draft_rosters for the engine, but still consume team
+  // budget. Match buildEngineValuationCalculateBodyFromFixture: budgetRows =
+  // [...preDraftFlattened, ...auctionPicks].
+  const keeperBudgetRows = toDraftedPlayers(keeperEntries);
+  const budgetRows = [...keeperBudgetRows, ...drafted_players];
 
   const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
   const diag = process.env.LOG_ENGINE_VALUATION_DIAGNOSTICS === "1";
@@ -461,7 +466,7 @@ export async function buildValuationContext(
     drafted_players,
     budget_by_team_id: computeBudgetByTeamRemaining(
       league.budget,
-      drafted_players,
+      budgetRows,
       numTeams,
     ),
     ...(league.scoringFormat
