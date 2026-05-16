@@ -47,8 +47,9 @@ describe.skipIf(!shouldRun)("league season + keeper import (HTTP + Mongo)", () =
   let oldLeagueId: string;
   let newLeagueId: string;
   const familyId = randomUUID();
-  const seasonOld = 2189;
-  const seasonNew = 2190;
+  const currentCalendarYear = new Date().getFullYear();
+  const seasonOld = currentCalendarYear - 1;
+  const seasonNew = currentCalendarYear;
   let oldRosterBaseline: ReturnType<typeof rosterComparable>[];
 
   beforeAll(async () => {

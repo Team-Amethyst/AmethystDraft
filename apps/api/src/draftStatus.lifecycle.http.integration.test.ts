@@ -93,7 +93,7 @@ describe.skipIf(!shouldRun)("draftStatus lifecycle smoke (HTTP + Mongo)", () => 
         budget: 260,
         rosterSlots: { C: 1, OF: 1 },
         teamNames: ["Team A", "Team B"],
-        seasonYear: 2099,
+        seasonYear: new Date().getFullYear(),
       })
       .expect(201);
 
