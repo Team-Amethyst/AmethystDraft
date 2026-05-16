@@ -479,8 +479,8 @@ export default function ResearchScreen({ route, navigation }: Props) {
     return sortedTiers.map((tier) => ({
       tier,
       players: (grouped.get(tier) ?? []).sort((a, b) => {
-        const aValue = valuationsByPlayerId.get(a.id)?.adjusted_value ?? a.value;
-        const bValue = valuationsByPlayerId.get(b.id)?.adjusted_value ?? b.value;
+        const aValue = valuationsByPlayerId.get(a.id)?.auction_value ?? a.value;
+        const bValue = valuationsByPlayerId.get(b.id)?.auction_value ?? b.value;
         return bValue - aValue;
       }),
     }));
@@ -673,7 +673,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     : undefined;
 
   const selectedDisplayValue = selectedModalPlayer
-    ? selectedEngineRow?.adjusted_value ?? selectedModalPlayer.value
+    ? selectedEngineRow?.auction_value ?? selectedModalPlayer.value
     : 0;
 
   const selectedDisplayTier = selectedModalPlayer
@@ -1000,7 +1000,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                   const watched = isInWatchlist(leagueId, item.id);
                   const engineRow = valuationsByPlayerId.get(item.id);
                   const displayTier = engineRow?.tier ?? item.tier;
-                  const displayValue = engineRow?.adjusted_value ?? item.value;
+                  const displayValue = engineRow?.auction_value ?? item.value;
                   const statSummary = formatResearchStatSummaryLine(item, statBasis);
                   const custom = isCustomPlayer(item.id);
 
@@ -1096,7 +1096,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
                     {bucket.players.slice(0, 15).map((player, index) => {
                       const engineRow = valuationsByPlayerId.get(player.id);
-                      const displayValue = engineRow?.adjusted_value ?? player.value;
+                      const displayValue = engineRow?.auction_value ?? player.value;
                       const watched = isInWatchlist(leagueId, player.id);
                       const statSummary = formatResearchStatSummaryLine(player, statBasis);
                       const custom = isCustomPlayer(player.id);
