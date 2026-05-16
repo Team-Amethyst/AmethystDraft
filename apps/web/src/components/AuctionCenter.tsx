@@ -18,8 +18,17 @@ import type { RosterEntry } from "../api/roster";
 import {
   auctionCenterCategoryImpactRows,
   availableSlotsForTeamName,
+  type AuctionCenterCategoryImpactContext,
 } from "../pages/commandCenterUtils";
-import { pickRosterSlotForNewEntry } from "../pages/command-center-utils/rosterAssignment";
+import {
+  activeAuctionEntriesForTeam,
+  filterActiveAuctionEntries,
+  rosterSlotsToRecord,
+} from "../pages/command-center-utils/roster";
+import {
+  pickRosterSlotForNewEntry,
+  teamRosterSlotCounts,
+} from "../pages/command-center-utils/rosterAssignment";
 import { validateRosterSlotAssignment } from "../validation/rosterSlot";
 import {
   getValuationPlayer,
@@ -38,10 +47,17 @@ import {
   runDevMergedValuationPipelineLog,
   runDevValuationRowChangeLog,
 } from "../dev/auctionCenterDiagnostics";
-import { resolveUserTeamId } from "../utils/team";
+import {
+  defaultLogWonByTeamName,
+  teamDisplayNameForTeamId,
+  teamIdFromLeagueTeamName,
+  resolvedLeagueTeamNames,
+  teamIndexFromTeamId,
+} from "../utils/team";
 import {
   normalizeValuationPlayerId,
   commandCenterWalletCapsFromMyTeam,
+  commandCenterBidDecision,
 } from "../utils/valuation";
 import {
   leagueValuationConfigKey,
@@ -52,7 +68,7 @@ import {
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import {
   auctionValueForCommandCenterPrefill,
-  cleanedYourValueAndRecommendedBid,
+  commandCenterSearchDropdownAuctionDollars,
   engineFiniteOrNull,
   engineRowHasFocusedExplainPayload,
   formatEdgeLine,
@@ -63,6 +79,7 @@ import {
 import { searchRankedAvailablePlayers } from "../domain/auctionPlayerSearch";
 import { getTaxiRosterPlayerIds } from "../domain/taxiDraft";
 import {
+  playerIdentityPositionPresentation,
   getEligibleSlotsForPositions,
   hasPitcherEligibility,
 } from "../utils/eligibility";
@@ -87,6 +104,12 @@ interface AuctionCenterProps {
   /** Engine board snapshot load / refresh / error (Command Center wiring). */
   engineBoardPhase?: BoardValuationUiPhase;
   engineBoardError?: string | null;
+  /**
+   * Team id for Engine valuation + wallet + category impact (stays aligned with “Won by” when the
+   * user changes that dropdown).
+   */
+  valuationBoardTeamId: string;
+  onValuationBoardTeamIdChange?: (teamId: string) => void;
 }
 
 export function AuctionCenter({
@@ -102,6 +125,8 @@ export function AuctionCenter({
   engineMarket = null,
   engineBoardPhase = "ready",
   engineBoardError = null,
+  valuationBoardTeamId,
+  onValuationBoardTeamIdChange,
 }: AuctionCenterProps) {
   const { id: leagueId } = useParams<{ id: string }>();
   const { league, refreshLeagues } = useLeague();
@@ -180,10 +205,7 @@ export function AuctionCenter({
     ],
   );
 
-  const userTeamId = useMemo(
-    () => resolveUserTeamId(league ?? null, user?.id),
-    [league?.id, league?.memberIds?.join(","), user?.id],
-  );
+  const userTeamId = valuationBoardTeamId;
 
   const selectedPlayerNormId = useMemo(
     () => (selectedPlayer?.id ? normalizeValuationPlayerId(selectedPlayer.id) : ""),
@@ -263,31 +285,36 @@ export function AuctionCenter({
   );
 
   const myWalletCaps = useMemo(() => {
-    if (!league || !user?.id || !league.memberIds.includes(user.id))
-      return null;
+    if (!league) return null;
     return commandCenterWalletCapsFromMyTeam(league, myTeamEntries);
-  }, [league, user?.id, myTeamWalletFingerprint]);
+  }, [league, myTeamWalletFingerprint]);
 
   const identityValueVsBidBadge = useMemo(() => {
     if (!selectedPlayer) return null;
-    const cleaned = cleanedYourValueAndRecommendedBid(
+    const dec = commandCenterBidDecision(
       rowForValuationUi ?? null,
-      selectedPlayer,
+      selectedPlayer.value,
+      myWalletCaps,
     );
-    if (!cleaned) return null;
-    const delta = valueMinusBidDeltaRounded(cleaned.yourValue, cleaned.bid);
+    if (dec.notBidable) return null;
+    const yourValue =
+      dec.yourValue ??
+      engineFiniteOrNull(selectedPlayer.team_value) ??
+      undefined;
+    if (yourValue == null || !Number.isFinite(yourValue)) return null;
+    const delta = valueMinusBidDeltaRounded(yourValue, dec.suggestedBid);
     const v = verdictFromValueMinusBid(delta);
     return {
       deltaText: formatEdgeLine(delta),
       label: v.label,
       tone: v.tone,
     };
-  }, [rowForValuationUi, selectedPlayer]);
+  }, [rowForValuationUi, selectedPlayer, myWalletCaps]);
 
   const hasBidSignal = Boolean(
     rowForValuationUi &&
       (engineFiniteOrNull(rowForValuationUi.recommended_bid) != null ||
-        engineFiniteOrNull(rowForValuationUi.team_adjusted_value) != null),
+        engineFiniteOrNull(rowForValuationUi.team_value) != null),
   );
 
   useEffect(() => {
@@ -444,11 +471,22 @@ export function AuctionCenter({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Seed "Won By" default when league loads
+  // Keep “Won by” aligned with the board valuation team (including parent-driven resets).
   useEffect(() => {
-    if (!league?.id || wonBy) return;
-    setWonBy(league.teamNames[0] ?? "");
-  }, [league?.id, league?.teamNames?.join("\u0001"), wonBy]);
+    if (!league?.id) return;
+    const nm = defaultLogWonByTeamName(league, valuationBoardTeamId);
+    if (nm) setWonBy(nm);
+  }, [league?.id, league?.teamNames?.join("\u0001"), valuationBoardTeamId]);
+
+  const handleWonByNameChange = useCallback(
+    (teamName: string) => {
+      setWonBy(teamName);
+      if (!league) return;
+      const tid = teamIdFromLeagueTeamName(league, teamName);
+      if (tid) onValuationBoardTeamIdChange?.(tid);
+    },
+    [league, onValuationBoardTeamIdChange],
+  );
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -520,6 +558,15 @@ export function AuctionCenter({
     [allPlayers, draftedIds, searchQuery, taxiRosterIds],
   );
 
+  const typeaheadAuctionDollars = useCallback(
+    (player: Player) =>
+      commandCenterSearchDropdownAuctionDollars(
+        player,
+        valuationMap.get(normalizeValuationPlayerId(player.id)),
+      ),
+    [valuationMap],
+  );
+
   const handleSelectPlayer = (player: Player) => {
     setSelectedPlayer(player);
     setSearchQuery("");
@@ -528,7 +575,8 @@ export function AuctionCenter({
 
   const handleLogResult = async () => {
     if (!selectedPlayer || !leagueId || !token || !league) return;
-    const teamIdx = league.teamNames.indexOf(wonBy);
+    const displayNames = resolvedLeagueTeamNames(league);
+    const teamIdx = displayNames.indexOf(wonBy);
     if (teamIdx === -1) {
       showToast("Team not found in league", "error");
       return;
@@ -540,31 +588,32 @@ export function AuctionCenter({
       ? selectedPlayer.positions
       : [selectedPlayer.position];
     const allSlotOptions = Object.keys(league.rosterSlots);
-    const teamEntries = rosterEntries.filter((e) => e.teamId === teamId);
-    const spent = teamEntries.reduce((s, e) => s + e.price, 0);
-    const totalSlots = Object.values(league.rosterSlots).reduce(
-      (a, b) => a + b,
-      0,
+    const teamActiveEntries = activeAuctionEntriesForTeam(rosterEntries, teamId);
+    const spent = teamActiveEntries.reduce((s, e) => s + e.price, 0);
+    const { open: openSlots } = teamRosterSlotCounts(
+      rosterSlotsToRecord(league.rosterSlots),
+      teamActiveEntries,
     );
-    const openSlots = Math.max(0, totalSlots - teamEntries.length);
     const remaining = Math.max(0, league.budget - spent);
-    const maxBid = openSlots > 0 ? Math.max(1, remaining - (openSlots - 1)) : 0;
+    const maxBid =
+      openSlots > 0 ? Math.max(1, remaining - (openSlots - 1)) : 0;
     if (price > maxBid) {
       showToast(`$${price} exceeds ${wonBy}'s max bid of $${maxBid}`, "error");
       return;
     }
 
+    const activeRoster = filterActiveAuctionEntries(rosterEntries);
     const available = availableSlotsForTeamName(
       league,
       wonBy,
       allSlotOptions,
-      rosterEntries,
+      activeRoster,
     );
     const autoSlot = pickRosterSlotForNewEntry(
       league,
       wonBy,
       positions,
-      rosterEntries,
+      activeRoster,
     );
     let slotToSave = autoSlot;
     if (draftedToSlot && available.has(draftedToSlot)) {
@@ -583,7 +632,7 @@ export function AuctionCenter({
       wonBy,
       positions,
       slotToSave,
-      rosterEntries,
+      activeRoster,
     );
     if (!slotCheck.ok) {
       showToast(slotCheck.message, "error");
@@ -676,6 +725,23 @@ export function AuctionCenter({
     }
   };
 
+  const rosterImpactContext = useMemo((): AuctionCenterCategoryImpactContext | null => {
+    if (!league || !leagueId || !user?.id) return null;
+    const nm = teamDisplayNameForTeamId(league, valuationBoardTeamId);
+    if (!nm.trim()) return null;
+    const teamIdx = teamIndexFromTeamId(valuationBoardTeamId);
+    const memberUserId = league.memberIds[teamIdx] ?? user.id;
+    return {
+      leagueTeamNames: resolvedLeagueTeamNames(league),
+      fullRosterEntries: filterActiveAuctionEntries(rosterEntries),
+      myTeamId: valuationBoardTeamId,
+      myTeamName: nm,
+      draftedIds,
+      leagueId,
+      userId: memberUserId,
+    };
+  }, [league, user?.id, leagueId, rosterEntries, draftedIds, valuationBoardTeamId]);
+
   const catImpactRows = useMemo(
     () =>
       auctionCenterCategoryImpactRows({
@@ -684,6 +750,7 @@ export function AuctionCenter({
         statView,
         myTeamEntries,
         allPlayers,
+        rosterImpact: rosterImpactContext,
       }),
     [
       selectedPlayer,
@@ -691,13 +758,33 @@ export function AuctionCenter({
       statView,
       myTeamEntries,
       allPlayers,
+      rosterImpactContext,
     ],
   );
 
-  const teamNames = league?.teamNames ?? [];
-  const allSlotOptions = league?.rosterSlots
-    ? Object.keys(league.rosterSlots)
-    : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"];
+  const allSlotOptions = useMemo(
+    () =>
+      league?.rosterSlots
+        ? Object.keys(league.rosterSlots)
+        : ["SP", "RP", "C", "1B", "2B", "SS", "3B", "OF", "UTIL", "BN"],
+    [league?.rosterSlots],
+  );
+
+  const identityPresentation = useMemo(
+    () =>
+      selectedPlayer
+        ? playerIdentityPositionPresentation(selectedPlayer, allSlotOptions)
+        : null,
+    [selectedPlayer, allSlotOptions],
+  );
+
+  const identityDraftPrimaryTags = identityPresentation?.primaryTags ?? [];
+  const identityDraftableSlots = identityPresentation?.draftableSlots ?? [];
+
+  const teamNames = useMemo(
+    () => resolvedLeagueTeamNames(league),
+    [league?.teams, league?.teamNames?.join("\u0001")],
+  );
 
   const eligible = selectedPlayer
     ? getEligibleSlotsForPositions(
@@ -765,6 +852,8 @@ export function AuctionCenter({
         onRedo={handleRedo}
         showDropdown={showDropdown}
         dropdownResults={dropdownResults}
+        typeaheadAuctionDollars={typeaheadAuctionDollars}
+        draftDisplaySlotKeys={allSlotOptions}
         onSelectPlayer={handleSelectPlayer}
         isInWatchlist={isInWatchlist}
         onAddMissingPlayer={onAddMissingPlayer}
@@ -806,6 +895,8 @@ export function AuctionCenter({
             <div className="pac-cards-stack">
               <AuctionCenterPlayerStack
                 selectedPlayer={selectedPlayer}
+                draftPrimaryTags={identityDraftPrimaryTags}
+                draftableSlots={identityDraftableSlots}
                 mergedValuationRow={mergedValuationRow}
                 rowForValuationUi={rowForValuationUi}
                 identityValueVsBidBadge={identityValueVsBidBadge}
@@ -818,13 +909,14 @@ export function AuctionCenter({
                 pitchingCats={pitchingCats}
                 hittingCats={hittingCats}
                 engineBoardPhase={engineBoardPhase}
+                walletCaps={myWalletCaps}
               />
             </div>
 
             <AuctionCenterLogResultBar
               teamNames={teamNames}
               wonBy={wonBy}
-              onWonByChange={setWonBy}
+              onWonByChange={handleWonByNameChange}
               finalPrice={finalPrice}
               onFinalPriceChange={onFinalPriceChange}
               draftedToSlot={draftedToSlot}

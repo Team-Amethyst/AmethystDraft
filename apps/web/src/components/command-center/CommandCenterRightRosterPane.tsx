@@ -43,7 +43,10 @@ export function CommandCenterRightRosterPane({
 }) {
   return (
     <section className="cc-surface-card cc-surface-card--right cc-right-roster-pane">
-      <div className="pac-snapshot-header cc-roster-pane-head" role="presentation">
+      <div
+        className="pac-snapshot-header cc-roster-pane-head cc-panel-controls"
+        role="presentation"
+      >
         <span className="market-section-label">
           {rightRosterPane === "liquidity" ? "LIQUIDITY" : "STANDINGS"}
         </span>

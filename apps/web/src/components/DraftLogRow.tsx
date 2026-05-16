@@ -22,8 +22,9 @@ interface DraftLogRowProps {
    * `default` renders the full three-line row (MLB team + positions + fantasy team line).
    * `compact` strips to name · price + fantasy team · slot, hiding edit/X until hover —
    * used in the Command Center right-rail draft log to fit more picks vertically.
+   * `dense` is a single-line row for wide contexts (e.g. League Overview).
    */
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "dense";
   onUpdate?: (
     id: string,
     data: {
@@ -179,12 +180,15 @@ export function DraftLogRow({
   }
 
   const isCompact = variant === "compact";
+  const isDense = variant === "dense";
 
   return (
     <>
       <div
         className={
-          "draft-log-row" + (isCompact ? " draft-log-row--compact" : "")
+          "draft-log-row" +
+          (isCompact ? " draft-log-row--compact" : "") +
+          (isDense ? " draft-log-row--dense" : "")
         }
       >
         <span className="dl-pick">#{pickNum}</span>
@@ -221,6 +225,51 @@ export function DraftLogRow({
               ) : null}
               {entry.keeperContract ? (
                 <span className="dl-slot" title="Keeper contract">
+                  {entry.keeperContract}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : isDense ? (
+          <div className="dl-body dl-body--dense">
+            <div className="dl-dense-line">
+              <span className="dl-name dl-name--dense">{entry.playerName}</span>
+              {entry.playerTeam ? (
+                <span className="dl-player-team dl-pill--dense">
+                  {entry.playerTeam}
+                </span>
+              ) : null}
+              {entry.positions?.length ? (
+                <span className="dl-position dl-pill--dense">
+                  {entry.positions.join("/")}
+                </span>
+              ) : null}
+              {entry.playerTeam || entry.positions?.length ? (
+                <span className="dl-dense-sep" aria-hidden>
+                  ·
+                </span>
+              ) : null}
+              <span className="dl-fantasy-team dl-fantasy-team--dense">
+                {teamName}
+                {isMyTeamPick ? (
+                  <span className="dl-you-suffix" aria-label="your team">
+                    {" "}
+                    (You)
+                  </span>
+                ) : null}
+              </span>
+              <span className="dl-slot dl-slot--dense">{entry.rosterSlot}</span>
+              {isCurrentSlotOverridden ? (
+                <span className="dl-override-chip" title="Manual position override">
+                  OVR
+                </span>
+              ) : null}
+              <span className="dl-price dl-price--dense">${entry.price}</span>
+              {entry.keeperContract ? (
+                <span
+                  className="dl-keeper-contract"
+                  title="Keeper contract"
+                >
                   {entry.keeperContract}
                 </span>
               ) : null}
@@ -264,7 +313,13 @@ export function DraftLogRow({
             </div>
           </div>
         )}
-        <div className={"dl-actions" + (isCompact ? " dl-actions--compact" : "")}>
+        <div
+          className={
+            "dl-actions" +
+            (isCompact ? " dl-actions--compact" : "") +
+            (isDense ? " dl-actions--dense" : "")
+          }
+        >
           {onUpdate && (
             <button className="dl-edit" title="Edit pick" onClick={openModal}>
               <Pencil size={11} />

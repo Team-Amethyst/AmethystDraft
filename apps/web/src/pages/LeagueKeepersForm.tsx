@@ -27,6 +27,7 @@ import {
   toLeagueFormPlayer,
 } from "../features/leagues/shared";
 import { rosterEntriesToTeamKeepersMap } from "../features/leagues/rosterEntriesToTeamKeepersMap";
+import { resolvedLeagueTeamNames } from "../utils/team";
 import "./LeagueSettings.css";
 import { MODEL_RANK_TOOLTIP } from "../domain/rankTierLabels";
 
@@ -119,7 +120,10 @@ export function LeagueKeepersForm({
         const keeperEntries = entries.filter((e) => e.isKeeper);
         setSavedKeeperEntries(keeperEntries);
         setTeamKeepers(
-          rosterEntriesToTeamKeepersMap(keeperEntries, league.teamNames),
+          rosterEntriesToTeamKeepersMap(
+            keeperEntries,
+            resolvedLeagueTeamNames(league),
+          ),
         );
       })
       .catch(() => {
@@ -457,10 +461,14 @@ export function LeagueKeepersForm({
                                         );
                                       })()}
                                       <span className="ls-keeper-makeup-name">
-                                        {entry.keeper.playerName}
-                                        <span className="ls-keeper-team">
-                                          {entry.keeper.team}
+                                        <span className="ls-keeper-makeup-name-text">
+                                          {entry.keeper.playerName}
                                         </span>
+                                        {entry.keeper.team ? (
+                                          <span className="ls-keeper-team">
+                                            {entry.keeper.team}
+                                          </span>
+                                        ) : null}
                                       </span>
                                     </div>
                                     <KeeperSlotSelectWithOverride

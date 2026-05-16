@@ -20,6 +20,7 @@ import { getPlayers, getPlayersCached } from "../api/players";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import type { Player } from "../types/player";
 import type { TaxiRosters } from "../types/taxiDraft";
+import { resolvedLeagueTeamNames } from "../utils/team";
 import "./TaxiDraft.css";
 
 export default function TaxiDraft() {
@@ -28,8 +29,7 @@ export default function TaxiDraft() {
   const { league } = useLeague();
   const leagueTeamNames = useMemo(() => {
     if (!league) return [];
-    if (league.teamNames?.length) return league.teamNames;
-    return Array.from({ length: league.teams }, (_, i) => `Team ${i + 1}`);
+    return resolvedLeagueTeamNames(league);
   }, [league]);
 
   const [taxiDraftOrder, setTaxiDraftOrder] = useState<string[]>([]);
@@ -314,6 +314,7 @@ export default function TaxiDraft() {
                   onPickPlayer={(p) => handleAddPlayer(p.id)}
                   placeholder="Search player to add to taxi roster…"
                   disabled={!activeTeamId}
+                  draftDisplaySlotKeys={Object.keys(league.rosterSlots)}
                 />
 
                 <div className="taxi-draft-roster-workspace">

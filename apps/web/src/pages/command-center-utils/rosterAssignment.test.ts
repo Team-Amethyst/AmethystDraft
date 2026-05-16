@@ -6,6 +6,7 @@ import {
   countAssignedRosterRows,
   pickRosterSlotForNewEntry,
   teamHasOpenCompatibleSlot,
+  teamRosterSlotCounts,
 } from "./rosterAssignment";
 
 const league: League = {
@@ -131,6 +132,27 @@ describe("assignTeamEntriesToRosterRows", () => {
       .map((r) => r.entry?._id)
       .filter((id): id is string => id != null);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("teamRosterSlotCounts matches empty rows in assignment (not raw entry count)", () => {
+    const roster = Array.from({ length: 23 }, (_, i) =>
+      entry({
+        acquiredAt: `2026-01-${String(i + 1).padStart(2, "0")}T01:00:00Z`,
+        playerName: `P${i + 1}`,
+        positions: ["OF"],
+        position: "OF",
+      }),
+    );
+    const { open, filled, totalSlots } = teamRosterSlotCounts(
+      league.rosterSlots,
+      roster,
+    );
+    const rows = assignTeamEntriesToRosterRows(league.rosterSlots, roster);
+    expect(totalSlots).toBe(rows.length);
+    expect(open).toBe(rows.filter((r) => !r.entry).length);
+    expect(filled).toBe(countAssignedRosterRows(rows));
+    expect(open).toBeGreaterThan(0);
+    expect(roster.length).toBeGreaterThan(filled);
   });
 
   it("filled count matches assigned legal entries", () => {

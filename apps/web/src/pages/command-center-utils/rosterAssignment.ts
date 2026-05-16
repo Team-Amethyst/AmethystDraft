@@ -1,11 +1,11 @@
 import type { RosterEntry } from "../../api/roster";
 import type { League } from "../../contexts/LeagueContext";
+import { resolvedLeagueTeamNames } from "../../utils/team";
 import {
   getEligibleSlotsForPositions,
   normalizePlayerPositions,
   slotAllowsPosition,
 } from "../../utils/eligibility";
-import { availableSlotsForTeamName } from "./roster";
 
 /** Prefer filling specific positions before UTIL / bench. */
 export const ROSTER_SLOT_PICK_ORDER = [
@@ -115,4 +115,41 @@ export function assignTeamEntriesToRosterRows(
 
 export function countAssignedRosterRows(rows: AssignedRosterRow[]): number {
   return rows.filter((r) => r.entry != null).length;
+}
+
+/** Slots from `slots` that still have capacity for `teamName` under `league.rosterSlots`. */
+export function availableSlotsForTeamName(
+  league: League | null | undefined,
+  teamName: string,
+  slots: string[],
+  roster: RosterEntry[],
+): Set<string> {
+  if (!league) return new Set(slots);
+  const names = resolvedLeagueTeamNames(league);
+  const teamIdx = names.indexOf(teamName);
+  if (teamIdx === -1) return new Set(slots);
+  const teamId = `team_${teamIdx + 1}`;
+  const teamRoster = roster.filter((e) => e.teamId === teamId);
+  const filled = new Map<string, number>();
+  teamRoster.forEach((e) => {
+    filled.set(e.rosterSlot, (filled.get(e.rosterSlot) ?? 0) + 1);
+  });
+  return new Set(
+    slots.filter((s) => (filled.get(s) ?? 0) < (league.rosterSlots[s] ?? 1)),
+  );
+}
+
+/**
+ * Open/filled counts aligned with {@link assignTeamEntriesToRosterRows} (Team Makeup UI).
+ * Raw `entries.length` can exceed visually empty slots when picks lack eligibility data
+ * or cannot be placed in remaining rows.
+ */
+export function teamRosterSlotCounts(
+  rosterSlots: Record<string, number>,
+  teamEntries: RosterEntry[],
+): { totalSlots: number; filled: number; open: number } {
+  const rows = assignTeamEntriesToRosterRows(rosterSlots, teamEntries);
+  const filled = countAssignedRosterRows(rows);
+  const totalSlots = rows.length;
+  return { totalSlots, filled, open: Math.max(0, totalSlots - filled) };
 }

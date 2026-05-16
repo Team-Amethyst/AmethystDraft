@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AppSelect } from "../AppSelect";
 import type { League } from "../../contexts/LeagueContext";
 import type { RosterEntry } from "../../api/roster";
 import { myDraftSlotsForPosition } from "../../constants/positionAllocationPlan";
+import { activeAuctionEntriesForTeam } from "../../pages/command-center-utils/roster";
 import { assignTeamEntriesToRosterRows } from "../../pages/command-center-utils/rosterAssignment";
 import PosBadge from "../PosBadge";
+import { resolvedLeagueTeamNames } from "../../utils/team";
 
 export function CommandCenterTeamMakeupSection({
   league,
@@ -20,15 +23,17 @@ export function CommandCenterTeamMakeupSection({
 }) {
   const [makeupTeamId, setMakeupTeamId] = useState(() => myTeamId ?? "team_1");
 
+  const displayTeamNames = league ? resolvedLeagueTeamNames(league) : [];
+
   useEffect(() => {
     const fallback = myTeamId ?? "team_1";
-    if (!league?.teamNames.length) return;
+    if (!displayTeamNames.length) return;
     setMakeupTeamId((prev) => {
       const n = parseInt(String(prev).replace(/^team_/i, ""), 10);
-      const valid = Number.isFinite(n) && n >= 1 && n <= league.teamNames.length;
+      const valid = Number.isFinite(n) && n >= 1 && n <= displayTeamNames.length;
       return valid ? `team_${n}` : fallback;
     });
-  }, [myTeamId, league?.teamNames]);
+  }, [myTeamId, displayTeamNames.length]);
 
   const totalSlots = league
     ? Object.values(league.rosterSlots).reduce((a, b) => a + b, 0)
@@ -36,7 +41,7 @@ export function CommandCenterTeamMakeupSection({
   const viewingOwnTargets =
     myTeamId != null && makeupTeamId !== "" && makeupTeamId === myTeamId;
   const teamMakeupEntries = makeupTeamId
-    ? rosterEntries.filter((e) => e.teamId === makeupTeamId)
+    ? activeAuctionEntriesForTeam(rosterEntries, makeupTeamId)
     : [];
   const assignedRows =
     league != null
@@ -79,28 +84,28 @@ export function CommandCenterTeamMakeupSection({
     return `$${s.endsWith(".0") ? s.slice(0, -2) : s}`;
   };
 
+  const makeupTeamOptions = useMemo(
+    () =>
+      displayTeamNames.map((name, idx) => {
+        const tid = `team_${idx + 1}`;
+        const you = myTeamId != null && tid === myTeamId ? " (You)" : "";
+        return { value: tid, label: `${name}${you}` };
+      }),
+    [displayTeamNames, myTeamId],
+  );
+
   return (
     <section className={sectionClassName}>
-      <div className="pac-snapshot-header cc-team-makeup-head">
+      <div className="pac-snapshot-header cc-team-makeup-head cc-panel-controls">
         <span className="market-section-label">TEAM MAKEUP</span>
-        {league && league.teamNames.length > 0 ? (
-          <select
-            className="app-select app-select--compact cc-team-makeup-select"
+        {league && makeupTeamOptions.length > 0 ? (
+          <AppSelect
+            variant="toolbar"
             aria-label="Roster to display"
             value={makeupTeamId}
-            onChange={(e) => setMakeupTeamId(e.target.value)}
-          >
-            {league.teamNames.map((name, idx) => {
-              const tid = `team_${idx + 1}`;
-              const you = myTeamId != null && tid === myTeamId ? " (You)" : "";
-              return (
-                <option key={tid} value={tid}>
-                  {name}
-                  {you}
-                </option>
-              );
-            })}
-          </select>
+            onChange={setMakeupTeamId}
+            options={makeupTeamOptions}
+          />
         ) : null}
       </div>
       <div className="team-makeup-slots">

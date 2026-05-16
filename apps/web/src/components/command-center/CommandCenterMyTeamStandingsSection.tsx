@@ -4,6 +4,7 @@ import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
 import { formatStatCell, isStatCellEmpty, rankColor } from "../../pages/commandCenterUtils";
 import { useProjectedStandings } from "../../pages/useProjectedStandings";
+import { resolvedLeagueTeamNames } from "../../utils/team";
 
 type ScoringCategory = {
   name: string;
@@ -28,7 +29,7 @@ export function CommandCenterMyTeamStandingsSection({
   );
 
   const { scoringCats, projectedStandings, rankMaps } = useProjectedStandings({
-    leagueTeamNames: league?.teamNames,
+    leagueTeamNames: league ? resolvedLeagueTeamNames(league) : undefined,
     leagueScoringCategories: league?.scoringCategories,
     fallbackScoringCategories,
     rosterEntries,
@@ -59,7 +60,7 @@ export function CommandCenterMyTeamStandingsSection({
       className="cc-surface-card cc-surface-card--left cc-my-standings-card"
       aria-label="Your projected category values and league ranks"
     >
-      <div className="pac-snapshot-header cc-my-standings-head">
+      <div className="pac-snapshot-header cc-my-standings-head cc-panel-controls">
         <span className="market-section-label">YOUR STANDINGS</span>
         <div
           className="stat-view-toggle"

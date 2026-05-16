@@ -19,66 +19,20 @@ import {
   normalizeCatName,
 } from "./commandCenterUtils";
 import {
-  assignTeamEntriesToRosterRows,
-  countAssignedRosterRows,
-} from "./command-center-utils/rosterAssignment";
+  resolvedLeagueTeamNames,
+  teamDisplayNameForTeamId,
+} from "../utils/team";
+import { isEngineAuctionBoardEntry } from "./command-center-utils/roster";
+import {
+  buildOverviewTeamData,
+  filterOverviewActiveRosterEntries,
+  type OverviewTeamData,
+} from "./command-center-utils/overviewRoster";
+import {
+  ReserveFooter,
+  TeamReservesModal,
+} from "./LeagueOverviewReserves";
 import "./LeagueOverview.css";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface SlotRow {
-  position: string;
-  playerName: string | null;
-  playerTeam: string | null;
-  price: number | null;
-  isKeeper: boolean;
-}
-
-interface TeamData {
-  teamId: string;
-  teamName: string;
-  slots: SlotRow[];
-  rosterFilled: number;
-  budgetRemaining: number;
-  bidAvg: number;
-  maxBid: number;
-}
-
-// ─── Build team data from real roster entries ─────────────────────────────────
-
-function buildTeamData(
-  teamIndex: number,
-  teamName: string,
-  rosterSlots: Record<string, number>,
-  entries: RosterEntry[],
-  budget: number,
-): TeamData {
-  const teamId = `team_${teamIndex + 1}`;
-  const teamEntries = entries.filter((e) => e.teamId === teamId);
-  const assigned = assignTeamEntriesToRosterRows(rosterSlots, teamEntries);
-  const slots: SlotRow[] = assigned.map((row) => ({
-    position: row.position,
-    playerName: row.entry?.playerName ?? null,
-    playerTeam: row.entry?.playerTeam ?? null,
-    price: row.entry?.price ?? null,
-    isKeeper: row.entry?.isKeeper ?? false,
-  }));
-
-  const filled = countAssignedRosterRows(assigned);
-  const totalSpent = teamEntries.reduce((sum, e) => sum + e.price, 0);
-  const remaining = budget - totalSpent;
-  const open = slots.length - filled;
-
-  return {
-    teamId,
-    teamName,
-    slots,
-    rosterFilled: filled,
-    budgetRemaining: remaining,
-    bidAvg: open > 0 ? Math.round(remaining / open) : 0,
-    maxBid: open > 0 ? remaining - (open - 1) : 0,
-  };
-}
 
 // ─── Standings helpers ────────────────────────────────────────────────────────
 
@@ -95,13 +49,20 @@ const FALLBACK_CATS: { name: string; type: "batting" | "pitching" }[] = [
 
 // ─── Team card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ data }: { data: TeamData }) {
+
+function TeamCard({
+  data,
+  onViewReserves,
+}: {
+  data: OverviewTeamData;
+  onViewReserves: () => void;
+}) {
   return (
     <div className="lo-team-card">
       <div className="lo-card-header">
         <div className="lo-card-name">{data.teamName}</div>
         <div className="lo-card-sub">
-          {data.rosterFilled}/{data.slots.length} roster filled
+          {data.rosterFilled}/{data.rosterSlotCount} roster filled
         </div>
       </div>
 
@@ -143,12 +104,14 @@ function TeamCard({ data }: { data: TeamData }) {
             ) : (
               <span className="lo-slot-empty">— empty —</span>
             )}
-            {slot.price !== null && (
+            {slot.price != null && slot.price > 0 ? (
               <span className="lo-slot-price">${slot.price}</span>
-            )}
+            ) : null}
           </div>
         ))}
       </div>
+
+      <ReserveFooter data={data} onViewReserves={onViewReserves} />
     </div>
   );
 }
@@ -169,6 +132,8 @@ export default function LeagueOverview() {
     message: string;
     type: "success" | "error" | "info";
   } | null>(null);
+  const [reserveModalTeam, setReserveModalTeam] =
+    useState<OverviewTeamData | null>(null);
 
   const showToast = (
     message: string,
@@ -196,10 +161,7 @@ export default function LeagueOverview() {
   const teamNames = useMemo(
     () =>
       league
-        ? (league.teamNames.length > 0
-            ? league.teamNames
-            : Array.from({ length: league.teams }, (_, i) => `Team ${i + 1}`)
-          ).slice(0, league.teams)
+        ? resolvedLeagueTeamNames(league)
         : [],
     [league],
   );
@@ -211,10 +173,15 @@ export default function LeagueOverview() {
     return `team_${idx + 1}`;
   }, [league, user?.id]);
 
+  const activeRosterEntries = useMemo(
+    () => filterOverviewActiveRosterEntries(entries),
+    [entries],
+  );
+
   const teamCards = useMemo(
     () =>
       teamNames.map((name, i) =>
-        buildTeamData(
+        buildOverviewTeamData(
           i,
           name,
           league?.rosterSlots ?? {},
@@ -245,9 +212,15 @@ export default function LeagueOverview() {
   );
 
   const standings = useMemo(
-    () => buildProjectedStandings(teamNames, entries, playerMap, scoringCats),
+    () =>
+      buildProjectedStandings(
+        teamNames,
+        activeRosterEntries,
+        playerMap,
+        scoringCats,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [teamNames.join(","), entries, playerMap, scoringCats],
+    [teamNames.join(","), activeRosterEntries, playerMap, scoringCats],
   );
 
   const rankMaps = useMemo(
@@ -299,7 +272,7 @@ export default function LeagueOverview() {
 
   const teamOptions = useMemo(
     () =>
-      (league?.teamNames ?? []).map((name, i) => ({
+      resolvedLeagueTeamNames(league).map((name, i) => ({
         id: `team_${i + 1}`,
         name,
       })),
@@ -324,8 +297,7 @@ export default function LeagueOverview() {
       await updateRosterEntry(league.id, entryId, data, token);
       const parts: string[] = [];
       if (data.teamId) {
-        const idx = parseInt(data.teamId.replace("team_", ""), 10) - 1;
-        const name = league.teamNames[idx] ?? data.teamId;
+        const name = teamDisplayNameForTeamId(league, data.teamId) || data.teamId;
         parts.push(`team → ${name}`);
       }
       if (data.rosterSlot) parts.push(`slot → ${data.rosterSlot}`);
@@ -362,7 +334,11 @@ export default function LeagueOverview() {
           ) : (
             <div className="lo-cards-scroll">
               {teamCards.map((card) => (
-                <TeamCard key={card.teamId} data={card} />
+                <TeamCard
+                  key={card.teamId}
+                  data={card}
+                  onViewReserves={() => setReserveModalTeam(card)}
+                />
               ))}
             </div>
           )}
@@ -442,15 +418,15 @@ export default function LeagueOverview() {
             <div className="lo-section-header">
               <span className="lo-section-title">DRAFT LOG</span>
               <span className="lo-section-meta">
-                {entries.filter((e) => !e.isKeeper).length > 0
-                  ? `${entries.filter((e) => !e.isKeeper).length} picks`
+                {entries.filter((e) => isEngineAuctionBoardEntry(e)).length > 0
+                  ? `${entries.filter((e) => isEngineAuctionBoardEntry(e)).length} picks`
                   : "0 picks"}
               </span>
             </div>
-            {entries.filter((e) => !e.isKeeper).length > 0 ? (
+            {entries.filter((e) => isEngineAuctionBoardEntry(e)).length > 0 ? (
               <div className="lo-dl-list">
                 {[...entries]
-                  .filter((e) => !e.isKeeper)
+                  .filter((e) => isEngineAuctionBoardEntry(e))
                   .sort(
                     (a, b) =>
                       new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
@@ -461,11 +437,12 @@ export default function LeagueOverview() {
                       ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
                       : league.memberIds.indexOf(entry.userId);
                     const teamName =
-                      teamIdx >= 0
-                        ? (league.teamNames[teamIdx] ??
-                          entry.teamId ??
-                          entry.userId)
-                        : (entry.teamId ?? entry.userId);
+                      entry.teamId != null
+                        ? teamDisplayNameForTeamId(league, entry.teamId) ||
+                          entry.teamId
+                        : teamIdx >= 0
+                          ? (teamNames[teamIdx] ?? entry.userId)
+                          : (entry.userId ?? "");
                     const myIdx =
                       myTeamId != null
                         ? parseInt(myTeamId.replace("team_", ""), 10) - 1
@@ -480,6 +457,7 @@ export default function LeagueOverview() {
                     return (
                       <DraftLogRow
                         key={entry._id}
+                        variant="dense"
                         entry={entry}
                         pickNum={i + 1}
                         teamName={teamName}
@@ -501,6 +479,12 @@ export default function LeagueOverview() {
           </div>
         </div>
       </div>
+      {reserveModalTeam ? (
+        <TeamReservesModal
+          team={reserveModalTeam}
+          onClose={() => setReserveModalTeam(null)}
+        />
+      ) : null}
       {toast && (
         <div className={`lo-toast lo-toast-${toast.type}`}>{toast.message}</div>
       )}

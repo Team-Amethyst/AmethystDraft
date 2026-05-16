@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import type { Player } from "../types/player";
 import type { RosterEntry } from "../api/roster";
+import { filterActiveAuctionEntries } from "./command-center-utils/roster";
 import {
   buildProjectedStandings,
+  buildPlayerMapForStandings,
   computeRanks,
   normalizeCatName,
 } from "./commandCenterUtils";
@@ -26,7 +28,7 @@ export function useProjectedStandings({
   allPlayers: Player[];
 }) {
   const playerMap = useMemo(
-    () => new Map(allPlayers.map((p) => [p.id, p])),
+    () => buildPlayerMapForStandings(allPlayers),
     [allPlayers],
   );
 
@@ -39,15 +41,20 @@ export function useProjectedStandings({
     [leagueScoringCategories, fallbackScoringCategories],
   );
 
+  const activeRosterEntries = useMemo(
+    () => filterActiveAuctionEntries(rosterEntries),
+    [rosterEntries],
+  );
+
   const projectedStandings = useMemo(
     () =>
       buildProjectedStandings(
         leagueTeamNames ?? [],
-        rosterEntries,
+        activeRosterEntries,
         playerMap,
         scoringCats,
       ),
-    [leagueTeamNames, rosterEntries, playerMap, scoringCats],
+    [leagueTeamNames, activeRosterEntries, playerMap, scoringCats],
   );
 
   const rankMaps = useMemo(

@@ -62,7 +62,7 @@ export function CommandCenterLeftPanel({
         ? new Map(
             engineMarket.valuations.map((v) => [
               v.player_id,
-              { tier: v.tier, value: v.adjusted_value },
+              { tier: v.tier, value: v.auction_value ?? 0 },
             ]),
           )
         : undefined;

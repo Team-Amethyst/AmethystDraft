@@ -1,5 +1,6 @@
 import type { RosterEntry } from "../../api/roster";
 import type { TeamKeeper } from "../../types/league";
+import { defaultTeamDisplayNameForIndex } from "../../domain/fantasyTeamNames";
 
 /** Keeper rows and auction-draft rows (excludes minors/taxi). */
 export function isPreloadableAsKeeper(entry: RosterEntry): boolean {
@@ -26,7 +27,12 @@ export function rosterEntriesToTeamKeepersMap(
     const idx = entry.teamId
       ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
       : -1;
-    const teamName = teamNames[idx] ?? `Team ${idx + 1}`;
+    const teamName =
+      teamNames[idx] ??
+      defaultTeamDisplayNameForIndex(
+        idx >= 0 ? idx : 0,
+        teamNames.length > 0 ? teamNames.length : 9,
+      );
     if (!result[teamName]) result[teamName] = [];
     result[teamName].push({
       slot: entry.rosterSlot,
