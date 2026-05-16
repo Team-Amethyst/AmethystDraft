@@ -39,6 +39,38 @@ function logDraftroomValuationPipeline(
   });
 }
 
+export async function executeCheckpointBoardValuationRequest(
+  leagueId: string,
+  token: string,
+  checkpointKey: string,
+  userTeamId = "team_1",
+  devLogFocusPlayerId?: string | null,
+): Promise<ValuationResponse> {
+  return requestJsonParsed<ValuationResponse>(
+    `/api/engine/leagues/${encodeURIComponent(leagueId)}/valuation/checkpoint`,
+    {
+      method: "POST",
+      headers: requireAuthHeaders(token),
+      body: JSON.stringify({
+        checkpoint_key: checkpointKey,
+        user_team_id: userTeamId,
+        inflation_model: "replacement_slots_v2",
+      }),
+    },
+    "Checkpoint valuation request failed",
+    (raw) => {
+      const normalized = normalizeValuationResponseBody(raw);
+      logDraftroomValuationPipeline(
+        "POST /valuation/checkpoint",
+        raw,
+        normalized,
+        devLogFocusPlayerId ?? undefined,
+      );
+      return normalized;
+    },
+  );
+}
+
 export async function executeBoardValuationRequest(
   leagueId: string,
   token: string,

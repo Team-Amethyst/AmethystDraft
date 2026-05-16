@@ -16,6 +16,12 @@ import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import { useAuth } from "../contexts/AuthContext";
 import { getPlayers, getPlayersCached } from "../api/players";
 import { getValuation } from "../api/engine";
+import type { EngineCheckpointCatalogEntry } from "../api/checkpoints";
+import {
+  fetchEngineCheckpointCatalog,
+  fetchEngineCheckpointJson,
+} from "../api/checkpoints";
+import type { ValuationBoardCacheContext } from "../api/valuationCache";
 import { mergeCatalogPlayersWithValuations } from "../utils/valuation";
 import { resolveUserTeamId } from "../utils/team";
 import {
@@ -24,6 +30,7 @@ import {
 } from "../utils/valuationDeps";
 import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
 import { filterResearchDefaultCatalogKind } from "../domain/researchCatalogFilter";
+import { planMockDraftFromCheckpointJson } from "../domain/checkpointMockDraft";
 import { useMockDraft } from "../hooks/useMockDraft";
 import type { Player } from "../types/player";
 import PosBadge from "../components/PosBadge";
@@ -51,7 +58,8 @@ function TeamRosterPanel({
   const toggle = (name: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
 
@@ -122,7 +130,10 @@ function DraftLog({ log }: { log: import("../hooks/useMockDraft").DraftLogEntry[
           <div className="md-log-empty">No picks yet — draft in progress</div>
         )}
         {[...log].reverse().map((entry) => (
-          <div key={entry.pickNum} className="md-log-row">
+          <div
+            key={`${entry.pickNum}-${entry.player.id}`}
+            className="md-log-row"
+          >
             <span className="md-log-num">#{entry.pickNum}</span>
             <PosBadge pos={entry.slot} />
             <span className="md-log-player">{entry.player.name}</span>
@@ -138,18 +149,36 @@ function DraftLog({ log }: { log: import("../hooks/useMockDraft").DraftLogEntry[
 function SetupScreen({
   teamNames,
   budget,
-  onStart,
+  onStartFresh,
+  onStartCheckpoint,
   onBack,
-  onReset,           // ← add
-  hasSavedDraft,     // ← add
+  onReset,
+  hasSavedDraft,
+  checkpoints,
+  selectedCheckpointKey,
+  onCheckpointChange,
+  catalogLoading,
+  catalogError,
+  playersReady,
+  checkpointBusy,
 }: {
   teamNames: string[];
   budget: number;
-  onStart: () => void;
+  onStartFresh: () => void;
+  onStartCheckpoint: () => void | Promise<void>;
   onBack: () => void;
-  onReset: () => void;        // ← add
-  hasSavedDraft: boolean;     // ← add
+  onReset: () => void;
+  hasSavedDraft: boolean;
+  checkpoints: import("../api/checkpoints").EngineCheckpointCatalogEntry[];
+  selectedCheckpointKey: string;
+  onCheckpointChange: (key: string) => void;
+  catalogLoading: boolean;
+  catalogError: string;
+  playersReady: boolean;
+  checkpointBusy: boolean;
 }) {
+  const checkpointPickerDisabled =
+    catalogLoading || checkpointBusy || checkpoints.length === 0;
 
   return (
     <div className="md-setup">
@@ -159,6 +188,44 @@ function SetupScreen({
           Simulate your auction draft against AI-controlled teams.
           Snake nomination order · Strategic AI bidding
         </p>
+
+        <div className="md-setup-checkpoint">
+          <label className="md-setup-checkpoint-label" htmlFor="md-engine-checkpoint">
+            Engine checkpoint (optional)
+          </label>
+          <select
+            id="md-engine-checkpoint"
+            className="md-setup-checkpoint-select"
+            value={selectedCheckpointKey}
+            disabled={checkpointPickerDisabled}
+            onChange={(e) => onCheckpointChange(e.target.value)}
+          >
+            <option value="">— Fresh draft —</option>
+            {checkpoints.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+          <p className="md-setup-checkpoint-note">
+            Loads bundled Draft fixtures under{" "}
+            <code>apps/api/test-fixtures/player-api/checkpoints/</code> (same JSON as Activity #9).
+            Board valuations call Engine via{" "}
+            <code>POST /api/engine/leagues/:id/valuation/checkpoint</code> using the flattened contract in{" "}
+            <code>ENGINE_AGENT_BRIEF.md</code>.
+          </p>
+          {catalogLoading && (
+            <p className="md-setup-checkpoint-status">Loading checkpoint catalog…</p>
+          )}
+          {catalogError && (
+            <p className="md-setup-checkpoint-status md-setup-checkpoint-status--error">
+              {catalogError}
+            </p>
+          )}
+          {!playersReady && (
+            <p className="md-setup-checkpoint-status">Loading player catalog…</p>
+          )}
+        </div>
 
         <div className="md-setup-details">
           <div className="md-setup-row">
@@ -196,12 +263,18 @@ function SetupScreen({
         )}
 
         <div className="md-setup-actions">
-          <button className="md-btn-secondary" onClick={onBack}>← Back</button>
+          <button className="md-btn-secondary" type="button" onClick={onBack}>← Back</button>
           {hasSavedDraft && (
-            <button className="md-btn-secondary" onClick={onReset}>Reset Draft</button>
+            <button className="md-btn-secondary" type="button" onClick={onReset}>Reset Draft</button>
           )}
-          <button className="md-btn-primary" onClick={onStart}>
-            {hasSavedDraft ? "Resume Draft" : "Start Mock Draft"}
+          <button
+            className="md-btn-primary"
+            type="button"
+            disabled={!playersReady || checkpointBusy}
+            onClick={() =>
+              selectedCheckpointKey ? void onStartCheckpoint() : onStartFresh()}
+          >
+            {selectedCheckpointKey ? "Start from checkpoint" : "Start Mock Draft"}
           </button>
         </div>
       </div>
@@ -219,31 +292,55 @@ export default function MockDraftPage() {
   const { watchlist } = useWatchlist();
   const { customPlayers } = useCustomPlayers();
 
-  const rosterSlots = league?.rosterSlots ?? DEFAULT_ROSTER_SLOTS;
-  const budget      = league?.budget      ?? DEFAULT_BUDGET;
+  const rosterSlotsBase = league?.rosterSlots ?? DEFAULT_ROSTER_SLOTS;
+  const budgetBase = league?.budget ?? DEFAULT_BUDGET;
 
-  // Build team names: user is Team 1, rest are AI
-  const teamNames = useMemo(() => {
+  const teamNamesBase = useMemo(() => {
     if (league?.teamNames?.length) return league.teamNames;
     const count = 10;
     return ["My Team", ...Array.from({ length: count - 1 }, (_, i) => `AI Team ${i + 2}`)];
-  }, [league]);
+  }, [league?.teamNames]);
 
   const { token, user } = useAuth();
 
+  const [checkpointCatalog, setCheckpointCatalog] = useState<
+    EngineCheckpointCatalogEntry[]
+  >([]);
+  const [checkpointCatalogPhase, setCheckpointCatalogPhase] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+  const [checkpointCatalogError, setCheckpointCatalogError] = useState("");
+  const [selectedCheckpointKey, setSelectedCheckpointKey] = useState("");
+  const [checkpointBusy, setCheckpointBusy] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    setCheckpointCatalogPhase("loading");
+    setCheckpointCatalogError("");
+    void fetchEngineCheckpointCatalog(token)
+      .then((rows) => {
+        if (!cancelled) {
+          setCheckpointCatalog(rows);
+          setCheckpointCatalogPhase("ok");
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setCheckpointCatalogPhase("error");
+          setCheckpointCatalogError(
+            e instanceof Error ? e.message : "Failed to load checkpoints",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const mockLeagueValuationKey = useMemo(
     () => leagueValuationConfigKey(league ?? null),
-    [
-      league?.id,
-      league?.teams,
-      league?.budget,
-      league ? JSON.stringify(league.rosterSlots) : "",
-      league ? JSON.stringify(league.scoringCategories) : "",
-      league?.memberIds?.join(","),
-      league?.posEligibilityThreshold,
-      league?.playerPool,
-      league?.teamNames?.join("\u0001"),
-    ],
+    [league],
   );
 
   // ── Player loading — mirrors Research.tsx so we get the same filtered pool
@@ -262,25 +359,6 @@ export default function MockDraftPage() {
       .then(setRawPlayers)
       .catch(console.error);
   }, [league?.posEligibilityThreshold, league?.playerPool]);
-
-  useEffect(() => {
-    if (!token || !leagueId || rawPlayers.length === 0) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const userTeamId = resolveUserTeamId(league ?? null, user?.id);
-        const res = await getValuation(leagueId, token, userTeamId, null, {
-          leagueConfigKey: mockLeagueValuationKey,
-          rosterFingerprint: rosterValuationFingerprint([]),
-        });
-        const merged = researchValuationRowMapFromEngine(res.valuations, new Set());
-        if (!cancelled) setValuationsByPlayerId(merged);
-      } catch {
-        // Non-fatal — mock draft still works with catalog value as fallback
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [token, leagueId, rawPlayers.length, user?.id, mockLeagueValuationKey]);
 
   // Merge catalog players with Engine valuations + custom players at the top.
   // filterResearchDefaultCatalogKind removes market_only / non-draftable rows,
@@ -328,10 +406,97 @@ export default function MockDraftPage() {
     placeBid,
     confirmSell,
     keepBidding,
+    hydrateFromCheckpoint,
     isUserTurn,
     currentTeamIdx,
     hasSavedDraft,
-  } = useMockDraft(leagueId ?? "", teamNames, budget, rosterSlots, allPlayers, watchlistPlayers);
+  } = useMockDraft(
+    leagueId ?? "",
+    teamNamesBase,
+    budgetBase,
+    rosterSlotsBase,
+    allPlayers,
+    watchlistPlayers,
+  );
+
+  const valuationBoardCacheContext = useMemo((): ValuationBoardCacheContext => {
+    const hy = state.checkpointHydration;
+    const ck = hy?.checkpointKey ?? null;
+    return {
+      leagueConfigKey: mockLeagueValuationKey,
+      rosterFingerprint: ck ? `checkpoint:${ck}` : rosterValuationFingerprint([]),
+      extras: hy
+        ? JSON.stringify({
+            rosterSlots: hy.rosterSlots,
+            budget: hy.budget,
+            teamNames: hy.teamNames,
+          })
+        : "",
+      checkpointKey: ck,
+    };
+  }, [mockLeagueValuationKey, state.checkpointHydration]);
+
+  useEffect(() => {
+    if (!token || !leagueId || rawPlayers.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const userTeamId = resolveUserTeamId(league ?? null, user?.id);
+        const res = await getValuation(
+          leagueId,
+          token,
+          userTeamId,
+          null,
+          valuationBoardCacheContext,
+        );
+        const merged = researchValuationRowMapFromEngine(res.valuations, new Set());
+        if (!cancelled) setValuationsByPlayerId(merged);
+      } catch {
+        // Non-fatal — mock draft still works with catalog value as fallback
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    token,
+    leagueId,
+    rawPlayers.length,
+    user?.id,
+    league,
+    valuationBoardCacheContext,
+  ]);
+
+  const startFromCheckpoint = async () => {
+    if (
+      !token ||
+      !leagueId ||
+      !selectedCheckpointKey ||
+      rawPlayers.length === 0
+    ) {
+      return;
+    }
+    setCheckpointBusy(true);
+    try {
+      const json = await fetchEngineCheckpointJson(
+        token,
+        selectedCheckpointKey as EngineCheckpointCatalogEntry["id"],
+      );
+      const plan = planMockDraftFromCheckpointJson({
+        checkpointKey: selectedCheckpointKey,
+        checkpointJson: json,
+        leagueTeamNames: league?.teamNames ?? [],
+        allPlayers,
+      });
+      if ("error" in plan) {
+        window.alert(plan.error);
+        return;
+      }
+      hydrateFromCheckpoint(plan.mockDraftState);
+    } finally {
+      setCheckpointBusy(false);
+    }
+  };
 
   // Player search for nomination
   const [searchQuery, setSearchQuery] = useState("");
@@ -347,12 +512,22 @@ export default function MockDraftPage() {
   if (state.phase === "setup") {
     return (
       <SetupScreen
-        teamNames={teamNames}
-        budget={budget}
-        onStart={startDraft}
+        teamNames={teamNamesBase}
+        budget={budgetBase}
+        onStartFresh={startDraft}
+        onStartCheckpoint={startFromCheckpoint}
         onBack={() => navigate(`/leagues/${leagueId ?? ""}/my-draft`)}
-        onReset={resetDraft}          // ← add
-        hasSavedDraft={hasSavedDraft} // ← add
+        onReset={resetDraft}
+        hasSavedDraft={hasSavedDraft}
+        checkpoints={checkpointCatalog}
+        selectedCheckpointKey={selectedCheckpointKey}
+        onCheckpointChange={setSelectedCheckpointKey}
+        catalogLoading={checkpointCatalogPhase === "loading"}
+        catalogError={
+          checkpointCatalogPhase === "error" ? checkpointCatalogError : ""
+        }
+        playersReady={rawPlayers.length > 0}
+        checkpointBusy={checkpointBusy}
       />
     );
   }
@@ -387,7 +562,7 @@ export default function MockDraftPage() {
   }
 
   const userRoster = state.rosters.find((r) => r.isUser);
-  const userRemaining = userRoster ? userRoster.budget - userRoster.spent : budget;
+  const userRemaining = userRoster ? userRoster.budget - userRoster.spent : budgetBase;
 
   return (
     <div className="md-page">

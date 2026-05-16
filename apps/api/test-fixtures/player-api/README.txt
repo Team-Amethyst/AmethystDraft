@@ -10,6 +10,8 @@ Body: nested checkpoint JSON (this folder) OR flat Engine body (roster_slots, sc
 
 Draft forwards to Engine with both schema_version and schemaVersion when a version is present. Engine 400 responses use { errors: [{ field, message }] }; the Draft error handler passes that through unchanged.
 
+Checkpoint filenames: JSON always uses "checkpoint": "after_pick_10", etc. Draft stores shorter disk names here (after_10.json …); AmethystAPI uses after_pick_10.json under test-fixtures/ and public/fixtures/checkpoints/. See ENGINE_AGENT_BRIEF.md mapping table. Optional drift script (sibling repo): node scripts/compare-engine-checkpoints.mjs ../AmethystAPI
+
 Generate from sample workbook:
   pnpm --filter api run fixtures:from-xlsx -- path/to/sample.xlsx test-fixtures/player-api
 

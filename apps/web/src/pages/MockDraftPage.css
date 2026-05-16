@@ -386,6 +386,56 @@
 
 .md-setup-subtitle { font-size: 0.82rem; color: #6b4fa0; margin: 0 0 1.5rem; line-height: 1.5; }
 
+.md-setup-checkpoint {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--app-accent-border-faint);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.md-setup-checkpoint-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--app-text-dim);
+  text-transform: uppercase;
+  margin-bottom: 0.45rem;
+}
+
+.md-setup-checkpoint-select {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--app-accent-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: #e2d9f3;
+  font-size: 0.85rem;
+}
+
+.md-setup-checkpoint-note {
+  font-size: 0.72rem;
+  color: #6b4fa0;
+  line-height: 1.45;
+  margin: 0.55rem 0 0;
+}
+
+.md-setup-checkpoint-note code {
+  font-size: 0.68rem;
+  word-break: break-all;
+}
+
+.md-setup-checkpoint-status {
+  font-size: 0.72rem;
+  margin: 0.4rem 0 0;
+  color: #a78bfa;
+}
+
+.md-setup-checkpoint-status--error {
+  color: #f87171;
+}
+
 .md-setup-details {
   background: rgba(255,255,255,0.03); border-radius: 10px;
   padding: 0.85rem; margin-bottom: 1rem;

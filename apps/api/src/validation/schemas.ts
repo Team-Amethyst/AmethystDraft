@@ -146,6 +146,24 @@ export const valuationBoardBodySchema = z.object({
   recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
 });
 
+/** Engine integration / mock-draft checkpoint id (matches payload `checkpoint` + Draft fixture set). */
+export const engineCheckpointKeySchema = z.enum([
+  "pre_draft",
+  "after_pick_10",
+  "after_pick_50",
+  "after_pick_100",
+  "after_pick_130",
+]);
+
+/** Body for POST …/leagues/:leagueId/valuation/checkpoint — valuation from bundled Engine fixture. */
+export const valuationCheckpointBodySchema = z.object({
+  checkpoint_key: engineCheckpointKeySchema,
+  user_team_id: z.string().min(1).optional(),
+  inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  explain_valuation_rows: z.boolean().optional(),
+  recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
+});
+
 /** Body for POST …/valuation/player — merged with league valuation context for Engine. */
 export const valuationPlayerBodySchema = z.object({
   player_id: z.string().min(1, "player_id is required"),
