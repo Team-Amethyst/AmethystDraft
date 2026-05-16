@@ -1,4 +1,4 @@
-import { useState, useEffect, type KeyboardEvent } from "react";
+import { useState, useEffect, useMemo, type KeyboardEvent } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -6,7 +6,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import PosBadge from "../components/PosBadge";
 import { useLeagueForm } from "../hooks/useLeagueForm";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -16,7 +16,16 @@ import {
   type Player,
   type TeamKeeper,
 } from "../types/league";
-import { createLeague } from "../api/leagues";
+import {
+  createLeague,
+  createLeagueFromEngineCheckpoint,
+} from "../api/leagues";
+import {
+  fetchEngineCheckpointCatalog,
+  fetchEngineCheckpointJson,
+  type EngineCheckpointCatalogEntry,
+} from "../api/checkpoints";
+import { buildWizardPresetFromCheckpointJson } from "../features/leagues/checkpointWizardPreset";
 import { addRosterEntry, getRoster } from "../api/roster";
 import { rosterEntriesToTeamKeepersMap } from "../features/leagues/rosterEntriesToTeamKeepersMap";
 import { useAuth } from "../contexts/AuthContext";
@@ -24,6 +33,7 @@ import { useLeague } from "../contexts/LeagueContext";
 import { getPlayers, getPlayersCached } from "../api/players";
 import type { Player as ApiPlayer } from "../types/player";
 import AuthNavbar from "../components/AuthNavbar";
+import { AppSelect, type AppSelectOption } from "../components/AppSelect";
 import { LeagueRosterSlotsEditor } from "../components/leagues/LeagueRosterSlotsEditor";
 import { KeeperDraftInlineExpand } from "../components/leagues/KeeperDraftInlineExpand";
 import { LeagueCreateStepHeader } from "../components/leagues/LeagueCreateStepHeader";
@@ -50,6 +60,7 @@ import {
 export default function LeagueCreate() {
   usePageTitle("Create League");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { token } = useAuth();
   const { refreshLeagues, allLeagues } = useLeague();
 
@@ -119,7 +130,73 @@ export default function LeagueCreate() {
   const [keeperDraftPlayerId, setKeeperDraftPlayerId] = useState<string | null>(
     null,
   );
-  const [seasonYear, setSeasonYear] = useState<number>(new Date().getFullYear());
+
+  const [demoPresetsOpen, setDemoPresetsOpen] = useState(
+    () => searchParams.get("demo") === "1",
+  );
+  const [demoCheckpointKey, setDemoCheckpointKey] = useState<
+    EngineCheckpointCatalogEntry["id"] | ""
+  >("");
+  const [demoCheckpointCatalog, setDemoCheckpointCatalog] = useState<
+    EngineCheckpointCatalogEntry[]
+  >([]);
+  const [demoCheckpointCatalogLoading, setDemoCheckpointCatalogLoading] =
+    useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("demo") === "1") setDemoPresetsOpen(true);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!token || step !== 1) return;
+    let cancelled = false;
+    setDemoCheckpointCatalogLoading(true);
+    void fetchEngineCheckpointCatalog(token)
+      .then((entries) => {
+        if (!cancelled) setDemoCheckpointCatalog(entries);
+      })
+      .catch(() => {
+        if (!cancelled) setDemoCheckpointCatalog([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDemoCheckpointCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, step]);
+
+  useEffect(() => {
+    if (!demoCheckpointCatalog.length) return;
+    setDemoCheckpointKey((prev) =>
+      prev && demoCheckpointCatalog.some((c) => c.id === prev)
+        ? prev
+        : demoCheckpointCatalog[0].id,
+    );
+  }, [demoCheckpointCatalog]);
+
+  const demoCheckpointOptions = useMemo((): AppSelectOption[] => {
+    if (demoCheckpointCatalogLoading) {
+      return [{ value: "", label: "Loading checkpoints…", disabled: true }];
+    }
+    if (demoCheckpointCatalog.length === 0) {
+      return [
+        {
+          value: "",
+          label: "Sign in to load checkpoint presets",
+          disabled: true,
+        },
+      ];
+    }
+    return demoCheckpointCatalog.map((c) => ({
+      value: c.id,
+      label: c.title,
+    }));
+  }, [demoCheckpointCatalog, demoCheckpointCatalogLoading]);
+
+  const demoCheckpointPickerDisabled =
+    demoCheckpointCatalogLoading || demoCheckpointCatalog.length === 0;
 
   useEffect(() => {
     if (step !== 4) {
@@ -173,6 +250,65 @@ export default function LeagueCreate() {
     setTeamKeepers,
     setActiveKeeperTeam,
   ]);
+
+  const handleApplyCheckpointPreset = async () => {
+    if (!token || !demoCheckpointKey) return;
+    setDemoBusy(true);
+    setError(null);
+    try {
+      const json = await fetchEngineCheckpointJson(token, demoCheckpointKey);
+      const preset = buildWizardPresetFromCheckpointJson(
+        json,
+        demoCheckpointKey,
+      );
+      if ("error" in preset) {
+        setError(preset.error);
+        return;
+      }
+      setLeagueName(preset.suggestedName);
+      setTeams(preset.teams);
+      setBudget(preset.budget);
+      setPosEligibilityThreshold(preset.posEligibilityThreshold);
+      setPosEligibilityRaw(String(preset.posEligibilityThreshold));
+      setPlayerPool(preset.playerPool);
+      for (const s of preset.rosterSlots) {
+        setRosterCount(s.position, s.count);
+      }
+      if (preset.hitting.length) setSelectedHitting(preset.hitting);
+      if (preset.pitching.length) setSelectedPitching(preset.pitching);
+      preset.teamDisplayNames.forEach((name, i) => updateTeamName(i, name));
+      setTeamKeepers({});
+      setKeeperImportFromLeagueId("");
+      setActiveKeeperTeam(preset.teamDisplayNames[0] ?? "Team 1");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load checkpoint preset",
+      );
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
+  const handleCreateDemoLeagueFromCheckpoint = async () => {
+    if (!token || !demoCheckpointKey) return;
+    setDemoBusy(true);
+    setError(null);
+    try {
+      const league = await createLeagueFromEngineCheckpoint(token, {
+        checkpoint_key: demoCheckpointKey,
+      });
+      refreshLeagues();
+      navigate(`/leagues/${league.id}/research`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to create league from checkpoint",
+      );
+    } finally {
+      setDemoBusy(false);
+    }
+  };
 
   const goBack = () => {
     if (step === 1) {
@@ -249,7 +385,6 @@ export default function LeagueCreate() {
       const league = await createLeague(
         {
           name: leagueName,
-          seasonYear,
           teams,
           budget,
           posEligibilityThreshold: Math.max(1, posEligibilityThreshold || 1),
@@ -355,6 +490,76 @@ export default function LeagueCreate() {
                 lead="Configure league structure, player pool, and roster slots for your new league."
               />
 
+              <details
+                className="league-create-demo-presets"
+                open={demoPresetsOpen}
+                onToggle={(e) =>
+                  setDemoPresetsOpen((e.target as HTMLDetailsElement).open)
+                }
+              >
+                <summary className="league-create-demo-presets-summary">
+                  Demo checkpoints (fixtures)
+                </summary>
+                <div className="league-create-demo-presets-body">
+                  <p className="league-create-demo-presets-lead">
+                    Load Engine sandbox snapshots as real leagues or copy
+                    settings into this wizard.
+                  </p>
+                  <div className="league-create-demo-presets-row">
+                    <label className="league-create-demo-presets-field">
+                      <span className="league-create-demo-presets-label">
+                        Checkpoint
+                      </span>
+                      <AppSelect
+                        block
+                        value={demoCheckpointKey || demoCheckpointOptions[0]?.value || ""}
+                        onChange={(v) =>
+                          setDemoCheckpointKey(
+                            v as EngineCheckpointCatalogEntry["id"],
+                          )
+                        }
+                        options={demoCheckpointOptions}
+                        disabled={demoCheckpointPickerDisabled}
+                        aria-label="Engine checkpoint preset"
+                      />
+                    </label>
+                    <div className="league-create-demo-presets-actions">
+                      <button
+                        type="button"
+                        className="league-create-demo-presets-btn league-create-demo-presets-btn--ghost"
+                        disabled={
+                          demoBusy || !demoCheckpointKey || !token
+                        }
+                        onClick={() => void handleApplyCheckpointPreset()}
+                      >
+                        Apply preset to wizard
+                      </button>
+                      <button
+                        type="button"
+                        className="league-create-demo-presets-btn league-create-demo-presets-btn--primary"
+                        disabled={
+                          demoBusy || !demoCheckpointKey || !token
+                        }
+                        onClick={() =>
+                          void handleCreateDemoLeagueFromCheckpoint()
+                        }
+                      >
+                        Create demo league & open
+                      </button>
+                    </div>
+                  </div>
+                  {demoCheckpointCatalogLoading ? (
+                    <p className="league-create-demo-presets-meta">
+                      Loading checkpoints…
+                    </p>
+                  ) : demoCheckpointCatalog.length === 0 ? (
+                    <p className="league-create-demo-presets-meta">
+                      Sign in to load checkpoint presets.
+                    </p>
+                  ) : null}
+                </div>
+              </details>
+
               <div className="league-create-setup-layout">
                 <div className="league-create-setup-left-stack">
                   <div className="league-create-setup-panel">
@@ -391,11 +596,7 @@ export default function LeagueCreate() {
                           <p className="league-create-field-error">
                             {fieldErrors.teams}
                           </p>
-                        ) : (
-                          <p className="league-create-field-hint">
-                            {LEAGUE_TEAMS_MIN}–{LEAGUE_TEAMS_MAX} teams
-                          </p>
-                        )}
+                        ) : null}
                       </div>
 
                       <div className="league-create-field">
@@ -405,19 +606,6 @@ export default function LeagueCreate() {
                           value={budget}
                           onChange={(e) => setBudget(Number(e.target.value))}
                         />
-                      </div>
-
-                      <div className="league-create-field">
-                        <label>SEASON YEAR</label>
-                        <select
-                          className="app-select app-select--block"
-                          value={seasonYear}
-                          onChange={(e) => setSeasonYear(Number(e.target.value))}
-                        >
-                          {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                            <option key={y} value={y}>{y}</option>
-                          ))}
-                        </select>
                       </div>
 
                       <div className="league-create-field">

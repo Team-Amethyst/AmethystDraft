@@ -63,10 +63,19 @@ export default function Leagues() {
         </div>
 
         <div className="leagues-toolbar">
-          <button className="btn-create-league" onClick={handleCreateLeague}>
-            <Plus size={18} />
-            Create League
-          </button>
+          <div className="leagues-toolbar-primary">
+            <button className="btn-create-league" onClick={handleCreateLeague}>
+              <Plus size={18} />
+              Create League
+            </button>
+            <button
+              type="button"
+              className="btn-demo-league-link"
+              onClick={() => navigate("/leagues/create?demo=1")}
+            >
+              Demo league…
+            </button>
+          </div>
           {!loading && leagues.length > 0 ? (
             <div className="leagues-season-field">
               <label htmlFor="seasonFilter" className="app-section-label">
@@ -202,7 +211,16 @@ export default function Leagues() {
             </div>
             <h2 className="empty-state-title">No Leagues Yet</h2>
             <p className="empty-state-text">
-              Create your first league to get started
+              Create your first league to get started.
+            </p>
+            <p className="empty-state-demo-hint">
+              <button
+                type="button"
+                className="btn-demo-league-link btn-demo-league-link--standalone"
+                onClick={() => navigate("/leagues/create?demo=1")}
+              >
+                Try a demo league from checkpoints…
+              </button>
             </p>
           </div>
         )}

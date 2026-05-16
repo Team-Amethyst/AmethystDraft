@@ -1727,3 +1727,128 @@
 .lc-cost-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
 }
+
+/* ─── Demo checkpoint presets (step 1) ───────────────────────────────────── */
+
+.league-create-demo-presets {
+  margin-bottom: 14px;
+  border: 1px solid color-mix(in srgb, var(--lc-card-border) 92%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--lc-card-bg) 88%, transparent);
+}
+
+.league-create-demo-presets-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lc-text-soft);
+  user-select: none;
+}
+
+.league-create-demo-presets-summary::-webkit-details-marker {
+  display: none;
+}
+
+.league-create-demo-presets-summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 8px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid color-mix(in srgb, var(--lc-text-soft) 85%, transparent);
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  vertical-align: middle;
+}
+
+.league-create-demo-presets[open]
+  > .league-create-demo-presets-summary::before {
+  transform: rotate(90deg);
+}
+
+.league-create-demo-presets-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--lc-row-border);
+}
+
+.league-create-demo-presets-lead {
+  margin: 10px 0 12px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--lc-text-dim);
+}
+
+.league-create-demo-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.league-create-demo-presets-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 200px;
+}
+
+.league-create-demo-presets-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--lc-text-soft);
+}
+
+.league-create-demo-presets-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.league-create-demo-presets-btn {
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.league-create-demo-presets-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.league-create-demo-presets-btn--ghost {
+  border: 1px solid rgba(190, 108, 255, 0.35);
+  background: transparent;
+  color: #dcd6ec;
+}
+
+.league-create-demo-presets-btn--ghost:hover:not(:disabled) {
+  border-color: rgba(190, 108, 255, 0.55);
+  background: rgba(139, 60, 247, 0.12);
+}
+
+.league-create-demo-presets-btn--primary {
+  border: none;
+  background: linear-gradient(135deg, #9333ea, #7c3aed);
+  color: #fff;
+}
+
+.league-create-demo-presets-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.league-create-demo-presets-meta {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--lc-text-soft);
+}

@@ -975,7 +975,7 @@
   grid-template-columns:
     minmax(1.8rem, 2.25rem)
     minmax(0, 1fr)
-    minmax(2.7rem, 3.9rem)
+    minmax(4.75rem, 6.25rem)
     minmax(3.15rem, 4.4rem)
     minmax(4.1rem, 1fr)
     minmax(2.45rem, 3rem);
@@ -998,8 +998,10 @@
 }
 
 .ls-keeper-makeup .team-makeup-slot-row {
-  padding: 0.1rem clamp(0.12rem, 0.7vw, 0.22rem);
-  min-height: 25px;
+  padding: 0.22rem clamp(0.12rem, 0.7vw, 0.22rem);
+  /* Match filled rows (avatar + controls) so empty slots don’t look compressed */
+  min-height: 2.45rem;
+  box-sizing: border-box;
 }
 
 .ls-keeper-makeup-head-contract {
@@ -1019,24 +1021,37 @@
 }
 
 .ls-keeper-makeup .team-makeup-slot-row--filled .ls-keeper-makeup-player {
-  padding: 0.06rem 0;
+  padding: 0;
 }
 
 .ls-keeper-makeup-name {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.32rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.ls-keeper-makeup-name-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: clamp(0.65rem, 0.5rem + 0.28vw, 0.76rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: #e8e0f5;
 }
 
 .ls-keeper-slot-select-wrap {
   min-width: 0;
+  align-self: center;
 }
 
-.ls-keeper-slot-select-wrap .keeper-slot-override-toggle {
-  font-size: 0.56rem;
+.ls-keeper-slot-select-wrap.keeper-slot-override-root--compact
+  .keeper-slot-override-field {
+  gap: 0;
 }
 
 .ls-keeper-slot-select,
@@ -1422,10 +1437,11 @@
 }
 
 .ls-keeper-team {
-  display: block;
-  font-size: 0.68rem;
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 600;
   color: #9890a6;
-  margin-top: 1px;
+  letter-spacing: 0.03em;
 }
 
 .ls-keeper-empty {
@@ -1534,7 +1550,7 @@
     grid-template-columns:
       minmax(1.65rem, 2rem)
       minmax(5.5rem, 1fr)
-      minmax(2.5rem, 3.25rem)
+      minmax(4.25rem, 5.5rem)
       minmax(2.35rem, 3rem)
       minmax(3.25rem, 4.25rem)
       minmax(2rem, 2.5rem);
@@ -1804,4 +1820,124 @@
 
 .ls-modal-btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
+}
+
+/* ── Delete league (commissioner, League Setup) ─────────────────────────── */
+
+.ls-danger-zone {
+  margin-top: 1.75rem;
+  padding: 1.1rem 1rem 1.15rem;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.ls-danger-zone-head {
+  margin-bottom: 0.85rem;
+}
+
+.ls-danger-zone-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fca5a5;
+}
+
+.ls-danger-zone-copy {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #c4b8d4;
+  max-width: 46rem;
+}
+
+.ls-danger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+.ls-danger-btn:hover {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+.ls-danger-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+  max-width: 28rem;
+}
+
+.ls-danger-confirm-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #d8cfe8;
+}
+
+.ls-danger-confirm-hint strong {
+  color: #fecaca;
+  font-weight: 700;
+}
+
+.ls-danger-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.ls-danger-cancel {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d4c8e8;
+}
+
+.ls-danger-cancel:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ls-danger-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ls-danger-confirm-btn {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  background: rgba(185, 28, 28, 0.35);
+  color: #fef2f2;
+}
+
+.ls-danger-confirm-btn:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.5);
+}
+
+.ls-danger-confirm-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

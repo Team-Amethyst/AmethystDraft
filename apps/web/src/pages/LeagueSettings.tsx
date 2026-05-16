@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useLeague } from "../contexts/LeagueContext";
 import type { League } from "../contexts/LeagueContext";
@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLeagueForm } from "../hooks/useLeagueForm";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { hittingStats, pitchingStats } from "../types/league";
-import { updateLeague } from "../api/leagues";
+import { deleteLeague, updateLeague } from "../api/leagues";
 import { LeagueRosterSlotsEditor } from "../components/leagues/LeagueRosterSlotsEditor";
 import { LeagueKeepersForm } from "./LeagueKeepersForm";
 import {
@@ -60,7 +60,7 @@ export default function LeagueSettings() {
 function LeagueSettingsForm({ league }: { league: League }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { refreshLeagues } = useLeague();
 
   usePageTitle(`${league.name} Settings`);
@@ -73,6 +73,10 @@ function LeagueSettingsForm({ league }: { league: League }) {
   const [posEligibilityRaw, setPosEligibilityRaw] = useState(
     String(league.posEligibilityThreshold ?? 20),
   );
+  const isCommissioner = Boolean(user && user.id === league.commissionerId);
+  const [deleteExpanded, setDeleteExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     leagueName,
@@ -205,6 +209,23 @@ function LeagueSettingsForm({ league }: { league: League }) {
     }
   };
 
+  const handleDeleteLeague = async () => {
+    if (!token || !deleteExpanded) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteLeague(league.id, token);
+      refreshLeagues();
+      navigate("/leagues");
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete league",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="ls-page">
       <div className="ls-container">
@@ -332,6 +353,63 @@ function LeagueSettingsForm({ league }: { league: League }) {
                     />
                   </div>
                 </div>
+
+                {isCommissioner && (
+                  <div className="ls-danger-zone">
+                    <div className="ls-danger-zone-head">
+                      <h2 className="ls-danger-zone-title">Delete league</h2>
+                      <p className="ls-danger-zone-copy">
+                        Permanently remove this league, all roster entries,
+                        watchlists, and notes for every member. This cannot be
+                        undone.
+                      </p>
+                    </div>
+                    {!deleteExpanded ? (
+                      <button
+                        type="button"
+                        className="ls-danger-btn"
+                        onClick={() => {
+                          setDeleteExpanded(true);
+                          setDeleteError(null);
+                        }}
+                      >
+                        <Trash2 size={15} aria-hidden />
+                        <span>Delete league…</span>
+                      </button>
+                    ) : (
+                      <div className="ls-danger-confirm">
+                        <p className="ls-danger-confirm-hint">
+                          Press <strong>Confirm delete</strong> again to remove
+                          this league permanently.
+                        </p>
+                        {deleteError && (
+                          <p className="ls-save-error">{deleteError}</p>
+                        )}
+                        <div className="ls-danger-confirm-actions">
+                          <button
+                            type="button"
+                            className="ls-danger-cancel"
+                            disabled={deleting}
+                            onClick={() => {
+                              setDeleteExpanded(false);
+                              setDeleteError(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="ls-danger-confirm-btn"
+                            disabled={deleting}
+                            onClick={() => void handleDeleteLeague()}
+                          >
+                            {deleting ? "Deleting…" : "Confirm delete"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

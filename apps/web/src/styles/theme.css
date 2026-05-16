@@ -38,6 +38,63 @@
   --app-nav-border-strong: rgba(138, 43, 226, 0.2);
 
   --app-section-label-fg: #7f72a8;
+
+  /**
+   * Shared control chrome — AppSelect, native `select.app-select`, panel toolbar toggles.
+   * Use AppSelect with `variant="toolbar"` in Command Center headers (styled open menu).
+   */
+  --app-control-trigger-bg: rgba(255, 255, 255, 0.04);
+  --app-control-trigger-border: rgba(139, 92, 246, 0.2);
+  --app-control-trigger-border-hover: rgba(139, 92, 246, 0.35);
+  --app-control-trigger-border-focus: rgba(167, 139, 250, 0.65);
+  --app-control-trigger-focus-ring: rgba(139, 92, 246, 0.25);
+  --app-control-trigger-fg: #c4b5fd;
+  --app-control-trigger-fg-muted: #6b4fa0;
+  --app-control-trigger-radius: 7px;
+  --app-control-trigger-min-height: 1.65rem;
+  --app-control-trigger-font-size: 0.72rem;
+  --app-control-trigger-font-size-dense: 0.64rem;
+  --app-control-trigger-padding: 0.22rem 1.55rem 0.22rem 0.5rem;
+
+  --app-control-track-bg: rgba(255, 255, 255, 0.04);
+  --app-control-track-radius: 7px;
+  --app-control-track-padding: 0.2rem;
+  --app-control-segment-padding: 0.25rem 0.65rem;
+  --app-control-segment-padding-dense: 0.22rem 0.5rem;
+  --app-control-segment-active-bg: rgba(139, 92, 246, 0.25);
+  --app-control-segment-active-fg: #c4b5fd;
+  --app-control-segment-idle-fg: #6b4fa0;
+
+  --app-control-menu-bg: rgba(17, 14, 32, 0.96);
+  --app-control-menu-border: rgba(139, 92, 246, 0.16);
+  --app-control-menu-radius: 8px;
+  --app-control-menu-padding: 0.3rem;
+  --app-control-menu-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.12),
+    0 14px 36px rgba(0, 0, 0, 0.32);
+  --app-control-menu-gap: 0.1rem;
+  --app-control-option-fg: #d4c8e8;
+  --app-control-option-hover-bg: rgba(255, 255, 255, 0.06);
+  --app-control-option-hover-fg: #f0e6ff;
+  --app-control-option-selected-bg: rgba(139, 92, 246, 0.14);
+  --app-control-option-selected-fg: #efe8fb;
+
+  /** @deprecated Prefer `--app-control-menu-*` / `--app-control-trigger-*`. */
+  --app-dropdown-surface-bg: var(--app-control-menu-bg);
+  --app-dropdown-surface-border: var(--app-control-menu-border);
+  --app-dropdown-surface-radius: var(--app-control-menu-radius);
+  --app-dropdown-surface-shadow: var(--app-control-menu-shadow);
+  --app-dropdown-surface-padding: var(--app-control-menu-padding);
+  --app-dropdown-item-hover-bg: var(--app-control-option-hover-bg);
+  --app-dropdown-item-hover-fg: var(--app-control-option-hover-fg);
+  --app-dropdown-item-selected-bg: var(--app-control-option-selected-bg);
+  --app-dropdown-item-selected-fg: var(--app-control-option-selected-fg);
+
+  --app-select-bg: color-mix(in srgb, var(--app-bg-alt) 88%, black 12%);
+  --app-select-border: color-mix(in srgb, var(--app-accent) 28%, transparent);
+  --app-select-border-hover: color-mix(in srgb, var(--app-accent) 45%, transparent);
+  --app-select-border-focus: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  --app-select-focus-ring: color-mix(in srgb, var(--app-accent) 16%, transparent);
 }
 
 /* Shared page shell primitives for gradual migration. */

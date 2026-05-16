@@ -109,7 +109,7 @@ Ties break by **lower ADP** (better list rank). Results are capped (default 8). 
 
 ## Engine row vs. catalog merge (`mergeDisplayValuationRow`)
 
-When the per-player or board **valuation row** omits a finite number, the UI **fills from the catalog `Player`** for: `recommended_bid`, `team_adjusted_value`, `adjusted_value`, `baseline_value`. `edge` is only taken from the engine row when finite (no catalog fallback). This avoids blank tiles when the API is partial; it is **display-only**—persisted roster/engine state is unchanged.
+When the per-player or board **valuation row** omits a finite number, the UI **fills from the catalog `Player`** for: `recommended_bid`, `team_value`, `auction_value`, `baseline_value`. `edge` is only taken from the engine row when finite (no catalog fallback). This avoids blank tiles when the API is partial; it is **display-only**—persisted roster/engine state is unchanged.
 
 ---
 

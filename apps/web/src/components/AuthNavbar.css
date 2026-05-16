@@ -174,18 +174,24 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(139, 60, 247, 0.12);
-  border: 1px solid rgba(138, 43, 226, 0.35);
-  color: #e2d9f3;
-  font-size: 0.875rem;
-  font-weight: 500;
+  box-sizing: border-box;
+  min-height: 2rem;
+  background: var(--app-select-bg);
+  border: 1px solid var(--app-select-border);
+  color: var(--app-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  padding: 0.35rem 0.85rem;
-  border-radius: 6px;
-  transition: all 0.2s;
+  padding: 0.22rem 0.55rem;
+  border-radius: 7px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   font-family: inherit;
   max-width: min(34vw, 260px);
   min-width: 0;
+  outline: none;
 }
 
 .league-selector-btn-name {
@@ -198,15 +204,18 @@
 }
 
 .league-selector-btn:hover {
-  background: rgba(139, 60, 247, 0.22);
-  border-color: rgba(138, 43, 226, 0.6);
-  color: #fff;
+  border-color: var(--app-select-border-hover);
+}
+
+.league-selector-btn:focus-visible {
+  border-color: var(--app-select-border-focus);
+  box-shadow: 0 0 0 3px var(--app-select-focus-ring);
 }
 
 .league-selector-chevron {
   flex-shrink: 0;
   transition: transform 0.2s;
-  color: #a78bfa;
+  color: #9d8cc4;
 }
 
 .league-selector-chevron.chevron-open {
@@ -218,11 +227,11 @@
   top: calc(100% + 8px);
   right: 0;
   min-width: 200px;
-  background: rgba(18, 10, 35, 0.97);
-  border: 1px solid rgba(138, 43, 226, 0.3);
-  border-radius: 8px;
-  padding: 0.4rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  background: var(--app-dropdown-surface-bg);
+  border: 1px solid var(--app-dropdown-surface-border);
+  border-radius: var(--app-dropdown-surface-radius);
+  padding: var(--app-dropdown-surface-padding);
+  box-shadow: var(--app-dropdown-surface-shadow);
   backdrop-filter: blur(12px);
   z-index: 200;
 }
@@ -249,8 +258,8 @@
 }
 
 .league-selector-item:hover {
-  background: rgba(139, 60, 247, 0.18);
-  color: #fff;
+  background: var(--app-dropdown-item-hover-bg);
+  color: var(--app-dropdown-item-hover-fg);
 }
 
 .league-selector-current {
@@ -267,7 +276,7 @@
 }
 
 .league-selector-row:hover {
-  background: rgba(139, 60, 247, 0.18);
+  background: var(--app-dropdown-item-hover-bg);
 }
 
 .league-selector-row:hover .league-selector-item {
@@ -352,11 +361,11 @@
   top: calc(100% + 8px);
   right: 0;
   min-width: 200px;
-  background: rgba(18, 10, 35, 0.97);
-  border: 1px solid rgba(138, 43, 226, 0.3);
-  border-radius: 8px;
-  padding: 0.4rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  background: var(--app-dropdown-surface-bg);
+  border: 1px solid var(--app-dropdown-surface-border);
+  border-radius: var(--app-dropdown-surface-radius);
+  padding: var(--app-dropdown-surface-padding);
+  box-shadow: var(--app-dropdown-surface-shadow);
   backdrop-filter: blur(12px);
   z-index: 200;
 }
@@ -392,8 +401,8 @@
 }
 
 .user-dropdown-item:hover {
-  background: rgba(139, 60, 247, 0.18);
-  color: #fff;
+  background: var(--app-dropdown-item-hover-bg);
+  color: var(--app-dropdown-item-hover-fg);
 }
 
 .user-dropdown-signout:hover {

@@ -5,7 +5,11 @@ import "./AppSelect.css";
 export type AppSelectOption = {
   value: string;
   label: string;
+  disabled?: boolean;
 };
+
+/** `toolbar` matches Command Center header controls (Hitting/Pitching toggle row). */
+export type AppSelectVariant = "default" | "toolbar";
 
 type AppSelectProps = {
   id?: string;
@@ -14,11 +18,19 @@ type AppSelectProps = {
   options: readonly AppSelectOption[];
   className?: string;
   "aria-label"?: string;
+  /** Shown on the trigger (native `title`) for tooltips. */
+  title?: string;
   compact?: boolean;
   block?: boolean;
+  disabled?: boolean;
+  /** Use `toolbar` in panel headers; native `<select>` cannot style the open list. */
+  variant?: AppSelectVariant;
 };
 
-/** Themed dropdown (button + menu) — use instead of native `<select>` when the open list must match app chrome. */
+/**
+ * Themed dropdown (button + styled menu). Prefer this over native `<select>` whenever
+ * the open list must match app chrome — especially in Command Center / Research toolbars.
+ */
 export function AppSelect({
   id,
   value,
@@ -26,9 +38,14 @@ export function AppSelect({
   options,
   className = "",
   "aria-label": ariaLabel,
+  title,
   compact = false,
   block = false,
+  disabled = false,
+  variant = "default",
 }: AppSelectProps) {
+  const isToolbar = variant === "toolbar";
+  const isCompact = compact || isToolbar;
   const autoId = useId();
   const listboxId = id ?? autoId;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -57,7 +74,8 @@ export function AppSelect({
       ref={rootRef}
       className={[
         "app-select-root",
-        compact ? "app-select-root--compact" : "",
+        isCompact ? "app-select-root--compact" : "",
+        isToolbar ? "app-select-root--toolbar" : "",
         block ? "app-select-root--block" : "",
         className,
       ]
@@ -68,17 +86,22 @@ export function AppSelect({
         type="button"
         id={id}
         className="app-select-trigger"
+        title={title}
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={open ? listboxId : undefined}
-        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setOpen((prev) => !prev);
+        }}
       >
         <span className="app-select-trigger-label">
           {selected?.label ?? value}
         </span>
         <ChevronDown
-          size={compact ? 12 : 14}
+          size={isCompact ? 12 : 14}
           className={"app-select-trigger-chevron" + (open ? " is-open" : "")}
           aria-hidden
         />
@@ -88,20 +111,24 @@ export function AppSelect({
           id={listboxId}
           className="app-select-menu"
           role="listbox"
+          aria-orientation="vertical"
           aria-label={ariaLabel}
         >
           {options.map((opt) => {
             const isSelected = opt.value === value;
+            const isDisabled = Boolean(opt.disabled);
             return (
               <li key={opt.value} role="presentation">
                 <button
                   type="button"
                   role="option"
                   aria-selected={isSelected}
+                  disabled={isDisabled}
                   className={
                     "app-select-option" + (isSelected ? " is-selected" : "")
                   }
                   onClick={() => {
+                    if (isDisabled) return;
                     onChange(opt.value);
                     setOpen(false);
                   }}
