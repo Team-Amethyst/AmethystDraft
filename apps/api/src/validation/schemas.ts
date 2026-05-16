@@ -153,6 +153,7 @@ export const engineCheckpointKeySchema = z.enum([
   "after_pick_50",
   "after_pick_100",
   "after_pick_130",
+  "finished_league",
 ]);
 
 /** Body for POST …/leagues/:leagueId/valuation/checkpoint — valuation from bundled Engine fixture. */
@@ -162,6 +163,13 @@ export const valuationCheckpointBodySchema = z.object({
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
   explain_valuation_rows: z.boolean().optional(),
   recommended_bid_soft_cap_ratio: z.number().finite().positive().max(10).optional(),
+});
+
+/** Body for POST /api/leagues/from-engine-checkpoint — real league + roster from bundled Activity #9 fixture. */
+export const createLeagueFromCheckpointSchema = z.object({
+  checkpoint_key: engineCheckpointKeySchema,
+  name: z.string().trim().min(1).max(200).optional(),
+  seasonYear: z.number().int().min(1900).max(2200).optional(),
 });
 
 /** Body for POST …/valuation/player — merged with league valuation context for Engine. */

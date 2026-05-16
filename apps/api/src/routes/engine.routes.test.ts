@@ -439,6 +439,11 @@ describe("engine routes (BFF → Amethyst)", () => {
           (c: { id: string }) => c.id === "pre_draft",
         ),
       ).toBe(true);
+      expect(
+        res.body.checkpoints.some(
+          (c: { id: string }) => c.id === "finished_league",
+        ),
+      ).toBe(true);
     });
   });
 
@@ -450,6 +455,33 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.checkpoint).toBe("pre_draft");
+      expect(res.body.draft_state).toHaveLength(0);
+      expect(res.body.league.team_names).toEqual([
+        "Team A",
+        "Team B",
+        "Team C",
+        "Team D",
+        "Team E",
+        "Team F",
+        "Team G",
+        "Team H",
+        "Team I",
+      ]);
+    });
+
+    it("returns distinct draft_state per checkpoint key", async () => {
+      const cases: Array<{ key: string; len: number }> = [
+        { key: "after_pick_10", len: 10 },
+        { key: "finished_league", len: 133 },
+      ];
+      for (const { key, len } of cases) {
+        const res = await request(app)
+          .get(`/api/engine/checkpoints/${key}/json`)
+          .set("Authorization", "Bearer t");
+        expect(res.status).toBe(200);
+        expect(res.body.checkpoint).toBe(key);
+        expect(res.body.draft_state).toHaveLength(len);
+      }
     });
 
     it("400 on unknown checkpoint key", async () => {

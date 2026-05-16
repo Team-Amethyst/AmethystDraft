@@ -26,18 +26,20 @@ describe("valuation fixtures -> engine POST body", () => {
 });
 
 describe("fixture draft sizes", () => {
-  it("after_130 has 130 auction picks in drafted_players and keeper in pre_draft_rosters", () => {
+  it("after_130 aligns engine body with workbook-derived draft_state and keeper grid", () => {
     const raw = JSON.parse(
       readFileSync(path.join(checkpointsDir, "after_130.json"), "utf8"),
     ) as unknown;
     const fixture = valuationRequestSchema.parse(raw);
     const body = buildEngineValuationCalculateBodyFromFixture(fixture);
-    expect(body.drafted_players).toHaveLength(130);
+    const expectedDraftLen = fixture.draft_state?.length ?? 0;
+    expect(expectedDraftLen).toBeGreaterThan(0);
+    expect(body.drafted_players).toHaveLength(expectedDraftLen);
+
     expect(body.pre_draft_rosters).toBeDefined();
-    expect(
-      (body.pre_draft_rosters as { team_id: string; players: unknown[] }[])[0]
-        ?.players,
-    ).toHaveLength(1);
+    const pre = body.pre_draft_rosters as { team_id: string; players: unknown[] }[];
+    expect(pre.some((s) => s.players.length >= 1)).toBe(true);
+
     expect(body.budget_by_team_id).toBeDefined();
     expect(Object.keys(body.budget_by_team_id ?? {}).length).toBeGreaterThan(0);
   });

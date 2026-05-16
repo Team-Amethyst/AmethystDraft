@@ -46,6 +46,10 @@ import {
   NotFoundError,
   ValidationError,
 } from "../lib/appError";
+import {
+  parseDraftValuationDebugQuery,
+  shapeValuationResponseForDraft,
+} from "../lib/draftValuationContract";
 
 const router: Router = Router();
 
@@ -192,8 +196,13 @@ const calculateValuation: RequestHandler = async (
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
 
+    const debugBoard = parseDraftValuationDebugQuery(req.query);
+    const shapedBoard = shapeValuationResponseForDraft(axiosRes.data, {
+      debug: debugBoard,
+    });
+
     if (diag) {
-      const responseBytes = safeJsonByteLength(axiosRes.data);
+      const responseBytes = safeJsonByteLength(shapedBoard);
       const summary = summarizeEngineValuationPayload(payloadRecord);
       console.info(
         "[valuation-diag] board_ok",
@@ -220,7 +229,7 @@ const calculateValuation: RequestHandler = async (
       );
     }
 
-    res.json(axiosRes.data);
+    res.json(shapedBoard);
   } catch (err) {
     if (diag) {
       if (err instanceof AppError) {
@@ -367,8 +376,13 @@ const calculateValuationPlayer: RequestHandler = async (
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
 
+    const debugPlayer = parseDraftValuationDebugQuery(req.query);
+    const shapedPlayer = shapeValuationResponseForDraft(axiosRes.data, {
+      debug: debugPlayer,
+    });
+
     if (diag) {
-      const responseBytes = safeJsonByteLength(axiosRes.data);
+      const responseBytes = safeJsonByteLength(shapedPlayer);
       const summary = summarizeEngineValuationPayload(base as Record<string, unknown>);
       console.info(
         "[valuation-diag] player_ok",
@@ -396,7 +410,7 @@ const calculateValuationPlayer: RequestHandler = async (
       );
     }
 
-    res.json(axiosRes.data);
+    res.json(shapedPlayer);
   } catch (err) {
     if (diag) {
       if (err instanceof AppError) {
@@ -618,7 +632,9 @@ const calculateValuationFromCheckpoint: RequestHandler = async (
     const axiosRes = await amethyst.post("/valuation/calculate", payload);
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
-    res.json(axiosRes.data);
+    const debugCp = parseDraftValuationDebugQuery(req.query);
+    const shapedCp = shapeValuationResponseForDraft(axiosRes.data, { debug: debugCp });
+    res.json(shapedCp);
   } catch (engineErr) {
     throwEngineError(engineErr, req);
   }

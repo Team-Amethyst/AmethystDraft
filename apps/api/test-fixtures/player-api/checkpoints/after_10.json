@@ -59,142 +59,168 @@
       }
     ],
     "total_budget": 260,
-    "num_teams": 12,
+    "num_teams": 9,
     "league_scope": "Mixed",
     "scoring_format": "5x5",
     "hitter_budget_pct": 70,
-    "pos_eligibility_threshold": 20
+    "pos_eligibility_threshold": 20,
+    "team_names": [
+      "Team A",
+      "Team B",
+      "Team C",
+      "Team D",
+      "Team E",
+      "Team F",
+      "Team G",
+      "Team H",
+      "Team I"
+    ],
+    "budget_by_team_id": {
+      "team_1": 182,
+      "team_2": 149,
+      "team_3": 141,
+      "team_4": 109,
+      "team_5": 80,
+      "team_6": 113,
+      "team_7": 173,
+      "team_8": 90,
+      "team_9": 104
+    }
   },
   "draft_state": [
     {
-      "player_id": "660001",
-      "name": "Sample Player 1",
+      "player_id": "661388",
+      "name": "William Contreras",
       "positions": [
-        "OF"
+        "C"
       ],
-      "team": "NYY",
-      "team_id": "team_2",
-      "paid": 6,
+      "team": "MIL",
+      "team_id": "team_4",
+      "paid": 25,
       "pick_number": 1,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "C"
     },
     {
-      "player_id": "660002",
-      "name": "Sample Player 2",
+      "player_id": "695734",
+      "name": "Daylen Lile",
       "positions": [
+        "LF",
         "OF"
       ],
-      "team": "NYY",
-      "team_id": "team_3",
-      "paid": 7,
+      "team": "WSH",
+      "team_id": "team_5",
+      "paid": 12,
       "pick_number": 2,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "LF"
     },
     {
-      "player_id": "660003",
-      "name": "Sample Player 3",
+      "player_id": "665487",
+      "name": "Fernando Tatis Jr.",
       "positions": [
+        "RF",
         "OF"
       ],
-      "team": "NYY",
-      "team_id": "team_4",
-      "paid": 8,
+      "team": "SD",
+      "team_id": "team_8",
+      "paid": 43,
       "pick_number": 3,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "RF"
     },
     {
-      "player_id": "660004",
-      "name": "Sample Player 4",
+      "player_id": "605141",
+      "name": "Mookie Betts",
       "positions": [
-        "SP"
+        "SS"
       ],
-      "team": "NYY",
-      "team_id": "team_5",
-      "paid": 9,
+      "team": "LAD",
+      "team_id": "team_4",
+      "paid": 28,
       "pick_number": 4,
       "is_keeper": false,
-      "roster_slot": "SP1"
+      "roster_slot": "SS"
     },
     {
-      "player_id": "660005",
-      "name": "Sample Player 5",
+      "player_id": "606466",
+      "name": "Ketel Marte",
       "positions": [
+        "2B",
         "OF"
       ],
-      "team": "NYY",
+      "team": "WSH",
       "team_id": "team_6",
-      "paid": 10,
+      "paid": 38,
       "pick_number": 5,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "2B"
     },
     {
-      "player_id": "660006",
-      "name": "Sample Player 6",
+      "player_id": "543760",
+      "name": "Marcus Semien",
       "positions": [
-        "OF"
+        "2B"
       ],
-      "team": "NYY",
-      "team_id": "team_7",
-      "paid": 11,
+      "team": "NYM",
+      "team_id": "team_6",
+      "paid": 18,
       "pick_number": 6,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "2B"
     },
     {
-      "player_id": "660007",
-      "name": "Sample Player 7",
+      "player_id": "547180",
+      "name": "Bryce Harper",
       "positions": [
-        "OF"
+        "1B"
       ],
-      "team": "NYY",
-      "team_id": "team_8",
-      "paid": 12,
+      "team": "PHI",
+      "team_id": "team_3",
+      "paid": 36,
       "pick_number": 7,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "1B"
     },
     {
-      "player_id": "660008",
-      "name": "Sample Player 8",
+      "player_id": "666182",
+      "name": "Bo Bichette",
       "positions": [
-        "SP"
+        "SS",
+        "3B"
       ],
-      "team": "NYY",
-      "team_id": "team_9",
-      "paid": 13,
+      "team": "NYM",
+      "team_id": "team_8",
+      "paid": 33,
       "pick_number": 8,
       "is_keeper": false,
-      "roster_slot": "SP1"
+      "roster_slot": "SS"
     },
     {
-      "player_id": "660009",
-      "name": "Sample Player 9",
+      "player_id": "645277",
+      "name": "Ozzie Albies",
       "positions": [
-        "OF"
+        "2B"
       ],
-      "team": "NYY",
-      "team_id": "team_10",
-      "paid": 14,
+      "team": "ATL",
+      "team_id": "team_7",
+      "paid": 25,
       "pick_number": 9,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "2B"
     },
     {
-      "player_id": "660010",
-      "name": "Sample Player 10",
+      "player_id": "553993",
+      "name": "Eugenio Suárez",
       "positions": [
-        "OF"
+        "3B"
       ],
-      "team": "NYY",
-      "team_id": "team_11",
-      "paid": 15,
+      "team": "CIN",
+      "team_id": "team_6",
+      "paid": 25,
       "pick_number": 10,
       "is_keeper": false,
-      "roster_slot": "OF1"
+      "roster_slot": "3B"
     }
   ],
   "pre_draft_rosters": [
@@ -202,16 +228,2752 @@
       "team_id": "team_1",
       "players": [
         {
-          "player_id": "660271",
-          "name": "Sample Keeper",
+          "player_id": "669364",
+          "name": "Xavier Edwards",
+          "team": "MIA",
+          "team_id": "team_1",
+          "paid": 23,
+          "is_keeper": true,
+          "roster_slot": "2B",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "676475",
+          "name": "Alec Burleson",
+          "team": "STL",
+          "team_id": "team_1",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "OF",
           "positions": [
             "1B"
-          ],
-          "team": "TOR",
+          ]
+        },
+        {
+          "player_id": "684007",
+          "name": "Shota Imanaga",
+          "team": "CHC",
           "team_id": "team_1",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "686948",
+          "name": "Drake Baldwin",
+          "team": "ATL",
+          "team_id": "team_1",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "C",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "690990",
+          "name": "Cade Horton",
+          "team": "CHC",
+          "team_id": "team_1",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "694297",
+          "name": "Brandon Pfaadt",
+          "team": "ARI",
+          "team_id": "team_1",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "694819",
+          "name": "Jacob Misiorowski",
+          "team": "MIL",
+          "team_id": "team_1",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_2",
+      "players": [
+        {
+          "player_id": "645261",
+          "name": "Sandy Alcantara",
+          "team": "MIA",
+          "team_id": "team_2",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "650633",
+          "name": "Michael King",
+          "team": "SD",
+          "team_id": "team_2",
+          "paid": 16,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "671739",
+          "name": "Michael Harris II",
+          "team": "ATL",
+          "team_id": "team_2",
+          "paid": 20,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "675911",
+          "name": "Spencer Strider",
+          "team": "ATL",
+          "team_id": "team_2",
+          "paid": 16,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "677595",
+          "name": "Ronny Mauricio",
+          "team": "NYM",
+          "team_id": "team_2",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "3B",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "682626",
+          "name": "Francisco Alvarez",
+          "team": "NYM",
+          "team_id": "team_2",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "C",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "682928",
+          "name": "CJ Abrams",
+          "team": "WSH",
+          "team_id": "team_2",
+          "paid": 20,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "687401",
+          "name": "Joey Ortiz",
+          "team": "MIL",
+          "team_id": "team_2",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "UTIL",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "687462",
+          "name": "Spencer Horwitz",
+          "team": "PIT",
+          "team_id": "team_2",
+          "paid": 3,
+          "is_keeper": true,
+          "roster_slot": "1B",
+          "positions": [
+            "1B"
+          ]
+        },
+        {
+          "player_id": "701538",
+          "name": "Jackson Merrill",
+          "team": "SD",
+          "team_id": "team_2",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "808967",
+          "name": "Yoshinobu Yamamoto",
+          "team": "LAD",
+          "team_id": "team_2",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_3",
+      "players": [
+        {
+          "player_id": "571510",
+          "name": "Matthew Boyd",
+          "team": "CHC",
+          "team_id": "team_3",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "605540",
+          "name": "Brandon Woodruff",
+          "team": "MIL",
+          "team_id": "team_3",
+          "paid": 4,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "607208",
+          "name": "Trea Turner",
+          "team": "PHI",
+          "team_id": "team_3",
+          "paid": 34,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "668930",
+          "name": "Brice Turang",
+          "team": "MIL",
+          "team_id": "team_3",
+          "paid": 7,
+          "is_keeper": true,
+          "roster_slot": "2B",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "672515",
+          "name": "Gabriel Moreno",
+          "team": "ARI",
+          "team_id": "team_3",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "C",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "682998",
+          "name": "Corbin Carroll",
+          "team": "ARI",
+          "team_id": "team_3",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "691023",
+          "name": "Jordan Walker",
+          "team": "STL",
+          "team_id": "team_3",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "691718",
+          "name": "Pete Crow-Armstrong",
+          "team": "CHC",
+          "team_id": "team_3",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "696100",
+          "name": "Hunter Goodman",
+          "team": "COL",
+          "team_id": "team_3",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "C",
+          "positions": [
+            "C"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_4",
+      "players": [
+        {
+          "player_id": "571970",
+          "name": "Max Muncy",
+          "team": "LAD",
+          "team_id": "team_4",
+          "paid": 9,
+          "is_keeper": true,
+          "roster_slot": "3B",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "596019",
+          "name": "Francisco Lindor",
+          "team": "NYM",
+          "team_id": "team_4",
+          "paid": 36,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "628452",
+          "name": "Raisel Iglesias",
+          "team": "ATL",
+          "team_id": "team_4",
           "paid": 18,
           "is_keeper": true,
-          "roster_slot": "1B"
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "656605",
+          "name": "Mitch Keller",
+          "team": "PIT",
+          "team_id": "team_4",
+          "paid": 7,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "663538",
+          "name": "Nico Hoerner",
+          "team": "CHC",
+          "team_id": "team_4",
+          "paid": 17,
+          "is_keeper": true,
+          "roster_slot": "2B",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "669016",
+          "name": "Brandon Marsh",
+          "team": "PHI",
+          "team_id": "team_4",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "695578",
+          "name": "James Wood",
+          "team": "WSH",
+          "team_id": "team_4",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_5",
+      "players": [
+        {
+          "player_id": "642547",
+          "name": "Freddy Peralta",
+          "team": "NYM",
+          "team_id": "team_5",
+          "paid": 25,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "656941",
+          "name": "Kyle Schwarber",
+          "team": "PHI",
+          "team_id": "team_5",
+          "paid": 23,
+          "is_keeper": true,
+          "roster_slot": "UTIL",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "663656",
+          "name": "Kyle Tucker",
+          "team": "LAD",
+          "team_id": "team_5",
+          "paid": 44,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "663743",
+          "name": "Nick Fortes",
+          "team": "TB",
+          "team_id": "team_5",
+          "paid": 14,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "665742",
+          "name": "Juan Soto",
+          "team": "NYM",
+          "team_id": "team_5",
+          "paid": 47,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "671096",
+          "name": "Andrew Abbott",
+          "team": "CIN",
+          "team_id": "team_5",
+          "paid": 4,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "672695",
+          "name": "Geraldo Perdomo",
+          "team": "ARI",
+          "team_id": "team_5",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "694973",
+          "name": "Paul Skenes",
+          "team": "PIT",
+          "team_id": "team_5",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_8",
+      "players": [
+        {
+          "player_id": "518692",
+          "name": "Freddie Freeman",
+          "team": "LAD",
+          "team_id": "team_8",
+          "paid": 31,
+          "is_keeper": true,
+          "roster_slot": "1B",
+          "positions": [
+            "1B"
+          ]
+        },
+        {
+          "player_id": "608348",
+          "name": "Carson Kelly",
+          "team": "CHC",
+          "team_id": "team_8",
+          "paid": 2,
+          "is_keeper": true,
+          "roster_slot": "C",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "621020",
+          "name": "Dansby Swanson",
+          "team": "CHC",
+          "team_id": "team_8",
+          "paid": 8,
+          "is_keeper": true,
+          "roster_slot": "MI",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "657277",
+          "name": "Logan Webb",
+          "team": "SF",
+          "team_id": "team_8",
+          "paid": 28,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "676917",
+          "name": "Cade Cavalli",
+          "team": "WSH",
+          "team_id": "team_8",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "682829",
+          "name": "Elly De La Cruz",
+          "team": "CIN",
+          "team_id": "team_8",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "808982",
+          "name": "Jung Hoo Lee",
+          "team": "SF",
+          "team_id": "team_8",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_9",
+      "players": [
+        {
+          "player_id": "592518",
+          "name": "Manny Machado",
+          "team": "SD",
+          "team_id": "team_9",
+          "paid": 33,
+          "is_keeper": true,
+          "roster_slot": "3B",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "592662",
+          "name": "Robbie Ray",
+          "team": "SF",
+          "team_id": "team_9",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "601713",
+          "name": "Nick Pivetta",
+          "team": "SD",
+          "team_id": "team_9",
+          "paid": 13,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "642715",
+          "name": "Willy Adames",
+          "team": "SF",
+          "team_id": "team_9",
+          "paid": 11,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "650911",
+          "name": "Cristopher Sánchez",
+          "team": "PHI",
+          "team_id": "team_9",
+          "paid": 9,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "656550",
+          "name": "Grant Holmes",
+          "team": "ATL",
+          "team_id": "team_9",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "660271",
+          "name": "Shohei Ohtani",
+          "team": "LAD",
+          "team_id": "team_9",
+          "paid": 46,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "673548",
+          "name": "Seiya Suzuki",
+          "team": "CHC",
+          "team_id": "team_9",
+          "paid": 18,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "682663",
+          "name": "Agustín Ramírez",
+          "team": "MIA",
+          "team_id": "team_9",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "C",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "687363",
+          "name": "Victor Scott II",
+          "team": "STL",
+          "team_id": "team_9",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_7",
+      "players": [
+        {
+          "player_id": "573262",
+          "name": "Mike Yastrzemski",
+          "team": "ATL",
+          "team_id": "team_7",
+          "paid": 2,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "656976",
+          "name": "Pavin Smith",
+          "team": "ARI",
+          "team_id": "team_7",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "CI",
+          "positions": [
+            "1B"
+          ]
+        },
+        {
+          "player_id": "660670",
+          "name": "Ronald Acuña Jr.",
+          "team": "ATL",
+          "team_id": "team_7",
+          "paid": 31,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "663586",
+          "name": "Austin Riley",
+          "team": "ATL",
+          "team_id": "team_7",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "3B",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "666157",
+          "name": "Nick Lodolo",
+          "team": "CIN",
+          "team_id": "team_7",
+          "paid": 7,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "666200",
+          "name": "Jesús Luzardo",
+          "team": "PHI",
+          "team_id": "team_7",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "683737",
+          "name": "Michael Busch",
+          "team": "CHC",
+          "team_id": "team_7",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "1B",
+          "positions": [
+            "1B"
+          ]
+        },
+        {
+          "player_id": "691026",
+          "name": "Masyn Winn",
+          "team": "STL",
+          "team_id": "team_7",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "SS",
+          "positions": [
+            "SS"
+          ]
+        }
+      ]
+    },
+    {
+      "team_id": "team_6",
+      "players": [
+        {
+          "player_id": "519242",
+          "name": "Chris Sale",
+          "team": "ATL",
+          "team_id": "team_6",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "571448",
+          "name": "Nolan Arenado",
+          "team": "ARI",
+          "team_id": "team_6",
+          "paid": 11,
+          "is_keeper": true,
+          "roster_slot": "3B",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "592791",
+          "name": "Jameson Taillon",
+          "team": "CHC",
+          "team_id": "team_6",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "625643",
+          "name": "Reynaldo López",
+          "team": "ATL",
+          "team_id": "team_6",
+          "paid": 4,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "663903",
+          "name": "Brady Singer",
+          "team": "CIN",
+          "team_id": "team_6",
+          "paid": 4,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "686217",
+          "name": "Sal Frelick",
+          "team": "MIL",
+          "team_id": "team_6",
+          "paid": 15,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "686611",
+          "name": "Dylan Crews",
+          "team": "WSH",
+          "team_id": "team_6",
+          "paid": 5,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "694192",
+          "name": "Jackson Chourio",
+          "team": "MIL",
+          "team_id": "team_6",
+          "paid": 10,
+          "is_keeper": true,
+          "roster_slot": "OF",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "700241",
+          "name": "Michael McGreevy",
+          "team": "STL",
+          "team_id": "team_6",
+          "paid": 1,
+          "is_keeper": true,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        }
+      ]
+    }
+  ],
+  "minors": [
+    {
+      "team_id": "team_1",
+      "players": [
+        {
+          "player_id": "682634",
+          "name": "Kevin Alcántara",
+          "team": "CHC",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "691620",
+          "name": "Jeferson Quero",
+          "team": "MIL",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "695490",
+          "name": "Edwin Arroyo",
+          "team": "CIN",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "702281",
+          "name": "Robby Snelling",
+          "team": "MIA",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900004",
+          "name": "Starlyn Caba",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900007",
+          "name": "Emil Morales",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900010",
+          "name": "Eli Willits",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900017",
+          "name": "Edwin Florentino",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_2",
+      "players": [
+        {
+          "player_id": "694208",
+          "name": "Moisés Ballesteros",
+          "team": "CHC",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "699013",
+          "name": "Esmerlyn Valdez",
+          "team": "PIT",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "OF"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900001",
+          "name": "Kody Hoese",
+          "team": "",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900002",
+          "name": "Jesus Made",
+          "team": "",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900005",
+          "name": "Hedbert Perez",
+          "team": "",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900014",
+          "name": "Liam Doyle",
+          "team": "",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_3",
+      "players": [
+        {
+          "player_id": "701649",
+          "name": "James Triantos",
+          "team": "CHC",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900003",
+          "name": "Cam Collier",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900006",
+          "name": "Josuar De Jesus Gonzalez",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900008",
+          "name": "Luis Pena",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900011",
+          "name": "Jefferson Rojas",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900015",
+          "name": "Joendry Vargas",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900018",
+          "name": "Jett Williams",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900020",
+          "name": "Jodue De Paula",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_4",
+      "players": [
+        {
+          "player_id": "690997",
+          "name": "Nolan McLean",
+          "team": "NYM",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "695670",
+          "name": "Harry Ford",
+          "team": "WSH",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "696149",
+          "name": "Bubba Chandler",
+          "team": "PIT",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "806198",
+          "name": "Cooper Pratt",
+          "team": "MIL",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900012",
+          "name": "Cam Caminiti",
+          "team": "",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_5",
+      "players": [
+        {
+          "player_id": "691725",
+          "name": "Andrew Painter",
+          "team": "PHI",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "695076",
+          "name": "Rhett Lowder",
+          "team": "CIN",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "695505",
+          "name": "Chase Burns",
+          "team": "CIN",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900009",
+          "name": "Aiva Arquette",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900013",
+          "name": "Cristian Hernandez",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900016",
+          "name": "Ethan Holliday",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900019",
+          "name": "Seaver King",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900021",
+          "name": "Ethan Conrad",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_6",
+      "players": [
+        {
+          "player_id": "691788",
+          "name": "Joe Mack",
+          "team": "MIA",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "701656",
+          "name": "Logan Henderson",
+          "team": "MIL",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "804636",
+          "name": "Jonah Tong",
+          "team": "NYM",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "808963",
+          "name": "Roki Sasaki",
+          "team": "LAD",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900023",
+          "name": "Ryan Clifford",
+          "team": "",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900032",
+          "name": "Thomas White",
+          "team": "",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_7",
+      "players": [
+        {
+          "player_id": "687221",
+          "name": "Dalton Rushing",
+          "team": "LAD",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "693311",
+          "name": "Tink Hence",
+          "team": "STL",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "701398",
+          "name": "Sal Stewart",
+          "team": "CIN",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "1B"
+          ]
+        },
+        {
+          "player_id": "702222",
+          "name": "Justin Crawford",
+          "team": "PHI",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "805999",
+          "name": "A.J. Ewing",
+          "team": "NYM",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900027",
+          "name": "Termarr Johnson",
+          "team": "",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900030",
+          "name": "Steele Hall",
+          "team": "",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900033",
+          "name": "Aidan Miller",
+          "team": "",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_8",
+      "players": [
+        {
+          "player_id": "683357",
+          "name": "Owen Caissie",
+          "team": "MIA",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "687551",
+          "name": "Drew Gilbert",
+          "team": "SF",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "814439",
+          "name": "Ryan Waldschmidt",
+          "team": "ARI",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900024",
+          "name": "Delvin Perez",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900025",
+          "name": "Ed Howard",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900028",
+          "name": "Hunter Bishop",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900034",
+          "name": "Hudson Head",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900035",
+          "name": "Mike Sirota",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_9",
+      "players": [
+        {
+          "player_id": "804606",
+          "name": "Konnor Griffin",
+          "team": "PIT",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900022",
+          "name": "Seth Hernandez",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900026",
+          "name": "Ethan Salas",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900029",
+          "name": "Rainiel Rodriguez",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900031",
+          "name": "Alfredo Duno",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "MIN",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    }
+  ],
+  "taxi": [
+    {
+      "team_id": "team_1",
+      "players": [
+        {
+          "player_id": "663368",
+          "name": "Blake Perkins",
+          "team": "MIL",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "665052",
+          "name": "Griffin Conine",
+          "team": "MIA",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "666181",
+          "name": "Will Benson",
+          "team": "CIN",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "690976",
+          "name": "Alex Freeland",
+          "team": "LAD",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "694813",
+          "name": "Gavin Stone",
+          "team": "LAD",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900036",
+          "name": "Estuary Ruiz",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900043",
+          "name": "Josia Grey",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900047",
+          "name": "Albert Alsoy",
+          "team": "",
+          "team_id": "team_1",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_2",
+      "players": [
+        {
+          "player_id": "621438",
+          "name": "Tyrone Taylor",
+          "team": "NYM",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "663978",
+          "name": "Chris Paddack",
+          "team": "CIN",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "664208",
+          "name": "Phil Maton",
+          "team": "CHC",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "669707",
+          "name": "Jared Triolo",
+          "team": "PIT",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "670970",
+          "name": "Adrian Morejon",
+          "team": "SD",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "680728",
+          "name": "Adrian Del Castillo",
+          "team": "ARI",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "686780",
+          "name": "Pedro Pagés",
+          "team": "STL",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900038",
+          "name": "Encarnacion",
+          "team": "",
+          "team_id": "team_2",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_3",
+      "players": [
+        {
+          "player_id": "500779",
+          "name": "Jose Quintana",
+          "team": "COL",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "682848",
+          "name": "Endy Rodríguez",
+          "team": "PIT",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "696285",
+          "name": "Jacob Young",
+          "team": "WSH",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "701675",
+          "name": "Nathan Church",
+          "team": "STL",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900039",
+          "name": "Nate Lowe",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900041",
+          "name": "Hilton Waltrip",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900044",
+          "name": "Johan Rojas",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900048",
+          "name": "Jake Bowers",
+          "team": "",
+          "team_id": "team_3",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_4",
+      "players": [
+        {
+          "player_id": "592094",
+          "name": "Jason Adam",
+          "team": "SD",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "609280",
+          "name": "Miguel Andujar",
+          "team": "SD",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "621237",
+          "name": "José Alvarado",
+          "team": "PHI",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "664353",
+          "name": "José Urquidy",
+          "team": "PIT",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "665561",
+          "name": "Rafael Marchán",
+          "team": "PHI",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "676534",
+          "name": "Calvin Faucher",
+          "team": "MIA",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900037",
+          "name": "Ha Seong Kim",
+          "team": "",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900045",
+          "name": "Dylan Moore",
+          "team": "",
+          "team_id": "team_4",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_5",
+      "players": [
+        {
+          "player_id": "596142",
+          "name": "Gary Sánchez",
+          "team": "MIL",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "643289",
+          "name": "Mauricio Dubón",
+          "team": "ATL",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "SS"
+          ]
+        },
+        {
+          "player_id": "669743",
+          "name": "Alex Call",
+          "team": "LAD",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "687859",
+          "name": "Troy Johnston",
+          "team": "COL",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "RF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "694374",
+          "name": "Tim Tawa",
+          "team": "ARI",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "LF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900040",
+          "name": "Boston Griffin",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900042",
+          "name": "Hassel",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900046",
+          "name": "Emanuel Valdez",
+          "team": "",
+          "team_id": "team_5",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_6",
+      "players": [
+        {
+          "player_id": "642201",
+          "name": "Eli White",
+          "team": "ATL",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "CF",
+            "OF"
+          ]
+        },
+        {
+          "player_id": "669289",
+          "name": "Santiago Espinal",
+          "team": "LAD",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "681517",
+          "name": "Kyle Leahy",
+          "team": "STL",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "699912",
+          "name": "Jose Fernandez",
+          "team": "ARI",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900049",
+          "name": "Garcia",
+          "team": "",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900051",
+          "name": "Javier Sonova",
+          "team": "",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900055",
+          "name": "Hae Seong Kim",
+          "team": "",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900059",
+          "name": "Justin Robleski",
+          "team": "",
+          "team_id": "team_6",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_7",
+      "players": [
+        {
+          "player_id": "602104",
+          "name": "Ramón Urías",
+          "team": "STL",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "666129",
+          "name": "Braxton Garrett",
+          "team": "MIA",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "671056",
+          "name": "Iván Herrera",
+          "team": "STL",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ]
+        },
+        {
+          "player_id": "678020",
+          "name": "Seth Halvorsen",
+          "team": "COL",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "678554",
+          "name": "Curtis Mead",
+          "team": "WSH",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "1B"
+          ]
+        },
+        {
+          "player_id": "695418",
+          "name": "Brad Lord",
+          "team": "WSH",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900052",
+          "name": "Romero",
+          "team": "",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900057",
+          "name": "Keybron Hayes",
+          "team": "",
+          "team_id": "team_7",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_8",
+      "players": [
+        {
+          "player_id": "623149",
+          "name": "Paul Sewald",
+          "team": "ARI",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "624641",
+          "name": "Edmundo Sosa",
+          "team": "PHI",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "657006",
+          "name": "Justin Steele",
+          "team": "CHC",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "678391",
+          "name": "Jorbit Vivas",
+          "team": "WSH",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "3B"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900050",
+          "name": "Luis Rianfro",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900053",
+          "name": "Nunez",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900056",
+          "name": "Victor Zodnik",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900058",
+          "name": "Christopher Morell",
+          "team": "",
+          "team_id": "team_8",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        }
+      ]
+    },
+    {
+      "team_id": "team_9",
+      "players": [
+        {
+          "player_id": "607067",
+          "name": "Colin Rea",
+          "team": "CHC",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "624431",
+          "name": "Jose Trevino",
+          "team": "CIN",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "C"
+          ]
+        },
+        {
+          "player_id": "666149",
+          "name": "Tyler Fitzgerald",
+          "team": "LAD",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "2B"
+          ]
+        },
+        {
+          "player_id": "669276",
+          "name": "Dylan Lee",
+          "team": "ATL",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "RP",
+          "positions": [
+            "RP"
+          ]
+        },
+        {
+          "player_id": "694738",
+          "name": "Landen Roupp",
+          "team": "SF",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "SP",
+          "positions": [
+            "SP"
+          ]
+        },
+        {
+          "player_id": "fixture_unresolved_9900054",
+          "name": "Adrian Hauser",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900060",
+          "name": "Casey Schmidt",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
+        },
+        {
+          "player_id": "fixture_unresolved_9900061",
+          "name": "Luken Baker",
+          "team": "",
+          "team_id": "team_9",
+          "paid": 0,
+          "is_keeper": false,
+          "roster_slot": "TAXI",
+          "positions": [
+            "UTIL"
+          ],
+          "fixture_unresolved": true
         }
       ]
     }

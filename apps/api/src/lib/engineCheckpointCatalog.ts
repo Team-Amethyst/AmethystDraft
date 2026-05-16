@@ -8,6 +8,7 @@ export const ENGINE_CHECKPOINT_IDS = [
   "after_pick_50",
   "after_pick_100",
   "after_pick_130",
+  "finished_league",
 ] as const;
 
 export type EngineCheckpointId = (typeof ENGINE_CHECKPOINT_IDS)[number];
@@ -22,6 +23,7 @@ export const DRAFT_CHECKPOINT_FILENAME: Record<EngineCheckpointId, string> = {
   after_pick_50: "after_50.json",
   after_pick_100: "after_100.json",
   after_pick_130: "after_130.json",
+  finished_league: "finished_league.json",
 };
 
 /** Portal / Engine static filenames (AmethystAPI/public/fixtures/checkpoints/). */
@@ -32,6 +34,7 @@ export const ENGINE_PORTAL_CHECKPOINT_FILENAME: Record<EngineCheckpointId, strin
     after_pick_50: "after_pick_50.json",
     after_pick_100: "after_pick_100.json",
     after_pick_130: "after_pick_130.json",
+    finished_league: "finished_league.json",
   };
 
 export const CHECKPOINT_CATALOG_ENTRIES: ReadonlyArray<{
@@ -69,6 +72,12 @@ export const CHECKPOINT_CATALOG_ENTRIES: ReadonlyArray<{
     title: "After pick 130",
     draft_fixture_file: DRAFT_CHECKPOINT_FILENAME.after_pick_130,
     engine_portal_file: ENGINE_PORTAL_CHECKPOINT_FILENAME.after_pick_130,
+  },
+  {
+    id: "finished_league",
+    title: "Finished league",
+    draft_fixture_file: DRAFT_CHECKPOINT_FILENAME.finished_league,
+    engine_portal_file: ENGINE_PORTAL_CHECKPOINT_FILENAME.finished_league,
   },
 ];
 
