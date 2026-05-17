@@ -37,18 +37,9 @@ async function signInAndWaitForNewsSocket(
     timeout: 30_000,
   });
 
-  await expect
-    .poll(
-      async () => {
-        const hasWarn = await page
-          .locator(".nb-alerts-btn--socket-off")
-          .count();
-        return hasWarn === 0;
-      },
-      { message: "wait for Socket.IO (no amber disconnect ring)", timeout: 30_000 },
-    )
-    .toBe(true);
-
+  // Do not use `.nb-alerts-btn--socket-off` alone: `newsSocketState` is `null` while
+  // connecting, so the amber ring is absent before Socket.IO is actually up.
+  const socketReadyTimeout = process.env.CI ? 90_000 : 30_000;
   await expect
     .poll(
       async () => {
@@ -69,10 +60,13 @@ async function signInAndWaitForNewsSocket(
       {
         message:
           "wait for backend debug endpoint to report a Socket.IO connection",
-        timeout: 30_000,
+        timeout: socketReadyTimeout,
+        intervals: process.env.CI ? [500, 1000, 2000] : undefined,
       },
     )
     .toBeGreaterThanOrEqual(1);
+
+  await expect(page.locator(".nb-alerts-btn--socket-off")).toHaveCount(0);
 }
 
 test.describe("Intelligence alerts (news webhook → Socket.IO)", () => {
