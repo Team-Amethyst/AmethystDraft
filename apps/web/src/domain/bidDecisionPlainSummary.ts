@@ -1,7 +1,7 @@
 import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import { formatDollar } from "../utils/valuation";
-import { engineFiniteOrNull, mergeDisplayValuationRow } from "./auctionCenterValuation";
+import { mergeDisplayValuationRow } from "./auctionCenterValuation";
 
 export type BidDecisionPlainSummary = {
   headline: string;
@@ -57,7 +57,7 @@ export function buildBidDecisionPlainSummary(params: {
     const premium = Math.round(suggestedBid - leagueFmv);
     return {
       headline: `Treat ${bidText} as a reach bid unless you need the roster fit.`,
-      detail: `League fair market value is about ${fmvText}—the model suggests paying roughly $${premium} more because of your team needs and remaining budget.`,
+      detail: `Auction value is about ${fmvText}—the model suggests paying roughly $${premium} more because of your team needs and remaining budget.`,
     };
   }
 
@@ -76,7 +76,7 @@ export function buildBidDecisionPlainSummary(params: {
       headline: `${bidText} is a sensible target with room to spare.`,
       detail:
         fmvText != null
-          ? `League FMV is about ${fmvText}. You retain roughly $${bidEdge} of roster value if you land the player near this price.`
+          ? `Auction value is about ${fmvText}. You retain roughly $${bidEdge} of roster value if you land the player near this price.`
           : `You retain about $${bidEdge} of roster value versus your team-specific worth at this price.`,
     };
   }
@@ -86,7 +86,7 @@ export function buildBidDecisionPlainSummary(params: {
       headline: `${bidText} is the most you can legally offer with your current budget and open slots.`,
       detail:
         fmvText != null
-          ? `League FMV is about ${fmvText}. Wallet caps—not player quality—are binding the suggested bid.`
+          ? `Auction value is about ${fmvText}. Wallet caps—not player quality—are binding the suggested bid.`
           : "Remaining budget and open active roster spots cap this offer.",
     };
   }
@@ -95,8 +95,8 @@ export function buildBidDecisionPlainSummary(params: {
     headline: `Aim near ${bidText} unless the room runs hot.`,
     detail:
       fmvText != null
-        ? `League fair market value is about ${fmvText}. Team-specific need and inflation can move the actionable price above or below that benchmark.`
-        : "Use league FMV as context; your roster needs set the actionable price.",
+        ? `Auction value is about ${fmvText}. Team-specific need and inflation can move the actionable price above or below that benchmark.`
+        : "Use auction value as context; your roster needs set the actionable price.",
   };
 }
 
