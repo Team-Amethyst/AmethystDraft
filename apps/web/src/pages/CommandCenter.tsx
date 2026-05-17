@@ -164,7 +164,7 @@ export default function CommandCenter() {
           league={league}
           myTeamName={myTeamName}
           myTeamId={myTeamId}
-          selectedPlayerPositions={selectedPlayerPositions}
+          selectedPlayer={selectedPlayer}
           allPlayers={allPlayers}
           draftedIds={draftedIds}
           rosterEntries={rosterEntries}

@@ -10,7 +10,6 @@ import type { RosterEntry } from "../../api/roster";
 import type { ValuationResponse } from "../../api/engine";
 import type { TeamSummary } from "../../pages/commandCenterUtils";
 import {
-  commandCenterBidDecision,
   commandCenterBidContextMetrics,
   commandCenterWalletCapsFromMyTeam,
 } from "../../utils/valuation";
@@ -42,7 +41,7 @@ export function CommandCenterRightPanel({
   myTeamId,
   rosterEntries,
   engineMarket,
-  selectedPlayer,
+  selectedPlayer: _selectedPlayer,
   selectedPlayerPositions,
   allPlayers,
   onRemovePick,
@@ -160,11 +159,6 @@ export function CommandCenterRightPanel({
     [engineMarket, leagueWideSpotsLeft, activeKeeperCount, leagueSlotCapacity],
   );
 
-  const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
-  const selectedValuationRow =
-    selectedNormId && engineMarket
-      ? engineMarket.valuations.find((v) => String(v.player_id).trim() === selectedNormId)
-      : undefined;
   const bidContextMetrics = useMemo(() => {
     if (!walletCaps) {
       return commandCenterBidContextMetrics(null, {
@@ -172,13 +166,11 @@ export function CommandCenterRightPanel({
         notBidable: false,
       });
     }
-    const dec = commandCenterBidDecision(
-      selectedValuationRow ?? null,
-      selectedPlayer?.value,
-      walletCaps,
-    );
-    return commandCenterBidContextMetrics(walletCaps, dec);
-  }, [walletCaps, selectedValuationRow, selectedPlayer?.value]);
+    return commandCenterBidContextMetrics(walletCaps, {
+      suggestedBid: 0,
+      notBidable: walletCaps.openSpots <= 0,
+    });
+  }, [walletCaps]);
 
   const commandCenterValuationAlerts = useMemo(
     () =>
@@ -202,9 +194,6 @@ export function CommandCenterRightPanel({
   return (
     <div className="cc-right">
       <CommandCenterRightBidContextCard
-        suggestedBidDollars={
-          selectedPlayer ? bidContextMetrics.suggestedBid : undefined
-        }
         maxBid={walletCaps != null ? bidContextMetrics.maxBid : my?.maxBid}
         budgetLeft={
           walletCaps != null ? bidContextMetrics.budgetLeft : my?.remaining

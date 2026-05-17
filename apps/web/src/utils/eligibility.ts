@@ -102,6 +102,24 @@ const UNIVERSAL_DRAFT_DISPLAY_SLOTS = new Set(["BN", "BENCH", "UTIL"]);
  * Roster slots this player can fill in this league, in roster definition order,
  * excluding universal slots (UTIL / bench) and DH (not a draft slot in typical fantasy setups).
  */
+/**
+ * Roster slots to show in Command Center left “market” tabs for the selected player.
+ * Uses {@link draftDisplaySlotsForPlayer} (no DH / UTIL / bench) and collapses SP+RP into one P tab.
+ */
+export function commandCenterMarketSlotsForPlayer(
+  player: { positions?: string[]; position: string },
+  rosterSlotKeys: readonly string[],
+): string[] {
+  if (rosterSlotKeys.length === 0) return [];
+  return collapsePitcherPositionChipsForDisplay(
+    draftDisplaySlotsForPlayer(
+      player.positions,
+      [...rosterSlotKeys],
+      player.position,
+    ),
+  );
+}
+
 export function draftDisplaySlotsForPlayer(
   positions: string[] | string | undefined,
   rosterSlotKeys: string[],

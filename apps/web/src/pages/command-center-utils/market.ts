@@ -2,7 +2,37 @@ import type { Player } from "../../types/player";
 import { displayAuctionTier } from "../../domain/playerRankTier";
 import type { RosterEntry } from "../../api/roster";
 import { getEffectiveTierValue, type TierValueOverride } from "../../utils/effectiveTierValue";
+import { slotAllowsPosition } from "../../utils/eligibility";
 import { normalizeCatName } from "./categories";
+
+const PITCHER_ROSTER_SLOTS = new Set(["SP", "RP", "P"]);
+
+function normalizeSlotKey(slot: string): string {
+  return slot.toUpperCase().replace(/\s+/g, "");
+}
+
+/** True when a logged pick’s roster slot belongs under this market tab (P absorbs SP/RP). */
+export function rosterSlotMatchesMarketTab(
+  marketSlot: string,
+  entryRosterSlot: string | undefined | null,
+): boolean {
+  const market = normalizeSlotKey(marketSlot);
+  const entry = normalizeSlotKey(entryRosterSlot ?? "");
+  if (!entry) return false;
+  if (market === entry) return true;
+  if (market === "P" && PITCHER_ROSTER_SLOTS.has(entry)) return true;
+  return false;
+}
+
+export function playerEligibleForMarketSlot(
+  player: Pick<Player, "position" | "positions">,
+  marketSlot: string,
+): boolean {
+  const positions = player.positions?.length
+    ? player.positions
+    : [player.position];
+  return positions.some((pos) => slotAllowsPosition(marketSlot, pos));
+}
 
 export interface PositionMarket {
   position: string;
@@ -48,22 +78,26 @@ export function getStatByCategory(
 }
 
 export function computePositionMarket(
-  position: string | null,
+  marketSlot: string | null,
   allPlayers: Player[],
   draftedIds: Set<string>,
   rosterEntries: RosterEntry[],
   tierValueOverrides?: ReadonlyMap<string, TierValueOverride>,
 ): PositionMarket | null {
-  if (!position || allPlayers.length === 0) return null;
+  if (!marketSlot || allPlayers.length === 0) return null;
 
-  const posPlayers = allPlayers.filter(
-    (p) => p.position === position || p.positions?.includes(position),
+  const posPlayers = allPlayers.filter((p) =>
+    playerEligibleForMarketSlot(p, marketSlot),
   );
   const draftedAtPos = posPlayers.filter((p) => draftedIds.has(p.id));
   const remaining = posPlayers.filter((p) => !draftedIds.has(p.id));
-  const draftedEntries = rosterEntries.filter((e) =>
-    draftedAtPos.some((p) => p.id === e.externalPlayerId),
-  );
+  const draftedPlayerIds = new Set(draftedAtPos.map((p) => p.id));
+  const draftedEntries = rosterEntries.filter((e) => {
+    if (!draftedPlayerIds.has(e.externalPlayerId)) return false;
+    if (e.rosterSlot) return rosterSlotMatchesMarketTab(marketSlot, e.rosterSlot);
+    const player = posPlayers.find((p) => p.id === e.externalPlayerId);
+    return player != null && playerEligibleForMarketSlot(player, marketSlot);
+  });
 
   const avgWinPrice = draftedEntries.length
     ? Math.round(
@@ -127,7 +161,7 @@ export function computePositionMarket(
       : null;
 
   return {
-    position,
+    position: marketSlot,
     avgWinPrice,
     avgProjValue,
     inflation,

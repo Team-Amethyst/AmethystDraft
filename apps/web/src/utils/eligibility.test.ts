@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   collapsePitcherPositionChipsForDisplay,
+  commandCenterMarketSlotsForPlayer,
   draftDisplaySlotsForPlayer,
   playerDraftableRosterSlots,
   getEligibleSlotsForPosition,
@@ -74,6 +75,30 @@ describe("hasPitcherEligibility", () => {
     expect(hasPitcherEligibility(["SP"])).toBe(true);
     expect(hasPitcherEligibility(undefined, "RP")).toBe(true);
     expect(hasPitcherEligibility(["OF", "1B"])).toBe(false);
+  });
+});
+
+describe("commandCenterMarketSlotsForPlayer", () => {
+  const slots = ["C", "1B", "2B", "SS", "3B", "CI", "MI", "OF", "DH", "UTIL", "SP", "RP", "P", "BN"];
+
+  it("omits DH and collapses SP/RP into P", () => {
+    const player = { positions: ["SP"], position: "SP" };
+    expect(commandCenterMarketSlotsForPlayer(player, slots)).toEqual(["P"]);
+  });
+
+  it("keeps hitter slots including CI for multi-eligible players", () => {
+    const player = { positions: ["1B", "3B"], position: "1B" };
+    expect(commandCenterMarketSlotsForPlayer(player, slots)).toEqual([
+      "1B",
+      "3B",
+      "CI",
+    ]);
+  });
+
+  it("returns empty for DH-only catalog players", () => {
+    expect(
+      commandCenterMarketSlotsForPlayer({ positions: ["DH"], position: "DH" }, slots),
+    ).toEqual([]);
   });
 });
 

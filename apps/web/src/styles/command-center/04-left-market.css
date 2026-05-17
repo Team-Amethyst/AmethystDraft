@@ -55,7 +55,8 @@
 }
 
 .cc-my-standings-head,
-.cc-roster-pane-head {
+.cc-roster-pane-head,
+.cc-left-market-head {
   margin-top: 0;
   margin-bottom: var(--cc-gap-md);
   gap: 0.35rem;
@@ -63,7 +64,8 @@
 }
 
 .cc-my-standings-head .market-section-label,
-.cc-roster-pane-head .market-section-label {
+.cc-roster-pane-head .market-section-label,
+.cc-left-market-head .market-section-label {
   margin: 0;
   padding: 0;
   flex: 1 1 auto;
@@ -201,29 +203,78 @@
 
 .pos-chip { display: none; }
 
-.market-stat-row {
+/* Left position market — header toggle matches liquidity / standings chrome */
+.cc-left-market-card .cc-left-market-head {
+  padding-bottom: 0.26rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-accent) 18%, transparent);
+}
+
+.cc-left-market-card .cc-left-market-head .pos-badge {
+  flex-shrink: 0;
+}
+
+.cc-left-market-head .stat-view-toggle.cc-left-market-pos-toggle {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  margin-left: auto;
+  max-width: min(72%, 14rem);
+}
+
+/* Position market metrics — same summary rows as BID CONTEXT */
+.cc-left-market-card .cc-left-market-summary {
+  margin: 0 0 0.28rem;
+}
+
+.cc-left-market-tiers {
+  margin-top: 0.28rem;
+  padding-top: 0.26rem;
+  border-top: 1px solid color-mix(in srgb, var(--app-accent) 12%, transparent);
+}
+
+.cc-left-market-tiers-head {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: center;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  gap: 0.45rem;
+  margin-bottom: 0.2rem;
 }
 
-.msr-label {
-  font-size: 0.68rem;
-  color: #6b4fa0;
-  letter-spacing: 0.05em;
+.cc-left-market-tiers-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: color-mix(in srgb, var(--cc-heading-color) 88%, white);
 }
 
-.msr-value {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #e2d9f3;
+.cc-left-market-tiers-legend {
+  font-size: 0.56rem;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, #8b7a9e 90%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.msr-value.green { color: var(--cc-value-green); }
-.msr-value.yellow { color: #f59e0b; }
+.cc-left-market-card .cc-left-market-tier-table {
+  margin-top: 0.06rem;
+}
+
+.cc-left-market-card .cc-left-market-tier-table thead th {
+  padding: 0.22rem 0.08rem 0.24rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-accent) 12%, transparent);
+}
+
+.cc-left-market-card .msr-tier-cell-rem {
+  font-size: 0.72rem;
+  color: #ebe3f8;
+}
+
+.cc-left-market-card .msr-tier-cell-avg {
+  font-size: 0.62rem;
+  color: color-mix(in srgb, #d8cfe8 88%, #9a8cad);
+}
+
 .msr-sub { font-size: 0.7rem; color: #6b4fa0; font-weight: 400; }
 
 .msr-source-note {

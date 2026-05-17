@@ -4,6 +4,8 @@ import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
 import type { ValuationResponse } from "../../api/engine";
 import { computePositionMarket } from "../../pages/commandCenterUtils";
+import { rosterSlotsToRecord } from "../../pages/command-center-utils/roster";
+import { commandCenterMarketSlotsForPlayer } from "../../utils/eligibility";
 import { CommandCenterMyTeamStandingsSection } from "./CommandCenterMyTeamStandingsSection";
 import { CommandCenterTeamMakeupSection } from "./CommandCenterTeamMakeupSection";
 import { CommandCenterLeftMarketCard } from "./CommandCenterLeftMarketCard";
@@ -15,7 +17,7 @@ type ScoringCategory = {
 
 export function CommandCenterLeftPanel({
   league,
-  selectedPlayerPositions,
+  selectedPlayer,
   allPlayers,
   draftedIds,
   rosterEntries,
@@ -26,7 +28,7 @@ export function CommandCenterLeftPanel({
   fallbackScoringCategories,
 }: {
   league: League | null;
-  selectedPlayerPositions: string[];
+  selectedPlayer: Player | null;
   allPlayers: Player[];
   draftedIds: Set<string>;
   rosterEntries: RosterEntry[];
@@ -36,25 +38,31 @@ export function CommandCenterLeftPanel({
   myTeamId: string | null;
   fallbackScoringCategories: ScoringCategory[];
 }) {
-  const eligibleMarketPositions = useMemo(
-    () => [...new Set(selectedPlayerPositions)],
-    [selectedPlayerPositions],
+  const rosterSlotKeys = useMemo(
+    () => Object.keys(rosterSlotsToRecord(league?.rosterSlots)),
+    [league?.rosterSlots],
   );
-  const [activeMarketPosition, setActiveMarketPosition] = useState<string | null>(
-    eligibleMarketPositions[0] ?? null,
+
+  const eligibleMarketSlots = useMemo(() => {
+    if (!selectedPlayer || rosterSlotKeys.length === 0) return [];
+    return commandCenterMarketSlotsForPlayer(selectedPlayer, rosterSlotKeys);
+  }, [selectedPlayer, rosterSlotKeys]);
+
+  const [activeMarketSlot, setActiveMarketSlot] = useState<string | null>(
+    eligibleMarketSlots[0] ?? null,
   );
 
   useEffect(() => {
-    if (eligibleMarketPositions.length === 0) {
-      setActiveMarketPosition(null);
+    if (eligibleMarketSlots.length === 0) {
+      setActiveMarketSlot(null);
       return;
     }
-    setActiveMarketPosition((prev) =>
-      prev && eligibleMarketPositions.includes(prev)
+    setActiveMarketSlot((prev) =>
+      prev && eligibleMarketSlots.includes(prev)
         ? prev
-        : eligibleMarketPositions[0],
+        : eligibleMarketSlots[0],
     );
-  }, [eligibleMarketPositions]);
+  }, [eligibleMarketSlots]);
 
   const posMarket = useMemo(() => {
     const engineTierValueMap =
@@ -67,22 +75,22 @@ export function CommandCenterLeftPanel({
           )
         : undefined;
     return computePositionMarket(
-      activeMarketPosition,
+      activeMarketSlot,
       allPlayers,
       draftedIds,
       rosterEntries,
       engineTierValueMap,
     );
-  }, [activeMarketPosition, allPlayers, draftedIds, rosterEntries, engineMarket]);
+  }, [activeMarketSlot, allPlayers, draftedIds, rosterEntries, engineMarket]);
 
   return (
     <div className="cc-left">
       <div className="cc-panel-content cc-panel-content--market-tab cc-panel-content--left-market-only">
         <CommandCenterLeftMarketCard
           posMarket={posMarket}
-          eligibleMarketPositions={eligibleMarketPositions}
-          activeMarketPosition={activeMarketPosition}
-          onSelectMarketPosition={setActiveMarketPosition}
+          eligibleMarketSlots={eligibleMarketSlots}
+          activeMarketSlot={activeMarketSlot}
+          onSelectMarketSlot={setActiveMarketSlot}
         />
 
         <CommandCenterMyTeamStandingsSection
