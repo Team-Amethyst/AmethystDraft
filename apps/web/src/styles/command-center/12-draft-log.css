@@ -95,9 +95,32 @@
     var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
 
+/* Table body scrolls inside the list; header never overlaps scrolled rows */
+.draft-log-list.draft-log-list--scroll-body-host {
+  overflow: hidden;
+}
+
 /* Tight inset for the compact rows so more picks fit per page */
 .cc-draft-log-panel .draft-log-list {
   padding: 0.1rem 0.15rem 0.3rem;
+}
+
+.cc-draft-log-panel .draft-log-list.draft-log-list--scroll-body-host {
+  padding: 0 0.15rem 0.3rem;
+}
+
+.cc-draft-log-panel .draft-log-list.draft-log-list--scroll-body-host .draft-log-table--scroll-body {
+  width: 100%;
+  min-width: 0;
+}
+
+.cc-draft-log-panel .draft-log-table--compact {
+  width: 100%;
+  min-width: 0;
+}
+
+.cc-draft-log-panel .draft-log-table--compact .dl-cell--price {
+  padding-right: 0.05rem;
 }
 
 /*
@@ -245,12 +268,28 @@
 .cc-draft-log-modal-list {
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
   overflow-y: auto;
   padding: 0.1rem 0.25rem 0.25rem;
   scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.45)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.cc-draft-log-modal-list.draft-log-list--scroll-body-host {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.cc-draft-log-modal-list.draft-log-list--scroll-body-host .draft-log-table--scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cc-draft-log-modal-list.draft-log-list--scroll-body-host
+  .draft-log-table--scroll-body
+  .draft-log-table-body {
   scrollbar-color: rgba(139, 92, 246, 0.45)
     var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
 }
@@ -278,13 +317,88 @@
   background: rgba(167, 139, 250, 0.72);
 }
 
-/* Modal is wide — let dense rows use more horizontal space before truncating */
-.cc-draft-log-modal-list .dl-name--dense {
-  max-width: min(46%, 20rem);
+/* Modal: fixed-width data cols; only player flexes */
+.cc-draft-log-modal-list .draft-log-table--dense {
+  --dl-header-bg: var(--cc-surface-gradient), var(--app-bg, #120b25);
+  --dl-gap: 0.65rem;
+  --dl-col-pick: 2.75ch;
+  --dl-col-photo: 28px;
+  --dl-col-player: minmax(6.25rem, 1fr);
+  --dl-col-mlb: 2.85rem;
+  --dl-col-team: 5.25rem;
+  --dl-col-slot: 2.75rem;
+  --dl-col-price: 3.1rem;
+  --dl-col-actions: 52px;
 }
 
-.cc-draft-log-modal-list .dl-fantasy-team--dense {
-  max-width: 11rem;
+.cc-draft-log-modal-list .draft-log-table--dense .dl-table-header {
+  padding: 0.3rem 0.55rem 0.38rem;
+}
+
+.cc-draft-log-modal-list .draft-log-table--dense .dl-th {
+  font-size: 0.58rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense {
+  padding: 0.4rem 0.55rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-cell--pick {
+  font-size: 0.66rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-name {
+  font-size: 0.84rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-cell--mlb {
+  font-size: 0.7rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-fantasy-team {
+  font-size: 0.72rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-price {
+  font-size: 0.84rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-headshot,
+.cc-draft-log-modal-list .draft-log-row--dense .dl-headshot-fallback {
+  width: 26px;
+  height: 26px;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-headshot-fallback {
+  font-size: 0.58rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .pos-badge,
+.cc-draft-log-modal-list .draft-log-row--dense .dl-pos-badge--dense-slot {
+  font-size: 0.62rem;
+  min-width: 1.6rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-cell--price,
+.cc-draft-log-modal-list .draft-log-row--dense .dl-cell--actions {
+  align-self: center;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-price {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  min-height: 1.35rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-cell--actions {
+  gap: 0.32rem;
+}
+
+.cc-draft-log-modal-list .draft-log-row--dense .dl-edit,
+.cc-draft-log-modal-list .draft-log-row--dense .dl-remove {
+  width: 24px;
+  height: 24px;
 }
 
 .cc-draft-log-modal-empty {

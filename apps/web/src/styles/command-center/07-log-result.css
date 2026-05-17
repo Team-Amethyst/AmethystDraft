@@ -11,10 +11,15 @@
 }
 
 .log-result-grid--inline {
-  grid-template-columns: minmax(0, 1.5fr) 92px minmax(0, 0.8fr) 90px;
-  gap: var(--cc-gap-sm);
+  grid-template-columns: minmax(0, 1fr) 5.25rem minmax(0, 1fr) 4.5rem;
+  gap: 0.5rem;
   align-items: stretch;
   margin-top: 0;
+}
+
+.command-center-log-row.log-result-grid--inline {
+  width: 100%;
+  max-width: 100%;
 }
 
 .log-slot-field { margin-top: 0.5rem; }
@@ -30,7 +35,39 @@
 }
 
 .log-select {
+  width: 100%;
+  min-width: 0;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   box-sizing: border-box;
+  min-height: 2.35rem;
+  padding: 0 1.65rem 0 0.5rem;
+  border-radius: var(--cc-card-radius, 8px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background-color: rgba(255, 255, 255, 0.04);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b6bb8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.45rem center;
+  background-size: 14px 14px;
+  color: #c4b5d4;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.2;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.log-select:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.log-select:focus-visible {
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
 .log-select.full { width: 100%; box-sizing: border-box; }
@@ -97,7 +134,8 @@
 .log-result-grid--inline .log-field {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: stretch;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -113,9 +151,13 @@
 }
 
 @media (max-width: 1280px) {
+  .pac-log-action-bar {
+    --pac-log-control-height: 2.15rem;
+  }
+
   .log-result-grid--inline {
-    grid-template-columns: minmax(0, 1.35fr) 84px minmax(0, 0.75fr) 78px;
-    gap: 0.28rem;
+    grid-template-columns: minmax(0, 1fr) 4.85rem minmax(0, 1fr) 4.15rem;
+    gap: 0.45rem;
   }
 
   .log-select,
@@ -134,12 +176,12 @@
 
 @media (max-width: 1120px) {
   .log-result-grid--inline {
-    grid-template-columns: minmax(0, 1.35fr) 92px minmax(0, 0.8fr);
+    grid-template-columns: minmax(0, 1fr) 4.85rem minmax(0, 1fr);
     grid-template-areas:
       "team price slot"
       "log log log";
-    row-gap: 0.38rem;
-    column-gap: 0.3rem;
+    row-gap: 0.4rem;
+    column-gap: 0.45rem;
   }
 
   .log-result-grid--inline .log-field:nth-child(1) {
@@ -172,13 +214,17 @@
 }
 
 @media (max-width: 860px) {
+  .pac-log-action-bar {
+    --pac-log-control-height: 2.1rem;
+  }
+
   .log-result-grid--inline {
-    grid-template-columns: minmax(0, 1.4fr) 82px minmax(0, 0.75fr);
+    grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr);
     grid-template-areas:
       "team price slot"
       "log log log";
-    row-gap: 0.3rem;
-    column-gap: 0.28rem;
+    row-gap: 0.35rem;
+    column-gap: 0.4rem;
   }
 
   .log-result-grid--inline .log-field:nth-child(1) {

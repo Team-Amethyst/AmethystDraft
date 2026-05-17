@@ -1,0 +1,173 @@
+/* Shared column grid for draft log header + rows */
+
+.draft-log-table {
+  --dl-gap: 0.35rem;
+  --dl-col-pick: 2.35ch;
+  --dl-col-photo: 24px;
+  --dl-col-slot: 2.4rem;
+  --dl-col-price: 2.85rem;
+  --dl-col-actions: 48px;
+  /* Match .cc-surface-card; solid underlay so sticky header hides scrolling rows */
+  --dl-header-bg: var(--cc-surface-gradient), var(--app-bg-alt, #0a0714);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Compact rail: five data columns only — edit/remove float over the row */
+.draft-log-table--compact {
+  --dl-gap: 0.3rem;
+  --dl-col-pick: 2ch;
+  --dl-col-photo: 22px;
+  --dl-col-slot: 2.1rem;
+  --dl-col-price: minmax(2.35rem, max-content);
+  --dl-grid-cols:
+    var(--dl-col-pick)
+    var(--dl-col-photo)
+    minmax(0, 1fr)
+    var(--dl-col-slot)
+    var(--dl-col-price);
+}
+
+.draft-log-table--dense {
+  --dl-col-mlb: 2.35rem;
+  --dl-col-team: 5rem;
+  --dl-col-player: minmax(4.5rem, 1fr);
+  --dl-grid-cols:
+    var(--dl-col-pick)
+    var(--dl-col-photo)
+    var(--dl-col-player)
+    var(--dl-col-mlb)
+    var(--dl-col-team)
+    var(--dl-col-slot)
+    var(--dl-col-price)
+    var(--dl-col-actions);
+}
+
+.dl-table-header,
+.draft-log-row {
+  display: grid;
+  grid-template-columns: var(--dl-grid-cols);
+  grid-template-rows: minmax(0, auto);
+  grid-auto-rows: minmax(0, auto);
+  column-gap: var(--dl-gap);
+  align-items: center;
+  min-width: 0;
+}
+
+.dl-table-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.2rem 0.35rem 0.28rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.14);
+  margin-bottom: 0.05rem;
+  background: var(--dl-header-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+/* Header stays fixed; only rows scroll (Command Center rail + modal). */
+.draft-log-table--scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.draft-log-table--scroll-body .dl-table-header {
+  position: relative;
+  top: auto;
+  z-index: 3;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.draft-log-table--scroll-body .draft-log-table-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.55)
+    var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.draft-log-table--scroll-body .draft-log-table-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.draft-log-table--scroll-body .draft-log-table-body::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+  border-radius: 2px;
+  box-shadow: var(
+    --app-scrollbar-track-groove,
+    inset 0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px var(--app-accent-border-faint)
+  );
+}
+
+.draft-log-table--scroll-body .draft-log-table-body::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.45);
+  border-radius: 2px;
+}
+
+.dl-th {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(124, 106, 153, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dl-th--pick {
+  justify-content: center;
+}
+
+.dl-th--player,
+.dl-th--team {
+  justify-content: flex-start;
+}
+
+.dl-th--player {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.dl-th--mlb,
+.dl-th--slot {
+  justify-content: center;
+}
+
+.dl-th--price {
+  justify-content: flex-end;
+}
+
+.draft-log-table--compact .dl-th--price {
+  padding-right: 0.1rem;
+}
+
+.dl-th--photo,
+.dl-th--actions {
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.draft-log-table-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.draft-log-table--compact .dl-table-header {
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+}

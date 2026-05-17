@@ -3,8 +3,34 @@ import { Pencil, X } from "lucide-react";
 import type { RosterEntry } from "../api/roster";
 import { getEligibleSlotsForPositions } from "../utils/eligibility";
 import { validateRosterSlotAssignment } from "../validation/rosterSlot";
+import PosBadge from "./PosBadge";
 import { RosterSlotPicker } from "./RosterSlotPicker";
 import "./DraftLogRow.css";
+
+function DraftLogRosterSlotBadge({
+  slot,
+  overridden,
+  className,
+}: {
+  slot: string;
+  overridden: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      className="dl-roster-slot-badge"
+      title={overridden ? "Manual position override" : undefined}
+    >
+      <PosBadge
+        pos={slot}
+        className={
+          (className ? `${className} ` : "") +
+          (overridden ? "pos-badge--slot-override" : "")
+        }
+      />
+    </span>
+  );
+}
 
 interface DraftLogRowProps {
   entry: RosterEntry;
@@ -19,12 +45,10 @@ interface DraftLogRowProps {
   leagueRosterSlots?: Record<string, number>;
   leagueBudget?: number;
   /**
-   * `default` renders the full three-line row (MLB team + positions + fantasy team line).
-   * `compact` strips to name · price + fantasy team · slot, hiding edit/X until hover —
-   * used in the Command Center right-rail draft log to fit more picks vertically.
-   * `dense` is a single-line row for wide contexts (e.g. League Overview).
+   * `compact` — Command Center right rail (narrow columns).
+   * `dense` — League Overview + full-view modal (#, player, MLB, team, slot, $).
    */
-  variant?: "default" | "compact" | "dense";
+  variant?: "compact" | "dense";
   onUpdate?: (
     id: string,
     data: {
@@ -48,14 +72,10 @@ export function DraftLogRow({
   allRosterEntries,
   leagueRosterSlots,
   leagueBudget,
-  variant = "default",
+  variant = "dense",
   onUpdate,
   onRemove,
 }: DraftLogRowProps) {
-  /**
-   * Slots on a team (by teamId) that still have capacity.
-   * Excludes the current entry so its slot is treated as free.
-   */
   function openSlots(teamId: string, slots: string[]): Set<string> {
     if (!allRosterEntries || !leagueRosterSlots) return new Set(slots);
     const teamEntries = allRosterEntries.filter(
@@ -70,7 +90,6 @@ export function DraftLogRow({
     );
   }
 
-  // Show all teams — don't filter by capacity (too aggressive for an edit tool)
   const filteredTeamOptions = teamOptions;
   const [editing, setEditing] = useState(false);
   const [editSlot, setEditSlot] = useState(entry.rosterSlot);
@@ -121,14 +140,12 @@ export function DraftLogRow({
     const n = parseInt(editPrice, 10);
     const newPrice = isNaN(n) ? entry.price : n;
 
-    // Max bid validation — only when price or team is changing
     if (leagueBudget !== undefined && allRosterEntries && leagueRosterSlots) {
       const targetTeamId = editTeamId;
       const totalSlots = Object.values(leagueRosterSlots).reduce(
         (a, b) => a + b,
         0,
       );
-      // Entries for the target team, excluding this entry (we're replacing it)
       const teamEntries = allRosterEntries.filter(
         (e) => e.teamId === targetTeamId && e._id !== entry._id,
       );
@@ -139,9 +156,9 @@ export function DraftLogRow({
       const maxBid =
         open > 0 ? Math.max(1, remaining - (open - 1)) : leagueBudget;
       if (newPrice > maxBid) {
-        const teamName =
+        const alertTeam =
           teamOptions.find((t) => t.id === targetTeamId)?.name ?? targetTeamId;
-        alert(`$${newPrice} exceeds ${teamName}'s max bid of $${maxBid}`);
+        alert(`$${newPrice} exceeds ${alertTeam}'s max bid of $${maxBid}`);
         return;
       }
     }
@@ -180,169 +197,133 @@ export function DraftLogRow({
   }
 
   const isCompact = variant === "compact";
-  const isDense = variant === "dense";
+
+  const fantasyTeamLine = (
+    <>
+      {teamName}
+      {isMyTeamPick ? (
+        <span className="dl-you-suffix" aria-label="your team">
+          {" "}
+          (You)
+        </span>
+      ) : null}
+      {entry.keeperContract ? (
+        <span className="dl-keeper-inline" title="Keeper contract">
+          {" · "}
+          {entry.keeperContract}
+        </span>
+      ) : null}
+    </>
+  );
 
   return (
     <>
       <div
         className={
           "draft-log-row" +
-          (isCompact ? " draft-log-row--compact" : "") +
-          (isDense ? " draft-log-row--dense" : "")
+          (isCompact ? " draft-log-row--compact" : " draft-log-row--dense")
         }
+        role="row"
       >
-        <span className="dl-pick">#{pickNum}</span>
-        {headshot ? (
-          <img src={headshot} alt={entry.playerName} className="dl-headshot" />
-        ) : (
-          <div className="dl-headshot-fallback">{initials}</div>
-        )}
-        {isCompact ? (
-          <div className="dl-body dl-body--compact">
-            <div className="dl-compact-line dl-compact-line--top">
-              <span className="dl-name">{entry.playerName}</span>
-              <span className="dl-compact-meta">
-                <span className="dl-slot" title="Roster slot">
-                  {entry.rosterSlot}
-                </span>
-                <span className="dl-price">${entry.price}</span>
-              </span>
+        <span className="dl-cell dl-cell--pick">#{pickNum}</span>
+
+        <div className="dl-cell dl-cell--photo">
+          {headshot ? (
+            <img src={headshot} alt="" className="dl-headshot" />
+          ) : (
+            <div className="dl-headshot-fallback" aria-hidden>
+              {initials}
             </div>
-            <div className="dl-compact-line dl-compact-line--bottom">
-              <span className="dl-fantasy-team" title={teamName}>
-                {teamName}
-                {isMyTeamPick ? (
-                  <span className="dl-you-suffix" aria-label="your team">
-                    {" "}
-                    (You)
-                  </span>
-                ) : null}
-              </span>
-              {isCurrentSlotOverridden ? (
-                <span className="dl-override-chip" title="Manual position override">
-                  OVR
-                </span>
-              ) : null}
-              {entry.keeperContract ? (
-                <span className="dl-slot" title="Keeper contract">
-                  {entry.keeperContract}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        ) : isDense ? (
-          <div className="dl-body dl-body--dense">
-            <div className="dl-dense-line">
-              <span className="dl-name dl-name--dense">{entry.playerName}</span>
-              {entry.playerTeam ? (
-                <span className="dl-player-team dl-pill--dense">
-                  {entry.playerTeam}
-                </span>
-              ) : null}
-              {entry.positions?.length ? (
-                <span className="dl-position dl-pill--dense">
-                  {entry.positions.join("/")}
-                </span>
-              ) : null}
-              {entry.playerTeam || entry.positions?.length ? (
-                <span className="dl-dense-sep" aria-hidden>
-                  ·
-                </span>
-              ) : null}
-              <span className="dl-fantasy-team dl-fantasy-team--dense">
-                {teamName}
-                {isMyTeamPick ? (
-                  <span className="dl-you-suffix" aria-label="your team">
-                    {" "}
-                    (You)
-                  </span>
-                ) : null}
-              </span>
-              <span className="dl-slot dl-slot--dense">{entry.rosterSlot}</span>
-              {isCurrentSlotOverridden ? (
-                <span className="dl-override-chip" title="Manual position override">
-                  OVR
-                </span>
-              ) : null}
-              <span className="dl-price dl-price--dense">${entry.price}</span>
-              {entry.keeperContract ? (
-                <span
-                  className="dl-keeper-contract"
-                  title="Keeper contract"
-                >
-                  {entry.keeperContract}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <div className="dl-body">
-            <div className="dl-row-top">
-              <span className="dl-name">{entry.playerName}</span>
-            </div>
-            <div className="dl-row-meta">
-              {entry.playerTeam ? (
-                <span className="dl-player-team">{entry.playerTeam}</span>
-              ) : null}
-              {entry.positions?.length ? (
-                <span className="dl-position">{entry.positions.join("/")}</span>
-              ) : null}
-            </div>
-            <div className="dl-row-bottom">
-              <span className="dl-fantasy-team">
-                {teamName}
-                {isMyTeamPick ? (
-                  <span className="dl-you-suffix" aria-label="your team">
-                    {" "}
-                    (You)
-                  </span>
-                ) : null}
-              </span>
-              <span className="dl-slot">{entry.rosterSlot}</span>
-              {isCurrentSlotOverridden ? (
-                <span className="dl-override-chip" title="Manual position override">
-                  OVR
-                </span>
-              ) : null}
-              <span className="dl-price">${entry.price}</span>
-              {entry.keeperContract ? (
-                <span className="dl-slot" title="Keeper contract">
-                  {entry.keeperContract}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )}
-        <div
-          className={
-            "dl-actions" +
-            (isCompact ? " dl-actions--compact" : "") +
-            (isDense ? " dl-actions--dense" : "")
-          }
-        >
-          {onUpdate && (
-            <button className="dl-edit" title="Edit pick" onClick={openModal}>
-              <Pencil size={11} />
-            </button>
-          )}
-          {onRemove && (
-            <button
-              className="dl-remove"
-              title="Remove pick"
-              onClick={() => onRemove(entry._id)}
-            >
-              <X size={12} />
-            </button>
           )}
         </div>
+
+        <div className="dl-cell dl-cell--player">
+          {isCompact ? (
+            <span className="dl-player-line" title={`${entry.playerName} · ${teamName}`}>
+              <span className="dl-name">{entry.playerName}</span>
+              <span className="dl-player-line-sep" aria-hidden>
+                ·
+              </span>
+              <span className="dl-fantasy-team dl-fantasy-team--sub">{fantasyTeamLine}</span>
+            </span>
+          ) : (
+            <span className="dl-name" title={entry.playerName}>
+              {entry.playerName}
+            </span>
+          )}
+        </div>
+
+        {!isCompact ? (
+          <>
+            <span className="dl-cell dl-cell--mlb" title={entry.playerTeam ?? undefined}>
+              {entry.playerTeam || "—"}
+            </span>
+            <span className="dl-cell dl-cell--team" title={teamName}>
+              <span className="dl-fantasy-team">{fantasyTeamLine}</span>
+            </span>
+          </>
+        ) : null}
+
+        <span className="dl-cell dl-cell--slot">
+          <DraftLogRosterSlotBadge
+            slot={entry.rosterSlot}
+            overridden={isCurrentSlotOverridden}
+            className={isCompact ? "dl-pos-badge--compact" : "dl-pos-badge--dense-slot"}
+          />
+        </span>
+
+        <span className="dl-cell dl-cell--price">
+          <span className="dl-price">${entry.price}</span>
+          {isCompact && (onUpdate || onRemove) ? (
+            <div className="dl-actions dl-actions--compact">
+              {onUpdate ? (
+                <button className="dl-edit" title="Edit pick" type="button" onClick={openModal}>
+                  <Pencil size={11} />
+                </button>
+              ) : null}
+              {onRemove ? (
+                <button
+                  className="dl-remove"
+                  title="Remove pick"
+                  type="button"
+                  onClick={() => onRemove(entry._id)}
+                >
+                  <X size={12} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </span>
+
+        {!isCompact ? (
+          <div className="dl-cell dl-cell--actions">
+            {onUpdate ? (
+              <button className="dl-edit" title="Edit pick" type="button" onClick={openModal}>
+                <Pencil size={11} />
+              </button>
+            ) : null}
+            {onRemove ? (
+              <button
+                className="dl-remove"
+                title="Remove pick"
+                type="button"
+                onClick={() => onRemove(entry._id)}
+              >
+                <X size={12} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-      {editing && (
+
+      {editing ? (
         <div className="dl-modal-overlay" onClick={() => setEditing(false)}>
           <div className="dl-modal" onClick={(e) => e.stopPropagation()}>
             <div className="dl-modal-header">
               <span className="dl-modal-title">Edit Pick</span>
               <button
                 className="dl-modal-close"
+                type="button"
                 onClick={() => setEditing(false)}
               >
                 <X size={14} />
@@ -363,7 +344,7 @@ export function DraftLogRow({
               </div>
             </div>
             <div className="dl-modal-fields">
-              {teamOptions.length > 0 && (
+              {teamOptions.length > 0 ? (
                 <label className="dl-modal-field">
                   <span className="dl-modal-label">Team</span>
                   <select
@@ -378,7 +359,7 @@ export function DraftLogRow({
                     ))}
                   </select>
                 </label>
-              )}
+              ) : null}
               <label className="dl-modal-field dl-modal-field--stack">
                 <span className="dl-modal-label">Roster slot</span>
                 <RosterSlotPicker
@@ -424,17 +405,18 @@ export function DraftLogRow({
             <div className="dl-modal-actions">
               <button
                 className="dl-modal-cancel"
+                type="button"
                 onClick={() => setEditing(false)}
               >
                 Cancel
               </button>
-              <button className="dl-modal-save" onClick={handleSave}>
+              <button className="dl-modal-save" type="button" onClick={handleSave}>
                 Save
               </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

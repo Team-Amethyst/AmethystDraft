@@ -4,6 +4,7 @@ import type { League } from "../../contexts/LeagueContext";
 import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
 import { DraftLogRow } from "../DraftLogRow";
+import { DraftLogTable } from "../DraftLogTable";
 import {
   resolvedLeagueTeamNames,
   teamDisplayNameForTeamId,
@@ -184,7 +185,7 @@ export function CommandCenterDraftLog({
       <div className="cc-draft-log-panel">
         <div
           ref={listRef}
-          className="draft-log-list draft-log-list--inline"
+          className="draft-log-list draft-log-list--inline draft-log-list--scroll-body-host"
           role="log"
           aria-label="Draft log, recent picks"
           aria-live="polite"
@@ -195,20 +196,22 @@ export function CommandCenterDraftLog({
               No picks logged yet. Winning bids show up here in pick order.
             </div>
           ) : (
-            picksView.map(
-              ({ entry, pickNum, teamName, player, isMyTeamPick }) => (
-                <DraftLogRow
-                  key={entry._id}
-                  entry={entry}
-                  pickNum={pickNum}
-                  teamName={teamName}
-                  isMyTeamPick={isMyTeamPick}
-                  headshot={player?.headshot}
-                  variant="compact"
-                  {...sharedRowProps}
-                />
-              ),
-            )
+            <DraftLogTable variant="compact" scrollBody bodyRef={listRef}>
+              {picksView.map(
+                ({ entry, pickNum, teamName, player, isMyTeamPick }) => (
+                  <DraftLogRow
+                    key={entry._id}
+                    entry={entry}
+                    pickNum={pickNum}
+                    teamName={teamName}
+                    isMyTeamPick={isMyTeamPick}
+                    headshot={player?.headshot}
+                    variant="compact"
+                    {...sharedRowProps}
+                  />
+                ),
+              )}
+            </DraftLogTable>
           )}
         </div>
       </div>
@@ -253,21 +256,23 @@ export function CommandCenterDraftLog({
                   as soon as the auction begins.
                 </div>
               ) : (
-                <div className="cc-draft-log-modal-list">
-                  {picksView.map(
-                    ({ entry, pickNum, teamName, player, isMyTeamPick }) => (
-                      <DraftLogRow
-                        key={`modal-${entry._id}`}
-                        entry={entry}
-                        pickNum={pickNum}
-                        teamName={teamName}
-                        isMyTeamPick={isMyTeamPick}
-                        headshot={player?.headshot}
-                        variant="dense"
-                        {...sharedRowProps}
-                      />
-                    ),
-                  )}
+                <div className="cc-draft-log-modal-list draft-log-list--scroll-body-host">
+                  <DraftLogTable variant="dense" scrollBody>
+                    {picksView.map(
+                      ({ entry, pickNum, teamName, player, isMyTeamPick }) => (
+                        <DraftLogRow
+                          key={`modal-${entry._id}`}
+                          entry={entry}
+                          pickNum={pickNum}
+                          teamName={teamName}
+                          isMyTeamPick={isMyTeamPick}
+                          headshot={player?.headshot}
+                          variant="dense"
+                          {...sharedRowProps}
+                        />
+                      ),
+                    )}
+                  </DraftLogTable>
                 </div>
               )}
             </div>
