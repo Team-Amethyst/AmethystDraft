@@ -434,7 +434,10 @@
 /* Keep right-rail cards readable at tighter desktop widths. Placed at end so
    it wins over later base grid declarations. */
 @media (max-width: 1500px) {
-  .rp-bid-context-grid,
+  .bc-context-row {
+    grid-template-columns: 1fr;
+  }
+
   .budget-grid {
     grid-template-columns: 1fr;
   }

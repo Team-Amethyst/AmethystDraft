@@ -30,10 +30,13 @@ export function PlayerHeadshot({
   src,
   name,
   isCustom,
+  size = 32,
 }: {
   src: string;
   name: string;
   isCustom?: boolean;
+  /** Pixel width/height (default 32). */
+  size?: number;
 }) {
   const [failed, setFailed] = useState(false);
   const initials = name
@@ -44,16 +47,25 @@ export function PlayerHeadshot({
     .toUpperCase();
 
   if (isCustom) {
-    return <CustomPlayerHeadshot size={32} />;
+    return <CustomPlayerHeadshot size={size} />;
   }
   if (failed || !src) {
-    return <div className="headshot-fallback">{initials}</div>;
+    return (
+      <div
+        className="headshot-fallback"
+        style={{ width: size, height: size, fontSize: Math.max(10, size * 0.34) }}
+      >
+        {initials}
+      </div>
+    );
   }
   return (
     <img
       src={src}
       alt={name}
       className="player-headshot"
+      width={size}
+      height={size}
       onError={() => setFailed(true)}
     />
   );

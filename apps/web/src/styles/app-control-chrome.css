@@ -6,9 +6,13 @@
 
 .cc-panel-controls .stat-view-toggle,
 .pac-snapshot-header .stat-view-toggle {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
+  box-sizing: border-box;
+  height: var(--app-control-toolbar-row-height);
+  min-height: var(--app-control-toolbar-row-height);
   background: var(--app-control-track-bg);
   border-radius: var(--app-control-track-radius);
   padding: var(--app-control-track-padding);
@@ -50,31 +54,14 @@
   font-size: var(--app-control-trigger-font-size-dense);
 }
 
-/* AppSelect toolbar — matches stat-view-toggle row height & glass */
+/* AppSelect toolbar — inside `.stat-view-toggle` (same glass track as svt-btn) */
 .app-select-root--toolbar {
+  position: relative;
   flex-shrink: 0;
   min-width: 0;
-}
-
-.app-select-root--toolbar .app-select-trigger {
-  min-height: var(--app-control-trigger-min-height);
-  padding: var(--app-control-trigger-padding);
-  border-radius: var(--app-control-trigger-radius);
-  border: 1px solid var(--app-control-trigger-border);
-  background: var(--app-control-trigger-bg);
-  color: var(--app-control-trigger-fg);
-  font-size: var(--app-control-trigger-font-size);
-  font-weight: 600;
-  box-shadow: none;
-}
-
-.app-select-root--toolbar .app-select-trigger:hover {
-  border-color: var(--app-control-trigger-border-hover);
-}
-
-.app-select-root--toolbar .app-select-trigger:focus-visible {
-  border-color: var(--app-control-trigger-border-focus);
-  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
+  display: inline-flex;
+  align-items: stretch;
+  box-sizing: border-box;
 }
 
 .app-select-root--toolbar .app-select-trigger:disabled {
@@ -82,27 +69,161 @@
   cursor: not-allowed;
 }
 
+.app-select-root--toolbar .app-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  font-family: var(--app-font-family);
+  cursor: pointer;
+}
+
 .app-select-root--toolbar .app-select-trigger-label {
   font-weight: 600;
 }
 
-.app-select-root--toolbar .app-select-trigger-chevron {
-  color: var(--app-control-trigger-fg-muted);
+/* Track padding only on the wrapper; trigger matches svt-btn segment sizing. */
+.stat-view-toggle .app-select-root--toolbar {
+  flex: 0 1 auto;
+  align-self: center;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  width: max-content;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.cc-left .app-select-root--toolbar .app-select-trigger,
-.cc-team-makeup-head .app-select-root--toolbar .app-select-trigger {
+.stat-view-toggle
+  .app-select-root--toolbar.app-select-root--compact
+  .app-select-trigger,
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  position: relative;
+  box-sizing: border-box;
+  min-height: 0;
+  height: auto;
+  width: auto;
+  max-width: 100%;
+  padding: var(--app-control-segment-padding-dense);
+  padding-right: 1.15rem;
+  gap: 0.28rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--app-control-segment-idle-fg);
   font-size: var(--app-control-trigger-font-size-dense);
+  font-weight: 600;
   letter-spacing: 0.02em;
+  box-shadow: none;
 }
 
-.cc-team-makeup-head .app-select-root--toolbar {
-  max-width: min(11rem, 46vw);
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger-chevron {
+  position: absolute;
+  right: 0.32rem;
+  top: 50%;
+  flex-shrink: 0;
+  margin: 0;
+  transform: translateY(-50%);
+}
+
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger-chevron.is-open {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger:hover {
+  border: none;
+}
+
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger:focus-visible {
+  border: none;
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
+}
+
+.stat-view-toggle .app-select-root--toolbar .app-select-trigger-chevron {
+  color: var(--app-control-segment-idle-fg);
+  opacity: 0.85;
+}
+
+/* Team picker — single control surface (no nested track chrome). */
+.cc-team-makeup-head .stat-view-toggle.cc-toolbar-team-picker {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: min(11.5rem, 52vw);
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  align-items: center;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cc-team-makeup-head .stat-view-toggle.cc-toolbar-team-picker .app-select-root--toolbar {
+  z-index: 30;
+}
+
+.cc-team-makeup-head
+  .stat-view-toggle.cc-toolbar-team-picker
+  .app-select-root--toolbar
+  .app-select-trigger {
+  border-radius: var(--app-control-track-radius);
+  background: var(--app-control-segment-active-bg);
+  color: var(--app-control-segment-active-fg);
+}
+
+.cc-team-makeup-head
+  .stat-view-toggle
+  .app-select-root--toolbar
+  .app-select-trigger:hover {
+  background: color-mix(
+    in srgb,
+    var(--app-control-segment-active-bg) 88%,
+    white
+  );
+}
+
+.cc-team-makeup-head
+  .stat-view-toggle
+  .app-select-root--toolbar
+  .app-select-trigger-chevron {
+  color: var(--app-control-segment-active-fg);
+  opacity: 0.85;
 }
 
 .app-select-root--toolbar .app-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 400;
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  max-height: min(16rem, 45vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--app-control-menu-padding);
   gap: var(--app-control-menu-gap);
+  list-style: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   background: var(--app-control-menu-bg);
   border: 1px solid var(--app-control-menu-border);
   border-radius: var(--app-control-menu-radius);
@@ -112,14 +233,67 @@
   backdrop-filter: blur(14px);
 }
 
+/* Team makeup — compact list; typical leagues fit without scrolling */
+.cc-team-makeup-head .app-select-root--toolbar .app-select-menu {
+  top: calc(100% + 3px);
+  padding: 0.14rem;
+  gap: 0.03rem;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  max-height: min(20rem, calc(100vh - 8rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-accent) 32%, transparent) transparent;
+}
+
+.cc-team-makeup-head .app-select-root--toolbar .app-select-menu > li {
+  margin: 0;
+  padding: 0;
+}
+
+.cc-team-makeup-head .app-select-root--toolbar .app-select-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cc-team-makeup-head .app-select-root--toolbar .app-select-menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-accent) 36%, transparent);
+}
+
+.cc-team-makeup-head .app-select-root--toolbar .app-select-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  padding: 0.22rem 0.48rem;
+  line-height: 1.2;
+  box-sizing: border-box;
+  border-radius: 5px;
+  font-size: var(--app-control-trigger-font-size-dense);
+  font-weight: 500;
+}
+
+.app-select-root--toolbar .app-select-menu > li {
+  width: 100%;
+  min-width: 0;
+}
+
 .app-select-root--toolbar .app-select-option {
-  min-height: 2.1rem;
-  padding: 0.34rem 0.55rem;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 0.26rem 0.4rem;
+  border: none;
   border-left: none;
-  border-radius: 6px;
+  border-radius: 5px;
   color: var(--app-control-option-fg);
   font-size: var(--app-control-trigger-font-size);
   font-weight: 500;
+  line-height: 1.25;
 }
 
 .cc-left .app-select-root--toolbar .app-select-option {

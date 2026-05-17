@@ -1,4 +1,5 @@
 /* Reuses pac-snapshot-header layout but sits first in a surface card — no top gap */
+.cc-left-market-card > .cc-left-market-head.pac-snapshot-header,
 .cc-my-standings-card > .cc-my-standings-head.pac-snapshot-header,
 .cc-right-roster-pane > .cc-roster-pane-head.pac-snapshot-header {
   margin-top: 0;

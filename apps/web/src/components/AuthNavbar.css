@@ -94,6 +94,7 @@
 }
 
 .auth-navbar-actions {
+  --auth-navbar-control-size: 34px;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -175,16 +176,18 @@
   align-items: center;
   gap: 0.45rem;
   box-sizing: border-box;
-  min-height: 2rem;
-  background: var(--app-select-bg);
-  border: 1px solid var(--app-select-border);
-  color: var(--app-text);
-  font-size: 0.78rem;
+  height: var(--auth-navbar-control-size);
+  min-height: var(--auth-navbar-control-size);
+  max-height: var(--auth-navbar-control-size);
+  background: var(--app-control-trigger-bg);
+  border: 1px solid var(--app-control-trigger-border);
+  color: var(--app-control-trigger-fg);
+  font-size: var(--app-control-trigger-font-size-dense);
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  padding: 0.22rem 0.55rem;
-  border-radius: 7px;
+  padding: 0 0.5rem 0 0.55rem;
+  border-radius: var(--app-control-trigger-radius);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
@@ -204,18 +207,18 @@
 }
 
 .league-selector-btn:hover {
-  border-color: var(--app-select-border-hover);
+  border-color: var(--app-control-trigger-border-hover);
 }
 
 .league-selector-btn:focus-visible {
-  border-color: var(--app-select-border-focus);
-  box-shadow: 0 0 0 3px var(--app-select-focus-ring);
+  border-color: var(--app-control-trigger-border-focus);
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
 }
 
 .league-selector-chevron {
   flex-shrink: 0;
   transition: transform 0.2s;
-  color: #9d8cc4;
+  color: var(--app-control-trigger-fg-muted);
 }
 
 .league-selector-chevron.chevron-open {
@@ -420,21 +423,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  background: var(--app-accent-hairline);
-  border: 1px solid rgba(138, 43, 226, 0.3);
-  border-radius: 8px;
-  color: #a78bfa;
+  box-sizing: border-box;
+  width: var(--auth-navbar-control-size);
+  height: var(--auth-navbar-control-size);
+  min-width: var(--auth-navbar-control-size);
+  min-height: var(--auth-navbar-control-size);
+  background: var(--app-control-trigger-bg);
+  border: 1px solid var(--app-control-trigger-border);
+  border-radius: var(--app-control-trigger-radius);
+  color: var(--app-control-trigger-fg-muted);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
   position: relative;
+  outline: none;
 }
 
 .nb-alerts-btn:hover {
-  background: rgba(139, 92, 246, 0.22);
-  border-color: rgba(138, 43, 226, 0.6);
-  color: #c4b5fd;
+  border-color: var(--app-control-trigger-border-hover);
+  background: color-mix(in srgb, var(--app-control-trigger-bg) 72%, rgba(139, 92, 246, 0.14));
+  color: var(--app-control-trigger-fg);
+}
+
+.nb-alerts-btn:focus-visible {
+  border-color: var(--app-control-trigger-border-focus);
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
 }
 
 .nb-alerts-btn--socket-off {
@@ -456,7 +472,7 @@
 
   .league-selector-btn {
     max-width: min(24vw, 180px);
-    padding: 0.36rem 0.65rem;
+    padding: 0 0.45rem 0 0.5rem;
   }
 }
 
@@ -484,7 +500,7 @@
 @media (max-width: 760px) {
   .league-selector-btn {
     max-width: 110px;
-    padding: 0.32rem 0.5rem;
+    padding: 0 0.4rem 0 0.45rem;
   }
 
   .user-avatar-btn {

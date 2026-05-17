@@ -230,13 +230,13 @@
     padding: 0.1rem 0.06rem;
   }
 
-  .rp-bid-context-grid,
-  .budget-grid {
+  .bc-context-row {
     grid-template-columns: 1fr;
+    gap: 0.22rem;
   }
 
-  .rp-bid-context-grid {
-    gap: 0.2rem;
+  .budget-grid {
+    grid-template-columns: 1fr;
   }
 
   .budget-grid {

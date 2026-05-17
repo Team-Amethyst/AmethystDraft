@@ -61,6 +61,11 @@
   --app-control-track-padding: 0.2rem;
   --app-control-segment-padding: 0.25rem 0.65rem;
   --app-control-segment-padding-dense: 0.22rem 0.5rem;
+  /** Outer height of Liquidity/Standings toggle track and toolbar AppSelect triggers. */
+  --app-control-toolbar-row-height: calc(
+    2 * var(--app-control-track-padding) + 0.44rem +
+      1.2 * var(--app-control-trigger-font-size-dense)
+  );
   --app-control-segment-active-bg: rgba(139, 92, 246, 0.25);
   --app-control-segment-active-fg: #c4b5fd;
   --app-control-segment-idle-fg: #6b4fa0;
@@ -68,11 +73,11 @@
   --app-control-menu-bg: rgba(17, 14, 32, 0.96);
   --app-control-menu-border: rgba(139, 92, 246, 0.16);
   --app-control-menu-radius: 8px;
-  --app-control-menu-padding: 0.3rem;
+  --app-control-menu-padding: 0.18rem;
   --app-control-menu-shadow:
     0 2px 6px rgba(0, 0, 0, 0.12),
     0 14px 36px rgba(0, 0, 0, 0.32);
-  --app-control-menu-gap: 0.1rem;
+  --app-control-menu-gap: 0.04rem;
   --app-control-option-fg: #d4c8e8;
   --app-control-option-hover-bg: rgba(255, 255, 255, 0.06);
   --app-control-option-hover-fg: #f0e6ff;
@@ -90,11 +95,12 @@
   --app-dropdown-item-selected-bg: var(--app-control-option-selected-bg);
   --app-dropdown-item-selected-fg: var(--app-control-option-selected-fg);
 
-  --app-select-bg: color-mix(in srgb, var(--app-bg-alt) 88%, black 12%);
-  --app-select-border: color-mix(in srgb, var(--app-accent) 28%, transparent);
-  --app-select-border-hover: color-mix(in srgb, var(--app-accent) 45%, transparent);
-  --app-select-border-focus: color-mix(in srgb, var(--app-accent) 72%, white 28%);
-  --app-select-focus-ring: color-mix(in srgb, var(--app-accent) 16%, transparent);
+  /** Native `<select>` aliases — same chrome as AppSelect / Command Center controls. */
+  --app-select-bg: var(--app-control-trigger-bg);
+  --app-select-border: var(--app-control-trigger-border);
+  --app-select-border-hover: var(--app-control-trigger-border-hover);
+  --app-select-border-focus: var(--app-control-trigger-border-focus);
+  --app-select-focus-ring: var(--app-control-trigger-focus-ring);
 }
 
 /* Shared page shell primitives for gradual migration. */

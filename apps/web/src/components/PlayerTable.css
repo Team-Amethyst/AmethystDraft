@@ -243,38 +243,48 @@
 .pt-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 0.5rem 0.65rem;
+  padding: 0.5rem 0.85rem;
   background: #110e20;
   border-bottom: 1px solid var(--app-accent-hairline);
   flex-wrap: wrap;
   min-width: 0;
   /**
-   * Toolbar “field” system — search bar is canonical: pill + glass + hairline border.
-   * Menus reuse the same surface tokens (not a separate saturated panel).
+   * Toolbar zones: pill search · filter track (dropdowns) · toggle track · reset · stat basis.
    */
   --pt-control-pill-radius: 999px;
-  --pt-control-menu-shell-radius: 18px;
-  --pt-control-surface-bg: rgba(255, 255, 255, 0.04);
-  --pt-control-surface-border: rgba(139, 92, 246, 0.2);
-  --pt-control-surface-border-hover: rgba(139, 92, 246, 0.35);
-  --pt-control-surface-border-focus: rgba(139, 92, 246, 0.5);
-  --pt-control-text: #e2d9f3;
+  --pt-control-select-radius: 6px;
+  --pt-control-menu-shell-radius: 8px;
+  --pt-control-track-bg: rgba(255, 255, 255, 0.028);
+  --pt-control-track-border: rgba(139, 92, 246, 0.14);
+  --pt-control-surface-bg: rgba(255, 255, 255, 0.045);
+  --pt-control-surface-border: rgba(139, 92, 246, 0.22);
+  --pt-control-surface-border-hover: rgba(139, 92, 246, 0.38);
+  --pt-control-surface-border-focus: rgba(167, 139, 250, 0.55);
+  --pt-control-focus-ring: rgba(139, 92, 246, 0.18);
+  --pt-control-text: #e8e0f5;
   --pt-control-text-soft: #c4b5d4;
-  --pt-control-muted: #6b4fa0;
-  --pt-control-menu-bg: var(--pt-control-surface-bg);
-  --pt-control-menu-border: var(--pt-control-surface-border);
-  --pt-control-menu-padding: 0.32rem;
-  --pt-control-menu-shadow: 0 4px 28px rgba(0, 0, 0, 0.22);
-  --pt-control-row-hover: rgba(255, 255, 255, 0.06);
-  --pt-control-row-selected: rgba(255, 255, 255, 0.11);
+  --pt-control-muted: #7c6a99;
+  --pt-control-menu-bg: rgba(17, 14, 32, 0.96);
+  --pt-control-menu-border: rgba(139, 92, 246, 0.28);
+  --pt-control-menu-padding: 0.28rem;
+  --pt-control-menu-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --pt-control-row-hover: rgba(255, 255, 255, 0.07);
+  --pt-control-row-selected: rgba(139, 92, 246, 0.2);
+  --pt-control-field-pad-block: 0.3rem;
+  --pt-control-field-font: 0.78rem;
+  --pt-control-field-lh: 1.2;
+  --pt-control-field-height: calc(
+    2 * var(--pt-control-field-pad-block) + var(--pt-control-field-font) * var(--pt-control-field-lh) +
+      2px
+  );
 }
 
 .pt-search {
   position: relative;
-  flex: 1;
-  min-width: 180px;
-  max-width: 320px;
+  flex: 1 1 22rem;
+  min-width: 12rem;
+  max-width: min(38rem, 48vw);
 }
 
 .pt-search-icon {
@@ -288,44 +298,72 @@
 
 .pt-search-input {
   width: 100%;
-  background: var(--pt-control-surface-bg);
+  height: var(--pt-control-field-height);
+  min-height: var(--pt-control-field-height);
+  background: rgba(255, 255, 255, 0.045);
   border: 1px solid var(--pt-control-surface-border);
   border-radius: var(--pt-control-pill-radius);
-  padding: 0.45rem 0.75rem 0.45rem 2rem;
-  font-size: 0.8rem;
-  font-weight: 400;
+  padding: var(--pt-control-field-pad-block) 0.75rem var(--pt-control-field-pad-block) 2rem;
+  font-size: var(--pt-control-field-font);
+  line-height: var(--pt-control-field-lh);
+  font-weight: 500;
   color: var(--pt-control-text);
   outline: none;
   font-family: DM Sans, sans-serif;
-  transition: border-color 0.2s;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
   box-sizing: border-box;
+  box-shadow: none;
 }
 
 .pt-search-input:focus,
 .pt-search-input:focus-visible {
   border-color: var(--pt-control-surface-border-focus);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 2px var(--pt-control-focus-ring);
 }
 
 .pt-search-input::placeholder {
-  color: #4a3a60;
+  color: #6b5a82;
 }
 
 .pt-filters {
   display: flex;
-  align-items: stretch;
-  gap: 0.45rem 0.5rem;
+  align-items: center;
+  gap: 0.38rem;
   flex-wrap: wrap;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
-/* As many per row as fit: grow from ~7.25rem, wrap when needed */
-.pt-filters > .app-select,
-.pt-filters > .app-select-root,
-.pt-filters > .pt-toggle,
-.pt-filters > .pt-tag-wrap {
-  flex: 1 1 7.25rem;
+.pt-filter-group,
+.pt-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  padding: 0.1rem;
+  border-radius: calc(var(--pt-control-select-radius) + 1px);
+}
+
+.pt-filter-group {
+  flex: 0 1 auto;
+  min-width: 0;
+  background: var(--pt-control-track-bg);
+  border: 1px solid var(--pt-control-track-border);
+}
+
+.pt-toggle-group {
+  flex: 0 1 auto;
+  background: var(--pt-control-track-bg);
+  border: 1px solid var(--pt-control-track-border);
+}
+
+.pt-filter-group > .pt-filter-field {
+  flex: 0 1 auto;
+  width: auto;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
@@ -336,197 +374,326 @@
   align-self: center;
 }
 
-.pt-filters > .pt-tag-wrap > .pt-toggle {
-  width: 100%;
-  box-sizing: border-box;
+.pt-filter-group > .pt-filter-field.app-select-root,
+.pt-filter-group > .pt-tag-wrap.pt-filter-field {
+  display: inline-flex;
+  align-self: center;
+  position: relative;
 }
 
-/* Filter layout — visual chrome from `app-select` (global). */
-.pt-filters .app-select,
-.pt-filters .app-select-root {
+/* Filter dropdowns — square fields inside filter track */
+.pt-filter-group .pt-filter-field.app-select-root {
   min-width: 0;
   max-width: 100%;
 }
 
-/* AppSelect in this row — same soft field as search (not global dense select). */
-.pt-filters .app-select-root--compact .app-select-trigger {
-  border-radius: var(--pt-control-pill-radius);
+.pt-filter-group
+  .pt-filter-field.app-select-root--compact
+  .app-select-trigger,
+.pt-filter-group .pt-filter-field.app-select-root .app-select-trigger {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--pt-control-field-height);
+  min-height: var(--pt-control-field-height);
+  max-height: var(--pt-control-field-height);
+  box-sizing: border-box;
+  border-radius: var(--pt-control-select-radius);
+  border-color: var(--pt-control-surface-border);
   background: var(--pt-control-surface-bg);
-  border: 1px solid var(--pt-control-surface-border);
   color: var(--pt-control-text-soft);
-  font-size: 0.78rem;
-  font-weight: 400;
+  font-family: DM Sans, sans-serif;
+  font-size: var(--pt-control-field-font);
+  font-weight: 500;
   letter-spacing: normal;
-  min-height: 0;
-  padding: 0.38rem 0.5rem 0.38rem 0.65rem;
+  line-height: var(--pt-control-field-lh);
+  padding: 0 1.35rem 0 0.5rem;
   box-shadow: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.pt-filters .app-select-root--compact .app-select-trigger:hover {
-  border-color: var(--pt-control-surface-border-hover);
-}
-
-.pt-filters .app-select-root--compact .app-select-trigger:focus-visible {
+.pt-filter-group
+  .pt-filter-field.app-select-root:has(.app-select-trigger[aria-expanded="true"])
+  .app-select-trigger {
   border-color: var(--pt-control-surface-border-focus);
-  box-shadow: none;
-  outline: none;
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--pt-control-text);
+  box-shadow: 0 0 0 2px var(--pt-control-focus-ring);
 }
 
-.pt-filters .app-select-trigger-chevron {
-  color: var(--pt-control-muted);
-}
-
-.pt-filters .app-select-menu {
-  top: calc(100% + 0.35rem);
-  gap: 0.18rem;
-  padding: var(--pt-control-menu-padding);
-  background: var(--pt-control-menu-bg);
-  border: 1px solid var(--pt-control-menu-border);
+.pt-filter-group .pt-filter-field.app-select-root .app-select-menu {
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  padding: 0.14rem;
+  gap: 0.03rem;
+  max-height: none;
+  overflow: visible;
   border-radius: var(--pt-control-menu-shell-radius);
+  border-color: var(--pt-control-menu-border);
+  background: var(--pt-control-menu-bg);
   box-shadow: var(--pt-control-menu-shadow);
-  backdrop-filter: blur(20px);
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(139, 92, 246, 0.22) transparent;
 }
 
-.pt-filters .app-select-menu::-webkit-scrollbar {
-  width: 8px;
+/* Position list can be long — allow scroll without widening the trigger */
+.pt-filter-group
+  .pt-filter-field.app-select-root:has(
+    .app-select-trigger[aria-label="Position filter"]
+  )
+  .app-select-menu {
+  max-height: min(14rem, 50vh);
+  overflow-y: auto;
 }
 
-.pt-filters .app-select-menu::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(139, 92, 246, 0.28);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.pt-filters .app-select-root--compact .app-select-option {
-  border-radius: var(--pt-control-pill-radius);
-  border-left: none;
-  padding: 0.38rem 0.58rem;
-  font-size: 0.78rem;
-  color: var(--pt-control-text-soft);
-  font-weight: 400;
-}
-
-.pt-filters .app-select-option:hover:not(:disabled) {
-  background: var(--pt-control-row-hover);
-  color: var(--pt-control-text);
-}
-
-.pt-filters .app-select-option.is-selected {
-  background: var(--pt-control-row-selected);
-  color: var(--pt-control-text);
+.pt-filter-group .pt-filter-field.app-select-root .app-select-option {
+  width: 100%;
+  border-radius: 5px;
   font-weight: 500;
 }
 
-.pt-filters .app-select-option.is-selected:focus-visible:not(:disabled) {
+.pt-filter-group .pt-filter-field.app-select-root .app-select-option.is-selected {
   background: var(--pt-control-row-selected);
-  color: var(--pt-control-text);
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.18);
+  color: #ddd6fe;
 }
 
-.pt-filters .app-select-option:focus-visible:not(:disabled) {
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.18);
-  background: var(--pt-control-row-hover);
-  color: var(--pt-control-text);
-}
-
-.pt-toggle {
-  display: flex;
+.pt-filter-select.pt-tags-trigger {
+  display: inline-flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.35rem;
+  width: auto;
+  max-width: 100%;
+  height: var(--pt-control-field-height);
+  min-height: var(--pt-control-field-height);
+  max-height: var(--pt-control-field-height);
   box-sizing: border-box;
-  min-height: 0;
-  background: var(--pt-control-surface-bg);
+  border-radius: var(--pt-control-select-radius);
   border: 1px solid var(--pt-control-surface-border);
-  border-radius: var(--pt-control-pill-radius);
-  padding: 0.38rem 0.58rem;
-  font-size: 0.78rem;
-  font-weight: 400;
-  letter-spacing: normal;
+  background: var(--pt-control-surface-bg);
   color: var(--pt-control-text-soft);
+  font-family: DM Sans, sans-serif;
+  font-size: var(--pt-control-field-font);
+  font-weight: 500;
+  line-height: var(--pt-control-field-lh);
+  padding: 0 1.35rem 0 0.5rem;
   cursor: pointer;
+  box-shadow: none;
   transition:
     border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    background 0.2s,
-    color 0.2s;
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+  outline: none;
+  white-space: nowrap;
+}
+
+.pt-filter-select.pt-tags-trigger:hover:not(:disabled) {
+  border-color: var(--pt-control-surface-border-hover);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.pt-filter-select.pt-tags-trigger:focus-visible,
+.pt-filter-select.pt-tags-trigger.is-open {
+  border-color: var(--pt-control-surface-border-focus);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--pt-control-text);
+  box-shadow: 0 0 0 2px var(--pt-control-focus-ring);
+}
+
+.pt-filter-select.pt-tags-trigger.active {
+  background: rgba(139, 92, 246, 0.14);
+  border-color: rgba(167, 139, 250, 0.5);
+  color: var(--pt-control-text);
+}
+
+.pt-filter-select.pt-tags-trigger.active .pt-tags-trigger-icon,
+.pt-filter-select.pt-tags-trigger.active .pt-tags-trigger-chevron {
+  color: #a78bfa;
+}
+
+.pt-tags-trigger-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.pt-tags-trigger-icon,
+.pt-tags-trigger-chevron {
+  flex-shrink: 0;
+  color: var(--pt-control-muted);
+}
+
+.pt-tags-trigger-chevron {
+  transition: transform 0.15s ease;
+}
+
+.pt-filter-select.pt-tags-trigger.is-open .pt-tags-trigger-chevron {
+  transform: rotate(180deg);
+}
+
+.pt-filter-group .pt-filter-field.app-select-root .app-select-trigger:hover {
+  border-color: var(--pt-control-surface-border-hover);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.pt-filter-group .pt-filter-field.app-select-root .app-select-trigger:focus-visible {
+  border-color: var(--pt-control-surface-border-focus);
+  color: var(--pt-control-text);
+  box-shadow: 0 0 0 2px var(--pt-control-focus-ring);
+}
+
+.pt-filter-group .pt-filter-field.app-select-root .app-select-trigger-chevron {
+  color: var(--pt-control-muted);
+}
+
+/* View toggles — segmented inside toggle track */
+.pt-toggle-group .pt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  box-sizing: border-box;
+  height: var(--pt-control-field-height);
+  min-height: var(--pt-control-field-height);
+  border: none;
+  border-radius: 5px;
+  padding: 0 0.55rem;
+  font-size: var(--pt-control-field-font);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--pt-control-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
   font-family: DM Sans, sans-serif;
   min-width: 0;
   max-width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   outline: none;
-  box-shadow: none;
 }
 
-.pt-toggle:hover:not(:disabled):not(.active) {
-  border-color: var(--pt-control-surface-border-hover);
+.pt-toggle-group .pt-toggle:hover:not(:disabled):not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a78bfa;
 }
 
-.pt-toggle:focus-visible {
-  border-color: var(--pt-control-surface-border-focus);
-  box-shadow: none;
+.pt-toggle-group .pt-toggle:focus-visible {
+  box-shadow: 0 0 0 2px var(--pt-control-focus-ring);
 }
 
-.pt-toggle.active:focus-visible {
-  border-color: rgba(251, 191, 36, 0.55);
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.12);
+.pt-toggle-group .pt-toggle--star.active {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fcd34d;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.pt-toggle.active {
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.4);
-  color: #fbbf24;
+.pt-toggle-group .pt-toggle--star.active:focus-visible {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 0 0 2px rgba(251, 191, 36, 0.22);
 }
 
+.pt-toggle-group .pt-toggle--model.active {
+  background: rgba(139, 92, 246, 0.22);
+  color: #ddd6fe;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.pt-toggle-group .pt-toggle--model.active:focus-visible {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 0 0 2px rgba(139, 92, 246, 0.28);
+}
+
+/* Stat basis — segmented track (same row height as filters) */
 .pt-basis-pills {
-  display: flex;
-  gap: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
   margin-left: auto;
+  flex-shrink: 0;
+  padding: 0.1rem;
+  min-height: calc(var(--pt-control-field-height) + 0.2rem);
+  background: var(--pt-control-track-bg);
+  border: 1px solid var(--pt-control-track-border);
+  border-radius: calc(var(--pt-control-select-radius) + 1px);
 }
 
-.pt-pill {
-  background: transparent;
-  border: 1px solid var(--pt-control-surface-border);
-  border-radius: var(--pt-control-pill-radius);
-  padding: 0.35rem 0.6rem;
-  font-size: 0.72rem;
+.pt-basis-pills-label {
+  padding: 0 0.35rem 0 0.28rem;
+  font-size: 0.62rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--pt-control-muted);
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
   font-family: DM Sans, sans-serif;
-  letter-spacing: 0.05em;
-  white-space: normal;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pt-basis-pills .pt-pill {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 0.18rem 0.45rem;
+  height: var(--pt-control-field-height);
+  min-height: var(--pt-control-field-height);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--app-control-segment-idle-fg, var(--pt-control-muted));
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+  font-family: DM Sans, sans-serif;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
   line-height: 1.15;
   text-align: center;
 }
 
-.pt-pill:hover:not(.active) {
-  border-color: var(--pt-control-surface-border-hover);
+.pt-basis-pills .pt-pill:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a78bfa;
 }
 
-.pt-pill.active {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.5);
-  color: #a78bfa;
+.pt-basis-pills .pt-pill.active {
+  background: var(--app-control-segment-active-bg, rgba(139, 92, 246, 0.25));
+  color: var(--app-control-segment-active-fg, #c4b5fd);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.pt-basis-pills .pt-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.28);
 }
 
 .pt-icon-btn {
   background: var(--pt-control-surface-bg);
   border: 1px solid var(--pt-control-surface-border);
-  border-radius: var(--pt-control-pill-radius);
-  padding: 0.4rem 0.5rem;
+  border-radius: var(--pt-control-select-radius);
+  height: var(--pt-control-field-height);
+  min-height: var(--pt-control-field-height);
+  padding: 0 0.45rem;
   color: var(--pt-control-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
-  transition: color 0.2s, border-color 0.2s;
+  justify-content: center;
+  box-sizing: border-box;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .pt-icon-btn:hover {
@@ -538,6 +705,31 @@
   outline: none;
   border-color: var(--pt-control-surface-border-focus);
   box-shadow: none;
+}
+
+/* Reset — utility action outside filter/toggle tracks */
+.pt-filters > .pt-reset-btn {
+  flex: 0 0 auto;
+  margin-left: 0;
+  padding: 0 0.55rem;
+  border-radius: var(--pt-control-select-radius);
+  border-style: dashed;
+  border-color: rgba(167, 139, 250, 0.38);
+  background: rgba(255, 255, 255, 0.02);
+  color: #8f7ab8;
+}
+
+.pt-filters > .pt-reset-btn:hover {
+  border-style: solid;
+  border-color: rgba(244, 114, 182, 0.45);
+  background: rgba(244, 114, 182, 0.1);
+  color: #f9a8d4;
+}
+
+.pt-filters > .pt-reset-btn:focus-visible {
+  border-style: solid;
+  border-color: rgba(244, 114, 182, 0.55);
+  box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.16);
 }
 
 .th-sortable { cursor: pointer; }
@@ -583,23 +775,17 @@
 /* Ordinal rank only — do not use `th-rank-metric` here (that width is for ADP/rank/value metrics). */
 .pt-table.pt-table--research .th-rank,
 .pt-table.pt-table--research .td-rank {
-  width: 2rem;
-  min-width: 2rem;
-  max-width: 2.15rem;
+  width: 2.65rem;
+  min-width: 2.65rem;
+  max-width: 2.85rem;
   box-sizing: border-box;
-  padding-left: 0.35rem;
-  padding-right: 0.2rem;
-  text-align: right;
+  padding-left: 0.28rem;
+  padding-right: 0.28rem;
+  text-align: center;
 }
 
 .pt-table.pt-table--research thead .th-rank {
-  text-align: center;
-  color: #4f3f6e;
-  font-weight: 600;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  line-height: 1.12;
+  letter-spacing: 0.05em;
 }
 
 .pt-table.pt-table--research .th-star,
@@ -634,28 +820,43 @@
 
 .pt-table.pt-table--research .th-notes,
 .pt-table.pt-table--research .td-notes {
-  width: 6.5rem;
+  width: 10rem;
+  min-width: 8rem;
+  max-width: 11.5rem;
+  box-sizing: border-box;
 }
 
-/* Rank / ADP / auction metrics — tight but full labels; avoid soaking free table width. */
+/* Rank / ADP / tier metrics — wide enough for two-word headers on one line. */
 .pt-table.pt-table--research .th-rank-metric,
 .pt-table.pt-table--research .td-rank-metric {
+  width: 7.75rem;
+  min-width: 7.75rem;
+  max-width: 8rem;
+  box-sizing: border-box;
+}
+
+/* Auction rank — room for “Auction rank” + sort affordance on one line. */
+.pt-table.pt-table--research .th-auction-rank,
+.pt-table.pt-table--research .td-auction-rank {
   width: 7.35rem;
   min-width: 7.35rem;
-  max-width: 7.75rem;
+  max-width: 7.5rem;
+  padding-left: 0.38rem;
+  padding-right: 0.38rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
   box-sizing: border-box;
 }
 
 .pt-table.pt-table--research .th-value,
 .pt-table.pt-table--research .td-value {
-  /* Fixed width so the column does not leave a wide empty band before stat columns. */
-  width: 9.75rem;
-  min-width: 9.75rem;
-  max-width: 9.75rem;
+  width: 8.35rem;
+  min-width: 8.35rem;
+  max-width: 8.5rem;
   box-sizing: border-box;
 }
 
-/* Stat combo headers (R/W, SB/WHIP, …) need more width than numeric cells; allow wrap vs ellipsis. */
+/* Stat combo headers (R/W, SB/WHIP, …) — nowrap in thead; body cells stay fixed width. */
 .pt-table.pt-table--research .th-stat,
 .pt-table.pt-table--research .td-stat,
 .pt-table.pt-table--research .th-avg {
@@ -665,18 +866,6 @@
   padding-left: 0.32rem;
   padding-right: 0.32rem;
   box-sizing: border-box;
-}
-
-.pt-table.pt-table--research thead .th-stat,
-.pt-table.pt-table--research thead .th-avg {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  line-height: 1.18;
-  hyphens: none;
-  word-break: break-word;
-  font-size: 0.61rem;
-  letter-spacing: 0.035em;
 }
 
 .pt-table thead {
@@ -703,12 +892,37 @@
   hyphens: none;
 }
 
+.pt-table.pt-table--research thead {
+  --pt-research-th-fg: #6b4fa0;
+  --pt-research-th-hover-fg: #a78bfa;
+  --pt-research-th-font-size: 0.68rem;
+  --pt-research-th-font-weight: 700;
+  --pt-research-th-letter-spacing: 0.06em;
+  --pt-research-th-line-height: 1.15;
+}
+
 .pt-table.pt-table--research thead th {
+  padding: 0.38rem 0.45rem;
+  color: var(--pt-research-th-fg);
+  font-size: var(--pt-research-th-font-size);
+  font-weight: var(--pt-research-th-font-weight);
+  letter-spacing: var(--pt-research-th-letter-spacing);
+  line-height: var(--pt-research-th-line-height);
+  text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.2;
+  overflow: visible;
+  text-overflow: clip;
   vertical-align: middle;
+  hyphens: none;
+  word-break: keep-all;
+}
+
+.pt-table.pt-table--research thead .th-sort-icon {
+  white-space: nowrap;
+}
+
+.pt-table.pt-table--research thead .th-sortable:hover {
+  color: var(--pt-research-th-hover-fg);
 }
 
 .pt-row {
@@ -823,9 +1037,22 @@
   white-space: nowrap;
 }
 
+/* Pill injury chip — matches Command Center identity / lookup */
 .pt-research-player-top .pt-il-badge {
   margin-left: 0;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.42rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  vertical-align: middle;
 }
 
 /* Uses remaining width in the player cell so category/draft chips stay visible (+N via CQ when tight). */
@@ -961,22 +1188,36 @@
   color: #fff;
 }
 
-/* ── Rank / ADP / auction-order metrics (muted vs auction value) ── */
-.pt-table thead .th-rank-metric {
+/* ── Rank / ADP / auction-order metrics (muted vs auction value; default layout only) ── */
+.pt-table:not(.pt-table--research) thead .th-rank-metric {
   color: #4f3f6e;
   font-weight: 600;
 }
 
-.pt-table thead .th-rank-metric.th-sortable:hover {
+.pt-table:not(.pt-table--research) thead .th-rank-metric.th-sortable:hover {
   color: #7c6aa3;
 }
 
-.pt-table thead .th-value.th-sortable:hover {
+.pt-table:not(.pt-table--research) thead .th-value.th-sortable:hover {
   color: #b8a3e6;
 }
 
-.pt-table tbody .td-rank-metric,
-.pt-table tbody .td-adp {
+.pt-table:not(.pt-table--research) tbody .td-rank-metric,
+.pt-table:not(.pt-table--research) tbody .td-adp {
+  color: #756892;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Research: Market ADP + auction rank match stat column typography */
+.pt-table.pt-table--research tbody .td-rank-metric:not(.td-adp),
+.pt-table.pt-table--research tbody .td-auction-rank {
+  color: #d0c4e4;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-table.pt-table--research tbody .td-adp.td-rank-metric {
   color: #756892;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1005,7 +1246,7 @@
   color: #ddd6fe;
 }
 
-.pt-table thead .th-value {
+.pt-table:not(.pt-table--research) thead .th-value {
   color: #8f7ab8;
 }
 
@@ -1016,7 +1257,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Pos column: wrap eligibility badges before forcing other columns narrow. */
+/* Pos column: thead single-line; body wraps eligibility badges. */
+.pt-table.pt-table--research thead .th-pos {
+  white-space: nowrap;
+}
+
 .pt-table .th-pos {
   white-space: normal;
   max-width: 6.5rem;
@@ -1086,17 +1331,19 @@
 /* ── Tag filter dropdown ── */
 .pt-tag-dropdown {
   position: absolute;
-  top: calc(100% + 0.4rem);
+  top: calc(100% + 6px);
   left: 0;
   z-index: 300;
   background: var(--pt-control-menu-bg);
   border: 1px solid var(--pt-control-menu-border);
   border-radius: var(--pt-control-menu-shell-radius);
-  padding: var(--pt-control-menu-padding);
+  padding: 0.42rem;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  min-width: 11rem;
+  min-width: max(100%, 13.5rem);
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 1.5rem));
   max-height: min(16rem, 45vh);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1118,14 +1365,40 @@
   background-clip: padding-box;
 }
 
+.pt-tag-dropdown-header {
+  margin: 0;
+  padding: 0.15rem 0.45rem 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pt-control-muted);
+  font-family: DM Sans, sans-serif;
+}
+
+.pt-tag-dropdown-hint {
+  margin: 0;
+  padding: 0 0.45rem 0.2rem;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: #7c6a99;
+  font-family: DM Sans, sans-serif;
+}
+
+.pt-tag-dropdown-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.18rem;
+}
+
 .pt-tag-option {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   cursor: pointer;
-  min-height: 2.5rem;
-  padding: 0.48rem 0.75rem;
-  border-radius: var(--pt-control-pill-radius);
+  min-height: 2rem;
+  padding: 0.32rem 0.45rem;
+  border-radius: var(--pt-control-select-radius);
   user-select: none;
   color: var(--pt-control-text-soft);
   font-size: 0.8rem;
@@ -1157,11 +1430,37 @@
   flex-shrink: 0;
 }
 
+.pt-tag-option-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.42rem;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  color: #c4b5fd;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.pt-tag-option.is-selected,
+.pt-tag-option:has(input:checked) {
+  background: rgba(139, 92, 246, 0.14);
+}
+
+.pt-tag-option.is-selected .pt-tag-option-chip,
+.pt-tag-option:has(input:checked) .pt-tag-option-chip {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(167, 139, 250, 0.45);
+  color: #e9d5ff;
+}
+
 .pt-tag-clear {
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   background: transparent;
   border: 1px solid var(--pt-control-surface-border);
-  border-radius: var(--pt-control-pill-radius);
+  border-radius: var(--pt-control-select-radius);
   color: #7c6a99;
   font-size: 0.68rem;
   font-weight: 400;
@@ -1316,20 +1615,31 @@
   display: flex;
   flex-direction: column;
   gap: 0.28rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 0.45rem 1rem;
-  font-size: 0.64rem;
-  color: #3d3352;
+  font-size: 0.66rem;
+  color: #6b5f82;
   border-top: 1px solid rgba(139, 92, 246, 0.08);
   background: #110e20;
   font-family: DM Sans, sans-serif;
 }
 
+.pt-footer-line {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
 .pt-footer-line--subtle {
-  opacity: 0.68;
-  font-size: 0.6rem;
-  line-height: 1.3;
-  max-width: 52rem;
-  color: #352c48;
+  opacity: 0.92;
+  font-size: 0.62rem;
+  line-height: 1.45;
+  color: #8a7da3;
 }
 
 /* ── Narrow / horizontal scroll ── */
@@ -1476,6 +1786,7 @@
 
 @media (max-width: 900px) {
   .pt-controls {
+    --pt-control-field-font: 0.74rem;
     padding: 0.65rem 0.75rem;
     gap: 0.55rem;
     align-items: stretch;
@@ -1485,6 +1796,7 @@
     flex: 1 1 100%;
     max-width: none;
     min-width: 0;
+    width: 100%;
   }
 
   .pt-filters {
@@ -1492,18 +1804,21 @@
     width: 100%;
   }
 
-  .pt-filters > .app-select,
-  .pt-filters > .app-select-root,
-  .pt-filters > .pt-toggle,
-  .pt-filters > .pt-tag-wrap {
-    flex: 1 1 6.35rem;
+  .pt-filter-group,
+  .pt-toggle-group {
+    flex: 1 1 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .pt-toggle-group {
+    justify-content: flex-start;
   }
 
   .pt-search-input,
-  .pt-filters .app-select,
-  .pt-filters .app-select-root .app-select-trigger,
-  .pt-filters .app-select-root--compact .app-select-option,
-  .pt-toggle,
+  .pt-filter-group .pt-filter-field.app-select-root .app-select-trigger,
+  .pt-filter-group .pt-filter-field.app-select-root--compact .app-select-option,
+  .pt-toggle-group .pt-toggle,
   .pt-tag-option {
     font-size: 0.74rem;
   }
@@ -1514,6 +1829,8 @@
     justify-content: flex-start;
     flex-wrap: wrap;
     min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .pt-table th,
@@ -1576,6 +1893,16 @@
   .pt-table th {
     font-size: 0.62rem;
     padding: 0.42rem 0.45rem;
+  }
+
+  .pt-table.pt-table--research thead {
+    --pt-research-th-font-size: 0.62rem;
+  }
+
+  .pt-table.pt-table--research thead th {
+    padding: 0.42rem 0.45rem;
+    white-space: nowrap;
+    word-break: keep-all;
   }
 
   .pt-table td {

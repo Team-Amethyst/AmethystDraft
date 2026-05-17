@@ -11,3 +11,9 @@
   text-align: center;
   width: 2.4rem;
 }
+
+/* Roster slot assigned outside position eligibility (commissioner override). */
+.pos-badge.pos-badge--slot-override {
+  outline: 2px solid rgba(251, 191, 36, 0.62);
+  outline-offset: 1px;
+}

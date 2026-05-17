@@ -6,32 +6,32 @@
  * !important overrides Tailwind preflight (`select { background-color: transparent }`).
  */
 :root {
-  --app-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239d8cc4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --app-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b4fa0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
 select.app-select,
-select:not(.unstyled-select) {
+select:not(.unstyled-select):not(.log-select) {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
   box-sizing: border-box;
-  min-height: 2.625rem;
+  min-height: var(--app-control-trigger-min-height);
   min-width: 0;
   max-width: 100%;
-  padding: 0 2.25rem 0 0.8125rem !important;
-  border-radius: 10px !important;
-  border: 1px solid var(--app-select-border) !important;
-  background-color: var(--app-select-bg) !important;
+  padding: var(--app-control-trigger-padding) !important;
+  border-radius: var(--app-control-trigger-radius) !important;
+  border: 1px solid var(--app-control-trigger-border) !important;
+  background-color: var(--app-control-trigger-bg) !important;
   background-image: var(--app-select-chevron) !important;
   background-repeat: no-repeat !important;
-  background-position: right 0.75rem center !important;
+  background-position: right 0.5rem center !important;
   background-size: 10px 10px !important;
-  color: var(--app-text) !important;
-  font: inherit;
-  font-size: 0.875rem;
+  color: var(--app-control-trigger-fg) !important;
+  font-family: var(--app-font-family);
+  font-size: var(--app-control-trigger-font-size);
   font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
   cursor: pointer;
   outline: none;
   color-scheme: dark;
@@ -42,34 +42,34 @@ select:not(.unstyled-select) {
 }
 
 select.app-select:hover,
-select:not(.unstyled-select):hover {
-  border-color: var(--app-select-border-hover) !important;
+select:not(.unstyled-select):not(.log-select):hover {
+  border-color: var(--app-control-trigger-border-hover) !important;
 }
 
 select.app-select:focus-visible,
-select:not(.unstyled-select):focus-visible {
-  border-color: var(--app-select-border-focus) !important;
-  box-shadow: 0 0 0 3px var(--app-select-focus-ring) !important;
+select:not(.unstyled-select):not(.log-select):focus-visible {
+  border-color: var(--app-control-trigger-border-focus) !important;
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring) !important;
 }
 
 select.app-select:disabled,
-select:not(.unstyled-select):disabled {
+select:not(.unstyled-select):not(.log-select):disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
 select.app-select option,
-select:not(.unstyled-select) option {
-  background: #120b1f;
-  color: var(--app-text);
+select:not(.unstyled-select):not(.log-select) option {
+  background: var(--app-control-menu-bg);
+  color: var(--app-control-option-fg);
 }
 
 select.app-select.app-select--compact,
 select.app-select--compact:not(.unstyled-select) {
-  min-height: 2rem;
-  padding: 0.22rem 1.65rem 0.22rem 0.45rem !important;
-  font-size: 0.78rem;
-  border-radius: 7px !important;
+  min-height: var(--app-control-toolbar-row-height);
+  font-size: var(--app-control-trigger-font-size-dense);
+  padding: var(--app-control-segment-padding-dense) !important;
+  padding-right: 1.55rem !important;
   background-position: right 0.45rem center !important;
 }
 

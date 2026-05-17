@@ -123,13 +123,24 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* Let header team picker menu paint over the slot list */
+  overflow: visible;
 }
 
 .cc-team-makeup-card > .cc-team-makeup-head.pac-snapshot-header {
   margin-top: 0;
-  margin-bottom: var(--cc-heading-mb);
+  margin-bottom: var(--cc-gap-md);
   gap: 0.35rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 25;
+  overflow: visible;
+}
+
+.cc-team-makeup-head .cc-toolbar-team-picker,
+.cc-team-makeup-head .stat-view-toggle.cc-toolbar-team-picker {
+  overflow: visible;
 }
 
 .cc-team-makeup-head .market-section-label {
@@ -144,6 +155,8 @@
 
 .cc-team-makeup-head.cc-panel-controls {
   align-items: center;
+  min-height: 0;
+  height: auto;
 }
 
 .cc-left .cc-team-makeup-card .team-makeup-slots {
@@ -265,6 +278,10 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #9070b8 var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.cc-right-draft-log .draft-log-list.draft-log-list--scroll-body-host {
+  overflow: hidden;
 }
 
 .cc-right-draft-log .draft-log-list::-webkit-scrollbar {

@@ -7,6 +7,7 @@ import type { RosterEntry } from "../api/roster";
 import type { Player } from "../types/player";
 import { getPlayers } from "../api/players";
 import { DraftLogRow } from "../components/DraftLogRow";
+import { DraftLogTable } from "../components/DraftLogTable";
 import PosBadge from "../components/PosBadge";
 import { usePageTitle } from "../hooks/usePageTitle";
 import {
@@ -424,7 +425,8 @@ export default function LeagueOverview() {
               </span>
             </div>
             {entries.filter((e) => isEngineAuctionBoardEntry(e)).length > 0 ? (
-              <div className="lo-dl-list">
+              <div className="lo-dl-list draft-log-list--scroll-body-host">
+                <DraftLogTable variant="dense" scrollBody>
                 {[...entries]
                   .filter((e) => isEngineAuctionBoardEntry(e))
                   .sort(
@@ -472,6 +474,7 @@ export default function LeagueOverview() {
                       />
                     );
                   })}
+                </DraftLogTable>
               </div>
             ) : (
               <div className="lo-dl-empty">No picks yet.</div>

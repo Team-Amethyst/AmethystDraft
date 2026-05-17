@@ -58,7 +58,6 @@ import {
 import {
   normalizeValuationPlayerId,
   commandCenterWalletCapsFromMyTeam,
-  commandCenterBidDecision,
 } from "../utils/valuation";
 import {
   leagueValuationConfigKey,
@@ -70,12 +69,13 @@ import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import {
   auctionValueForCommandCenterPrefill,
   commandCenterSearchDropdownAuctionDollars,
+  deriveAuctionRanksByPlayerId,
+  deriveAuctionTierFromRank,
   engineFiniteOrNull,
   engineRowHasFocusedExplainPayload,
-  formatEdgeLine,
   mergeDisplayValuationRow,
-  valueMinusBidDeltaRounded,
-  verdictFromValueMinusBid,
+  withDerivedAuctionRank,
+  withDerivedAuctionTier,
 } from "../domain/auctionCenterValuation";
 import { searchRankedAvailablePlayers } from "../domain/auctionPlayerSearch";
 import { getTaxiRosterPlayerIds } from "../domain/taxiDraft";
@@ -236,6 +236,12 @@ export function AuctionCenter({
     [displayValuationRow, activeValuationRow],
   );
 
+  const auctionRankByPlayerId = useMemo(
+    () => deriveAuctionRanksByPlayerId(engineMarket?.valuations ?? []),
+    [engineMarket?.valuations],
+  );
+  const engineBoardLoaded = Boolean(engineMarket?.valuations?.length);
+
   useLayoutEffect(() => {
     if (!leagueId || !token || !selectedPlayer) {
       setPlayerEngineFetchPending(false);
@@ -290,28 +296,6 @@ export function AuctionCenter({
     return commandCenterWalletCapsFromMyTeam(league, myTeamEntries);
   }, [league, myTeamWalletFingerprint]);
 
-  const identityValueVsBidBadge = useMemo(() => {
-    if (!selectedPlayer) return null;
-    const dec = commandCenterBidDecision(
-      rowForValuationUi ?? null,
-      selectedPlayer.value,
-      myWalletCaps,
-    );
-    if (dec.notBidable) return null;
-    const yourValue =
-      dec.yourValue ??
-      engineFiniteOrNull(selectedPlayer.team_value) ??
-      undefined;
-    if (yourValue == null || !Number.isFinite(yourValue)) return null;
-    const delta = valueMinusBidDeltaRounded(yourValue, dec.suggestedBid);
-    const v = verdictFromValueMinusBid(delta);
-    return {
-      deltaText: formatEdgeLine(delta),
-      label: v.label,
-      tone: v.tone,
-    };
-  }, [rowForValuationUi, selectedPlayer, myWalletCaps]);
-
   const hasBidSignal = Boolean(
     rowForValuationUi &&
       (engineFiniteOrNull(rowForValuationUi.recommended_bid) != null ||
@@ -340,6 +324,8 @@ export function AuctionCenter({
   // Merge board valuations from Command Center’s single engine snapshot (no duplicate getValuation).
   useEffect(() => {
     if (!engineMarket?.valuations?.length) return;
+    const rankById = deriveAuctionRanksByPlayerId(engineMarket.valuations);
+    const poolSize = rankById.size;
     setValuationMap((prev) => {
       const next = new Map(prev);
       for (const v of engineMarket.valuations) {
@@ -348,8 +334,22 @@ export function AuctionCenter({
           v as unknown as Record<string, unknown>,
         );
         boardRow.player_id = id;
+        const derivedRank = rankById.get(id);
+        let rankedBoardRow = boardRow;
+        if (derivedRank !== undefined) {
+          rankedBoardRow = withDerivedAuctionRank(boardRow, derivedRank);
+          if (poolSize > 0) {
+            rankedBoardRow = withDerivedAuctionTier(
+              rankedBoardRow,
+              deriveAuctionTierFromRank(derivedRank, poolSize),
+            );
+          }
+        }
         const prevRow = next.get(id);
-        next.set(id, mergeValuationBoardRowIntoPrevious(prevRow, boardRow));
+        next.set(
+          id,
+          mergeValuationBoardRowIntoPrevious(prevRow, rankedBoardRow),
+        );
       }
       return next;
     });
@@ -414,17 +414,30 @@ export function AuctionCenter({
         });
         let row: ValuationResult | undefined = res.player;
         if (!row && Array.isArray(res.valuations)) {
-          row =
-            res.valuations.find(
-              (x) => normalizeValuationPlayerId(x.player_id) === playerId,
-            ) ??
-            (res.valuations.length === 1 ? res.valuations[0] : undefined);
+          row = res.valuations.find(
+            (x) => normalizeValuationPlayerId(x.player_id) === playerId,
+          );
+          if (
+            !row &&
+            res.valuations.length === 1 &&
+            normalizeValuationPlayerId(res.valuations[0]!.player_id) === playerId
+          ) {
+            row = res.valuations[0];
+          }
         }
         if (row) {
-          const normalizedRow: ValuationResult = {
-            ...row,
-            player_id: playerId,
-          };
+          const derivedRank = auctionRankByPlayerId.get(playerId);
+          const poolSize = auctionRankByPlayerId.size;
+          let normalizedRow: ValuationResult = { ...row, player_id: playerId };
+          if (derivedRank !== undefined) {
+            normalizedRow = withDerivedAuctionRank(normalizedRow, derivedRank);
+            if (poolSize > 0) {
+              normalizedRow = withDerivedAuctionTier(
+                normalizedRow,
+                deriveAuctionTierFromRank(derivedRank, poolSize),
+              );
+            }
+          }
           setValuationMap((prev) => {
             const cur = prev.get(playerId);
             const mergedRow = mergeValuationBoardRowIntoPrevious(
@@ -455,6 +468,7 @@ export function AuctionCenter({
     rosterValuationKey,
     selectedPlayer?.id,
     engineMarket?.valuations?.length,
+    auctionRankByPlayerId,
   ]);
 
   useEffect(() => {
@@ -903,7 +917,6 @@ export function AuctionCenter({
                 draftableSlots={identityDraftableSlots}
                 mergedValuationRow={mergedValuationRow}
                 rowForValuationUi={rowForValuationUi}
-                identityValueVsBidBadge={identityValueVsBidBadge}
                 getNote={getNote}
                 setNote={setNote}
                 isInWatchlist={isInWatchlist}
@@ -914,6 +927,8 @@ export function AuctionCenter({
                 hittingCats={hittingCats}
                 engineBoardPhase={engineBoardPhase}
                 walletCaps={myWalletCaps}
+                auctionRankByPlayerId={auctionRankByPlayerId}
+                engineBoardLoaded={engineBoardLoaded}
               />
             </div>
 

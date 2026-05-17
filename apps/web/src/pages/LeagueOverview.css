@@ -435,9 +435,6 @@
 }
 
 .lo-dl-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -445,6 +442,23 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(167, 139, 250, 0.5)
     var(--app-scrollbar-track, rgba(12, 8, 22, 0.94));
+}
+
+.lo-dl-list.draft-log-list--scroll-body-host {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 0 8px;
+}
+
+.lo-dl-list.draft-log-list--scroll-body-host .draft-log-table--scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lo-dl-list .draft-log-table {
+  width: 100%;
+  min-width: 0;
 }
 
 .lo-dl-list::-webkit-scrollbar {

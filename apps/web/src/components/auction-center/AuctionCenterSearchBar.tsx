@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { UserPlus } from "lucide-react";
 import type { Player } from "../../types/player";
 import PosBadge from "../PosBadge";
+import { PlayerHeadshot } from "../PlayerTableParts";
 import {
   playerDisplayPositionBadges,
   playerDraftableRosterSlots,
@@ -29,6 +30,18 @@ export interface AuctionCenterSearchBarProps {
   isInWatchlist: (playerId: string) => boolean;
   onAddMissingPlayer?: () => void;
   onDismissDropdown: () => void;
+}
+
+function normalizePosToken(pos: string): string {
+  return pos.toUpperCase().replace(/\s+/g, "");
+}
+
+/** Roster slot labels for the palette row (excludes primary position tokens). */
+function paletteSlotLine(primaryTags: string[], draftSlots: string[]): string {
+  if (draftSlots.length === 0) return "";
+  const primary = new Set(primaryTags.map(normalizePosToken));
+  const parts = draftSlots.filter((s) => !primary.has(normalizePosToken(s)));
+  return parts.join(" · ");
 }
 
 export function AuctionCenterSearchBar({
@@ -97,59 +110,80 @@ export function AuctionCenterSearchBar({
           </div>
         </div>
         {showDropdown && (
-          <div className="cc-search-dropdown">
+          <div className="cc-search-dropdown cc-search-dropdown--palette">
             {dropdownResults.length > 0 ? (
               dropdownResults.map((p) => {
                 const auction = typeaheadAuctionDollars(p);
                 const playPos = playerDisplayPositionBadges(p, draftDisplaySlotKeys);
                 const draftSlots = playerDraftableRosterSlots(p, draftDisplaySlotKeys);
+                const primaryPos = playPos[0] ?? p.position ?? "";
+                const slotsLine = paletteSlotLine(playPos, draftSlots);
+                const injuryLabel = p.injuryStatus
+                  ? p.injuryStatus.replace("DL", "IL")
+                  : null;
+
                 return (
                   <button
                     key={p.id}
-                    className="cc-dropdown-item"
+                    className="cc-palette-item"
                     type="button"
                     onMouseDown={() => onSelectPlayer(p)}
                   >
-                    <div className="cc-dd-main">
-                      <div className="cc-dd-name-row">
-                        <span className="cc-dd-name-text">
-                          {p.name}
-                          {p.injuryStatus && (
-                            <span className="pt-il-badge">
-                              {p.injuryStatus.replace("DL", "IL")}
-                            </span>
-                          )}
-                          {isInWatchlist(p.id) && (
-                            <span className="cc-dd-wl" title="On your watchlist">
-                              ★
-                            </span>
-                          )}
-                        </span>
-                        {playPos.length > 0 ? (
-                          <span className="cc-dd-play-pos" title="Positions played">
-                            {playPos.map((pos) => (
-                              <PosBadge key={`${p.id}-play-${pos}`} pos={pos} />
-                            ))}
-                          </span>
-                        ) : null}
-                      </div>
-                      {draftSlots.length > 0 ? (
+                    <span className="cc-palette-photo" aria-hidden>
+                      <PlayerHeadshot
+                        src={p.headshot}
+                        name={p.name}
+                        isCustom={p.id.startsWith("custom_")}
+                        size={40}
+                      />
+                    </span>
+                    <span
+                      className="cc-palette-gap cc-palette-gap--photo-name"
+                      aria-hidden
+                    />
+                    <span className="cc-palette-identity">
+                      <span className="cc-palette-name">{p.name}</span>
+                      {injuryLabel ? (
                         <span
-                          className="cc-dd-slot-row"
-                          title="Roster slots you can draft this player into"
+                          className="cc-palette-injury"
+                          title={`Injury: ${injuryLabel}`}
                         >
-                          {draftSlots.map((slot) => (
-                            <PosBadge
-                              key={`${p.id}-draft-${slot}`}
-                              pos={slot}
-                              className="cc-dd-slot-badge"
-                            />
-                          ))}
+                          {injuryLabel}
                         </span>
                       ) : null}
-                    </div>
-                    <span className="cc-dd-team">{p.team}</span>
-                    <span className="cc-dd-val" title="League auction value (Engine)">
+                      {isInWatchlist(p.id) ? (
+                        <span className="cc-palette-wl" title="On your watchlist">
+                          ★
+                        </span>
+                      ) : null}
+                    </span>
+                    {p.team ? (
+                      <span className="cc-palette-team">{p.team}</span>
+                    ) : (
+                      <span className="cc-palette-team cc-palette-team--empty" />
+                    )}
+                    <span
+                      className="cc-palette-gap cc-palette-gap--team-pos"
+                      aria-hidden
+                    />
+                    {primaryPos ? (
+                      <span className="cc-palette-pos" title="Primary position">
+                        <PosBadge pos={primaryPos} />
+                      </span>
+                    ) : (
+                      <span className="cc-palette-pos cc-palette-pos--empty" />
+                    )}
+                    {slotsLine ? (
+                      <span
+                        className="cc-palette-slots"
+                        title="Roster slots you can draft this player into"
+                      >
+                        {slotsLine}
+                      </span>
+                    ) : (
+                      <span className="cc-palette-slots cc-palette-slots--empty" />
+                    )}
+                    <span className="cc-palette-val" title="League auction value (Engine)">
                       {auction != null ? `$${Math.round(auction)}` : "—"}
                     </span>
                   </button>

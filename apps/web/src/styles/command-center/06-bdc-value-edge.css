@@ -47,6 +47,25 @@
   color: var(--cc-bdc-edge-muted);
 }
 
+.pic-vb-badge.pic-vb-badge--inline {
+  padding: 0;
+  background: transparent;
+  border: none;
+  gap: 0.14rem 0.24rem;
+}
+
+.player-identity-card .pic-vb-badge--inline .pic-vb-badge-delta {
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.player-identity-card .pic-vb-badge--inline .pic-vb-badge-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
 .pac-strength-detail {
   display: flex;
   align-items: center;
@@ -83,9 +102,20 @@
 }
 
 .pac-headshot--identity {
-  width: 66px;
-  height: 66px;
-  border-width: 1px;
+  width: 64px;
+  height: 64px;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.player-identity-card .custom-headshot {
+  width: 64px;
+  height: 64px;
+}
+
+.player-identity-card .custom-headshot circle[r="15.5"] {
+  stroke: none;
 }
 
 .pac-name-block {

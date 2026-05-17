@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useWatchlist } from "../../contexts/WatchlistContext";
 import type { Player } from "../../types/player";
 import PosBadge from "../PosBadge";
+import { PlayerHeadshot } from "../PlayerTableParts";
 import {
   playerDisplayPositionBadges,
   playerDisplaySlotEligibilityBadges,
@@ -76,25 +77,48 @@ export function TaxiDraftPlayerSearch({
                   draftDisplaySlotKeys,
                 );
                 return (
-                <button
-                  key={p.id}
-                  className="cc-dropdown-item"
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onPickPlayer(p);
-                  }}
-                >
-                  <div className="cc-dd-lead-col">
-                    <span className="cc-dd-pos-badges">
-                      {posBadges.map((pos) => (
-                        <PosBadge key={`${p.id}-${pos}`} pos={pos} />
-                      ))}
+                  <button
+                    key={p.id}
+                    className="cc-dropdown-item"
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onPickPlayer(p);
+                    }}
+                  >
+                    <span className="cc-dd-photo" aria-hidden>
+                      <PlayerHeadshot
+                        src={p.headshot}
+                        name={p.name}
+                        isCustom={p.id.startsWith("custom_")}
+                      />
                     </span>
-                    {slotBadges.length > 0 ? (
-                      <div className="cc-dd-slot-line" title="Roster slots this player can fill">
-                        <span className="cc-dd-slot-label">Slots</span>
-                        <span className="cc-dd-slot-badges">
+                    <span className="cc-dd-content">
+                    <span className="cc-dd-name">{p.name}</span>
+                    {p.team ? <span className="cc-dd-team">{p.team}</span> : null}
+                    {posBadges.length > 0 ? (
+                      <span className="cc-dd-play-pos" title="Positions played">
+                        {posBadges.map((pos) => (
+                          <PosBadge key={`${p.id}-${pos}`} pos={pos} />
+                        ))}
+                      </span>
+                    ) : null}
+                    {p.injuryStatus ? (
+                      <span className="pt-il-badge cc-dd-injury">
+                        {p.injuryStatus.replace("DL", "IL")}
+                      </span>
+                    ) : null}
+                    {isInWatchlist(p.id) ? (
+                      <span className="cc-dd-wl" title="On your watchlist">
+                        ★
+                      </span>
+                    ) : null}
+                    <span className="cc-dd-trail">
+                      {slotBadges.length > 0 ? (
+                        <span
+                          className="cc-dd-slot-row"
+                          title="Roster slots this player can fill"
+                        >
                           {slotBadges.map((s) => (
                             <PosBadge
                               key={`${p.id}-slot-${s}`}
@@ -103,25 +127,11 @@ export function TaxiDraftPlayerSearch({
                             />
                           ))}
                         </span>
-                      </div>
-                    ) : null}
-                  </div>
-                  <span className="cc-dd-name">
-                    {p.name}
-                    {p.injuryStatus && (
-                      <span className="pt-il-badge">
-                        {p.injuryStatus.replace("DL", "IL")}
-                      </span>
-                    )}
-                    {isInWatchlist(p.id) && (
-                      <span className="cc-dd-wl" title="On your watchlist">
-                        ★
-                      </span>
-                    )}
-                  </span>
-                  <span className="cc-dd-team">{p.team}</span>
-                  <span className="cc-dd-val">${p.value}</span>
-                </button>
+                      ) : null}
+                      <span className="cc-dd-val">${p.value}</span>
+                    </span>
+                    </span>
+                  </button>
                 );
               })
             ) : searchQuery.length >= 2 ? (
