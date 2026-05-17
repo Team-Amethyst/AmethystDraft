@@ -3,10 +3,7 @@ import { AppSelect } from "../AppSelect";
 import type { League } from "../../contexts/LeagueContext";
 import type { RosterEntry } from "../../api/roster";
 import { myDraftSlotsForPosition } from "../../constants/positionAllocationPlan";
-import {
-  activeAuctionEntriesForTeam,
-  isReserveRosterSlot,
-} from "../../pages/command-center-utils/roster";
+import { activeAuctionEntriesForTeam } from "../../pages/command-center-utils/roster";
 import { assignTeamEntriesToRosterRows } from "../../pages/command-center-utils/rosterAssignment";
 import PosBadge from "../PosBadge";
 import { resolvedLeagueTeamNames } from "../../utils/team";
@@ -46,11 +43,6 @@ export function CommandCenterTeamMakeupSection({
   const teamMakeupEntries = makeupTeamId
     ? activeAuctionEntriesForTeam(rosterEntries, makeupTeamId)
     : [];
-  const reserveCountForTeam = makeupTeamId
-    ? rosterEntries.filter(
-        (e) => e.teamId === makeupTeamId && isReserveRosterSlot(e.rosterSlot ?? ""),
-      ).length
-    : 0;
   const assignedRows =
     league != null
       ? assignTeamEntriesToRosterRows(league.rosterSlots, teamMakeupEntries)
@@ -107,13 +99,19 @@ export function CommandCenterTeamMakeupSection({
       <div className="pac-snapshot-header cc-team-makeup-head cc-panel-controls">
         <span className="market-section-label">TEAM MAKEUP</span>
         {league && makeupTeamOptions.length > 0 ? (
-          <AppSelect
-            variant="toolbar"
-            aria-label="Roster to display"
-            value={makeupTeamId}
-            onChange={setMakeupTeamId}
-            options={makeupTeamOptions}
-          />
+          <div className="stat-view-toggle cc-toolbar-team-picker">
+            <AppSelect
+              variant="toolbar"
+              className="cc-toolbar-team-picker__select"
+              aria-label="Roster to display"
+              title={
+                makeupTeamOptions.find((o) => o.value === makeupTeamId)?.label
+              }
+              value={makeupTeamId}
+              onChange={setMakeupTeamId}
+              options={makeupTeamOptions}
+            />
+          </div>
         ) : null}
       </div>
       <div className="team-makeup-slots">
@@ -171,13 +169,6 @@ export function CommandCenterTeamMakeupSection({
         })}
         {teamMakeupRows.length === 0 && <div className="dim">No slots available.</div>}
       </div>
-      <p className="team-makeup-footnote dim">
-        Active auction roster only—Minors and Taxi reserves are excluded from
-        these slots
-        {reserveCountForTeam > 0
-          ? ` (${reserveCountForTeam} reserve player${reserveCountForTeam === 1 ? "" : "s"} on this team; see League Overview).`
-          : " (see League Overview for reserves)."}
-      </p>
     </section>
   );
 }

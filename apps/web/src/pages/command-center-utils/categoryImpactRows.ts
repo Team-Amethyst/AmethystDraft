@@ -172,28 +172,8 @@ function syntheticHypotheticalEntry(
   };
 }
 
-function formatTeamMovementLine(
-  catName: string,
-  catType: "batting" | "pitching",
-  agg: "lower" | "higher" | "sum",
-  beforeStr: string,
-  afterStr: string,
-): string {
-  const n = normalizeCatName(catName).trim().toUpperCase();
-  if (agg === "sum") {
-    return `Team ${beforeStr} → ${afterStr}`;
-  }
-  const label =
-    catType === "pitching"
-      ? n === "ERA"
-        ? "ERA"
-        : n === "WHIP" || n.includes("WHIP")
-          ? "WHIP"
-          : n
-      : n === "AVG"
-        ? "AVG"
-        : n;
-  return `${label} ${beforeStr} → ${afterStr}`;
+function formatTeamMovementLine(beforeStr: string, afterStr: string): string {
+  return `${beforeStr} → ${afterStr}`;
 }
 
 export function auctionCenterCategoryImpactRows(input: {
@@ -296,13 +276,7 @@ export function auctionCenterCategoryImpactRows(input: {
           withPlayerStr: z,
           playerContributionStr: null,
           categoryEffectLabel: "No projected change",
-          teamMovementLine: formatTeamMovementLine(
-            cat.statsKey,
-            cat.type,
-            agg,
-            z,
-            z,
-          ),
+          teamMovementLine: formatTeamMovementLine(z, z),
           rotoPtsLine: rotoDeltaLine(
             baseStandings,
             withPlayerStandings,
@@ -329,13 +303,7 @@ export function auctionCenterCategoryImpactRows(input: {
         withPlayerStr: aStr,
         playerContributionStr: null,
         categoryEffectLabel,
-        teamMovementLine: formatTeamMovementLine(
-          cat.statsKey,
-          cat.type,
-          agg,
-          bStr,
-          aStr,
-        ),
+        teamMovementLine: formatTeamMovementLine(bStr, aStr),
         rotoPtsLine: rotoDeltaLine(
           baseStandings,
           withPlayerStandings,
@@ -363,13 +331,7 @@ export function auctionCenterCategoryImpactRows(input: {
           withPlayerStr: z,
           playerContributionStr: null,
           categoryEffectLabel: "No projected change",
-          teamMovementLine: formatTeamMovementLine(
-            cat.statsKey,
-            cat.type,
-            agg,
-            z,
-            z,
-          ),
+          teamMovementLine: formatTeamMovementLine(z, z),
           rotoPtsLine: rotoDeltaLine(
             baseStandings,
             withPlayerStandings,
@@ -396,13 +358,7 @@ export function auctionCenterCategoryImpactRows(input: {
         withPlayerStr: aStr,
         playerContributionStr: null,
         categoryEffectLabel,
-        teamMovementLine: formatTeamMovementLine(
-          cat.statsKey,
-          cat.type,
-          agg,
-          bStr,
-          aStr,
-        ),
+        teamMovementLine: formatTeamMovementLine(bStr, aStr),
         rotoPtsLine: rotoDeltaLine(
           baseStandings,
           withPlayerStandings,
@@ -443,13 +399,7 @@ export function auctionCenterCategoryImpactRows(input: {
       withPlayerStr: aStr,
       playerContributionStr,
       categoryEffectLabel,
-      teamMovementLine: formatTeamMovementLine(
-        cat.statsKey,
-        cat.type,
-        agg,
-        bStr,
-        aStr,
-      ),
+      teamMovementLine: formatTeamMovementLine(bStr, aStr),
       rotoPtsLine: rotoDeltaLine(
         baseStandings,
         withPlayerStandings,

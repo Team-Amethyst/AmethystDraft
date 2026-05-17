@@ -117,7 +117,7 @@ describe("auctionCenterCategoryImpactRows", () => {
     expect(rows[0].deltaStr).toBe("+28");
     expect(rows[0].categoryEffectLabel).toBe("Improves");
     expect(rows[0].playerContributionStr).toBe("+28");
-    expect(rows[0].teamMovementLine).toBe("Team 12 → 40");
+    expect(rows[0].teamMovementLine).toBe("12 → 40");
     expect(rows[0].rotoPtsLine).toBeNull();
     expect(rows[0].improved).toBe(true);
   });
