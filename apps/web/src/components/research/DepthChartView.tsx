@@ -13,6 +13,7 @@ import {
   depthRowMatchesSearch,
   getDepthRowResolution,
   isDepthRowWatchlistActionable,
+  resolveDepthRowRightDisplay,
 } from "../../domain/depthChartRowMatch";
 import type { ValuationShape } from "../../utils/valuation";
 import { ResearchDepthChartToolbar } from "./ResearchDepthChartToolbar";
@@ -30,12 +31,15 @@ interface DepthChartViewProps {
   rosterEntries: readonly RosterEntry[];
   watchlist: readonly WatchlistPlayer[];
   valuationsByPlayerId: ReadonlyMap<string, ValuationShape>;
+  /** League roster slot keys for catalog position badges (matches Command Center). */
+  draftDisplaySlotKeys?: readonly string[];
+  /** Fantasy team display names (`team_1` index order) for rostered row labels. */
+  leagueTeamNames?: readonly string[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onTeamChange: (teamId: number) => void;
   onRefresh: () => void;
   isInWatchlist: (playerId: string) => boolean;
-  showMatchSummary: boolean;
   onPlayerClick: (row: DepthChartPlayerRow, position: DepthChartPosition) => void;
   onStarToggle: (row: DepthChartPlayerRow, position: DepthChartPosition) => void;
 }
@@ -48,12 +52,13 @@ export function DepthChartView({
   rosterEntries,
   watchlist,
   valuationsByPlayerId,
+  draftDisplaySlotKeys,
+  leagueTeamNames,
   searchQuery,
   onSearchChange,
   onTeamChange,
   onRefresh,
   isInWatchlist,
-  showMatchSummary,
   onPlayerClick,
   onStarToggle,
 }: DepthChartViewProps) {
@@ -121,7 +126,9 @@ export function DepthChartView({
         return {
           rank,
           row: null,
+          catalogPlayer: null,
           matchState: null,
+          rightDisplay: null,
           watchlistEnabled: false,
           watchlistStarred: false,
         };
@@ -130,7 +137,9 @@ export function DepthChartView({
         return {
           rank,
           row: null,
+          catalogPlayer: null,
           matchState: null,
+          rightDisplay: null,
           watchlistEnabled: false,
           watchlistStarred: false,
         };
@@ -152,7 +161,15 @@ export function DepthChartView({
       return {
         rank,
         row,
+        catalogPlayer: resolution.catalogPlayer,
         matchState: resolution.state,
+        rightDisplay: resolveDepthRowRightDisplay(
+          resolution,
+          row,
+          valuationsByPlayerId,
+          rosterEntries,
+          leagueTeamNames,
+        ),
         watchlistEnabled: isDepthRowWatchlistActionable(resolution),
         watchlistStarred: watchlistId ? isInWatchlist(watchlistId) : false,
       };
@@ -174,9 +191,9 @@ export function DepthChartView({
         rosterLimitNote={depthChartData.constraints.note}
         rosterLimitOk={depthChartData.constraints.rosterLimitRespected}
         matchSummary={matchSummary}
+        useValuationBreakdown={valuationsByPlayerId.size > 0}
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
-        showMatchSummary={showMatchSummary}
       />
 
       {visiblePositions.length === 0 ? (
@@ -188,6 +205,7 @@ export function DepthChartView({
               key={position}
               position={position}
               slots={buildSlots(position)}
+              draftDisplaySlotKeys={draftDisplaySlotKeys}
               onPlayerClick={onPlayerClick}
               onStarToggle={onStarToggle}
             />
@@ -196,7 +214,7 @@ export function DepthChartView({
       )}
 
       {depthChartData.manualReview.length > 0 ? (
-        <section className="depth-chart-manual-review">
+        <section className="depth-chart-manual-review cc-surface-inset">
           <h3>Manual Review Required</h3>
           <ul>
             {depthChartData.manualReview.map((item) => (

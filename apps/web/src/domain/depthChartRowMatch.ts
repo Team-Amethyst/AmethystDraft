@@ -1,12 +1,13 @@
 import type { DepthChartPlayerRow, DepthChartResponse } from "../api/players";
 import type { RosterEntry } from "../api/roster";
+import { teamNameForRosterEntry } from "./rosterMaps";
 import type { WatchlistPlayer } from "../api/watchlist";
 import type { Player } from "../types/player";
 import {
   catalogPlayerMatchesExternalId,
   findCatalogPlayerByExternalId,
 } from "./catalogPlayerKeys";
-import type { ValuationShape } from "../utils/valuation";
+import { formatDollar, type ValuationShape } from "../utils/valuation";
 
 /** UI badge states for depth-chart rows (source/match semantics). */
 export type DepthRowMatchState =
@@ -39,6 +40,116 @@ const BADGE_LABELS: Record<DepthRowMatchState, string> = {
 
 export function depthRowMatchBadge(state: DepthRowMatchState): DepthRowMatchBadge {
   return { state, label: BADGE_LABELS[state] };
+}
+
+const STATUS_TOOLTIPS: Record<DepthRowMatchState, string> = {
+  rostered: "On your fantasy roster",
+  valued: "In the Engine valuation pool for this league",
+  catalog_only:
+    "Exists in Draftroom catalog but not currently in Engine valuation pool",
+  depth_only:
+    "Appears in MLB depth chart data but does not have a Draftroom catalog record",
+  unmatched: "No confident match between this depth row and the player catalog",
+};
+
+export type DepthRowRightDisplay =
+  | { kind: "auction"; formattedValue: string }
+  | { kind: "rostered_won"; teamName: string; formattedPrice: string }
+  | { kind: "dash" }
+  | { kind: "status"; label: string; state: DepthRowMatchState; title: string };
+
+export function resolveAuctionValueForCatalogPlayer(
+  player: Player,
+  valuationsByPlayerId: ReadonlyMap<string, ValuationShape>,
+): number | null {
+  const row =
+    valuationsByPlayerId.get(player.id) ??
+    (player.mlbId != null
+      ? valuationsByPlayerId.get(String(player.mlbId))
+      : undefined);
+  if (row?.auction_value != null && Number.isFinite(row.auction_value)) {
+    return row.auction_value;
+  }
+  if (player.auction_value != null && Number.isFinite(player.auction_value)) {
+    return player.auction_value;
+  }
+  return null;
+}
+
+export function findRosterEntryForDepthRow(
+  row: DepthChartPlayerRow,
+  catalogPlayer: Player | undefined,
+  rosterEntries: readonly RosterEntry[] | null | undefined,
+): RosterEntry | undefined {
+  if (!rosterEntries?.length) return undefined;
+  return rosterEntries.find((entry) => {
+    if (!entry.externalPlayerId) return false;
+    const ext = String(entry.externalPlayerId);
+    if (ext === String(row.playerId)) return true;
+    if (catalogPlayer && ext === catalogPlayer.id) return true;
+    if (
+      catalogPlayer?.mlbId != null &&
+      ext === String(catalogPlayer.mlbId)
+    ) {
+      return true;
+    }
+    return false;
+  });
+}
+
+/** Right-side depth row label: won-by team + price, auction $, or status badge. */
+export function resolveDepthRowRightDisplay(
+  resolution: DepthRowMatchResolution,
+  row: DepthChartPlayerRow,
+  valuationsByPlayerId: ReadonlyMap<string, ValuationShape>,
+  rosterEntries?: readonly RosterEntry[] | null,
+  teamNames?: readonly string[],
+): DepthRowRightDisplay | null {
+  const { state, catalogPlayer } = resolution;
+
+  if (state === "rostered") {
+    const entry = findRosterEntryForDepthRow(row, catalogPlayer, rosterEntries);
+    if (entry) {
+      const teamName =
+        teamNameForRosterEntry(entry, teamNames)?.trim() || entry.teamId;
+      const paid = Number.isFinite(entry.price) ? entry.price : 0;
+      return {
+        kind: "rostered_won",
+        teamName,
+        formattedPrice: formatDollar(Math.round(paid)),
+      };
+    }
+    return {
+      kind: "status",
+      label: BADGE_LABELS.rostered,
+      state: "rostered",
+      title: STATUS_TOOLTIPS.rostered,
+    };
+  }
+
+  const auction =
+    catalogPlayer != null
+      ? resolveAuctionValueForCatalogPlayer(catalogPlayer, valuationsByPlayerId)
+      : null;
+
+  if (auction != null) {
+    return { kind: "auction", formattedValue: formatDollar(Math.round(auction)) };
+  }
+
+  if (state === "catalog_only") {
+    return { kind: "dash" };
+  }
+
+  if (state === "valued" || state === "depth_only" || state === "unmatched") {
+    return {
+      kind: "status",
+      label: BADGE_LABELS[state],
+      state,
+      title: STATUS_TOOLTIPS[state],
+    };
+  }
+
+  return null;
 }
 
 export function normalizeDepthPlayerName(name: string): string {
@@ -108,20 +219,9 @@ export function isOnFantasyRoster(
   catalogPlayer: Player | undefined,
   rosterEntries: readonly RosterEntry[] | null | undefined,
 ): boolean {
-  if (!rosterEntries?.length) return false;
-  return rosterEntries.some((entry) => {
-    if (!entry.externalPlayerId) return false;
-    const ext = String(entry.externalPlayerId);
-    if (ext === String(row.playerId)) return true;
-    if (catalogPlayer && ext === catalogPlayer.id) return true;
-    if (
-      catalogPlayer?.mlbId != null &&
-      ext === String(catalogPlayer.mlbId)
-    ) {
-      return true;
-    }
-    return false;
-  });
+  return (
+    findRosterEntryForDepthRow(row, catalogPlayer, rosterEntries) != null
+  );
 }
 
 export function playerHasEngineValuation(
@@ -445,8 +545,36 @@ export function computeDepthChartMatchSummary(
 
 export function formatDepthChartMatchSummaryLine(
   summary: DepthChartMatchSummary,
+  options?: { useValuationBreakdown?: boolean },
 ): string {
+  if (options?.useValuationBreakdown) {
+    const rosteredPart =
+      summary.rostered > 0 ? ` · ${summary.rostered} rostered` : "";
+    return `${summary.totalRows} assignments · ${summary.valued} valued · ${summary.catalogOnly} catalog-only · ${summary.depthOnly} depth-only${rosteredPart}${summary.unmatched > 0 ? ` · ${summary.unmatched} unmatched` : ""}`;
+  }
   return `${summary.totalRows} assignments · ${summary.valuedCatalogMatches} valued/catalog matches · ${summary.depthOnly} depth-only · ${summary.unmatched} unmatched`;
+}
+
+/** Short clock time for depth chart header chips (e.g. "2:57 PM"). */
+export function formatDepthChartHeaderUpdatedLabel(generatedAt: string | null): string {
+  if (!generatedAt) return "—";
+  const date = new Date(generatedAt);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Muted fantasy-actionable summary for the depth chart header. */
+export function formatDepthChartCompactMatchLine(
+  summary: DepthChartMatchSummary,
+  options?: { useValuationBreakdown?: boolean },
+): string {
+  if (options?.useValuationBreakdown) {
+    return `${summary.valued} valued · ${summary.catalogOnly} catalog-only · ${summary.rostered} rostered · ${summary.depthOnly} depth-only`;
+  }
+  return `${summary.valuedCatalogMatches} valued · ${summary.depthOnly} depth-only`;
 }
 
 export function depthRowMatchesSearch(
