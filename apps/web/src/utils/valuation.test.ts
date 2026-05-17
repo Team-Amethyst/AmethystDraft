@@ -34,6 +34,9 @@ import {
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   resolveValuationNumber,
   valuationExplainHasRiskRoleContent,
+  recommendedBidTileLabel,
+  recommendedBidTileTooltip,
+  RECOMMENDED_BID_CAPPED_LABEL,
   valuationSortLabel,
   valuationTooltip,
 } from "./valuation";
@@ -261,7 +264,7 @@ describe("valuation helpers", () => {
         "team value",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "league FMV",
+        "auction value",
       );
     });
 
@@ -764,11 +767,11 @@ describe("valuation helpers", () => {
   });
 
   it("exposes compact labels and tooltip copy", () => {
-    expect(valuationSortLabel("auction_value")).toBe("League FMV");
+    expect(valuationSortLabel("auction_value")).toBe("Auction Value");
     expect(valuationSortLabel("team_value")).toBe("Your team value");
     expect(valuationSortLabel("recommended_bid")).toBe("Suggested bid");
     expect(valuationSortLabel("baseline_value")).toBe("Baseline Strength");
-    expect(valuationTooltip("auction_value")).toContain("league-wide");
+    expect(valuationTooltip("auction_value")).toMatch(/league-wide fair market value/i);
     expect(valuationTooltip("auction_value")).toContain("Not your bid cap");
     expect(valuationTooltip("team_value")).toContain("Your team value");
     expect(valuationTooltip("recommended_bid")).toContain("Suggested bid");
@@ -786,6 +789,35 @@ describe("valuation helpers", () => {
     expect(BID_EDGE_TOOLTIP).toContain("your team value minus suggested bid");
     expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_value: 23, recommended_bid: 44 }))).toBe(
       "-21",
+    );
+  });
+
+  it("recommendedBidTileLabel and tooltip reflect wallet cap state", () => {
+    expect(recommendedBidTileLabel(false)).toBe("Suggested bid");
+    expect(recommendedBidTileLabel(true)).toBe(RECOMMENDED_BID_CAPPED_LABEL);
+    expect(
+      recommendedBidTileTooltip({
+        budgetLimited: true,
+        displayBid: 18,
+        uncappedBid: 35,
+      }),
+    ).toContain("$18");
+    expect(
+      recommendedBidTileTooltip({
+        budgetLimited: true,
+        displayBid: 18,
+        uncappedBid: 35,
+      }),
+    ).toContain("$35");
+    expect(
+      recommendedBidTileTooltip({
+        budgetLimited: true,
+        displayBid: 18,
+        uncappedBid: 35,
+      }),
+    ).toContain("not the same as engine Max bid");
+    expect(recommendedBidTileTooltip({ budgetLimited: false, displayBid: 8, uncappedBid: 35 })).toContain(
+      "Suggested bid",
     );
   });
 

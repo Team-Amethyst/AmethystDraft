@@ -264,11 +264,9 @@ export function BidWhyThisBid({
           </section>
         ) : null}
         {hasTechnical ? (
-          <details className="bdc-why-technical">
-            <summary className="bdc-why-technical__summary">
-              Model and engine details
-            </summary>
-            <div className="bdc-why-technical__body">
+          <section className="bdc-why-engine" aria-label="Model and engine details">
+            <h4 className="bdc-why-engine__title">Model and engine details</h4>
+            <div className="bdc-why-engine__body">
         {baselineForWhy != null ? (
           <section className="bdc-why-panel bdc-why-panel--baseline" aria-label="Baseline strength">
             <WhyRow
@@ -396,7 +394,7 @@ export function BidWhyThisBid({
           <p className="bdc-why-fallback">Open player details for model explanation.</p>
         ) : null}
             </div>
-          </details>
+          </section>
         ) : null}
       </div>
     </details>

@@ -46,22 +46,22 @@ export interface ValuationShape {
 
 /** Separates league fair value from bid guidance in modals. */
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
-  "Suggested bid is the actionable offer for your roster—not league-wide fair market value. It can run above league FMV when your team needs the fit; max bid is the hard ceiling.";
+  "Suggested bid is the actionable offer for your roster—not league-wide auction value. It can run above auction value when your team needs the fit; max bid is the hard ceiling.";
 
 /** Research `PlayerTable` footer: Research rows show Auction Value only; open a player for the rest. */
 export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
-  "Open a player for league FMV, suggested bid, your team value, bid edge, max bid, and baseline strength under Why this value.";
+  "Open a player for auction value, suggested bid, your team value, bid edge, max bid, and baseline strength under Why this value.";
 
 /** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
-  "League fair market value (FMV): what this player is worth league-wide in auction dollars—same as Auction Value in the engine. Not your bid cap.";
+  "League-wide fair market value for this player in the current auction context. Not your bid cap or team-specific ceiling.";
 
 export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
   "Max bid: hard stop for this player given your remaining budget and open roster slots (not the same as recommended bid).";
 
 /** Team Value: roster- and budget-specific worth to your team. */
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
-  "Your team value: what this player is worth to your roster given needs, inflation, and remaining budget—often differs from league FMV.";
+  "Your team value: what this player is worth to your roster given needs, inflation, and remaining budget—often differs from auction value.";
 
 /** Bid Edge (Team Value − Recommended bid). */
 export const BID_EDGE_TOOLTIP =
@@ -849,7 +849,7 @@ export function mergeCatalogPlayersWithValuations(
 }
 
 export function valuationSortLabel(field: ValuationSortField): string {
-  if (field === "auction_value") return "League FMV";
+  if (field === "auction_value") return "Auction Value";
   if (field === "team_value") return "Your team value";
   if (field === "recommended_bid") return "Suggested bid";
   return "Baseline Strength";
@@ -866,6 +866,36 @@ export function valuationTooltip(field: ValuationSortField): string {
     return `${RECOMMENDED_BID_VS_AUCTION_VALUE_COPY} Shown here after wallet caps; can match your team value when the engine has little margin.`;
   }
   return BASELINE_STRENGTH_TOOLTIP;
+}
+
+/** Command Center / Auction Center bid tile when wallet caps bind below uncapped guidance. */
+export const RECOMMENDED_BID_CAPPED_LABEL = "Suggested bid (capped)";
+
+export function recommendedBidTileLabel(budgetLimited: boolean): string {
+  return budgetLimited
+    ? RECOMMENDED_BID_CAPPED_LABEL
+    : valuationSortLabel("recommended_bid");
+}
+
+export function recommendedBidTileTooltip(params: {
+  budgetLimited: boolean;
+  displayBid: number | null;
+  uncappedBid: number | null;
+}): string {
+  const base = valuationTooltip("recommended_bid");
+  if (!params.budgetLimited) return base;
+  const display = params.displayBid;
+  const uncapped = params.uncappedBid;
+  if (
+    display != null &&
+    uncapped != null &&
+    Number.isFinite(display) &&
+    Number.isFinite(uncapped) &&
+    Math.round(uncapped) > Math.round(display)
+  ) {
+    return `${base} Wallet and open-slot reserve cap the actionable offer at ${formatDollar(Math.round(display))}; model suggested ${formatDollar(Math.round(uncapped))} before caps. This is not the same as engine Max bid on the player row.`;
+  }
+  return `${base} Capped by remaining budget and open active roster spots—not a discretionary target. This is not the same as engine Max bid on the player row.`;
 }
 
 export function defaultValuationSortForPage(

@@ -3,12 +3,14 @@ import { Loader2 } from "lucide-react";
 import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import {
-  formatCurrencyWhole,
   formatDollar,
+  formatSignedDollarWhole,
   BID_EDGE_TOOLTIP,
   leagueWideAuctionDollars,
   valuationSortLabel,
   valuationTooltip,
+  recommendedBidTileLabel,
+  recommendedBidTileTooltip,
   commandCenterBidDecision,
   type CommandCenterWalletCaps,
 } from "../../utils/valuation";
@@ -18,12 +20,9 @@ import {
   engineFiniteOrNull,
   formatSuggestedBidLine,
   valueMinusBidDeltaRounded,
-  verdictFromValueMinusBid,
 } from "../../domain/auctionCenterValuation";
-import { commandCenterActionVerdict } from "../../domain/commandCenterActionVerdict";
 import { AuctionMetricTile } from "./AuctionMetricTile";
 import { BidWhyThisBid } from "./BidWhyThisBid";
-import { displayAuctionTier } from "../../domain/playerRankTier";
 import {
   shouldShowBidLadderCellSpinner,
   type BoardValuationUiPhase,
@@ -84,18 +83,6 @@ export function BidDecisionCard({
     displayBid,
   );
 
-  const auctionTier = displayAuctionTier(selectedPlayer);
-  const bidRelativeStar =
-    typeof auctionTier === "number" &&
-    auctionTier >= 1 &&
-    auctionTier <= 2;
-  const computedVerdict =
-    computedDelta != null
-      ? verdictFromValueMinusBid(computedDelta, {
-          bidRelativeStar,
-        })
-      : null;
-
   const decisionData = {
     team_value: row ? engineFiniteOrNull(row.team_value) : null,
     recommended_bid: row ? engineFiniteOrNull(row.recommended_bid) : null,
@@ -151,10 +138,6 @@ export function BidDecisionCard({
     walletCaps,
   ]);
 
-  const decisionTone = computedVerdict?.cardTone ?? "fair";
-  const decisionDanger = computedVerdict?.danger ?? false;
-  const decisionStrong = computedVerdict?.strong ?? false;
-
   const displayLeagueAuction =
     (row ? leagueWideAuctionDollars(row) : undefined) ??
     leagueWideAuctionDollars(selectedPlayer);
@@ -162,42 +145,37 @@ export function BidDecisionCard({
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
 
+  const budgetLimited = bidDecision?.budgetLimited ?? false;
+  const recommendedBidLabel = recommendedBidTileLabel(budgetLimited);
+  const recommendedBidTitle = recommendedBidTileTooltip({
+    budgetLimited,
+    displayBid,
+    uncappedBid: bidDecision?.baseUncapped ?? null,
+  });
+
   const auctionHasValue =
     displayLeagueAuction != null && Number.isFinite(displayLeagueAuction);
   const maxBidHasValue = recommendedBidDisplay != null;
   const teamValueHasValue = displayYour != null && Number.isFinite(displayYour);
   const bidEdgeHasValue = edgeVsMaxDisplay !== undefined;
 
-  const actionVerdict = commandCenterActionVerdict({
-    notBidable: bidDecision?.notBidable ?? false,
-    notBidableReason: bidDecision?.notBidableReason ?? null,
-    leagueFmv: auctionHasValue ? displayLeagueAuction : null,
-    suggestedBid: displayBid,
-    teamValue: teamValueHasValue ? displayYour : null,
-    bidEdge: edgeVsMaxDisplay,
-    budgetLimited: bidDecision?.budgetLimited,
-  });
+  const bidEdgeTone =
+    edgeVsMaxDisplay == null
+      ? "muted"
+      : edgeVsMaxDisplay > 0
+        ? "pos"
+        : edgeVsMaxDisplay < 0
+          ? "neg"
+          : "zero";
 
   return (
     <div className="bdc-decision-stack">
-      <div
-        className={"bid-decision-card bdc-tone--" + decisionTone}
-        aria-label="Bid recommendation"
-      >
-        <div
-          className={
-            "bdc-decision-callout bdc-decision-callout--" + actionVerdict.kind
-          }
-          role="status"
-        >
-          <span className="bdc-decision-callout__label">{actionVerdict.label}</span>
-          <span className="bdc-decision-callout__hint">{actionVerdict.hint}</span>
-        </div>
+      <div className="bid-decision-card" aria-label="Bid recommendation">
         <div className="bdc-grid">
           <div className="bdc-metric-row">
             <div
               className="bdc-metric-grid bdc-metric-grid--ladder4 bdc-metric-grid--focus-boxes"
-              aria-label="League FMV, suggested bid, your team value, bid edge"
+              aria-label="Auction value, suggested bid, your team value, bid edge"
             >
               <AuctionMetricTile
                 label={valuationSortLabel("auction_value")}
@@ -218,31 +196,17 @@ export function BidDecisionCard({
               />
               <AuctionMetricTile
                 variant="primary"
-                label={valuationSortLabel("recommended_bid")}
-                title={valuationTooltip("recommended_bid")}
+                label={recommendedBidLabel}
+                title={recommendedBidTitle}
                 value={
                   maxBidHasValue ? (
-                    <span
-                      className={
-                        "bdc-focus-value bdc-recommended-value" +
-                        (decisionDanger ? " bdc-recommended-value--danger" : "") +
-                        (decisionStrong ? " bdc-recommended-value--strong" : "")
-                      }
-                    >
-                      {recommendedBidDisplay}
-                    </span>
+                    <span className="bdc-focus-value">{recommendedBidDisplay}</span>
                   ) : shouldShowBidLadderCellSpinner(
                       engineBoardPhase,
                       selectedPlayer,
                       maxBidHasValue,
                     ) ? (
-                    <span
-                      className={
-                        "bdc-focus-value bdc-recommended-value" +
-                        (decisionDanger ? " bdc-recommended-value--danger" : "") +
-                        (decisionStrong ? " bdc-recommended-value--strong" : "")
-                      }
-                    >
+                    <span className="bdc-focus-value">
                       <BidLadderMetricLoading />
                     </span>
                   ) : (
@@ -271,7 +235,12 @@ export function BidDecisionCard({
                 label="Bid edge"
                 title={BID_EDGE_TOOLTIP}
                 value={
-                  <span className="bdc-focus-value">
+                  <span
+                    className={
+                      "bdc-focus-value bdc-context-edge bdc-context-edge--" +
+                      bidEdgeTone
+                    }
+                  >
                     {shouldShowBidLadderCellSpinner(
                       engineBoardPhase,
                       selectedPlayer,
@@ -279,7 +248,7 @@ export function BidDecisionCard({
                     ) ? (
                       <BidLadderMetricLoading />
                     ) : (
-                      formatCurrencyWhole(edgeVsMaxDisplay)
+                      formatSignedDollarWhole(edgeVsMaxDisplay)
                     )}
                   </span>
                 }

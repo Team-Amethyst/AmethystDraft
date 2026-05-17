@@ -52,7 +52,7 @@ export function commandCenterActionVerdict(params: {
     return {
       kind: "reach",
       label: "Reach",
-      hint: `Suggested bid is about $${Math.round(suggestedBid - leagueFmv)} above league FMV—pay up only for a must-have fit.`,
+      hint: `Suggested bid is about $${Math.round(suggestedBid - leagueFmv)} above auction value—pay up only for a must-have fit.`,
     };
   }
 
@@ -83,7 +83,7 @@ export function commandCenterActionVerdict(params: {
     return {
       kind: "fair",
       label: "Fair value",
-      hint: "Suggested bid is aligned with league fair market value.",
+      hint: "Suggested bid is aligned with auction value.",
     };
   }
 
