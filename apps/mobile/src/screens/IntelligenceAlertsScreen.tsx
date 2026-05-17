@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   RefreshControl,
@@ -131,11 +131,25 @@ function socketStatusColor(state: NewsSocketConnectionState) {
   };
 }
 
+function matchesFilter(signal: NewsSignal, filter: AlertFilter): boolean {
+  if (filter === "all") {
+    return true;
+  }
+
+  const signalType = signal.signal_type.toLowerCase().replace(/[-\s]+/g, "_");
+
+  if (filter === "role_change") {
+    return signalType === "role_change" || signalType.includes("role");
+  }
+
+  return signalType === filter || signalType.includes(filter);
+}
+
 export default function IntelligenceAlertsScreen(_props: Props) {
   const { token } = useAuth();
 
   const [filter, setFilter] = useState<AlertFilter>("all");
-  const [signals, setSignals] = useState<NewsSignal[]>([]);
+  const [allSignals, setAllSignals] = useState<NewsSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -161,10 +175,9 @@ export default function IntelligenceAlertsScreen(_props: Props) {
       try {
         const response = await getNewsSignals(token, {
           days: 7,
-          signal_type: filter === "all" ? undefined : filter,
         });
 
-        setSignals(response.signals ?? []);
+        setAllSignals(response.signals ?? []);
       } catch (err) {
         setError(
           err instanceof Error
@@ -176,8 +189,12 @@ export default function IntelligenceAlertsScreen(_props: Props) {
         setRefreshing(false);
       }
     },
-    [token, filter],
+    [token],
   );
+
+  const signals = useMemo(() => {
+    return allSignals.filter((signal) => matchesFilter(signal, filter));
+  }, [allSignals, filter]);
 
   useNewsSignalsRealtime(
     token,
@@ -211,7 +228,7 @@ export default function IntelligenceAlertsScreen(_props: Props) {
           />
         }
       >
-        <Text style={{ fontSize: 24, fontWeight: "700", marginBottom: 4 }}>
+        <Text style={{ fontSize: 24, fontWeight: "800", marginBottom: 4 }}>
           Intelligence Alerts
         </Text>
 
@@ -260,6 +277,7 @@ export default function IntelligenceAlertsScreen(_props: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ marginBottom: 14 }}
+          contentContainerStyle={{ paddingRight: 12 }}
         >
           {ALERT_FILTERS.map((item) => (
             <AppChip
@@ -276,7 +294,10 @@ export default function IntelligenceAlertsScreen(_props: Props) {
         {error ? <ErrorState label={error} /> : null}
 
         <View style={{ marginBottom: 12 }}>
-          <Button title="Refresh Alerts" onPress={() => void loadSignals("refresh")} />
+          <Button
+            title="Refresh Alerts"
+            onPress={() => void loadSignals("refresh")}
+          />
         </View>
 
         {loading ? (
@@ -285,11 +306,11 @@ export default function IntelligenceAlertsScreen(_props: Props) {
           <EmptyState label="No MLB alerts match this filter right now." />
         ) : (
           signals.map((signal) => {
-            const colors = severityColors(signal.severity);
+            const badgeColors = severityColors(signal.severity);
 
             return (
               <TouchableOpacity key={signalKey(signal)} activeOpacity={0.85}>
-                <AppCard>
+                <AppCard backgroundColor="#151021" borderColor="#31224f">
                   <View
                     style={{
                       flexDirection: "row",
@@ -297,11 +318,19 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                       marginBottom: 8,
                     }}
                   >
-                    <Text style={{ fontSize: 17, fontWeight: "700", flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        fontWeight: "800",
+                        flex: 1,
+                        color: "#f9fafb",
+                        paddingRight: 8,
+                      }}
+                    >
                       {signal.player_name}
                     </Text>
 
-                    <Text style={{ color: "#6b7280", fontSize: 12 }}>
+                    <Text style={{ color: "#9ca3af", fontSize: 12 }}>
                       {formatAlertTime(signal.effective_date)}
                     </Text>
                   </View>
@@ -310,14 +339,14 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                     <Text
                       style={{
                         borderWidth: 1,
-                        borderColor: colors.borderColor,
-                        backgroundColor: colors.backgroundColor,
-                        color: colors.color,
+                        borderColor: badgeColors.borderColor,
+                        backgroundColor: badgeColors.backgroundColor,
+                        color: badgeColors.color,
                         paddingHorizontal: 8,
                         paddingVertical: 4,
                         borderRadius: 999,
                         fontSize: 12,
-                        fontWeight: "700",
+                        fontWeight: "800",
                         textTransform: "uppercase",
                         overflow: "hidden",
                         marginRight: 8,
@@ -335,7 +364,7 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                         paddingVertical: 4,
                         borderRadius: 999,
                         fontSize: 12,
-                        fontWeight: "700",
+                        fontWeight: "800",
                         overflow: "hidden",
                         marginBottom: 8,
                       }}
@@ -344,11 +373,11 @@ export default function IntelligenceAlertsScreen(_props: Props) {
                     </Text>
                   </View>
 
-                  <Text style={{ marginTop: 4, color: "#111827", lineHeight: 20 }}>
+                  <Text style={{ marginTop: 4, color: "#d1d5db", lineHeight: 20 }}>
                     {signal.description}
                   </Text>
 
-                  <Text style={{ marginTop: 8, color: "#6b7280", fontSize: 12 }}>
+                  <Text style={{ marginTop: 8, color: "#9ca3af", fontSize: 12 }}>
                     Source: {signal.source}
                   </Text>
                 </AppCard>

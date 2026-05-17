@@ -109,7 +109,7 @@ export async function requestJson<T>(
   const url = buildApiUrl(path);
 
   console.log("API request:", url);
-
+  
   let res: Response;
 
   try {

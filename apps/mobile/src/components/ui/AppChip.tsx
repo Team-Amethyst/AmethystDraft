@@ -1,94 +1,114 @@
-import type { StyleProp, ViewStyle } from "react-native";
+import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { Text, TouchableOpacity } from "react-native";
 import { colors } from "../../theme/colors";
 
-type Tone = "default" | "primary" | "danger" | "info";
+type ChipTone = "default" | "info" | "success" | "danger";
 
 type Props = {
   label: string;
   selected?: boolean;
-  fullWidth?: boolean;
-  tone?: Tone;
-  onPress: () => void;
+  onPress?: () => void;
+  tone?: ChipTone;
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  fullWidth?: boolean;
+  disabled?: boolean;
 };
 
-function getColors(selected: boolean, tone: Tone) {
-  if (!selected) {
+function chipColors(selected: boolean, tone: ChipTone) {
+  if (selected) {
     if (tone === "danger") {
       return {
-        borderColor: "#7f1d1d",
-        backgroundColor: "#2a1218",
-        textColor: "#fecaca",
+        backgroundColor: "#ef4444",
+        borderColor: "#f87171",
+        textColor: "#ffffff",
       };
     }
 
-    if (tone === "info") {
+    if (tone === "success") {
       return {
-        borderColor: "#4338ca",
-        backgroundColor: "#15162b",
-        textColor: "#c7d2fe",
+        backgroundColor: "#16a34a",
+        borderColor: "#22c55e",
+        textColor: "#ffffff",
       };
     }
 
     return {
-      borderColor: colors.border,
-      backgroundColor: colors.surface2,
-      textColor: colors.text,
+      backgroundColor: colors.purple,
+      borderColor: colors.purple2,
+      textColor: "#ffffff",
     };
   }
 
   if (tone === "danger") {
     return {
-      borderColor: colors.red,
-      backgroundColor: colors.red,
-      textColor: colors.white,
+      backgroundColor: "#1b1428",
+      borderColor: "#7f1d1d",
+      textColor: "#fecaca",
     };
   }
 
-  if (tone === "info") {
+  if (tone === "success") {
     return {
-      borderColor: colors.purple,
-      backgroundColor: colors.purple,
-      textColor: colors.white,
+      backgroundColor: "#10251a",
+      borderColor: "#166534",
+      textColor: "#bbf7d0",
     };
   }
 
   return {
-    borderColor: colors.purple2,
-    backgroundColor: colors.purple,
-    textColor: colors.white,
+    backgroundColor: "#1b1428",
+    borderColor: "#4c3575",
+    textColor: "#e5e7eb",
   };
 }
 
 export default function AppChip({
   label,
   selected = false,
-  fullWidth = false,
-  tone = "default",
   onPress,
+  tone = "default",
   style,
+  textStyle,
+  fullWidth = false,
+  disabled = false,
 }: Props) {
-  const chipColors = getColors(selected, tone);
+  const palette = chipColors(selected, tone);
 
   return (
     <TouchableOpacity
+      activeOpacity={0.8}
+      disabled={disabled || !onPress}
       onPress={onPress}
       style={[
         {
-          paddingHorizontal: 12,
+          minHeight: 36,
+          paddingHorizontal: 13,
           paddingVertical: 8,
-          borderRadius: 999,
+          borderRadius: 18,
           borderWidth: 1,
-          borderColor: chipColors.borderColor,
-          backgroundColor: chipColors.backgroundColor,
+          borderColor: palette.borderColor,
+          backgroundColor: palette.backgroundColor,
           alignItems: "center",
+          justifyContent: "center",
+          opacity: disabled ? 0.55 : 1,
+          alignSelf: fullWidth ? "stretch" : "flex-start",
+          flex: fullWidth ? 1 : undefined,
         },
-        fullWidth ? { width: "100%" } : null,
         style,
       ]}
     >
-      <Text style={{ color: chipColors.textColor, fontWeight: "700" }}>
+      <Text
+        numberOfLines={1}
+        style={[
+          {
+            color: palette.textColor,
+            fontSize: 13,
+            fontWeight: "800",
+          },
+          textStyle,
+        ]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
