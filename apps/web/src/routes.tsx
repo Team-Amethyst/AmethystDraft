@@ -40,6 +40,13 @@ const devOnlyRoutes = import.meta.env.DEV
             Component: m.default,
           })),
       },
+      {
+        path: "/dev/depth-charts-design",
+        lazy: () =>
+          import("./pages/dev/DepthChartsDesignMockPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
     ]
   : [];
 
