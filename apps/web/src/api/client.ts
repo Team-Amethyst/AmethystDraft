@@ -1,6 +1,7 @@
 /** AmethystDraft API (BFF) origin — not the Engine URL; Engine calls stay server-side in apps/api. */
 const ENV_API_BASE = import.meta.env.VITE_API_URL?.trim() || "";
-const LOCAL_API_FALLBACKS = ["http://localhost:3000", "http://localhost:3002"];
+/** Default Draft BFF port (`apps/api` `PORT` / `index.ts`). Avoid other local ports unless that service is the real API. */
+const LOCAL_API_FALLBACKS = ["http://localhost:3000"];
 
 let resolvedApiBase: string | null = null;
 let resolvingApiBase: Promise<string> | null = null;

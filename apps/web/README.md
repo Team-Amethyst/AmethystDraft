@@ -2,7 +2,8 @@
 
 Vite + React SPA for **AmethystDraft**. The browser talks only to the **Draftroom API** (`VITE_API_URL`); Engine keys and Engine HTTP origins stay in **`apps/api`**.
 
-- **Local env:** copy [`.env.example`](.env.example) to `.env.local` and set `VITE_API_URL` to your API (e.g. `http://localhost:3000` or `http://localhost:3002`).
+- **Local env:** copy [`.env.example`](.env.example) to `.env.local`. Set `VITE_API_URL=http://localhost:3000` (same port as `apps/api`; do not point at another local service or Research valuation will not load).
+- **Research player pools:** visible catalog (Players / search / depth) is separate from the Engine valuation pool. UI labels: *All players*, *In engine pool*, *Outside engine pool* (`draftable_player_ids` output only).
 - **Valuation ladder / copy:** see repo root [`docs/engine-valuation-ui.md`](../docs/engine-valuation-ui.md).
 
 ---
