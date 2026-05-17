@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   Text,
   TextInput,
@@ -49,6 +51,22 @@ type ResearchView = "player-database" | "tiers" | "depth-charts";
 type AvailabilityFilter = "all" | "available" | "drafted";
 type InjuryFilter = "all" | "healthy" | "injured";
 type StatViewFilter = "all" | "hitting" | "pitching";
+type SortDirection = "asc" | "desc";
+type ControlPanel = "filters" | "sort" | "tags" | null;
+type TagFilter = "HR+" | "SB+" | "AVG+" | "R+" | "RBI+" | "K+" | "W+" | "SV+";
+
+type ResearchSort =
+  | "auction_value"
+  | "auction_rank"
+  | "market_adp"
+  | "name"
+  | "tier"
+  | "r_w"
+  | "hr_k"
+  | "rbi_era"
+  | "sb_whip"
+  | "avg_sv";
+
 type PositionFilter =
   | "ALL"
   | "C"
@@ -73,6 +91,21 @@ const POSITION_FILTERS: PositionFilter[] = [
   "RP",
   "UTIL",
 ];
+
+const SORT_OPTIONS: { label: string; value: ResearchSort }[] = [
+  { label: "Auction $", value: "auction_value" },
+  { label: "Auction Rank", value: "auction_rank" },
+  { label: "Market ADP", value: "market_adp" },
+  { label: "Name", value: "name" },
+  { label: "Tier", value: "tier" },
+  { label: "R / W", value: "r_w" },
+  { label: "HR / K", value: "hr_k" },
+  { label: "RBI / ERA", value: "rbi_era" },
+  { label: "SB / WHIP", value: "sb_whip" },
+  { label: "AVG / SV", value: "avg_sv" },
+];
+
+const TAG_OPTIONS: TagFilter[] = ["HR+", "SB+", "AVG+", "R+", "RBI+", "K+", "W+", "SV+"];
 
 const DEPTH_POSITIONS: DepthChartPosition[] = [
   "SP",
@@ -121,6 +154,37 @@ const MLB_TEAMS = [
   { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
 ];
 
+const HITTER_STAT_KEYS = ["R", "HR", "RBI", "SB", "AVG"];
+const PITCHER_STAT_KEYS = ["W", "K", "ERA", "WHIP", "SV"];
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function valuationNumber(row: ValuationResult | undefined, key: string): number | null {
+  if (!row) return null;
+
+  const record = row as unknown as Record<string, unknown>;
+  return finiteNumber(record[key]);
+}
+
+function playerNumber(player: Player, key: string): number | null {
+  const record = player as unknown as Record<string, unknown>;
+  return finiteNumber(record[key]);
+}
+
 function positionMatches(player: Player, filter: PositionFilter): boolean {
   if (filter === "ALL") return true;
 
@@ -158,6 +222,735 @@ function isPitcher(player: Player): boolean {
 
 function playerHasInjury(player: Player): boolean {
   return Boolean(player.injuryStatus && player.injuryStatus.trim());
+}
+
+function getAuctionValue(player: Player, row?: ValuationResult): number {
+  return (
+    valuationNumber(row, "adjusted_value") ??
+    valuationNumber(row, "team_adjusted_value") ??
+    valuationNumber(row, "recommended_bid") ??
+    valuationNumber(row, "baseline_value") ??
+    playerNumber(player, "adjusted_value") ??
+    playerNumber(player, "team_adjusted_value") ??
+    playerNumber(player, "recommended_bid") ??
+    player.value ??
+    0
+  );
+}
+
+function getAuctionRank(player: Player, row?: ValuationResult): number | null {
+  return (
+    valuationNumber(row, "auction_rank") ??
+    valuationNumber(row, "rank") ??
+    valuationNumber(row, "model_rank") ??
+    playerNumber(player, "auction_rank") ??
+    playerNumber(player, "catalog_rank") ??
+    playerNumber(player, "adp")
+  );
+}
+
+function getMarketAdp(player: Player): number | null {
+  return (
+    playerNumber(player, "market_adp") ??
+    playerNumber(player, "catalog_rank") ??
+    playerNumber(player, "adp")
+  );
+}
+
+function getTier(player: Player, row?: ValuationResult): number {
+  return valuationNumber(row, "tier") ?? player.tier ?? 99;
+}
+
+function formatMoney(value: number | null): string {
+  if (value === null) return "—";
+  return `$${Math.round(value)}`;
+}
+
+function formatNumber(value: number | null, digits = 0): string {
+  if (value === null) return "—";
+
+  if (Math.abs(value) < 1 && value !== 0) {
+    return value.toFixed(3).replace(/^0/, "");
+  }
+
+  return value.toFixed(digits);
+}
+
+function parseStatSummary(summary: string): Record<string, number> {
+  const stats: Record<string, number> = {};
+  const regex = /([A-Z]{1,4})\s*[:=]?\s*(-?(?:\d+\.?\d*|\.\d+))/g;
+  let match = regex.exec(summary);
+
+  while (match) {
+    const key = match[1];
+    const raw = match[2];
+
+    if (key && raw) {
+      const parsed = Number(raw);
+
+      if (Number.isFinite(parsed)) {
+        stats[key.toUpperCase()] = parsed;
+      }
+    }
+
+    match = regex.exec(summary);
+  }
+
+  return stats;
+}
+
+function getNestedStat(player: Player, key: string, statBasis: StatBasis): number | null {
+  const data = player as unknown as {
+    stats?: {
+      batting?: Record<string, unknown>;
+      pitching?: Record<string, unknown>;
+    };
+    projection?: {
+      batting?: Record<string, unknown>;
+      pitching?: Record<string, unknown>;
+    };
+    projections?: {
+      batting?: Record<string, unknown>;
+      pitching?: Record<string, unknown>;
+    };
+    stats3yr?: {
+      batting?: Record<string, unknown>;
+      pitching?: Record<string, unknown>;
+    };
+  };
+
+  const pitcher = isPitcher(player);
+  const side = pitcher ? "pitching" : "batting";
+
+  const source =
+    statBasis === "projections"
+      ? data.projection?.[side] ?? data.projections?.[side]
+      : statBasis === "3-year-avg"
+        ? data.stats3yr?.[side] ??
+          data.stats?.[side] ??
+          data.projection?.[side] ??
+          data.projections?.[side]
+        : data.stats?.[side] ?? data.projection?.[side] ?? data.projections?.[side];
+
+  if (!source) return null;
+
+  const aliases: Record<string, string[]> = {
+    R: ["R", "r", "runs"],
+    HR: ["HR", "hr", "homeRuns"],
+    RBI: ["RBI", "rbi"],
+    SB: ["SB", "sb", "stolenBases"],
+    AVG: ["AVG", "avg"],
+    W: ["W", "w", "wins"],
+    K: ["K", "k", "so", "strikeouts"],
+    ERA: ["ERA", "era"],
+    WHIP: ["WHIP", "whip"],
+    SV: ["SV", "sv", "saves"],
+  };
+
+  const keys = aliases[key] ?? [key];
+
+  for (const candidate of keys) {
+    const value = finiteNumber(source[candidate]);
+
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getStatValue(
+  player: Player,
+  key: string,
+  statBasis: StatBasis,
+  statSummary: string,
+): number | null {
+  const nested = getNestedStat(player, key, statBasis);
+
+  if (nested !== null) {
+    return nested;
+  }
+
+  const parsed = parseStatSummary(statSummary);
+  return parsed[key] ?? null;
+}
+
+function statKeysForPlayer(player: Player): string[] {
+  return isPitcher(player) ? PITCHER_STAT_KEYS : HITTER_STAT_KEYS;
+}
+
+function statSortKey(sortBy: ResearchSort, pitcher: boolean): string | null {
+  if (sortBy === "r_w") return pitcher ? "W" : "R";
+  if (sortBy === "hr_k") return pitcher ? "K" : "HR";
+  if (sortBy === "rbi_era") return pitcher ? "ERA" : "RBI";
+  if (sortBy === "sb_whip") return pitcher ? "WHIP" : "SB";
+  if (sortBy === "avg_sv") return pitcher ? "SV" : "AVG";
+  return null;
+}
+
+function sortMissingLast(
+  a: number | null,
+  b: number | null,
+  direction: SortDirection,
+): number {
+  const aMissing = a === null;
+  const bMissing = b === null;
+
+  if (aMissing && bMissing) return 0;
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+
+  if (direction === "asc") {
+    return a! - b!;
+  }
+
+  return b! - a!;
+}
+
+function comparePlayers(
+  a: Player,
+  b: Player,
+  rowA: ValuationResult | undefined,
+  rowB: ValuationResult | undefined,
+  sortBy: ResearchSort,
+  direction: SortDirection,
+  statBasis: StatBasis,
+): number {
+  if (sortBy === "name") {
+    const result = a.name.localeCompare(b.name);
+    return direction === "asc" ? result : -result;
+  }
+
+  if (sortBy === "auction_value") {
+    return sortMissingLast(
+      getAuctionValue(a, rowA),
+      getAuctionValue(b, rowB),
+      direction,
+    );
+  }
+
+  if (sortBy === "auction_rank") {
+    return sortMissingLast(
+      getAuctionRank(a, rowA),
+      getAuctionRank(b, rowB),
+      direction,
+    );
+  }
+
+  if (sortBy === "market_adp") {
+    return sortMissingLast(
+      getMarketAdp(a),
+      getMarketAdp(b),
+      direction,
+    );
+  }
+
+  if (sortBy === "tier") {
+    return sortMissingLast(
+      getTier(a, rowA),
+      getTier(b, rowB),
+      direction,
+    );
+  }
+
+  const keyA = statSortKey(sortBy, isPitcher(a));
+  const keyB = statSortKey(sortBy, isPitcher(b));
+  const summaryA = formatResearchStatSummaryLine(a, statBasis) ?? "";
+  const summaryB = formatResearchStatSummaryLine(b, statBasis) ?? "";
+  const valueA = keyA ? getStatValue(a, keyA, statBasis, summaryA) : null;
+  const valueB = keyB ? getStatValue(b, keyB, statBasis, summaryB) : null;
+
+  return sortMissingLast(valueA, valueB, direction);
+}
+
+function getPlayerImageUrl(player: Player): string | null {
+  const record = player as unknown as Record<string, unknown>;
+
+  const directImage =
+    record.headshotUrl ??
+    record.imageUrl ??
+    record.photoUrl ??
+    record.playerImageUrl ??
+    record.headshot;
+
+  if (typeof directImage === "string" && directImage.trim()) {
+    return directImage;
+  }
+
+  const mlbId =
+    finiteNumber(record.mlbId) ??
+    finiteNumber(record.mlb_id) ??
+    finiteNumber(record.playerId);
+
+  if (mlbId === null) {
+    return null;
+  }
+
+  return `https://img.mlbstatic.com/mlb-photos/image/upload/w_96,q_auto:best/v1/people/${Math.round(
+    mlbId,
+  )}/headshot/67/current`;
+}
+
+function tagMetricValue(player: Player, tag: TagFilter, statBasis: StatBasis): number | null {
+  const summary = formatResearchStatSummaryLine(player, statBasis) ?? "";
+
+  if (tag === "HR+") return getStatValue(player, "HR", statBasis, summary);
+  if (tag === "SB+") return getStatValue(player, "SB", statBasis, summary);
+  if (tag === "AVG+") return getStatValue(player, "AVG", statBasis, summary);
+  if (tag === "R+") return getStatValue(player, "R", statBasis, summary);
+  if (tag === "RBI+") return getStatValue(player, "RBI", statBasis, summary);
+  if (tag === "K+") return getStatValue(player, "K", statBasis, summary);
+  if (tag === "W+") return getStatValue(player, "W", statBasis, summary);
+  if (tag === "SV+") return getStatValue(player, "SV", statBasis, summary);
+
+  return null;
+}
+
+function playerMatchesTag(player: Player, tag: TagFilter, statBasis: StatBasis): boolean {
+  const value = tagMetricValue(player, tag, statBasis);
+
+  if (value === null) return false;
+
+  if (tag === "HR+") return value >= 30;
+  if (tag === "SB+") return value >= 20;
+  if (tag === "AVG+") return value >= 0.28;
+  if (tag === "R+") return value >= 90;
+  if (tag === "RBI+") return value >= 90;
+  if (tag === "K+") return value >= 150;
+  if (tag === "W+") return value >= 10;
+  if (tag === "SV+") return value >= 20;
+
+  return false;
+}
+
+function getPlayerTags(player: Player, statBasis: StatBasis): TagFilter[] {
+  return TAG_OPTIONS.filter((tag) => playerMatchesTag(player, tag, statBasis));
+}
+
+function engineMetric(row: ValuationResult | undefined, key: string): number | null {
+  return valuationNumber(row, key);
+}
+
+function FilterRow({ children }: { children: ReactNode }) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginBottom: 8 }}
+      contentContainerStyle={{
+        alignItems: "center",
+        paddingVertical: 2,
+        paddingRight: 18,
+      }}
+    >
+      {children}
+    </ScrollView>
+  );
+}
+
+function FilterPill({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={{
+        minHeight: 32,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: selected ? "#a855f7" : "#4c3575",
+        backgroundColor: selected ? "#8b5cf6" : "#1b1428",
+        marginRight: 8,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text
+        numberOfLines={1}
+        style={{
+          color: "#f9fafb",
+          fontSize: 12,
+          fontWeight: "800",
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function ControlButton({
+  label,
+  value,
+  active,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={{
+        flex: 1,
+        minHeight: 54,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: active ? "#a855f7" : "#4c3575",
+        backgroundColor: active ? "#281a3f" : "#151021",
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        justifyContent: "center",
+        marginRight: 8,
+      }}
+    >
+      <Text style={{ color: "#a1a1aa", fontSize: 10, fontWeight: "900" }}>
+        {label}
+      </Text>
+      <Text
+        numberOfLines={1}
+        style={{
+          color: "#f9fafb",
+          fontSize: 13,
+          fontWeight: "900",
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function MetricCell({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        width: "50%",
+        paddingRight: 8,
+        marginBottom: 10,
+      }}
+    >
+      <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "800" }}>
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: highlight ? "#facc15" : "#f9fafb",
+          fontSize: 15,
+          fontWeight: "900",
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function StatGrid({
+  player,
+  statBasis,
+  statSummary,
+}: {
+  player: Player;
+  statBasis: StatBasis;
+  statSummary: string;
+}) {
+  const keys = statKeysForPlayer(player);
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        marginTop: 8,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: "#33294a",
+      }}
+    >
+      {keys.map((key) => {
+        const value = getStatValue(player, key, statBasis, statSummary);
+        const digits = key === "AVG" ? 3 : key === "ERA" || key === "WHIP" ? 2 : 0;
+
+        return (
+          <MetricCell
+            key={key}
+            label={key}
+            value={formatNumber(value, digits)}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+function PlayerResearchCard({
+  player,
+  engineRow,
+  watched,
+  custom,
+  statBasis,
+  onOpen,
+  onToggleWatchlist,
+  showEngineValues,
+  onEditCustom,
+  onRemoveCustom,
+}: {
+  player: Player;
+  engineRow?: ValuationResult;
+  watched: boolean;
+  custom: boolean;
+  statBasis: StatBasis;
+  showEngineValues: boolean;
+  onOpen: () => void;
+  onToggleWatchlist: () => void;
+  onEditCustom: () => void;
+  onRemoveCustom: () => void;
+}) {
+  const displayValue = getAuctionValue(player, engineRow);
+  const displayTier = getTier(player, engineRow);
+  const auctionRank = getAuctionRank(player, engineRow);
+  const marketAdp = getMarketAdp(player);
+  const statSummary = formatResearchStatSummaryLine(player, statBasis) ?? "";
+  const injury = player.injuryStatus?.trim();
+  const imageUrl = getPlayerImageUrl(player);
+  const cardTags = getPlayerTags(player, statBasis);
+  const recommendedBid = engineMetric(engineRow, "recommended_bid");
+  const teamValue = engineMetric(engineRow, "team_adjusted_value");
+  const baselineValue = engineMetric(engineRow, "baseline_value");
+  const edge = engineMetric(engineRow, "edge");
+
+  return (
+    <AppCard backgroundColor="#151021" borderColor="#31224f">
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+        }}
+      >
+        <TouchableOpacity
+          onPress={onOpen}
+          style={{
+            flex: 1,
+            marginRight: 10,
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+          activeOpacity={0.85}
+        >
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                marginRight: 12,
+                backgroundColor: "#272034",
+                borderWidth: 1,
+                borderColor: "#4c3575",
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                marginRight: 12,
+                backgroundColor: "#272034",
+                borderWidth: 1,
+                borderColor: "#4c3575",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#c4b5fd", fontWeight: "900" }}>
+                {player.name.slice(0, 1)}
+              </Text>
+            </View>
+          )}
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                color: "#f9fafb",
+                fontSize: 17,
+                fontWeight: "900",
+                marginBottom: 3,
+              }}
+            >
+              {player.name}
+              {custom ? " • Custom" : ""}
+            </Text>
+
+            <Text style={{ color: "#c4b5fd", fontWeight: "800" }}>
+              {player.team || "FA"} • {player.position}
+              {player.positions?.length ? ` • ${player.positions.join("/")}` : ""}
+            </Text>
+
+            {cardTags.length > 0 ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 6 }}>
+                {cardTags.slice(0, 3).map((tag) => (
+                  <Text
+                    key={tag}
+                    style={{
+                      color: "#ddd6fe",
+                      backgroundColor: "#2c1a47",
+                      borderColor: "#5b3a89",
+                      borderWidth: 1,
+                      borderRadius: 999,
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      marginRight: 5,
+                      marginBottom: 4,
+                      fontSize: 10,
+                      fontWeight: "900",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+
+        <View style={{ alignItems: "flex-end" }}>
+          <AppChip
+            label={watched ? "Saved" : "Save"}
+            selected={watched}
+            onPress={onToggleWatchlist}
+            style={{ marginBottom: custom ? 8 : 0 }}
+          />
+
+          {custom ? (
+            <>
+              <AppChip
+                label="Edit"
+                tone="info"
+                onPress={onEditCustom}
+                style={{ marginBottom: 8 }}
+              />
+
+              <AppChip
+                label="Remove"
+                tone="danger"
+                onPress={onRemoveCustom}
+              />
+            </>
+          ) : null}
+        </View>
+      </View>
+
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.85}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 14 }}>
+          <MetricCell
+            label="Auction Value"
+            value={formatMoney(displayValue)}
+            highlight
+          />
+          <MetricCell
+            label="Auction Rank"
+            value={auctionRank === null ? "—" : `#${Math.round(auctionRank)}`}
+          />
+          <MetricCell
+            label="Market ADP"
+            value={formatNumber(marketAdp, 2)}
+          />
+          <MetricCell
+            label={engineRow ? "Engine Tier" : "Tier"}
+            value={`Tier ${displayTier}`}
+          />
+        </View>
+
+        {showEngineValues && engineRow ? (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              borderTopWidth: 1,
+              borderTopColor: "#33294a",
+              paddingTop: 10,
+              marginTop: 2,
+            }}
+          >
+            <MetricCell
+              label="Recommended Bid"
+              value={formatMoney(recommendedBid)}
+            />
+            <MetricCell
+              label="Team Value"
+              value={formatMoney(teamValue)}
+            />
+            <MetricCell
+              label="Baseline Value"
+              value={formatMoney(baselineValue)}
+            />
+            <MetricCell
+              label="Edge"
+              value={edge === null ? "—" : formatMoney(edge)}
+            />
+          </View>
+        ) : null}
+
+        {engineRow?.indicator ? (
+          <Text style={{ color: "#c4b5fd", fontWeight: "800", marginTop: 2 }}>
+            {engineRow.indicator}
+          </Text>
+        ) : null}
+
+        {injury ? (
+          <Text style={{ color: "#fca5a5", fontWeight: "800", marginTop: 6 }}>
+            Injury: {injury}
+          </Text>
+        ) : null}
+
+        <StatGrid
+          player={player}
+          statBasis={statBasis}
+          statSummary={statSummary}
+        />
+
+        {statSummary ? (
+          <Text numberOfLines={2} style={{ color: "#a1a1aa", marginTop: 4 }}>
+            {statSummary}
+          </Text>
+        ) : null}
+
+        {!!player.outlook && (
+          <Text numberOfLines={2} style={{ color: "#a1a1aa", marginTop: 6 }}>
+            {player.outlook}
+          </Text>
+        )}
+      </TouchableOpacity>
+    </AppCard>
+  );
 }
 
 export default function ResearchScreen({ route, navigation }: Props) {
@@ -262,6 +1055,11 @@ export default function ResearchScreen({ route, navigation }: Props) {
     useState<StatViewFilter>("all");
   const [starredOnly, setStarredOnly] = useState(false);
   const [statBasis, setStatBasis] = useState<StatBasis>("last-year");
+  const [sortBy, setSortBy] = useState<ResearchSort>("auction_value");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [activePanel, setActivePanel] = useState<ControlPanel>(null);
+  const [selectedTags, setSelectedTags] = useState<TagFilter[]>([]);
+  const [showEngineValues, setShowEngineValues] = useState(false);
 
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [editingCustomPlayerId, setEditingCustomPlayerId] = useState<string | null>(null);
@@ -426,13 +1224,19 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
     return allPlayers.filter((player) => {
       const nameMatch = player.name.toLowerCase().includes(q);
+      const teamMatch = player.team.toLowerCase().includes(q);
+      const positionText = [player.position, ...(player.positions ?? [])]
+        .join("/")
+        .toLowerCase();
+      const posTextMatch = positionText.includes(q);
       const posMatch = positionMatches(player, positionFilter);
       const watched = isInWatchlist(leagueId, player.id);
       const drafted = draftedIds.has(player.id);
       const injured = playerHasInjury(player);
       const pitcher = isPitcher(player);
 
-      if (!nameMatch || !posMatch) return false;
+      if (q && !nameMatch && !teamMatch && !posTextMatch) return false;
+      if (!posMatch) return false;
 
       if (starredOnly && !watched) return false;
 
@@ -445,6 +1249,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
       if (statViewFilter === "hitting" && pitcher) return false;
       if (statViewFilter === "pitching" && !pitcher) return false;
 
+      if (
+        selectedTags.length > 0 &&
+        !selectedTags.every((tag) => playerMatchesTag(player, tag, statBasis))
+      ) {
+        return false;
+      }
+
       return true;
     });
   }, [
@@ -455,9 +1266,31 @@ export default function ResearchScreen({ route, navigation }: Props) {
     availabilityFilter,
     injuryFilter,
     statViewFilter,
+    selectedTags,
+    statBasis,
     draftedIds,
     isInWatchlist,
     leagueId,
+  ]);
+
+  const sortedFilteredPlayers = useMemo(() => {
+    return [...filteredPlayers].sort((a, b) =>
+      comparePlayers(
+        a,
+        b,
+        valuationsByPlayerId.get(a.id),
+        valuationsByPlayerId.get(b.id),
+        sortBy,
+        sortDirection,
+        statBasis,
+      ),
+    );
+  }, [
+    filteredPlayers,
+    valuationsByPlayerId,
+    sortBy,
+    sortDirection,
+    statBasis,
   ]);
 
   const tierBuckets = useMemo(() => {
@@ -465,7 +1298,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
     for (const player of filteredPlayers) {
       const engineRow = valuationsByPlayerId.get(player.id);
-      const tier = engineRow?.tier ?? player.tier;
+      const tier = getTier(player, engineRow);
 
       if (!grouped.has(tier)) {
         grouped.set(tier, []);
@@ -478,15 +1311,28 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
     return sortedTiers.map((tier) => ({
       tier,
-      players: (grouped.get(tier) ?? []).sort((a, b) => {
-        const aValue = valuationsByPlayerId.get(a.id)?.adjusted_value ?? a.value;
-        const bValue = valuationsByPlayerId.get(b.id)?.adjusted_value ?? b.value;
-        return bValue - aValue;
-      }),
+      players: (grouped.get(tier) ?? []).sort((a, b) =>
+        comparePlayers(
+          a,
+          b,
+          valuationsByPlayerId.get(a.id),
+          valuationsByPlayerId.get(b.id),
+          sortBy,
+          sortDirection,
+          statBasis,
+        ),
+      ),
     }));
-  }, [filteredPlayers, valuationsByPlayerId]);
+  }, [
+    filteredPlayers,
+    valuationsByPlayerId,
+    sortBy,
+    sortDirection,
+    statBasis,
+  ]);
 
   const depthTotalSlots = DEPTH_POSITIONS.length * 3;
+
   const depthAssignedCount = useMemo(() => {
     if (!depthChartData) return 0;
 
@@ -526,6 +1372,40 @@ export default function ResearchScreen({ route, navigation }: Props) {
     setSelectedPlayer(player);
     setSelectedModalPlayer(null);
     navigation.navigate("CommandCenter", { leagueId });
+  }
+
+  function handleSortPress(value: ResearchSort) {
+    if (sortBy === value) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortBy(value);
+
+    if (
+      value === "auction_rank" ||
+      value === "market_adp" ||
+      value === "tier" ||
+      value === "name"
+    ) {
+      setSortDirection("asc");
+    } else {
+      setSortDirection("desc");
+    }
+  }
+
+  function togglePanel(panel: Exclude<ControlPanel, null>) {
+    setActivePanel((current) => (current === panel ? null : panel));
+  }
+
+  function toggleTag(tag: TagFilter) {
+    setSelectedTags((current) => {
+      if (current.includes(tag)) {
+        return current.filter((item) => item !== tag);
+      }
+
+      return [...current, tag];
+    });
   }
 
   async function resolveDepthPlayer(
@@ -673,11 +1553,11 @@ export default function ResearchScreen({ route, navigation }: Props) {
     : undefined;
 
   const selectedDisplayValue = selectedModalPlayer
-    ? selectedEngineRow?.adjusted_value ?? selectedModalPlayer.value
+    ? getAuctionValue(selectedModalPlayer, selectedEngineRow)
     : 0;
 
   const selectedDisplayTier = selectedModalPlayer
-    ? selectedEngineRow?.tier ?? selectedModalPlayer.tier
+    ? getTier(selectedModalPlayer, selectedEngineRow)
     : 0;
 
   const selectedStatSummary = selectedModalPlayer
@@ -685,626 +1565,592 @@ export default function ResearchScreen({ route, navigation }: Props) {
     : "";
 
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
-      <View style={{ flexDirection: "row", marginBottom: 14 }}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <AppChip
-            label="Players"
-            selected={selectedView === "player-database"}
-            fullWidth
-            onPress={() => setSelectedView("player-database")}
-          />
-        </View>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <AppChip
-            label="Tiers"
-            selected={selectedView === "tiers"}
-            fullWidth
-            onPress={() => setSelectedView("tiers")}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppChip
-            label="Depth"
-            selected={selectedView === "depth-charts"}
-            fullWidth
-            onPress={() => setSelectedView("depth-charts")}
-          />
-        </View>
-      </View>
-
-      {selectedView === "player-database" || selectedView === "tiers" ? (
-        <>
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search players"
-            style={{
-              borderWidth: 1,
-              borderColor: "#d1d5db",
-              marginBottom: 12,
-              padding: 12,
-              borderRadius: 10,
-            }}
-          />
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-          >
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0b0712" }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 110,
+        }}
+      >
+        <View style={{ flexDirection: "row", marginBottom: 14 }}>
+          <View style={{ flex: 1, marginRight: 8 }}>
             <AppChip
-              label="All"
-              selected={availabilityFilter === "all"}
-              onPress={() => setAvailabilityFilter("all")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="Available"
-              selected={availabilityFilter === "available"}
-              onPress={() => setAvailabilityFilter("available")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="Drafted"
-              selected={availabilityFilter === "drafted"}
-              onPress={() => setAvailabilityFilter("drafted")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label={starredOnly ? "Saved Only" : "Saved"}
-              selected={starredOnly}
-              onPress={() => setStarredOnly((value) => !value)}
-              style={{ marginRight: 8 }}
-            />
-          </ScrollView>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-          >
-            <AppChip
-              label="All Stats"
-              selected={statViewFilter === "all"}
-              onPress={() => setStatViewFilter("all")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="Hitters"
-              selected={statViewFilter === "hitting"}
-              onPress={() => setStatViewFilter("hitting")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="Pitchers"
-              selected={statViewFilter === "pitching"}
-              onPress={() => setStatViewFilter("pitching")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="Healthy"
-              selected={injuryFilter === "healthy"}
-              onPress={() => setInjuryFilter("healthy")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="Injured"
-              selected={injuryFilter === "injured"}
-              onPress={() => setInjuryFilter("injured")}
-              style={{ marginRight: 8 }}
-            />
-          </ScrollView>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-          >
-            {POSITION_FILTERS.map((filter) => (
-              <AppChip
-                key={filter}
-                label={filter}
-                selected={positionFilter === filter}
-                onPress={() => setPositionFilter(filter)}
-                style={{ marginRight: 8 }}
-              />
-            ))}
-          </ScrollView>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-          >
-            <AppChip
-              label="PROJ"
-              selected={statBasis === "projections"}
-              onPress={() => setStatBasis("projections")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="2025"
-              selected={statBasis === "last-year"}
-              onPress={() => setStatBasis("last-year")}
-              style={{ marginRight: 8 }}
-            />
-            <AppChip
-              label="3YR"
-              selected={statBasis === "3-year-avg"}
-              onPress={() => setStatBasis("3-year-avg")}
-              style={{ marginRight: 8 }}
-            />
-          </ScrollView>
-
-          {selectedView === "player-database" ? (
-            <View style={{ marginBottom: 12, flexDirection: "row" }}>
-              <AppChip
-                label={showAddPlayer ? "Close Add Player" : "Add Player"}
-                selected
-                onPress={() => {
-                  if (showAddPlayer) {
-                    resetCustomPlayerForm();
-                  } else {
-                    setShowAddPlayer(true);
-                  }
-                }}
-              />
-            </View>
-          ) : null}
-
-          {showAddPlayer && selectedView === "player-database" ? (
-            <AppCard backgroundColor="#fafafa">
-              <Text style={{ fontWeight: "700", marginBottom: 10 }}>
-                {editingCustomPlayerId ? "Edit Custom Player" : "Add Custom Player"}
-              </Text>
-
-              <TextInput
-                value={newPlayerName}
-                onChangeText={setNewPlayerName}
-                placeholder="Name"
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#cbd5e1",
-                  borderRadius: 8,
-                  padding: 10,
-                  backgroundColor: "white",
-                  marginBottom: 8,
-                }}
-              />
-
-              <TextInput
-                value={newPlayerTeam}
-                onChangeText={setNewPlayerTeam}
-                placeholder="Team"
-                autoCapitalize="characters"
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#cbd5e1",
-                  borderRadius: 8,
-                  padding: 10,
-                  backgroundColor: "white",
-                  marginBottom: 8,
-                }}
-              />
-
-              <TextInput
-                value={newPlayerPosition}
-                onChangeText={setNewPlayerPosition}
-                placeholder="Position e.g. OF or SP"
-                autoCapitalize="characters"
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#cbd5e1",
-                  borderRadius: 8,
-                  padding: 10,
-                  backgroundColor: "white",
-                  marginBottom: 8,
-                }}
-              />
-
-              <TextInput
-                value={newPlayerAdp}
-                onChangeText={setNewPlayerAdp}
-                placeholder="ADP"
-                keyboardType="numeric"
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#cbd5e1",
-                  borderRadius: 8,
-                  padding: 10,
-                  backgroundColor: "white",
-                  marginBottom: 8,
-                }}
-              />
-
-              <TextInput
-                value={newPlayerValue}
-                onChangeText={setNewPlayerValue}
-                placeholder="Value"
-                keyboardType="numeric"
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#cbd5e1",
-                  borderRadius: 8,
-                  padding: 10,
-                  backgroundColor: "white",
-                  marginBottom: 8,
-                }}
-              />
-
-              <TextInput
-                value={newPlayerTier}
-                onChangeText={setNewPlayerTier}
-                placeholder="Tier"
-                keyboardType="numeric"
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#cbd5e1",
-                  borderRadius: 8,
-                  padding: 10,
-                  backgroundColor: "white",
-                  marginBottom: 10,
-                }}
-              />
-
-              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                <TouchableOpacity
-                  onPress={() => void handleSaveCustomPlayer()}
-                  style={{
-                    alignSelf: "flex-start",
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    borderRadius: 10,
-                    backgroundColor: "#111827",
-                    marginRight: 8,
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text style={{ color: "white", fontWeight: "700" }}>
-                    {editingCustomPlayerId ? "Update Custom Player" : "Save Custom Player"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={resetCustomPlayerForm}
-                  style={{
-                    alignSelf: "flex-start",
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    borderRadius: 10,
-                    backgroundColor: "#e5e7eb",
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text style={{ color: "#111827", fontWeight: "700" }}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </AppCard>
-          ) : null}
-
-          {playersError ? <ErrorState label={playersError} /> : null}
-
-          {loadingPlayers ? (
-            <LoadingState label="Loading players..." />
-          ) : selectedView === "player-database" ? (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ marginBottom: 12, color: "#4b5563" }}>
-                Showing {filteredPlayers.length} players • Watchlist {watchlist.length}
-              </Text>
-
-              {filteredPlayers.length === 0 ? (
-                <EmptyState label="No players found." />
-              ) : (
-                filteredPlayers.map((item) => {
-                  const watched = isInWatchlist(leagueId, item.id);
-                  const engineRow = valuationsByPlayerId.get(item.id);
-                  const displayTier = engineRow?.tier ?? item.tier;
-                  const displayValue = engineRow?.adjusted_value ?? item.value;
-                  const statSummary = formatResearchStatSummaryLine(item, statBasis);
-                  const custom = isCustomPlayer(item.id);
-
-                  return (
-                    <AppCard key={item.id}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <TouchableOpacity
-                          onPress={() => handleOpenPlayer(item)}
-                          style={{ flex: 1, marginRight: 12 }}
-                        >
-                          <Text style={{ fontWeight: "600", marginBottom: 2 }}>
-                            {item.name}
-                            {custom ? " • Custom" : ""}
-                          </Text>
-                          <Text>
-                            {item.team} • {item.position} • ADP {item.adp}
-                          </Text>
-                          <Text>
-                            ${displayValue}
-                            {engineRow ? ` • Eng Tier ${displayTier}` : ` • Tier ${displayTier}`}
-                          </Text>
-                          {engineRow?.indicator ? (
-                            <Text style={{ color: "#6b7280", marginTop: 2 }}>
-                              {engineRow.indicator}
-                            </Text>
-                          ) : null}
-                          {statSummary ? (
-                            <Text numberOfLines={2} style={{ color: "#6b7280", marginTop: 4 }}>
-                              {statSummary}
-                            </Text>
-                          ) : null}
-                          {!!item.outlook && (
-                            <Text
-                              numberOfLines={2}
-                              style={{ color: "#6b7280", marginTop: 4 }}
-                            >
-                              {item.outlook}
-                            </Text>
-                          )}
-                        </TouchableOpacity>
-
-                        <View>
-                          <AppChip
-                            label={watched ? "Saved" : "Save"}
-                            selected={watched}
-                            onPress={() => void handleToggleWatchlist(item)}
-                            style={{ marginBottom: custom ? 8 : 0 }}
-                          />
-
-                          {custom ? (
-                            <>
-                              <AppChip
-                                label="Edit"
-                                tone="info"
-                                onPress={() => startEditingCustomPlayer(item)}
-                                style={{ marginBottom: 8 }}
-                              />
-
-                              <AppChip
-                                label="Remove"
-                                tone="danger"
-                                onPress={() => void removeCustomPlayer(item.id)}
-                              />
-                            </>
-                          ) : null}
-                        </View>
-                      </View>
-                    </AppCard>
-                  );
-                })
-              )}
-            </ScrollView>
-          ) : (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ marginBottom: 12, color: "#4b5563" }}>
-                {filteredPlayers.length} filtered players across {tierBuckets.length} tiers
-              </Text>
-
-              {tierBuckets.length === 0 ? (
-                <EmptyState label="No tiers found." />
-              ) : (
-                tierBuckets.map((bucket) => (
-                  <AppCard key={bucket.tier}>
-                    <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
-                      Tier {bucket.tier}
-                    </Text>
-
-                    {bucket.players.slice(0, 15).map((player, index) => {
-                      const engineRow = valuationsByPlayerId.get(player.id);
-                      const displayValue = engineRow?.adjusted_value ?? player.value;
-                      const watched = isInWatchlist(leagueId, player.id);
-                      const statSummary = formatResearchStatSummaryLine(player, statBasis);
-                      const custom = isCustomPlayer(player.id);
-
-                      return (
-                        <View
-                          key={player.id}
-                          style={{
-                            paddingVertical: 10,
-                            borderTopWidth: index === 0 ? 0 : 1,
-                            borderTopColor: "#f1f5f9",
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <TouchableOpacity
-                            onPress={() => handleOpenPlayer(player)}
-                            style={{ flex: 1, marginRight: 12 }}
-                          >
-                            <Text style={{ fontWeight: "600" }}>
-                              {player.name}
-                              {custom ? " • Custom" : ""}
-                            </Text>
-                            <Text>
-                              {player.team} • {player.position} • ${displayValue}
-                            </Text>
-                            {statSummary ? (
-                              <Text numberOfLines={2} style={{ color: "#6b7280", marginTop: 4 }}>
-                                {statSummary}
-                              </Text>
-                            ) : null}
-                          </TouchableOpacity>
-
-                          <AppChip
-                            label={watched ? "Saved" : "Save"}
-                            selected={watched}
-                            onPress={() => void handleToggleWatchlist(player)}
-                          />
-                        </View>
-                      );
-                    })}
-
-                    {bucket.players.length > 15 ? (
-                      <Text style={{ color: "#6b7280", marginTop: 8 }}>
-                        +{bucket.players.length - 15} more players in this tier
-                      </Text>
-                    ) : null}
-                  </AppCard>
-                ))
-              )}
-            </ScrollView>
-          )}
-        </>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-          >
-            {MLB_TEAMS.map((team) => (
-              <AppChip
-                key={team.id}
-                label={team.abbr}
-                selected={selectedDepthTeamId === team.id}
-                tone="info"
-                onPress={() => setSelectedDepthTeamId(team.id)}
-                style={{ marginRight: 8 }}
-              />
-            ))}
-          </ScrollView>
-
-          <View style={{ flexDirection: "row", marginBottom: 12 }}>
-            <AppChip
-              label="Refresh"
-              selected
-              onPress={() => void loadDepthChart(selectedDepthTeamId, true)}
+              label="Players"
+              selected={selectedView === "player-database"}
+              fullWidth
+              onPress={() => setSelectedView("player-database")}
             />
           </View>
 
-          {depthChartError ? <ErrorState label={depthChartError} /> : null}
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <AppChip
+              label="Tiers"
+              selected={selectedView === "tiers"}
+              fullWidth
+              onPress={() => setSelectedView("tiers")}
+            />
+          </View>
 
-          {isLoadingDepthChart ? (
-            <LoadingState label="Loading depth chart..." />
-          ) : !depthChartData ? (
-            <EmptyState label="No depth chart data available." />
-          ) : (
-            <>
-              <AppCard backgroundColor="#f9fafb">
-                <Text style={{ fontWeight: "700", marginBottom: 6 }}>
-                  Team Depth Summary
+          <View style={{ flex: 1 }}>
+            <AppChip
+              label="Depth"
+              selected={selectedView === "depth-charts"}
+              fullWidth
+              onPress={() => setSelectedView("depth-charts")}
+            />
+          </View>
+        </View>
+
+        {selectedView === "player-database" || selectedView === "tiers" ? (
+          <>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search player, team, or position"
+              placeholderTextColor="#71717a"
+              style={{
+                borderWidth: 1,
+                borderColor: "#3f335c",
+                marginBottom: 10,
+                padding: 12,
+                borderRadius: 12,
+                color: "#f9fafb",
+                backgroundColor: "#151021",
+              }}
+            />
+
+            <View style={{ marginBottom: 10 }}>
+              <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                <ControlButton
+                  label="FILTER"
+                  value={`${availabilityFilter === "all" ? "All" : availabilityFilter} • ${
+                    statViewFilter === "all" ? "All" : statViewFilter
+                  }`}
+                  active={activePanel === "filters"}
+                  onPress={() => togglePanel("filters")}
+                />
+                <ControlButton
+                  label="SORT"
+                  value={`${SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? "Auction $"} ${
+                    sortDirection === "asc" ? "↑" : "↓"
+                  }`}
+                  active={activePanel === "sort"}
+                  onPress={() => togglePanel("sort")}
+                />
+              </View>
+
+              <View style={{ flexDirection: "row" }}>
+                <ControlButton
+                  label="TAGS"
+                  value={selectedTags.length === 0 ? "Any" : selectedTags.join(", ")}
+                  active={activePanel === "tags"}
+                  onPress={() => togglePanel("tags")}
+                />
+                <ControlButton
+                  label="ENGINE"
+                  value={showEngineValues ? "Values On" : "Values Off"}
+                  active={showEngineValues}
+                  onPress={() => setShowEngineValues((value) => !value)}
+                />
+              </View>
+            </View>
+
+            <FilterRow>
+              <FilterPill
+                label="PROJ"
+                selected={statBasis === "projections"}
+                onPress={() => setStatBasis("projections")}
+              />
+              <FilterPill
+                label="1Y"
+                selected={statBasis === "last-year"}
+                onPress={() => setStatBasis("last-year")}
+              />
+              <FilterPill
+                label="3Y"
+                selected={statBasis === "3-year-avg"}
+                onPress={() => setStatBasis("3-year-avg")}
+              />
+            </FilterRow>
+
+            {activePanel === "filters" ? (
+              <AppCard backgroundColor="#151021" borderColor="#31224f">
+                <Text style={{ color: "#f9fafb", fontWeight: "900", marginBottom: 8 }}>
+                  Filters
                 </Text>
-                <Text>
-                  Updated {new Date(depthChartData.generatedAt).toLocaleString()}
+
+                <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
+                  Availability
                 </Text>
-                <Text>
-                  Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
+                <FilterRow>
+                  <FilterPill
+                    label="All"
+                    selected={availabilityFilter === "all"}
+                    onPress={() => setAvailabilityFilter("all")}
+                  />
+                  <FilterPill
+                    label="Available"
+                    selected={availabilityFilter === "available"}
+                    onPress={() => setAvailabilityFilter("available")}
+                  />
+                  <FilterPill
+                    label="Drafted"
+                    selected={availabilityFilter === "drafted"}
+                    onPress={() => setAvailabilityFilter("drafted")}
+                  />
+                  <FilterPill
+                    label={starredOnly ? "Saved Only" : "Saved"}
+                    selected={starredOnly}
+                    onPress={() => setStarredOnly((value) => !value)}
+                  />
+                </FilterRow>
+
+                <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
+                  Type and Health
                 </Text>
-                <Text>Assignments {depthAssignedCount}/{depthTotalSlots}</Text>
-                <Text>Manual review {depthChartData.manualReview.length}</Text>
-                <Text style={{ marginTop: 4 }}>
-                  {depthChartData.constraints.note}
+                <FilterRow>
+                  <FilterPill
+                    label="All Stats"
+                    selected={statViewFilter === "all"}
+                    onPress={() => setStatViewFilter("all")}
+                  />
+                  <FilterPill
+                    label="Hitters"
+                    selected={statViewFilter === "hitting"}
+                    onPress={() => setStatViewFilter("hitting")}
+                  />
+                  <FilterPill
+                    label="Pitchers"
+                    selected={statViewFilter === "pitching"}
+                    onPress={() => setStatViewFilter("pitching")}
+                  />
+                  <FilterPill
+                    label="Healthy"
+                    selected={injuryFilter === "healthy"}
+                    onPress={() => setInjuryFilter("healthy")}
+                  />
+                  <FilterPill
+                    label="Injured"
+                    selected={injuryFilter === "injured"}
+                    onPress={() => setInjuryFilter("injured")}
+                  />
+                </FilterRow>
+
+                <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
+                  Position
                 </Text>
+                <FilterRow>
+                  {POSITION_FILTERS.map((filter) => (
+                    <FilterPill
+                      key={filter}
+                      label={filter}
+                      selected={positionFilter === filter}
+                      onPress={() => setPositionFilter(filter)}
+                    />
+                  ))}
+                </FilterRow>
               </AppCard>
+            ) : null}
 
-              {DEPTH_POSITIONS.map((position) => {
-                const rows = depthChartData.positions[position] ?? [];
+            {activePanel === "sort" ? (
+              <AppCard backgroundColor="#151021" borderColor="#31224f">
+                <Text style={{ color: "#f9fafb", fontWeight: "900", marginBottom: 8 }}>
+                  Sort By {sortDirection === "asc" ? "↑" : "↓"}
+                </Text>
+                <FilterRow>
+                  {SORT_OPTIONS.map((option) => (
+                    <FilterPill
+                      key={option.value}
+                      label={
+                        sortBy === option.value
+                          ? `${option.label} ${sortDirection === "asc" ? "↑" : "↓"}`
+                          : option.label
+                      }
+                      selected={sortBy === option.value}
+                      onPress={() => handleSortPress(option.value)}
+                    />
+                  ))}
+                </FilterRow>
+              </AppCard>
+            ) : null}
 
-                return (
-                  <AppCard key={position}>
-                    <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 10 }}>
-                      {position} • {rows.length}/3
+            {activePanel === "tags" ? (
+              <AppCard backgroundColor="#151021" borderColor="#31224f">
+                <Text style={{ color: "#f9fafb", fontWeight: "900", marginBottom: 8 }}>
+                  Tags
+                </Text>
+                <Text style={{ color: "#a1a1aa", fontSize: 12, marginBottom: 8 }}>
+                  Tags are based on the selected stat view: PROJ, 1Y, or 3Y.
+                </Text>
+                <FilterRow>
+                  {TAG_OPTIONS.map((tag) => (
+                    <FilterPill
+                      key={tag}
+                      label={tag}
+                      selected={selectedTags.includes(tag)}
+                      onPress={() => toggleTag(tag)}
+                    />
+                  ))}
+                </FilterRow>
+              </AppCard>
+            ) : null}
+
+            {selectedView === "player-database" ? (
+              <View style={{ marginBottom: 12, flexDirection: "row" }}>
+                <AppChip
+                  label={showAddPlayer ? "Close Add Player" : "Add Player"}
+                  selected
+                  onPress={() => {
+                    if (showAddPlayer) {
+                      resetCustomPlayerForm();
+                    } else {
+                      setShowAddPlayer(true);
+                    }
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {showAddPlayer && selectedView === "player-database" ? (
+              <AppCard backgroundColor="#151021" borderColor="#31224f">
+                <Text style={{ color: "#f9fafb", fontWeight: "800", marginBottom: 10 }}>
+                  {editingCustomPlayerId ? "Edit Custom Player" : "Add Custom Player"}
+                </Text>
+
+                {[
+                  ["Name", newPlayerName, setNewPlayerName],
+                  ["Team", newPlayerTeam, setNewPlayerTeam],
+                  ["Position e.g. OF or SP", newPlayerPosition, setNewPlayerPosition],
+                  ["ADP", newPlayerAdp, setNewPlayerAdp],
+                  ["Value", newPlayerValue, setNewPlayerValue],
+                  ["Tier", newPlayerTier, setNewPlayerTier],
+                ].map(([placeholder, value, setter]) => (
+                  <TextInput
+                    key={String(placeholder)}
+                    value={String(value)}
+                    onChangeText={setter as (value: string) => void}
+                    placeholder={String(placeholder)}
+                    placeholderTextColor="#71717a"
+                    autoCapitalize={
+                      placeholder === "Team" || placeholder === "Position e.g. OF or SP"
+                        ? "characters"
+                        : "none"
+                    }
+                    keyboardType={
+                      placeholder === "ADP" || placeholder === "Value" || placeholder === "Tier"
+                        ? "numeric"
+                        : "default"
+                    }
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#3f335c",
+                      borderRadius: 8,
+                      padding: 10,
+                      color: "#f9fafb",
+                      backgroundColor: "#0b0712",
+                      marginBottom: 8,
+                    }}
+                  />
+                ))}
+
+                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  <TouchableOpacity
+                    onPress={() => void handleSaveCustomPlayer()}
+                    style={{
+                      alignSelf: "flex-start",
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "#7c3aed",
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontWeight: "800" }}>
+                      {editingCustomPlayerId ? "Update Custom Player" : "Save Custom Player"}
                     </Text>
+                  </TouchableOpacity>
 
-                    {[1, 2, 3].map((rank, index) => {
-                      const row = rows.find((item) => item.rank === rank);
+                  <TouchableOpacity
+                    onPress={resetCustomPlayerForm}
+                    style={{
+                      alignSelf: "flex-start",
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "#272034",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: "#f9fafb", fontWeight: "800" }}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </AppCard>
+            ) : null}
 
-                      if (!row) {
+            {playersError ? <ErrorState label={playersError} /> : null}
+
+            {loadingPlayers ? (
+              <LoadingState label="Loading players..." />
+            ) : selectedView === "player-database" ? (
+              <>
+                <Text style={{ marginBottom: 12, color: "#a1a1aa", fontWeight: "800" }}>
+                  Showing {sortedFilteredPlayers.length} players • Watchlist {watchlist.length}
+                </Text>
+
+                {sortedFilteredPlayers.length === 0 ? (
+                  <EmptyState label="No players found." />
+                ) : (
+                  sortedFilteredPlayers.map((item) => {
+                    const watched = isInWatchlist(leagueId, item.id);
+                    const engineRow = valuationsByPlayerId.get(item.id);
+                    const custom = isCustomPlayer(item.id);
+
+                    return (
+                      <PlayerResearchCard
+                        key={item.id}
+                        player={item}
+                        engineRow={engineRow}
+                        watched={watched}
+                        custom={custom}
+                        statBasis={statBasis}
+                        showEngineValues={showEngineValues}
+                        onOpen={() => handleOpenPlayer(item)}
+                        onToggleWatchlist={() => void handleToggleWatchlist(item)}
+                        onEditCustom={() => startEditingCustomPlayer(item)}
+                        onRemoveCustom={() => void removeCustomPlayer(item.id)}
+                      />
+                    );
+                  })
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={{ marginBottom: 12, color: "#a1a1aa", fontWeight: "800" }}>
+                  {filteredPlayers.length} filtered players across {tierBuckets.length} tiers
+                </Text>
+
+                {tierBuckets.length === 0 ? (
+                  <EmptyState label="No tiers found." />
+                ) : (
+                  tierBuckets.map((bucket) => (
+                    <AppCard
+                      key={bucket.tier}
+                      backgroundColor="#151021"
+                      borderColor="#31224f"
+                    >
+                      <Text
+                        style={{
+                          color: "#f9fafb",
+                          fontSize: 18,
+                          fontWeight: "900",
+                          marginBottom: 10,
+                        }}
+                      >
+                        Tier {bucket.tier} • {bucket.players.length} players
+                      </Text>
+
+                      {bucket.players.slice(0, 15).map((player) => {
+                        const engineRow = valuationsByPlayerId.get(player.id);
+                        const watched = isInWatchlist(leagueId, player.id);
+                        const custom = isCustomPlayer(player.id);
+
+                        return (
+                          <PlayerResearchCard
+                            key={player.id}
+                            player={player}
+                            engineRow={engineRow}
+                            watched={watched}
+                            custom={custom}
+                            statBasis={statBasis}
+                            showEngineValues={showEngineValues}
+                            onOpen={() => handleOpenPlayer(player)}
+                            onToggleWatchlist={() => void handleToggleWatchlist(player)}
+                            onEditCustom={() => startEditingCustomPlayer(player)}
+                            onRemoveCustom={() => void removeCustomPlayer(player.id)}
+                          />
+                        );
+                      })}
+
+                      {bucket.players.length > 15 ? (
+                        <Text style={{ color: "#a1a1aa", marginTop: 8 }}>
+                          +{bucket.players.length - 15} more players in this tier
+                        </Text>
+                      ) : null}
+                    </AppCard>
+                  ))
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <FilterRow>
+              {MLB_TEAMS.map((team) => (
+                <FilterPill
+                  key={team.id}
+                  label={team.abbr}
+                  selected={selectedDepthTeamId === team.id}
+                  onPress={() => setSelectedDepthTeamId(team.id)}
+                />
+              ))}
+            </FilterRow>
+
+            <View style={{ flexDirection: "row", marginBottom: 12 }}>
+              <AppChip
+                label="Refresh"
+                selected
+                onPress={() => void loadDepthChart(selectedDepthTeamId, true)}
+              />
+            </View>
+
+            {depthChartError ? <ErrorState label={depthChartError} /> : null}
+
+            {isLoadingDepthChart ? (
+              <LoadingState label="Loading depth chart..." />
+            ) : !depthChartData ? (
+              <EmptyState label="No depth chart data available." />
+            ) : (
+              <>
+                <AppCard backgroundColor="#151021" borderColor="#31224f">
+                  <Text style={{ color: "#f9fafb", fontWeight: "900", marginBottom: 6 }}>
+                    Team Depth Summary
+                  </Text>
+                  <Text style={{ color: "#d1d5db" }}>
+                    Updated {new Date(depthChartData.generatedAt).toLocaleString()}
+                  </Text>
+                  <Text style={{ color: "#d1d5db" }}>
+                    Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
+                  </Text>
+                  <Text style={{ color: "#d1d5db" }}>
+                    Assignments {depthAssignedCount}/{depthTotalSlots}
+                  </Text>
+                  <Text style={{ color: "#d1d5db" }}>
+                    Manual review {depthChartData.manualReview.length}
+                  </Text>
+                  <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
+                    {depthChartData.constraints.note}
+                  </Text>
+                </AppCard>
+
+                {DEPTH_POSITIONS.map((position) => {
+                  const rows = depthChartData.positions[position] ?? [];
+
+                  return (
+                    <AppCard
+                      key={position}
+                      backgroundColor="#151021"
+                      borderColor="#31224f"
+                    >
+                      <Text
+                        style={{
+                          color: "#f9fafb",
+                          fontSize: 18,
+                          fontWeight: "900",
+                          marginBottom: 10,
+                        }}
+                      >
+                        {position} • {rows.length}/3
+                      </Text>
+
+                      {[1, 2, 3].map((rank, index) => {
+                        const row = rows.find((item) => item.rank === rank);
+
+                        if (!row) {
+                          return (
+                            <View
+                              key={`${position}-${rank}`}
+                              style={{
+                                paddingVertical: 10,
+                                borderTopWidth: index === 0 ? 0 : 1,
+                                borderTopColor: "#33294a",
+                              }}
+                            >
+                              <Text style={{ color: "#f9fafb", fontWeight: "800", marginBottom: 4 }}>
+                                #{rank}
+                              </Text>
+                              <Text style={{ color: "#a1a1aa" }}>No assignment</Text>
+                            </View>
+                          );
+                        }
+
+                        const matchedPlayer =
+                          allPlayers.find(
+                            (player) =>
+                              player.mlbId === row.playerId ||
+                              player.id === String(row.playerId),
+                          ) ?? null;
+
+                        const isSaved = matchedPlayer
+                          ? isInWatchlist(leagueId, matchedPlayer.id)
+                          : false;
+
                         return (
                           <View
                             key={`${position}-${rank}`}
                             style={{
                               paddingVertical: 10,
                               borderTopWidth: index === 0 ? 0 : 1,
-                              borderTopColor: "#f1f5f9",
+                              borderTopColor: "#33294a",
                             }}
                           >
-                            <Text style={{ fontWeight: "600", marginBottom: 4 }}>
+                            <Text style={{ color: "#f9fafb", fontWeight: "800", marginBottom: 4 }}>
                               #{rank}
                             </Text>
-                            <Text style={{ color: "#6b7280" }}>No assignment</Text>
+
+                            <TouchableOpacity onPress={() => void handleDepthPlayerPress(row)}>
+                              <Text style={{ color: "#f9fafb", fontWeight: "800" }}>
+                                {row.playerName}
+                              </Text>
+                              <Text style={{ color: "#d1d5db", marginTop: 2 }}>
+                                {row.primaryPosition} • {row.status}
+                              </Text>
+                              <Text style={{ color: "#d1d5db" }}>
+                                {row.usageStarts} starts • {row.usageAppearances} apps
+                              </Text>
+                              {row.outOfPosition || row.needsManualReview ? (
+                                <Text style={{ color: "#fca5a5", marginTop: 4, fontWeight: "800" }}>
+                                  OOF / Manual Review
+                                </Text>
+                              ) : null}
+                            </TouchableOpacity>
+
+                            <View style={{ marginTop: 8 }}>
+                              <AppChip
+                                label={isSaved ? "Saved" : "Save"}
+                                selected={isSaved}
+                                onPress={() => void handleDepthStarToggle(row)}
+                              />
+                            </View>
                           </View>
                         );
-                      }
+                      })}
+                    </AppCard>
+                  );
+                })}
 
-                      const matchedPlayer =
-                        allPlayers.find(
-                          (player) =>
-                            player.mlbId === row.playerId ||
-                            player.id === String(row.playerId),
-                        ) ?? null;
-
-                      const isSaved = matchedPlayer
-                        ? isInWatchlist(leagueId, matchedPlayer.id)
-                        : false;
-
-                      return (
-                        <View
-                          key={`${position}-${rank}`}
-                          style={{
-                            paddingVertical: 10,
-                            borderTopWidth: index === 0 ? 0 : 1,
-                            borderTopColor: "#f1f5f9",
-                          }}
-                        >
-                          <Text style={{ fontWeight: "600", marginBottom: 4 }}>
-                            #{rank}
-                          </Text>
-
-                          <TouchableOpacity onPress={() => void handleDepthPlayerPress(row)}>
-                            <Text>{row.playerName}</Text>
-                            <Text style={{ color: "#4b5563", marginTop: 2 }}>
-                              {row.primaryPosition} • {row.status}
-                            </Text>
-                            <Text style={{ color: "#4b5563" }}>
-                              {row.usageStarts} starts • {row.usageAppearances} apps
-                            </Text>
-                            {row.outOfPosition || row.needsManualReview ? (
-                              <Text style={{ color: "#b91c1c", marginTop: 4 }}>
-                                OOF / Manual Review
-                              </Text>
-                            ) : null}
-                          </TouchableOpacity>
-
-                          <View style={{ marginTop: 8 }}>
-                            <AppChip
-                              label={isSaved ? "Saved" : "Save"}
-                              selected={isSaved}
-                              onPress={() => void handleDepthStarToggle(row)}
-                            />
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </AppCard>
-                );
-              })}
-
-              {depthChartData.manualReview.length > 0 ? (
-                <AppCard backgroundColor="#fef2f2" borderColor="#fecaca">
-                  <Text style={{ fontWeight: "700", marginBottom: 8 }}>
-                    Manual Review Required
-                  </Text>
-                  {depthChartData.manualReview.map((item) => (
-                    <Text
-                      key={`${item.playerId}-${item.requestedPosition}`}
-                      style={{ marginBottom: 6 }}
-                    >
-                      {item.playerName} — {item.requestedPosition} ({item.reason})
+                {depthChartData.manualReview.length > 0 ? (
+                  <AppCard backgroundColor="#3f1d2a" borderColor="#7f1d1d">
+                    <Text style={{ color: "#fecaca", fontWeight: "900", marginBottom: 8 }}>
+                      Manual Review Required
                     </Text>
-                  ))}
-                </AppCard>
-              ) : null}
-            </>
-          )}
-        </ScrollView>
-      )}
+                    {depthChartData.manualReview.map((item) => (
+                      <Text
+                        key={`${item.playerId}-${item.requestedPosition}`}
+                        style={{ color: "#fee2e2", marginBottom: 6 }}
+                      >
+                        {item.playerName} — {item.requestedPosition} ({item.reason})
+                      </Text>
+                    ))}
+                  </AppCard>
+                ) : null}
+              </>
+            )}
+          </>
+        )}
+      </ScrollView>
 
       <PlayerDetailModal
         player={selectedModalPlayer}

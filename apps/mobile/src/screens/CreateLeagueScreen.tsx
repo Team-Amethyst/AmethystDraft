@@ -110,7 +110,10 @@ export default function CreateLeagueScreen({ navigation }: Props) {
   }
 
   async function handleCreateLeague() {
-    if (!token) return;
+    if (!token) {
+      Alert.alert("Not logged in", "Please log in again before creating a league.");
+      return;
+    }
 
     const error = validate();
 
@@ -127,7 +130,7 @@ export default function CreateLeagueScreen({ navigation }: Props) {
           name: name.trim(),
           teams: teamCount,
           budget: budgetValue,
-          scoringFormat: "Roto",
+          scoringFormat: "5x5",
           rosterSlots,
           scoringCategories: [
             ...hittingStats.map((stat) => ({
@@ -215,9 +218,26 @@ export default function CreateLeagueScreen({ navigation }: Props) {
 
             <View style={{ height: 14 }} />
 
-            <AppTextInput label="League name" value={name} onChangeText={setName} />
-            <AppTextInput label="Teams" value={teams} onChangeText={setTeams} keyboardType="number-pad" />
-            <AppTextInput label="Budget" value={budget} onChangeText={setBudget} keyboardType="number-pad" />
+            <AppTextInput
+              label="League name"
+              value={name}
+              onChangeText={setName}
+            />
+
+            <AppTextInput
+              label="Teams"
+              value={teams}
+              onChangeText={setTeams}
+              keyboardType="number-pad"
+            />
+
+            <AppTextInput
+              label="Budget"
+              value={budget}
+              onChangeText={setBudget}
+              keyboardType="number-pad"
+            />
+
             <AppTextInput
               label="Position eligibility minimum games"
               value={posEligibilityThreshold}
@@ -260,7 +280,9 @@ export default function CreateLeagueScreen({ navigation }: Props) {
                   label={stat}
                   selected={hittingStats.includes(stat)}
                   tone="info"
-                  onPress={() => setHittingStats((current) => toggleValue(current, stat))}
+                  onPress={() =>
+                    setHittingStats((current) => toggleValue(current, stat))
+                  }
                 />
               ))}
             </View>
@@ -276,7 +298,9 @@ export default function CreateLeagueScreen({ navigation }: Props) {
                   label={stat}
                   selected={pitchingStats.includes(stat)}
                   tone="info"
-                  onPress={() => setPitchingStats((current) => toggleValue(current, stat))}
+                  onPress={() =>
+                    setPitchingStats((current) => toggleValue(current, stat))
+                  }
                 />
               ))}
             </View>
@@ -342,6 +366,7 @@ export default function CreateLeagueScreen({ navigation }: Props) {
             <AppButton
               title={step === 3 ? "Create" : "Next"}
               loading={loading}
+              disabled={loading}
               onPress={handleNext}
             />
           </View>
