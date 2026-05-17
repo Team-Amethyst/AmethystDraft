@@ -553,6 +553,11 @@
 }
 
 /* View toggles — segmented inside toggle track */
+.pt-toggle-group > .pt-tag-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .pt-toggle-group .pt-toggle {
   display: inline-flex;
   align-items: center;

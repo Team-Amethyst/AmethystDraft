@@ -68,6 +68,9 @@ const INJURY_OPTIONS: AppSelectOption[] = [
   { value: "injured", label: "Injured only" },
 ];
 
+/** Matches Research toolbar filter-track styling in `PlayerTable.css`. */
+const PT_FILTER_FIELD = "pt-filter-field";
+
 export function PlayerTableControls({
   searchQuery,
   onSearchChange,
@@ -137,7 +140,9 @@ export function PlayerTableControls({
       </div>
 
       <div className="pt-filters">
+        <div className="pt-filter-group">
         <AppSelect
+          className={PT_FILTER_FIELD}
           compact
           value={availabilityFilter}
           onChange={(v) =>
@@ -150,6 +155,7 @@ export function PlayerTableControls({
         {onResearchDraftablePoolFilterChange &&
           researchDraftablePoolFilter !== undefined && (
             <AppSelect
+              className={PT_FILTER_FIELD}
               compact
               value={researchDraftablePoolFilter}
               onChange={(v) =>
@@ -168,6 +174,7 @@ export function PlayerTableControls({
           )}
 
         <AppSelect
+          className={PT_FILTER_FIELD}
           compact
           value={statView}
           onChange={(v) => {
@@ -184,6 +191,7 @@ export function PlayerTableControls({
         />
 
         <AppSelect
+          className={PT_FILTER_FIELD}
           compact
           value={positionFilter}
           onChange={onPositionChange}
@@ -192,6 +200,7 @@ export function PlayerTableControls({
         />
 
         <AppSelect
+          className={PT_FILTER_FIELD}
           compact
           value={injuryFilter}
           onChange={(v) =>
@@ -200,10 +209,14 @@ export function PlayerTableControls({
           options={INJURY_OPTIONS}
           aria-label="Health filter"
         />
+        </div>
 
+        <div className="pt-toggle-group">
         <button
           type="button"
-          className={"pt-toggle " + (starredOnly ? "active" : "")}
+          className={
+            "pt-toggle pt-toggle--star" + (starredOnly ? " active" : "")
+          }
           onClick={onStarredOnlyToggle}
         >
           <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
@@ -212,7 +225,9 @@ export function PlayerTableControls({
         {onResearchModelColumnsToggle && (
           <button
             type="button"
-            className={"pt-toggle " + (researchModelColumns ? "active" : "")}
+            className={
+              "pt-toggle pt-toggle--model" + (researchModelColumns ? " active" : "")
+            }
             title="Show catalog model rank and model tier columns (catalog / preseason buckets). Auction tier and rank stay in their own columns when Engine data is loaded."
             onClick={onResearchModelColumnsToggle}
           >
@@ -222,7 +237,7 @@ export function PlayerTableControls({
         <div className="pt-tag-wrap">
           <button
             type="button"
-            className={"pt-toggle " + (selectedTags.size > 0 ? "active" : "")}
+            className={"pt-toggle" + (selectedTags.size > 0 ? " active" : "")}
             onClick={onTagDropdownToggle}
           >
             <Tag size={13} />
@@ -247,6 +262,7 @@ export function PlayerTableControls({
               )}
             </div>
           )}
+        </div>
         </div>
 
         <button
