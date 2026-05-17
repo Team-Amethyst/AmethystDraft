@@ -52,12 +52,14 @@ const POSITION_DISPLAY_ORDER: ReadonlyMap<string, number> = new Map(
 export function sortPositionCountEntries(
   entries: readonly (readonly [string, number])[],
 ): [string, number][] {
-  return [...entries].sort((a, b) => {
-    const orderA = POSITION_DISPLAY_ORDER.get(a[0]) ?? 999;
-    const orderB = POSITION_DISPLAY_ORDER.get(b[0]) ?? 999;
-    if (orderA !== orderB) return orderA - orderB;
-    return a[0].localeCompare(b[0]);
-  });
+  return [...entries]
+    .sort((a, b) => {
+      const orderA = POSITION_DISPLAY_ORDER.get(a[0]) ?? 999;
+      const orderB = POSITION_DISPLAY_ORDER.get(b[0]) ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a[0].localeCompare(b[0]);
+    })
+    .map(([pos, count]) => [pos, count]);
 }
 
 export function positionFilterAfterStatViewChange(

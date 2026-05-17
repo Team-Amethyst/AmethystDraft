@@ -161,7 +161,7 @@ export function DepthChartView({
       return {
         rank,
         row,
-        catalogPlayer: resolution.catalogPlayer,
+        catalogPlayer: resolution.catalogPlayer ?? null,
         matchState: resolution.state,
         rightDisplay: resolveDepthRowRightDisplay(
           resolution,
