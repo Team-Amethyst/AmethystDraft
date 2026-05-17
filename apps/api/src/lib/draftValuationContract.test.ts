@@ -56,6 +56,48 @@ function sampleEngineResponse() {
         model_version: "v2-test",
       },
       position_alerts: [],
+      market_pressure: {
+        market_inflation: {
+          status: "not_started",
+          ratio: null,
+          percent: null,
+          sample_size: 0,
+          actual_spend: 0,
+          expected_spend: 0,
+          confidence: "none",
+          label: "Not started",
+          explanation: "No picks",
+        },
+        budget_pressure: {
+          status: "tight",
+          total_budget_remaining: 200,
+          remaining_active_slots: 40,
+          min_bid_reserve: 40,
+          surplus_cash: 160,
+          total_surplus_mass: 500,
+          cash_to_surplus_mass_ratio: 0.32,
+          dollars_per_open_slot: 5,
+          label: "Tight",
+          explanation: "Tight",
+        },
+        keeper_compression: {
+          status: "none",
+          active_keeper_count: 0,
+          active_capacity: 120,
+          keeper_slot_fill_ratio: 0,
+          keeper_salary_committed: 0,
+          total_league_budget: 3120,
+          keeper_budget_share: 0,
+          label: "None",
+          explanation: "No keepers",
+        },
+        allocator_vs_open: {
+          ratio: 1.07,
+          percent: 7,
+          label: "Allocator vs Open",
+          explanation: "Comparator",
+        },
+      },
     },
   };
 }
@@ -80,6 +122,23 @@ describe("shapeValuationResponseForDraft", () => {
       | undefined;
     expect(ms).toBeDefined();
     expect(ms).not.toHaveProperty("budget_left");
+    const mp = (shaped.context_v2 as Record<string, unknown>)?.market_pressure as
+      | Record<string, unknown>
+      | undefined;
+    expect(mp?.market_inflation).toMatchObject({ status: "not_started" });
+    expect(mp?.keeper_compression).toMatchObject({ status: "none" });
+  });
+
+  it("preserves market_pressure in debug mode with full engine_response", () => {
+    const raw = sampleEngineResponse();
+    const shaped = shapeValuationResponseForDraft(raw, { debug: true }) as Record<
+      string,
+      unknown
+    >;
+    const diag = shaped.diagnostics as { engine_response: Record<string, unknown> };
+    expect(diag.engine_response.context_v2).toBeDefined();
+    const mp = (shaped.context_v2 as Record<string, unknown>).market_pressure;
+    expect(mp).toBeDefined();
   });
 
   it("echoes auction_curve_model for debug visibility", () => {

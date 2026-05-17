@@ -99,6 +99,10 @@ export interface ValuationExplain {
   depth_component?: number;
 }
 
+import type { MarketPressureSnapshot } from "./marketPressure";
+
+export type { MarketPressureSnapshot } from "./marketPressure";
+
 /** Slim context_v2 — product fields only (BFF-stripped). */
 export interface ValuationContextV2 {
   market_summary: {
@@ -108,6 +112,7 @@ export interface ValuationContextV2 {
     inflation_percent_vs_auction_open?: number;
     inflation_index_vs_opening_auction?: number;
   };
+  market_pressure?: MarketPressureSnapshot;
   position_alerts: Array<{
     position: string;
     severity: "low" | "medium" | "high" | "critical";
@@ -138,6 +143,8 @@ export interface ValuationResponse {
   auction_curve_model?: AuctionCurveModel;
   auction_curve_reason?: string;
   internal_allocation_mode?: string;
+  /** Engine curve audit fields (passed through BFF when present). */
+  curve_inputs?: Record<string, number | string | boolean>;
   inflation_index_vs_opening_auction?: number;
   total_budget_remaining: number;
   players_remaining: number;

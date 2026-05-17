@@ -21,11 +21,26 @@ Default traffic must not rely on diagnostics.
 | `user_team_id_used` | Active team context. |
 | `draftable_player_ids`, `draftable_pool_size` | Pool mechanics. |
 | `valuation_context`, `market_notes`, `valuation_context_warnings` | When Engine sends them. |
-| `context_v2` | **Slim:** `market_summary` + `position_alerts` only (no assumptions/confidence/scope). |
+| `context_v2` | **Slim:** `market_summary`, `market_pressure`, and `position_alerts` (no assumptions/confidence/scope). |
 | `scoring_category_warnings` | **Deduped** union of envelope + per-row `valuation_explain` warnings; row-level duplicates stripped when this array is non-empty. |
 | `player` | Optional single-player row (same shape as valuation entries). |
 
 **Not included in default responses:** `debug_v2`, `inflation_raw`, `inflation_bounded_by`, mechanical duplication of inflation percent at top level when the UI reads **`context_v2.market_summary.inflation_percent_vs_auction_open`**, and other Engine-only diagnostics (those appear under `diagnostics.engine_response` when debug is on).
+
+## `context_v2.market_pressure` (Engine-owned product semantics)
+
+Command Center and other product surfaces should **read these fields directly** rather than inferring market state from `auction_curve_reason`, `inflation_factor`, or `inflation_index_vs_opening_auction` alone.
+
+| Block | Meaning |
+|-------|---------|
+| **`market_inflation`** | **Live auction inflation only:** ratio of actual non-keeper auction spend vs sum of opening auction values for those picks. `status: "not_started"` when there are **zero** completed non-keeper auction picks (pre-draft and keeper-only boards). Not the same as allocator vs open. |
+| **`budget_pressure`** | Remaining league budget vs open slot demand and surplus mass (`cash_to_surplus_mass_ratio`, `dollars_per_open_slot`). Surfaces tight keeper pre-draft boards even when allocator vs open ≈ 1.0×. |
+| **`keeper_compression`** | How much of the auction economy is locked by keepers (slot fill, salary committed, budget share). |
+| **`allocator_vs_open`** | Technical comparator: current surplus allocator vs replayed auction-open board (`inflation_index_vs_opening_auction`). **Not** live auction inflation and **not** a neutral-market indicator at 1.00× in keeper-heavy pre-draft states. |
+
+**Pre-draft keeper demo expectations (typical):** `market_inflation.status = "not_started"`, `budget_pressure.status = "tight"`, `keeper_compression.status = "high"`, `allocator_vs_open.ratio ≈ 1.00`.
+
+When `market_pressure` is absent (older Engine builds), the BFF still passes through legacy top-level inflation fields; the web UI shows a **limited fallback** and must not label allocator vs open as “Inflation Index” or imply 1.00× means a normal open market.
 
 ## Per-player row (default)
 

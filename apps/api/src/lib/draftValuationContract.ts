@@ -240,13 +240,24 @@ function shapeContextV2ForDraft(
     ? posAlerts.filter((x) => isRecord(x))
     : [];
 
-  if (!Object.keys(market_summary).length && !position_alerts.length) {
+  const mpSrc = raw.market_pressure ?? raw.marketPressure;
+  const market_pressure =
+    isRecord(mpSrc) ? JSON.parse(JSON.stringify(mpSrc)) : undefined;
+
+  if (
+    !Object.keys(market_summary).length &&
+    !position_alerts.length &&
+    !market_pressure
+  ) {
     return undefined;
   }
 
   const boxed: Record<string, unknown> = { position_alerts };
   if (Object.keys(market_summary).length) {
     boxed.market_summary = market_summary;
+  }
+  if (market_pressure) {
+    boxed.market_pressure = market_pressure;
   }
   return boxed;
 }

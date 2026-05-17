@@ -16,10 +16,12 @@ import {
 } from "../../utils/valuation";
 import {
   activeAuctionEntriesForTeam,
+  isActiveAuctionEntry,
   leagueWideAuctionSlotsRemaining,
+  rosterSlotsPerTeam,
 } from "../../pages/command-center-utils/roster";
 import { LOWER_IS_BETTER_CATS } from "../../pages/commandCenterUtils";
-import { buildInflationKpi, enginePlayersKpiCopy } from "../../pages/commandCenterMarket";
+import { buildMarketPressureViewModel } from "../../pages/commandCenterMarket";
 import { useProjectedStandings } from "../../pages/useProjectedStandings";
 import { resolvedLeagueTeamNames } from "../../utils/team";
 import { CommandCenterDraftLog } from "./CommandCenterDraftLog";
@@ -136,17 +138,27 @@ export function CommandCenterRightPanel({
   const myTeamNameTrim = myTeamName.trim();
   const isMyTeam = (name: string) =>
     myTeamNameTrim !== "" && name.trim() === myTeamNameTrim;
-  const inflationKpi = buildInflationKpi(engineMarket, import.meta.env.DEV);
+  const leagueWideSpotsLeft =
+    league != null ? leagueWideAuctionSlotsRemaining(league, rosterEntries) : null;
+  const activeKeeperCount = useMemo(
+    () =>
+      rosterEntries.filter((e) => e.isKeeper && isActiveAuctionEntry(e)).length,
+    [rosterEntries],
+  );
+  const leagueSlotCapacity =
+    league != null ? rosterSlotsPerTeam(league) * league.teams : null;
 
-  const leagueWideSpotsLeft = league != null ? leagueWideAuctionSlotsRemaining(league, rosterEntries) : null;
-  const enginePlayersKpi = engineMarket
-    ? enginePlayersKpiCopy(
-        engineMarket.players_remaining,
-        engineMarket.valuations?.length ?? 0,
-        leagueWideSpotsLeft,
-      )
-    : null;
-  const marketClass = inflationKpi.marketClass;
+  const marketPressure = useMemo(
+    () =>
+      engineMarket
+        ? buildMarketPressureViewModel(engineMarket, import.meta.env.DEV, {
+            leagueWideOpenSlots: leagueWideSpotsLeft,
+            keeperCount: activeKeeperCount,
+            leagueSlotCapacity,
+          })
+        : null,
+    [engineMarket, leagueWideSpotsLeft, activeKeeperCount, leagueSlotCapacity],
+  );
 
   const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
   const selectedValuationRow =
@@ -202,15 +214,7 @@ export function CommandCenterRightPanel({
         }
       />
 
-      <CommandCenterRightMarketPressureCard
-        engineMarket={engineMarket}
-        marketClass={marketClass}
-        inflationTitle={inflationKpi.title}
-        inflationGaugeValue={inflationKpi.gaugeValue}
-        isReplacementSlotsV2={inflationKpi.isReplacementSlotsV2}
-        enginePlayersKpiLabel={enginePlayersKpi?.label}
-        enginePlayersKpiTitle={enginePlayersKpi?.title}
-      />
+      <CommandCenterRightMarketPressureCard marketPressure={marketPressure} />
 
       <CommandCenterRightRosterPane
         rightRosterPane={rightRosterPane}
