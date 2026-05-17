@@ -127,6 +127,7 @@ export function PlayerTableControls({
 
   return (
     <div className="pt-controls">
+      <div className="pt-controls-main">
       <div className="pt-search">
         <Search size={15} className="pt-search-icon" />
         <input
@@ -234,7 +235,7 @@ export function PlayerTableControls({
             Model rank & tiers
           </button>
         )}
-        <div className="pt-tag-wrap">
+        <div className="pt-tag-wrap" ref={tagDropdownRef}>
           <button
             type="button"
             className={"pt-toggle" + (selectedTags.size > 0 ? " active" : "")}
@@ -244,7 +245,7 @@ export function PlayerTableControls({
             Tags{selectedTags.size > 0 ? ` (${selectedTags.size})` : ""}
           </button>
           {tagDropdownOpen && (
-            <div className="pt-tag-dropdown" ref={tagDropdownRef}>
+            <div className="pt-tag-dropdown">
               {PLAYER_TABLE_FILTER_TAGS.map((tag) => (
                 <label key={tag} className="pt-tag-option">
                   <input
@@ -273,6 +274,7 @@ export function PlayerTableControls({
         >
           <RotateCcw size={14} />
         </button>
+      </div>
       </div>
       {onStatBasisChange && (
         <div className="pt-basis-pills">
