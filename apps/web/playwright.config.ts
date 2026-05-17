@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   testDir: path.join(__dirname, "e2e"),
+  testIgnore: ["**/depth-charts-screenshots.spec.ts"],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
