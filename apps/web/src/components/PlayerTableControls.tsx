@@ -10,12 +10,6 @@ import {
   positionFilterAfterStatViewChange,
   positionFilterOptionsForStatView,
 } from "../domain/playerTablePositions";
-import {
-  RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP,
-  RESEARCH_ENGINE_POOL_FILTER_LABELS,
-  RESEARCH_ENGINE_POOL_FILTER_TOOLTIP,
-  type ResearchDraftablePoolFilter,
-} from "../domain/draftablePoolSemantics";
 import { AppSelect, type AppSelectOption } from "./AppSelect";
 
 export type PlayerTableControlsProps = {
@@ -44,10 +38,6 @@ export type PlayerTableControlsProps = {
   /** Research layout: optional model rank + tier columns. */
   researchModelColumns?: boolean;
   onResearchModelColumnsToggle?: () => void;
-  /** Research: Engine draftable pool filter. */
-  researchDraftablePoolFilter?: ResearchDraftablePoolFilter;
-  onResearchDraftablePoolFilterChange?: (v: ResearchDraftablePoolFilter) => void;
-  researchDraftablePoolFilterDisabled?: boolean;
 };
 
 const AVAILABILITY_OPTIONS: AppSelectOption[] = [
@@ -96,9 +86,6 @@ export function PlayerTableControls({
   onStatBasisChange,
   researchModelColumns,
   onResearchModelColumnsToggle,
-  researchDraftablePoolFilter,
-  onResearchDraftablePoolFilterChange,
-  researchDraftablePoolFilterDisabled,
 }: PlayerTableControlsProps) {
   const positionOptions = useMemo<AppSelectOption[]>(() => {
     const rows = positionFilterOptionsForStatView(statView).map((p) => ({
@@ -107,23 +94,6 @@ export function PlayerTableControls({
     }));
     return [{ value: "all", label: "Position (All)" }, ...rows];
   }, [statView]);
-
-  const poolOptions = useMemo<AppSelectOption[]>(() => {
-    const d = Boolean(researchDraftablePoolFilterDisabled);
-    return [
-      { value: "all", label: RESEARCH_ENGINE_POOL_FILTER_LABELS.all },
-      {
-        value: "draftable",
-        label: RESEARCH_ENGINE_POOL_FILTER_LABELS.inEnginePool,
-        disabled: d,
-      },
-      {
-        value: "replacement",
-        label: RESEARCH_ENGINE_POOL_FILTER_LABELS.outsideEnginePool,
-        disabled: d,
-      },
-    ];
-  }, [researchDraftablePoolFilterDisabled]);
 
   return (
     <div className="pt-controls">
@@ -140,7 +110,8 @@ export function PlayerTableControls({
         />
       </div>
 
-      <div className="pt-filters">
+      <div className="pt-toolbar">
+        <div className="pt-toolbar__start">
         <div className="pt-filter-group">
         <AppSelect
           className={PT_FILTER_FIELD}
@@ -152,27 +123,6 @@ export function PlayerTableControls({
           options={AVAILABILITY_OPTIONS}
           aria-label="Availability filter"
         />
-
-        {onResearchDraftablePoolFilterChange &&
-          researchDraftablePoolFilter !== undefined && (
-            <AppSelect
-              className={PT_FILTER_FIELD}
-              compact
-              value={researchDraftablePoolFilter}
-              onChange={(v) =>
-                onResearchDraftablePoolFilterChange(
-                  v as ResearchDraftablePoolFilter,
-                )
-              }
-              options={poolOptions}
-              title={
-                researchDraftablePoolFilterDisabled
-                  ? RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP
-                  : RESEARCH_ENGINE_POOL_FILTER_TOOLTIP
-              }
-              aria-label="Engine pool filter"
-            />
-          )}
 
         <AppSelect
           className={PT_FILTER_FIELD}
@@ -220,8 +170,8 @@ export function PlayerTableControls({
           }
           onClick={onStarredOnlyToggle}
         >
-          <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} />
-          Starred only
+          <Star size={13} fill={starredOnly ? "#fbbf24" : "none"} aria-hidden />
+          Starred
         </button>
         {onResearchModelColumnsToggle && (
           <button
@@ -232,7 +182,10 @@ export function PlayerTableControls({
             title="Show catalog model rank and model tier columns (catalog / preseason buckets). Auction tier and rank stay in their own columns when Engine data is loaded."
             onClick={onResearchModelColumnsToggle}
           >
-            Model rank & tiers
+            <span className="pt-toggle__label pt-toggle__label--long">Model rank</span>
+            <span className="pt-toggle__label pt-toggle__label--short" aria-hidden>
+              Model
+            </span>
           </button>
         )}
         <div className="pt-tag-wrap" ref={tagDropdownRef}>
@@ -242,7 +195,7 @@ export function PlayerTableControls({
             onClick={onTagDropdownToggle}
           >
             <Tag size={13} />
-            Tags{selectedTags.size > 0 ? ` (${selectedTags.size})` : ""}
+            Tags{selectedTags.size > 0 ? ` · ${selectedTags.size}` : ""}
           </button>
           {tagDropdownOpen && (
             <div className="pt-tag-dropdown">
@@ -268,30 +221,36 @@ export function PlayerTableControls({
 
         <button
           type="button"
-          className="pt-icon-btn"
+          className="pt-icon-btn pt-reset-btn"
           title="Reset filters"
+          aria-label="Reset filters"
           onClick={onResetFilters}
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={14} aria-hidden />
         </button>
-      </div>
-      </div>
-      {onStatBasisChange && (
-        <div className="pt-basis-pills">
-          {statBasisAllValues().map((b) => (
-            <button
-              key={b}
-              type="button"
-              className={
-                "pt-pill " + ((statBasis ?? "projections") === b ? "active" : "")
-              }
-              onClick={() => onStatBasisChange(b)}
-            >
-              {statBasisPillLabel(b)}
-            </button>
-          ))}
         </div>
-      )}
+
+        {onStatBasisChange && (
+          <div className="pt-basis-pills">
+            <span className="pt-basis-pills-label" aria-hidden>
+              Stats
+            </span>
+            {statBasisAllValues().map((b) => (
+              <button
+                key={b}
+                type="button"
+                className={
+                  "pt-pill " + ((statBasis ?? "projections") === b ? "active" : "")
+                }
+                onClick={() => onStatBasisChange(b)}
+              >
+                {statBasisPillLabel(b)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      </div>
     </div>
   );
 }
