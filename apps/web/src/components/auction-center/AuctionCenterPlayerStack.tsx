@@ -2,11 +2,9 @@ import type { ValuationResult } from "../../api/engine";
 import type { Player } from "../../types/player";
 import type { AuctionCenterCategoryImpactRow } from "../../pages/command-center-utils/categoryImpactRows";
 import {
-  AUCTION_RANK_TOOLTIP,
-  marketAdpDetailTooltip,
-  MODEL_RANK_TOOLTIP,
-} from "../../domain/rankTierLabels";
-import { displayAuctionTier } from "../../domain/playerRankTier";
+  commandCenterIdentityAuctionTier,
+  commandCenterIdentityRanks,
+} from "../../domain/auctionCenterValuation";
 import type { BoardValuationUiPhase } from "../../domain/boardValuationFetchPhase";
 import type { CommandCenterWalletCaps } from "../../utils/valuation";
 import { AuctionCenterPlayerImpact } from "./AuctionCenterPlayerImpact";
@@ -19,11 +17,6 @@ interface AuctionCenterPlayerStackProps {
   draftableSlots?: string[];
   mergedValuationRow: ValuationResult | undefined;
   rowForValuationUi: ValuationResult | undefined;
-  identityValueVsBidBadge: {
-    deltaText: string;
-    label: string;
-    tone: "pos" | "neg" | "muted";
-  } | null;
   getNote: (id: string) => string;
   setNote: (id: string, value: string) => void;
   isInWatchlist: (id: string) => boolean;
@@ -34,6 +27,8 @@ interface AuctionCenterPlayerStackProps {
   hittingCats: { name: string; type: "batting" | "pitching" }[];
   engineBoardPhase: BoardValuationUiPhase;
   walletCaps: CommandCenterWalletCaps | null;
+  auctionRankByPlayerId?: ReadonlyMap<string, number>;
+  engineBoardLoaded: boolean;
 }
 
 export function AuctionCenterPlayerStack({
@@ -42,7 +37,6 @@ export function AuctionCenterPlayerStack({
   draftableSlots = [],
   mergedValuationRow,
   rowForValuationUi,
-  identityValueVsBidBadge,
   getNote,
   setNote,
   isInWatchlist,
@@ -53,61 +47,34 @@ export function AuctionCenterPlayerStack({
   hittingCats,
   engineBoardPhase,
   walletCaps,
+  auctionRankByPlayerId,
+  engineBoardLoaded,
 }: AuctionCenterPlayerStackProps) {
   const rowUi = mergedValuationRow;
-  const rawEngineTier = rowUi?.auction_tier ?? rowUi?.tier;
-  const tierFromRow =
-    typeof rawEngineTier === "number" &&
-    Number.isFinite(rawEngineTier) &&
-    rawEngineTier > 0
-      ? rawEngineTier
-      : undefined;
-  const tierValue =
-    tierFromRow ??
-    displayAuctionTier(selectedPlayer) ??
-    selectedPlayer.catalog_tier;
+  const { tierValue, tierKind } = commandCenterIdentityAuctionTier(
+    selectedPlayer,
+    rowUi,
+    auctionRankByPlayerId,
+    engineBoardLoaded,
+  );
 
-  const marketAdp = rowUi?.market_adp ?? selectedPlayer.market_adp;
-  const auctionRank =
-    rowUi?.auction_rank ?? selectedPlayer.auction_rank;
-
-  let rankLabel: string;
-  let rankValue: number;
-  let rankTitle: string;
-  if (typeof marketAdp === "number" && Number.isFinite(marketAdp)) {
-    rankLabel = "Market ADP";
-    rankValue = marketAdp;
-    rankTitle = marketAdpDetailTooltip({
-      market_adp_source:
-        rowUi?.market_adp_source ?? selectedPlayer.market_adp_source,
-      market_adp_updated_at:
-        rowUi?.market_adp_updated_at ?? selectedPlayer.market_adp_updated_at,
-      market_adp_min: rowUi?.market_adp_min ?? selectedPlayer.market_adp_min,
-      market_adp_max: rowUi?.market_adp_max ?? selectedPlayer.market_adp_max,
-      market_pick_count:
-        rowUi?.market_pick_count ?? selectedPlayer.market_pick_count,
-    });
-  } else if (typeof auctionRank === "number" && Number.isFinite(auctionRank)) {
-    rankLabel = "Auction rank";
-    rankValue = auctionRank;
-    rankTitle = AUCTION_RANK_TOOLTIP;
-  } else {
-    rankLabel = "Model rank";
-    rankValue = selectedPlayer.catalog_rank;
-    rankTitle = MODEL_RANK_TOOLTIP;
-  }
+  const { displayPlayer, marketAdp, auctionRank } = commandCenterIdentityRanks(
+    selectedPlayer,
+    rowUi,
+    auctionRankByPlayerId,
+  );
 
   return (
     <>
       <PlayerIdentityCard
-        selectedPlayer={selectedPlayer}
+        selectedPlayer={displayPlayer}
         draftPrimaryTags={draftPrimaryTags}
         draftableSlots={draftableSlots}
         tierValue={tierValue}
-        rankLabel={rankLabel}
-        rankValue={rankValue}
-        rankTitle={rankTitle}
-        valueVsBidBadge={identityValueVsBidBadge}
+        tierKind={tierKind}
+        marketAdp={marketAdp}
+        auctionRank={auctionRank}
+        modelRank={displayPlayer.catalog_rank}
         isInWatchlist={isInWatchlist}
         playerNote={
           (getNote(selectedPlayer.id) || selectedPlayer.outlook) ?? ""

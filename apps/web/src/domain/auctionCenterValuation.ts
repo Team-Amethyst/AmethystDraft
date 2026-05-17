@@ -3,6 +3,8 @@ import type { Player } from "../types/player";
 import {
   formatDollar,
   leagueWideAuctionDollarsForDisplay,
+  mergePlayerWithValuation,
+  normalizeValuationPlayerId,
   valuationExplainHasRiskRoleContent,
 } from "../utils/valuation";
 
@@ -137,6 +139,129 @@ export function commandCenterSearchDropdownAuctionDollars(
   }
   const fromCatalog = leagueWideAuctionDollarsForDisplay(player);
   return fromCatalog !== undefined ? fromCatalog : null;
+}
+
+/**
+ * League-wide auction order by {@link ValuationResult.auction_value} (see `AUCTION_RANK_TOOLTIP`).
+ * Board payloads sometimes carry a stale or position-local `auction_rank`; derived ranks stay
+ * consistent with displayed auction dollars.
+ */
+export function deriveAuctionRanksByPlayerId(
+  valuations: readonly ValuationResult[],
+): Map<string, number> {
+  const sortable = valuations
+    .map((v) => {
+      const id = normalizeValuationPlayerId(v.player_id);
+      const av = engineFiniteOrNull(v.auction_value ?? null);
+      return id && av != null ? { id, av } : null;
+    })
+    .filter((x): x is { id: string; av: number } => x != null);
+  sortable.sort((a, b) => {
+    const byValue = b.av - a.av;
+    if (byValue !== 0) return byValue;
+    return a.id.localeCompare(b.id);
+  });
+  const ranks = new Map<string, number>();
+  sortable.forEach((row, index) => {
+    ranks.set(row.id, index + 1);
+  });
+  return ranks;
+}
+
+/** Apply derived auction order onto a valuation row (`adp` mirrors `auction_rank`). */
+export function withDerivedAuctionRank(
+  row: ValuationResult,
+  auctionRank: number,
+): ValuationResult {
+  return { ...row, auction_rank: auctionRank, adp: auctionRank };
+}
+
+/**
+ * Auction tier quintile (1 = top ~20% by league auction value) from global rank in the
+ * valued pool. Matches Engine `auction_tier` semantics in `AUCTION_TIER_TOOLTIP`.
+ */
+export function deriveAuctionTierFromRank(
+  auctionRank: number,
+  poolSize: number,
+): number {
+  if (!Number.isFinite(auctionRank) || auctionRank < 1 || poolSize < 1) return 0;
+  const bucketSize = Math.max(1, Math.ceil(poolSize / 5));
+  return Math.min(5, Math.max(1, Math.floor((auctionRank - 1) / bucketSize) + 1));
+}
+
+/** Mirror derived auction tier onto the valuation row (`tier` legacy field included). */
+export function withDerivedAuctionTier(
+  row: ValuationResult,
+  auctionTier: number,
+): ValuationResult {
+  return { ...row, auction_tier: auctionTier, tier: auctionTier };
+}
+
+export type CommandCenterTierKind = "auction" | "model";
+
+/**
+ * Command Center `T{n}` badge: auction quintile from derived board rank when the engine
+ * board is loaded. Do not show model `catalog_tier` as `T1` while auction rank is 358.
+ */
+export function commandCenterIdentityAuctionTier(
+  player: Player,
+  row: ValuationResult | undefined,
+  auctionRankByPlayerId: ReadonlyMap<string, number> | undefined,
+  engineBoardLoaded: boolean,
+): { tierValue: number | undefined; tierKind: CommandCenterTierKind } {
+  const pid = normalizeValuationPlayerId(player.id);
+  const poolSize = auctionRankByPlayerId?.size ?? 0;
+  const derivedRank =
+    pid && auctionRankByPlayerId
+      ? engineFiniteOrNull(auctionRankByPlayerId.get(pid) ?? null)
+      : null;
+  if (derivedRank != null && poolSize > 0) {
+    const tier = deriveAuctionTierFromRank(derivedRank, poolSize);
+    if (tier > 0) return { tierValue: tier, tierKind: "auction" };
+  }
+
+  const rowTier = engineFiniteOrNull(row?.auction_tier ?? row?.tier ?? null);
+  if (rowTier != null && rowTier > 0) {
+    return { tierValue: rowTier, tierKind: "auction" };
+  }
+
+  if (!engineBoardLoaded) {
+    const modelTier =
+      engineFiniteOrNull(player.auction_tier ?? null) ??
+      engineFiniteOrNull(player.catalog_tier ?? null);
+    if (modelTier != null && modelTier > 0) {
+      return { tierValue: modelTier, tierKind: "model" };
+    }
+  }
+
+  return { tierValue: undefined, tierKind: "auction" };
+}
+
+/**
+ * Command Center player header ranks — same engine merge as Research, but auction rank
+ * only from the board row's `auction_rank` (never catalog_rank, legacy `adp`, or stale
+ * fields on `selectedPlayer`).
+ */
+export function commandCenterIdentityRanks(
+  player: Player,
+  row: ValuationResult | undefined,
+  auctionRankByPlayerId?: ReadonlyMap<string, number>,
+): {
+  displayPlayer: Player;
+  marketAdp: number | null;
+  auctionRank: number | null;
+} {
+  const displayPlayer = mergePlayerWithValuation(player, row);
+  const pid = normalizeValuationPlayerId(player.id);
+  const derived =
+    pid && auctionRankByPlayerId
+      ? engineFiniteOrNull(auctionRankByPlayerId.get(pid) ?? null)
+      : null;
+  return {
+    displayPlayer,
+    marketAdp: engineFiniteOrNull(displayPlayer.market_adp),
+    auctionRank: derived ?? engineFiniteOrNull(row?.auction_rank),
+  };
 }
 
 /** Merge engine row with catalog `Player` optional valuation fields when the row omits them. */
