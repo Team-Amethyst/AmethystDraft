@@ -105,7 +105,7 @@ describe("PlayerDetailModal valuation strip", () => {
       <PlayerDetailModal
         isOpen
         player={player}
-        depthChartOnly
+        depthChartOnlyMode="depth_only"
         depthChartContext={{
           depthRank: 2,
           chartPosition: "SS",
@@ -118,8 +118,10 @@ describe("PlayerDetailModal valuation strip", () => {
       />,
     );
 
-    expect(screen.getAllByText("No valuation").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/visible from depth chart data/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("No valuation available")).toBeTruthy();
+    expect(
+      screen.getByText(/matched Draftroom player record or Engine valuation/i),
+    ).toBeTruthy();
     const ccBtn = screen.getByRole("button", {
       name: /Draft in Command Center/i,
     }) as HTMLButtonElement;

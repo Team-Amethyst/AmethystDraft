@@ -13,6 +13,14 @@ export const NO_VALUATION_INELIGIBLE_DETAIL =
 export const NO_VALUATION_DEPTH_CHART_DETAIL =
   "This player is visible from depth chart data but is not currently in the valuation model.";
 
+export const DEPTH_CHART_MODAL_NO_VALUATION_TITLE = "No valuation available";
+
+export const DEPTH_CHART_MODAL_DEPTH_ONLY_DETAIL =
+  "This player appears in MLB depth chart data, but does not currently have a matched Draftroom player record or Engine valuation.";
+
+export const DEPTH_CHART_MODAL_CATALOG_ONLY_DETAIL =
+  "This player exists in Draftroom's player catalog, but is not currently included in the Engine valuation pool.";
+
 export const WATCHLIST_REQUIRES_CATALOG_TOOLTIP =
   "Watchlist and notes require a catalog player record. This depth chart player is not in the valuation catalog yet.";
 

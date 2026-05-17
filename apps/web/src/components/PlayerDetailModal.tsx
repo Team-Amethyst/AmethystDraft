@@ -44,7 +44,9 @@ import type { DepthChartModalContext } from "../domain/depthChartPlayerProfile";
 import {
   COMMAND_CENTER_REQUIRES_CATALOG_TOOLTIP,
   WATCHLIST_REQUIRES_CATALOG_TOOLTIP,
-  NO_VALUATION_DEPTH_CHART_DETAIL,
+  DEPTH_CHART_MODAL_CATALOG_ONLY_DETAIL,
+  DEPTH_CHART_MODAL_DEPTH_ONLY_DETAIL,
+  DEPTH_CHART_MODAL_NO_VALUATION_TITLE,
   NO_VALUATION_INELIGIBLE_DETAIL,
   NO_VALUATION_LABEL,
 } from "../domain/playerValuationCopy";
@@ -92,9 +94,10 @@ interface PlayerDetailModalProps {
   /** League roster keys for header position chips (hides DH / UTIL / BN). */
   draftDisplaySlotKeys?: string[];
   /**
-   * Depth chart row without a Research catalog match — show identity only, no Engine metrics.
+   * Depth chart row opened without full Engine valuation UI.
+   * `depth_only` = no catalog match; `catalog_only` = catalog without valuation pool row.
    */
-  depthChartOnly?: boolean;
+  depthChartOnlyMode?: "depth_only" | "catalog_only" | null;
   depthChartContext?: DepthChartModalContext | null;
 }
 
@@ -341,9 +344,10 @@ export default function PlayerDetailModal({
   researchSurface = false,
   researchShowModelMetrics = false,
   draftDisplaySlotKeys,
-  depthChartOnly = false,
+  depthChartOnlyMode = null,
   depthChartContext = null,
 }: PlayerDetailModalProps) {
+  const depthChartOnly = depthChartOnlyMode != null;
   useEffect(() => {
     if (!isOpen || !player) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -414,10 +418,14 @@ export default function PlayerDetailModal({
         aria-label={`${player.name} details`}
       >
         <div className="pdm-body">
-        {depthChartOnly ? (
+        {depthChartOnlyMode ? (
           <div className="pdm-depth-only-notice" role="status">
-            <strong>{NO_VALUATION_LABEL}</strong>
-            <p>{NO_VALUATION_DEPTH_CHART_DETAIL}</p>
+            <strong>{DEPTH_CHART_MODAL_NO_VALUATION_TITLE}</strong>
+            <p>
+              {depthChartOnlyMode === "catalog_only"
+                ? DEPTH_CHART_MODAL_CATALOG_ONLY_DETAIL
+                : DEPTH_CHART_MODAL_DEPTH_ONLY_DETAIL}
+            </p>
             {depthChartContext ? (
               <p className="pdm-depth-only-notice__meta">
                 Depth chart: {depthChartContext.chartPosition} · rank #
