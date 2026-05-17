@@ -108,6 +108,45 @@ describe("sortPlayerTableRows", () => {
     expect(out.map((r) => r.player.id)).toEqual(["b", "a"]);
   });
 
+  it("sorts drafted players by price paid when research auction context is set", () => {
+    const rows = [
+      {
+        player: player("sold", {
+          name: "Sold",
+          catalog_rank: 1,
+          catalog_tier: 1,
+          auction_value: 5,
+          valuation_eligible: false,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+      {
+        player: player("free", {
+          name: "Free",
+          catalog_rank: 2,
+          catalog_tier: 1,
+          auction_value: 20,
+        }),
+        isBatter: true,
+        tags: [],
+      },
+    ];
+    const out = sortPlayerTableRows(
+      rows,
+      { col: "value", dir: "desc" },
+      batCols,
+      pitCols,
+      "auction_value",
+      basis,
+      {
+        draftedIds: new Set(["sold"]),
+        draftedPriceByPlayerId: new Map([["sold", 30]]),
+      },
+    );
+    expect(out.map((r) => r.player.id)).toEqual(["sold", "free"]);
+  });
+
   it("sorts by market ADP ascending (missing last)", () => {
     const rows = [
       {

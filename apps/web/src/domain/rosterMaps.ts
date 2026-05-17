@@ -36,3 +36,16 @@ export function buildKeeperContractByPlayerMap(
   }
   return map;
 }
+
+/** `externalPlayerId` → draft price paid (for display when auction value is cleared). */
+export function buildDraftedPriceByPlayerMap(
+  rosterEntries: readonly RosterEntry[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const e of rosterEntries) {
+    if (typeof e.price === "number" && Number.isFinite(e.price)) {
+      map.set(e.externalPlayerId, e.price);
+    }
+  }
+  return map;
+}

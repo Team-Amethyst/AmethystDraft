@@ -25,12 +25,14 @@ import {
   normalizeValuationPlayerId,
   BID_EDGE_TOOLTIP,
   REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
+  bidEdgeDisplayTone,
   playerBidEdgeDollars,
   playerRosterEdgeDollars,
   playerValuationEdgeOrDiff,
   RECOMMENDED_BID_VS_AUCTION_VALUE_COPY,
   RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP,
   ROSTER_EDGE_TOOLTIP,
+  RESEARCH_TABLE_FOOTER_AUCTION_ROUNDING_COPY,
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   resolveValuationNumber,
   valuationExplainHasRiskRoleContent,
@@ -246,25 +248,24 @@ describe("valuation helpers", () => {
       expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toBe(BID_EDGE_TOOLTIP);
     });
 
-    it("Research footer directs users to Player Detail for non-table metrics", () => {
+    it("Research footer explains rounding shelves and Player Detail ladder", () => {
+      expect(RESEARCH_TABLE_FOOTER_AUCTION_ROUNDING_COPY).toContain(
+        "Whole-dollar",
+      );
+      expect(RESEARCH_TABLE_FOOTER_AUCTION_ROUNDING_COPY).toContain(
+        "Auction Rank",
+      );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
         "Open a player",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "suggested bid",
-      );
-      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain("bid edge");
-      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).not.toContain(
-        "Roster Edge",
+        "raw value",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "baseline strength",
+        "surplus basis",
       );
       expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "team value",
-      );
-      expect(RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY).toContain(
-        "auction value",
+        "Why this value",
       );
     });
 
@@ -303,6 +304,13 @@ describe("valuation helpers", () => {
           team_value: "26",
         } as unknown as Player),
       ).toBe(-4);
+    });
+
+    it("bidEdgeDisplayTone matches Command Center ladder tones", () => {
+      expect(bidEdgeDisplayTone(undefined)).toBe("muted");
+      expect(bidEdgeDisplayTone(5)).toBe("pos");
+      expect(bidEdgeDisplayTone(-3)).toBe("neg");
+      expect(bidEdgeDisplayTone(0)).toBe("zero");
     });
 
     it("playerBidEdgeDollars matches playerValuationEdgeOrDiff", () => {
@@ -641,7 +649,7 @@ describe("valuation helpers", () => {
       rosterSlots: { OF: 3, UTIL: 1, BN: 1, C: 1, "1B": 1 },
       budget: 260,
     } as Pick<League, "rosterSlots" | "budget">;
-    const entries = Array.from({ length: 8 }, (_, i) => ({
+    const entries = Array.from({ length: 8 }, () => ({
       price: 10,
       positions: ["OF"],
       position: "OF",

@@ -9,6 +9,7 @@ import {
   formatValuationExplainAgeDepthComponent,
   isMeaningfulExplainMultiplier,
   BID_EDGE_TOOLTIP,
+  bidEdgeDisplayTone,
   formatSignedDollarWhole,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_MAX_BID,
@@ -19,6 +20,7 @@ import {
   valuationTooltip,
 } from "../utils/valuation";
 import { buildPlayerDetailValuationLadder } from "../domain/playerDetailValuationLadder";
+import { formatAuctionValueRaw } from "../domain/researchAuctionValueDisplay";
 import {
   formatSignedWhole,
   summarizeDriverReason,
@@ -162,6 +164,82 @@ function whyThisValueHasExpandableContent(
     explainSectionBHasContent(explain) ||
     explainSectionCHasContent(explain, boardWarnings) ||
     hasBaseline
+  );
+}
+
+function PlayerDetailValuationSummary({
+  player,
+  marketValue,
+}: {
+  player: Player;
+  marketValue: number | null;
+}) {
+  const explain = player.valuation_explain;
+  const hasSummary =
+    (marketValue != null && Number.isFinite(marketValue)) ||
+    (typeof player.auction_rank === "number" && Number.isFinite(player.auction_rank)) ||
+    Boolean(explain?.surplus_basis) ||
+    Boolean(explain?.replacement_key_used) ||
+    (typeof player.auction_tier === "number" && Number.isFinite(player.auction_tier)) ||
+    explain?.inflation_factor != null ||
+    explain?.pool_to_slot_ratio != null ||
+    Boolean(player.explain_v2?.indicator);
+
+  if (!hasSummary) return null;
+
+  return (
+    <dl className="pdm-explain-kv-dl pdm-valuation-summary-dl" aria-label="Value breakdown">
+      {marketValue != null && Number.isFinite(marketValue) ? (
+        <>
+          <dt>Raw auction value</dt>
+          <dd>{formatAuctionValueRaw(marketValue)}</dd>
+          <dt>Displayed (rounded)</dt>
+          <dd>{formatCurrencyWhole(marketValue)}</dd>
+        </>
+      ) : null}
+      {typeof player.auction_rank === "number" && Number.isFinite(player.auction_rank) ? (
+        <>
+          <dt title={AUCTION_RANK_TOOLTIP}>Auction rank</dt>
+          <dd>{player.auction_rank}</dd>
+        </>
+      ) : null}
+      {explain?.surplus_basis ? (
+        <>
+          <dt>Surplus basis</dt>
+          <dd>{explain.surplus_basis}</dd>
+        </>
+      ) : null}
+      {explain?.replacement_key_used ? (
+        <>
+          <dt title={REPLACEMENT_COMPARISON_SLOT_TOOLTIP}>Assigned comparison slot</dt>
+          <dd>{explain.replacement_key_used}</dd>
+        </>
+      ) : null}
+      {typeof player.auction_tier === "number" && Number.isFinite(player.auction_tier) ? (
+        <>
+          <dt title={AUCTION_TIER_TOOLTIP}>Auction tier</dt>
+          <dd>{player.auction_tier}</dd>
+        </>
+      ) : null}
+      {explain?.pool_to_slot_ratio != null ? (
+        <>
+          <dt>Pool / slot ratio</dt>
+          <dd>{formatPoolToSlotRatio(explain.pool_to_slot_ratio)}</dd>
+        </>
+      ) : null}
+      {explain?.inflation_factor != null ? (
+        <>
+          <dt>Inflation factor (allocator)</dt>
+          <dd>{formatInflationFactorMultiple(explain.inflation_factor)}</dd>
+        </>
+      ) : null}
+      {player.explain_v2?.indicator ? (
+        <>
+          <dt>Market pressure</dt>
+          <dd>{player.explain_v2.indicator}</dd>
+        </>
+      ) : null}
+    </dl>
   );
 }
 
@@ -388,6 +466,7 @@ export default function PlayerDetailModal({
     bidEdge,
     maxBidEqualsRecommended,
   } = valuationLadder;
+  const bidEdgeTone = bidEdgeDisplayTone(bidEdge);
 
   const showValuationContextDebug =
     isValuationContextDebugEnabled() &&
@@ -402,6 +481,10 @@ export default function PlayerDetailModal({
 
   const showWhyThisValue =
     valuationExplainLoading ||
+    (researchSurface &&
+      player.valuation_eligible !== false &&
+      marketValue != null &&
+      Number.isFinite(marketValue)) ||
     whyThisValueHasExpandableContent(
       player.valuation_explain ?? null,
       valuationContextWarnings,
@@ -617,6 +700,14 @@ export default function PlayerDetailModal({
                       formatCurrencyWhole(marketValue)
                     )}
                   </span>
+                  {!maskEngineMetrics &&
+                  marketValue != null &&
+                  Number.isFinite(marketValue) &&
+                  Math.round(marketValue) !== marketValue ? (
+                    <span className="pdm-metric-raw" title="Unrounded model auction value">
+                      {formatAuctionValueRaw(marketValue)} raw
+                    </span>
+                  ) : null}
                 </div>
                 <div className="pdm-metric" role="listitem">
                   <span
@@ -649,7 +740,12 @@ export default function PlayerDetailModal({
                   <span className="pdm-metric-label" title={BID_EDGE_TOOLTIP}>
                     Bid Edge
                   </span>
-                  <span className="pdm-metric-value">
+                  <span
+                    className={
+                      "pdm-metric-value pdm-metric-value--bid-edge pdm-metric-value--bid-edge-" +
+                      bidEdgeTone
+                    }
+                  >
                     {maskEngineMetrics && bidEdge === undefined ? (
                       <ResearchEngineValueLoading label="Loading bid edge" />
                     ) : (
@@ -740,6 +836,10 @@ export default function PlayerDetailModal({
                       Loading explanation…
                     </p>
                   ) : null}
+                  <PlayerDetailValuationSummary
+                    player={player}
+                    marketValue={marketValue}
+                  />
                   {typeof player.baseline_value === "number" &&
                   Number.isFinite(player.baseline_value) ? (
                     <dl className="pdm-explain-kv-dl pdm-baseline-strength-dl">

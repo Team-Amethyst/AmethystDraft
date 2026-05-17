@@ -423,3 +423,18 @@ export function researchTablePrimaryPositionParts(
 
   return out;
 }
+
+/** Scarcity counts aligned with {@link researchTablePrimaryPositionParts} (each badge counts once). */
+export function countResearchTablePositionParts(
+  players: readonly { positions?: string[]; position: string }[],
+  rosterSlotKeys?: readonly string[] | null,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const player of players) {
+    const parts = researchTablePrimaryPositionParts(player, rosterSlotKeys);
+    for (const pos of parts) {
+      counts[pos] = (counts[pos] ?? 0) + 1;
+    }
+  }
+  return counts;
+}

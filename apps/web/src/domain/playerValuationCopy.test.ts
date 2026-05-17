@@ -6,10 +6,10 @@ import {
 } from "./playerValuationCopy";
 
 describe("playerValuationCopy", () => {
-  it("shows No valuation for ineligible players without dollars", () => {
+  it("leaves auction value blank when dollars are missing", () => {
     expect(
-      formatResearchAuctionValueDisplay(undefined, false),
-    ).toBe(NO_VALUATION_LABEL);
+      formatResearchAuctionValueDisplay(undefined),
+    ).toBe("");
   });
 
   it("uses standardized tooltip for ineligible players", () => {

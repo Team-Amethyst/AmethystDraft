@@ -14,6 +14,10 @@ export const PLAYER_TABLE_POSITIONS = [
   "P",
 ] as const;
 
+/** Standard position order for tier Mix grids and other cross-tier alignment. */
+export const RESEARCH_POSITION_DISPLAY_ORDER: readonly string[] =
+  PLAYER_TABLE_POSITIONS.slice(1);
+
 export const PLAYER_TABLE_HITTER_POSITIONS = [
   "OF",
   "SS",
@@ -39,6 +43,22 @@ export function positionFilterOptionsForStatView(
  * for that mode (e.g. pitcher-only while viewing hitters). Returns `null` if no change.
  */
 const HITTER_SET: ReadonlySet<string> = new Set(PLAYER_TABLE_HITTER_POSITIONS);
+
+const POSITION_DISPLAY_ORDER: ReadonlyMap<string, number> = new Map(
+  RESEARCH_POSITION_DISPLAY_ORDER.map((pos, index) => [pos, index]),
+);
+
+/** Stable position order for tier headers and other cross-row comparisons (Research filter order). */
+export function sortPositionCountEntries(
+  entries: readonly (readonly [string, number])[],
+): [string, number][] {
+  return [...entries].sort((a, b) => {
+    const orderA = POSITION_DISPLAY_ORDER.get(a[0]) ?? 999;
+    const orderB = POSITION_DISPLAY_ORDER.get(b[0]) ?? 999;
+    if (orderA !== orderB) return orderA - orderB;
+    return a[0].localeCompare(b[0]);
+  });
+}
 
 export function positionFilterAfterStatViewChange(
   nextStatView: "all" | "hitting" | "pitching",

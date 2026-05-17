@@ -660,6 +660,35 @@
   color: color-mix(in srgb, white 96%, var(--pdm-label) 4%);
 }
 
+/* Bid Edge — same pos/neg semantics as Command Center ladder */
+.pdm-metric-value--bid-edge--pos {
+  color: #86efac;
+}
+
+.pdm-metric-value--bid-edge--neg {
+  color: #f87171;
+}
+
+.pdm-metric-value--bid-edge--muted,
+.pdm-metric-value--bid-edge--zero {
+  color: color-mix(in srgb, white 62%, var(--pdm-label) 38%);
+}
+
+.pdm-metric-raw {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--pdm-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdm-valuation-summary-dl {
+  margin: 0 0 0.65rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--pdm-label) 18%, transparent);
+}
+
 @media (min-width: 761px) {
   .pdm-metric-value {
     font-size: clamp(calc(1.42rem * 1.2 * 1.135 * 1.13), calc(1.9vw * 1.2 * 1.135 * 1.13), calc(1.62rem * 1.2 * 1.135 * 1.13));

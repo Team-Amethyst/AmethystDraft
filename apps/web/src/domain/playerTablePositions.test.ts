@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   positionFilterAfterStatViewChange,
   positionFilterOptionsForStatView,
+  sortPositionCountEntries,
 } from "./playerTablePositions";
 
 describe("positionFilterAfterStatViewChange", () => {
@@ -19,6 +20,27 @@ describe("positionFilterAfterStatViewChange", () => {
 
   it("keeps P on pitchers view", () => {
     expect(positionFilterAfterStatViewChange("pitching", "P")).toBeNull();
+  });
+});
+
+describe("sortPositionCountEntries", () => {
+  it("orders positions by Research table order, not by count", () => {
+    expect(
+      sortPositionCountEntries([
+        ["P", 8],
+        ["OF", 2],
+        ["SS", 5],
+      ]).map(([pos]) => pos),
+    ).toEqual(["OF", "SS", "P"]);
+  });
+
+  it("places unknown positions after standard slots", () => {
+    expect(
+      sortPositionCountEntries([
+        ["UT", 1],
+        ["C", 2],
+      ]).map(([pos]) => pos),
+    ).toEqual(["C", "UT"]);
   });
 });
 

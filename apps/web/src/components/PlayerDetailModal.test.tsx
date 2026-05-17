@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import PlayerDetailModal from "./PlayerDetailModal";
 import type { Player } from "../types/player";
@@ -56,10 +56,33 @@ describe("PlayerDetailModal valuation strip", () => {
     expect(screen.getByText("Bid Edge")).toBeTruthy();
     expect(screen.queryByText("Roster Edge")).toBeNull();
 
-    expect(screen.getByText("$22")).toBeTruthy();
+    expect(screen.getAllByText("$22").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("$34")).toBeTruthy();
     expect(screen.getByText("$47")).toBeTruthy();
-    expect(screen.getByText("+$13")).toBeTruthy();
+    const bidEdgeValue = screen.getByText("+$13");
+    expect(bidEdgeValue).toBeTruthy();
+    expect(bidEdgeValue.className).toContain("pdm-metric-value--bid-edge-pos");
+  });
+
+  it("colors negative Bid Edge like Command Center", () => {
+    const player = makePlayer({
+      auction_value: 22,
+      team_value: 30,
+      recommended_bid: 40,
+      max_bid: 40,
+    });
+    render(
+      <PlayerDetailModal
+        isOpen
+        player={player}
+        onClose={() => {}}
+        onMoveToCommandCenter={() => {}}
+        researchEngineBoardPhase="ready"
+        researchSurface
+      />,
+    );
+    const bidEdgeValue = screen.getByText("-$10");
+    expect(bidEdgeValue.className).toContain("pdm-metric-value--bid-edge-neg");
   });
 
   it("shows Max Bid in Why this value when it equals Recommended Bid", () => {
@@ -120,7 +143,7 @@ describe("PlayerDetailModal valuation strip", () => {
 
     expect(screen.getByText("No valuation available")).toBeTruthy();
     expect(
-      screen.getByText(/matched Draftroom player record or Engine valuation/i),
+      screen.getByText(/does not have a Draftroom catalog record/i),
     ).toBeTruthy();
     const ccBtn = screen.getByRole("button", {
       name: /Draft in Command Center/i,

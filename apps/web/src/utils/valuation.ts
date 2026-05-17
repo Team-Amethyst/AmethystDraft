@@ -48,13 +48,21 @@ export interface ValuationShape {
 export const RECOMMENDED_BID_VS_AUCTION_VALUE_COPY =
   "Suggested bid is the actionable offer for your roster—not league-wide auction value. It can run above auction value when your team needs the fit; max bid is the hard ceiling.";
 
-/** Research `PlayerTable` footer: Research rows show Auction Value only; open a player for the rest. */
-export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
-  "Open a player for auction value, suggested bid, your team value, bid edge, max bid, and baseline strength under Why this value.";
+/** Research table footer: rounding / rank guidance (value column). */
+export const RESEARCH_TABLE_FOOTER_AUCTION_ROUNDING_COPY =
+  "Whole-dollar auction values are rounded from raw model prices. Use Auction Rank to break ties inside value shelves.";
 
-/** Research `PlayerTable` value column: full hover copy (scanning table, not the explain surface). */
+/** Research `PlayerTable` footer: open player modal for full ladder + explain. */
+export const RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY =
+  "Open a player for raw value, surplus basis, tier, and allocation context under Why this value.";
+
+/** Research `PlayerTable` value column: base hover copy (raw value appended per row). */
 export const RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE =
   "League-wide fair market value for this player in the current auction context. Not your bid cap or team-specific ceiling.";
+
+/** Research Auction Value column header hint. */
+export const RESEARCH_TABLE_HEADER_AUCTION_VALUE_HINT =
+  "Hover a cell for raw model price and auction rank.";
 
 export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
   "Max bid: hard stop for this player given your remaining budget and open roster slots (not the same as recommended bid).";
@@ -181,6 +189,18 @@ export function playerBidEdgeDollars(
   player: Parameters<typeof playerValuationEdgeOrDiff>[0],
 ): ReturnType<typeof playerValuationEdgeOrDiff> {
   return playerValuationEdgeOrDiff(player);
+}
+
+/** UI tone for Bid Edge dollars (matches Command Center ladder). */
+export type BidEdgeTone = "muted" | "pos" | "neg" | "zero";
+
+export function bidEdgeDisplayTone(
+  edge: number | null | undefined,
+): BidEdgeTone {
+  if (edge == null || !Number.isFinite(edge)) return "muted";
+  if (edge > 0) return "pos";
+  if (edge < 0) return "neg";
+  return "zero";
 }
 
 /** Whole dollars; negative amounts render as `-$12`, never `$-12`. */

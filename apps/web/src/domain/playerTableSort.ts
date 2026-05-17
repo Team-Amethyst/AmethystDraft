@@ -4,6 +4,10 @@ import { getDisplayStatValue } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
 import { displayAuctionTier } from "./playerRankTier";
 import {
+  researchTableAuctionDollars,
+  type ResearchTableAuctionDollarsOptions,
+} from "./researchDraftedDisplay";
+import {
   leagueWideAuctionDollarsForDisplay,
   type ValuationSortField,
 } from "../utils/valuation";
@@ -47,6 +51,7 @@ export function sortPlayerTableRows(
   pitCols: string[],
   valuationSortField: ValuationSortField,
   statBasis: StatBasis,
+  researchAuction?: ResearchTableAuctionDollarsOptions,
 ): PlayerTableSortableRow[] {
   const { col, dir } = clientSort;
   const mult = dir === "asc" ? 1 : -1;
@@ -73,7 +78,10 @@ export function sortPlayerTableRows(
     if (col === "value") {
       const sortKey = (p: Player) => {
         if (valuationSortField === "auction_value") {
-          return leagueWideAuctionDollarsForDisplay(p) ?? -Infinity;
+          const dollars = researchAuction?.draftedIds
+            ? researchTableAuctionDollars(p, researchAuction)
+            : leagueWideAuctionDollarsForDisplay(p);
+          return dollars ?? -Infinity;
         }
         if (valuationSortField === "recommended_bid") {
           return asFinite(p.recommended_bid) ?? -Infinity;

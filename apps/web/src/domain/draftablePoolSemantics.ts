@@ -9,7 +9,7 @@
  */
 
 export const TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID =
-  "This player is outside the current engine pool and is priced at the minimum bid.";
+  "This player did not receive a marginal slot assignment on the current board (replacement_slots_v2). Auction value is the league minimum bid ($1), not a catalog exclusion.";
 
 /** Research pool filter dropdown labels (values remain `draftable` / `replacement`). */
 export const RESEARCH_ENGINE_POOL_FILTER_LABELS = {
@@ -89,23 +89,35 @@ export function normalizeDraftablePoolMeta(
   return { kind: "valid", draftableIds, poolSize };
 }
 
+function playerInDraftableIdSet(
+  draftableIds: ReadonlySet<string>,
+  player: { id: string; mlbId?: number },
+): boolean {
+  const id = String(player.id).trim();
+  if (draftableIds.has(id)) return true;
+  if (player.mlbId != null && Number.isFinite(player.mlbId)) {
+    return draftableIds.has(String(Math.trunc(player.mlbId)));
+  }
+  return false;
+}
+
 export function isPlayerInDraftablePool(
   meta: NormalizedDraftablePoolMeta,
-  playerId: string,
+  player: { id: string; mlbId?: number },
 ): boolean | null {
   if (meta.kind !== "valid") return null;
-  return meta.draftableIds.has(String(playerId).trim());
+  return playerInDraftableIdSet(meta.draftableIds, player);
 }
 
 export function researchDraftableStateForPlayer(
   meta: NormalizedDraftablePoolMeta,
-  player: { id: string; valuation_eligible?: boolean },
+  player: { id: string; mlbId?: number; valuation_eligible?: boolean },
   isCustomPlayer: boolean,
 ): ResearchDraftableState {
   if (meta.kind !== "valid") return "unknown";
   if (isCustomPlayer) return "unknown";
   if (player.valuation_eligible === false) return "unknown";
-  return meta.draftableIds.has(String(player.id).trim())
+  return playerInDraftableIdSet(meta.draftableIds, player)
     ? "draftable"
     : "outside";
 }
@@ -148,7 +160,7 @@ export function filterPlayersByResearchDraftablePool<T extends { research_drafta
 }
 
 export function attachResearchDraftableFlags<
-  T extends { id: string; valuation_eligible?: boolean },
+  T extends { id: string; mlbId?: number; valuation_eligible?: boolean },
 >(
   players: readonly T[],
   meta: NormalizedDraftablePoolMeta,

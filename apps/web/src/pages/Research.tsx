@@ -50,6 +50,7 @@ import {
 } from "../domain/catalogPlayerKeys";
 import {
   buildDraftedByTeamMap,
+  buildDraftedPriceByPlayerMap,
   buildKeeperContractByPlayerMap,
 } from "../domain/rosterMaps";
 import { researchValuationRowMapFromEngine } from "../domain/researchValuationMap";
@@ -85,10 +86,7 @@ import {
 } from "../domain/depthChartRowMatch";
 import {
   attachResearchDraftableFlags,
-  filterPlayersByResearchDraftablePool,
   normalizeDraftablePoolMeta,
-  RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
-  type ResearchDraftablePoolFilter,
 } from "../domain/draftablePoolSemantics";
 import { readResearchModelColumnsPreference } from "../constants/playerTableStorage";
 import {
@@ -170,19 +168,6 @@ export default function Research() {
     }
   });
 
-  const [researchDraftablePoolFilter, setResearchDraftablePoolFilter] =
-    useState<ResearchDraftablePoolFilter>(() => {
-      try {
-        const s = localStorage.getItem(
-          RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
-        );
-        if (s === "draftable" || s === "replacement" || s === "all") return s;
-      } catch {
-        /* noop */
-      }
-      return "all";
-    });
-
   const [players, setPlayers] = useState<Player[]>(
     () => getPlayersCached("catalog_rank") ?? [],
   );
@@ -226,9 +211,6 @@ export default function Research() {
     );
   }, [lastResearchBoardValuation]);
 
-  const researchDraftablePoolFilterDisabled =
-    draftablePoolMeta.kind !== "valid";
-
   const researchValuationAlerts = useMemo(
     () =>
       filterValuationAlertsForSurface(
@@ -247,29 +229,6 @@ export default function Research() {
       publishBoardValuationAlerts([]);
     };
   }, [publishBoardValuationAlerts]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        RESEARCH_DRAFTABLE_POOL_FILTER_STORAGE_KEY,
-        researchDraftablePoolFilter,
-      );
-    } catch {
-      /* noop */
-    }
-  }, [researchDraftablePoolFilter]);
-
-  useEffect(() => {
-    if (
-      researchDraftablePoolFilterDisabled &&
-      researchDraftablePoolFilter !== "all"
-    ) {
-      setResearchDraftablePoolFilter("all");
-    }
-  }, [
-    researchDraftablePoolFilterDisabled,
-    researchDraftablePoolFilter,
-  ]);
 
   const [modalExplainRow, setModalExplainRow] = useState<ValuationShape | null>(
     null,
@@ -296,6 +255,11 @@ export default function Research() {
 
   const draftedContractByPlayerId = useMemo(
     () => buildKeeperContractByPlayerMap(rosterEntries),
+    [rosterEntries],
+  );
+
+  const draftedPriceByPlayerId = useMemo(
+    () => buildDraftedPriceByPlayerMap(rosterEntries),
     [rosterEntries],
   );
 
@@ -518,7 +482,7 @@ export default function Research() {
     try {
       const depth = await getTeamDepthChart(teamId, undefined, forceRefresh);
       setDepthChartData(depth);
-    } catch (err) {
+    } catch {
       setDepthChartError("Unable to load depth chart. Try refresh.");
     } finally {
       setIsLoadingDepthChart(false);
@@ -603,14 +567,7 @@ export default function Research() {
     [mergedPlayers, draftablePoolMeta, isCustomPlayer],
   );
 
-  const researchTablePlayers = useMemo(
-    () =>
-      filterPlayersByResearchDraftablePool(
-        mergedPlayersWithDraftable,
-        researchDraftablePoolFilter,
-      ),
-    [mergedPlayersWithDraftable, researchDraftablePoolFilter],
-  );
+  const researchTablePlayers = mergedPlayersWithDraftable;
 
   const displayModalPlayer = useMemo(() => {
     if (!selectedModalPlayer || modalDepthChartOnlyMode) return null;
@@ -866,18 +823,9 @@ export default function Research() {
                     onNoteChange={setNote}
                     draftedIds={draftedIds}
                     draftedByTeam={draftedByTeam}
+                    draftedPriceByPlayerId={draftedPriceByPlayerId}
                     draftedContractByPlayerId={draftedContractByPlayerId}
                     isCustomPlayer={isCustomPlayer}
-                    researchDraftablePoolFilter={researchDraftablePoolFilter}
-                    onResearchDraftablePoolFilterChange={
-                      setResearchDraftablePoolFilter
-                    }
-                    researchDraftablePoolFilterDisabled={
-                      researchDraftablePoolFilterDisabled
-                    }
-                    onResearchTableFilterReset={() =>
-                      setResearchDraftablePoolFilter("all")
-                    }
                     researchEngineBoardPhase={researchBoardPhase}
                     researchModelColumnsVisible={researchModelColumnsVisible}
                     onResearchModelColumnsVisibleChange={
@@ -909,12 +857,19 @@ export default function Research() {
             <TiersView
               players={mergedPlayers}
               draftedIds={draftedIds}
+              draftedByTeam={draftedByTeam}
+              draftedPriceByPlayerId={draftedPriceByPlayerId}
+              draftedContractByPlayerId={draftedContractByPlayerId}
               onPlayerClick={handlePlayerClick}
               isInWatchlist={isInWatchlist}
               addToWatchlist={addToWatchlist}
               removeFromWatchlist={removeFromWatchlist}
-              onMoveToCommandCenter={handleMoveToCommandCenter}
+              isCustomPlayer={isCustomPlayer}
               draftDisplaySlotKeys={researchPositionSlotKeys}
+              statBasis={statBasis}
+              scoringCategories={league?.scoringCategories}
+              getNote={getNote}
+              onNoteChange={setNote}
             />
           )}
           {selectedView === "depth-charts" && (
@@ -941,12 +896,15 @@ export default function Research() {
                   rosterEntries={rosterEntries}
                   watchlist={watchlist}
                   valuationsByPlayerId={valuationsByPlayerId}
+                  draftDisplaySlotKeys={researchPositionSlotKeys}
+                  leagueTeamNames={
+                    league ? resolvedLeagueTeamNames(league) : undefined
+                  }
                   searchQuery={depthChartSearchQuery}
                   onSearchChange={setDepthChartSearchQuery}
                   onTeamChange={setSelectedDepthTeamId}
                   onRefresh={() => void loadDepthChart(selectedDepthTeamId, true)}
                   isInWatchlist={isInWatchlist}
-                  showMatchSummary={isValuationContextDebugEnabled()}
                   onPlayerClick={(row, position) => {
                     void handleDepthPlayerClick(row, position);
                   }}

@@ -74,6 +74,21 @@ describe("researchDraftableStateForPlayer", () => {
     ).toBe("draftable");
   });
 
+  it("matches draftable pool by mlbId when id differs in shape", () => {
+    const byMlb = normalizeDraftablePoolMeta({
+      draftable_player_ids: ["592450"],
+      draftable_pool_size: 1,
+    });
+    if (byMlb.kind !== "valid") throw new Error("fixture");
+    expect(
+      researchDraftableStateForPlayer(
+        byMlb,
+        { id: "592450", mlbId: 592450, valuation_eligible: true },
+        false,
+      ),
+    ).toBe("draftable");
+  });
+
   it("marks out-of-pool catalog player outside", () => {
     expect(
       researchDraftableStateForPlayer(

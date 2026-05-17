@@ -41,7 +41,9 @@ import {
 } from "./PlayerTableParts";
 import {
   leagueWideAuctionDollarsForDisplay,
+  RESEARCH_TABLE_FOOTER_AUCTION_ROUNDING_COPY,
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
+  RESEARCH_TABLE_HEADER_AUCTION_VALUE_HINT,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   valuationSortLabel,
   type ValuationSortField,
@@ -60,7 +62,10 @@ import {
   poolHasMarketAdp,
   tierBadgeTooltip,
 } from "../domain/playerRankTier";
-import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
+import {
+  researchTableNumericCell,
+  researchTableTextCell,
+} from "../domain/researchPlayerTableLayout";
 import {
   shouldShowOutsideDraftableMinBidTooltip,
   TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
@@ -68,7 +73,7 @@ import {
 import {
   formatResearchAuctionValueDisplay,
   researchAuctionValueCellTitle,
-} from "../domain/playerValuationCopy";
+} from "../domain/researchAuctionValueDisplay";
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
 import { researchPlayerCellTooltip } from "../domain/researchPlayerCellTooltip";
@@ -76,6 +81,11 @@ import {
   ResearchPlayerMetaBadges,
   buildResearchPlayerMetaBadgeItems,
 } from "./ResearchPlayerMetaBadges";
+import { ResearchDraftedPaidCell } from "./research/ResearchDraftedPaidCell";
+import {
+  researchTableAuctionDollars,
+  resolveResearchDraftedRowDisplay,
+} from "../domain/researchDraftedDisplay";
 
 interface PlayerTableProps {
   players: Player[];
@@ -91,6 +101,7 @@ interface PlayerTableProps {
   onNoteChange?: (playerId: string, note: string) => void;
   draftedIds?: Set<string>;
   draftedByTeam?: Map<string, string>;
+  draftedPriceByPlayerId?: Map<string, number>;
   draftedContractByPlayerId?: Map<string, string>;
   isCustomPlayer?: (id: string) => boolean;
   defaultValuationSortField?: ValuationSortField;
@@ -99,13 +110,6 @@ interface PlayerTableProps {
    * `default`: tier + model rank always visible (legacy full table).
    */
   columnLayout?: "default" | "research";
-  /** Research: Engine draftable pool filter (optional). */
-  researchDraftablePoolFilter?: ResearchDraftablePoolFilter;
-  onResearchDraftablePoolFilterChange?: (v: ResearchDraftablePoolFilter) => void;
-  /** When true, draftable / replacement options are disabled (unknown Engine meta). */
-  researchDraftablePoolFilterDisabled?: boolean;
-  /** Called with full PlayerTable reset (e.g. clear draftable filter). */
-  onResearchTableFilterReset?: () => void;
   /** Research: Engine board snapshot phase (loading masks auction $ / rank until first board). */
   researchEngineBoardPhase?: BoardValuationUiPhase;
   /**
@@ -176,20 +180,18 @@ export default function PlayerTable({
   onNoteChange,
   draftedIds,
   draftedByTeam,
+  draftedPriceByPlayerId,
   draftedContractByPlayerId,
   isCustomPlayer,
   defaultValuationSortField = "auction_value",
   columnLayout = "default",
-  researchDraftablePoolFilter = "all",
-  onResearchDraftablePoolFilterChange,
-  researchDraftablePoolFilterDisabled = false,
-  onResearchTableFilterReset,
   researchEngineBoardPhase = "ready",
   researchModelColumnsVisible: researchModelColumnsVisibleProp,
   onResearchModelColumnsVisibleChange,
   draftDisplaySlotKeys,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const isResearchLayout = columnLayout === "research";
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
     try {
       return localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.starred) === "true";
@@ -481,6 +483,23 @@ export default function PlayerTable({
     [allRowData, selectedTags],
   );
 
+  const researchAuctionSortContext = useMemo(
+    () =>
+      isResearchLayout && draftedIds
+        ? {
+            draftedIds,
+            draftedPriceByPlayerId,
+            draftedContractByPlayerId,
+          }
+        : undefined,
+    [
+      isResearchLayout,
+      draftedIds,
+      draftedPriceByPlayerId,
+      draftedContractByPlayerId,
+    ],
+  );
+
   const sortedRowData = useMemo(
     () =>
       sortPlayerTableRows(
@@ -490,6 +509,7 @@ export default function PlayerTable({
         pitCols,
         valuationSortField,
         statBasis,
+        researchAuctionSortContext,
       ),
     [
       filteredRowData,
@@ -498,6 +518,7 @@ export default function PlayerTable({
       pitCols,
       valuationSortField,
       statBasis,
+      researchAuctionSortContext,
     ],
   );
 
@@ -520,7 +541,6 @@ export default function PlayerTable({
     () => poolHasAuctionTier(players),
     [players],
   );
-  const isResearchLayout = columnLayout === "research";
   const showTierModelCols =
     columnLayout === "default" ||
     (columnLayout === "research" && researchModelColumns);
@@ -561,23 +581,7 @@ export default function PlayerTable({
           setAvailabilityFilter("all");
           setInjuryFilter("all");
           setStatView("all");
-          onResearchTableFilterReset?.();
         }}
-        researchDraftablePoolFilter={
-          columnLayout === "research"
-            ? researchDraftablePoolFilter
-            : undefined
-        }
-        onResearchDraftablePoolFilterChange={
-          columnLayout === "research"
-            ? onResearchDraftablePoolFilterChange
-            : undefined
-        }
-        researchDraftablePoolFilterDisabled={
-          columnLayout === "research"
-            ? researchDraftablePoolFilterDisabled
-            : undefined
-        }
         statBasis={statBasis}
         onStatBasisChange={onStatBasisChange}
         researchModelColumns={
@@ -689,7 +693,11 @@ export default function PlayerTable({
               <th
                 className="th-value th-sortable"
                 onClick={() => handleColSort("value")}
-                title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}
+                title={
+                  isResearchLayout
+                    ? `${RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE} ${RESEARCH_TABLE_HEADER_AUCTION_VALUE_HINT}`
+                    : RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE
+                }
               >
                 {valuationSortLabel("auction_value")}{" "}
                 <SortArrow col="value" sort={clientSort} />
@@ -739,7 +747,13 @@ export default function PlayerTable({
                 );
                 const primaryValue = maskEngineColumns
                   ? undefined
-                  : leagueWideAuctionDollarsForDisplay(player);
+                  : isResearchLayout
+                    ? researchTableAuctionDollars(player, {
+                        draftedIds,
+                        draftedPriceByPlayerId,
+                        draftedContractByPlayerId,
+                      })
+                    : leagueWideAuctionDollarsForDisplay(player);
                 const showMinBidOutsidePoolTooltip =
                   !maskEngineColumns &&
                   isResearchLayout &&
@@ -748,12 +762,19 @@ export default function PlayerTable({
                     auctionDollars: primaryValue,
                     valuationEligible: player.valuation_eligible,
                   });
+                const roundedDisplay =
+                  primaryValue != null
+                    ? formatResearchAuctionValueDisplay(primaryValue)
+                    : undefined;
                 const valueCellTitle = researchAuctionValueCellTitle({
                   maskEngineColumns,
                   valuationEligible: player.valuation_eligible,
                   showOutsideEnginePoolMinBidTooltip: showMinBidOutsidePoolTooltip,
                   outsideEnginePoolTooltip: TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
                   auctionValueTooltip: RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
+                  rawAuctionValue: primaryValue,
+                  auctionRank: player.auction_rank,
+                  roundedDisplay,
                 });
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
@@ -761,11 +782,22 @@ export default function PlayerTable({
                 const draftedContractLabel = draftedContractByPlayerId
                   ? lookupRosterMapForCatalogPlayer(draftedContractByPlayerId, player)
                   : undefined;
+                const draftedDisplay = isResearchLayout
+                  ? resolveResearchDraftedRowDisplay(
+                      player,
+                      draftedIds,
+                      draftedByTeam,
+                      draftedPriceByPlayerId,
+                    )
+                  : null;
+                const isDrafted =
+                  draftedIds != null &&
+                  catalogPlayerIdInStringSet(draftedIds, player);
                 const playerCellTitle = researchPlayerCellTooltip({
                   playerName: player.name,
                   tags,
                   isCustom: Boolean(isCustomPlayer?.(player.id)),
-                  draftedTeamName,
+                  draftedTeamName: draftedDisplay ? undefined : draftedTeamName,
                   draftedContractLabel,
                   maskEngineColumns,
                   researchDraftable: player.research_draftable,
@@ -774,8 +806,10 @@ export default function PlayerTable({
                   ? buildResearchPlayerMetaBadgeItems({
                       tags,
                       isCustom: Boolean(isCustomPlayer?.(player.id)),
-                      draftedTeamName,
-                      draftedContractLabel,
+                      draftedTeamName: draftedDisplay ? undefined : draftedTeamName,
+                      draftedContractLabel: draftedDisplay
+                        ? undefined
+                        : draftedContractLabel,
                     })
                   : [];
                 const tierBadgeTitle = tierBadgeTooltip(
@@ -796,8 +830,10 @@ export default function PlayerTable({
                     className={
                       "pt-row" +
                       (isStarred ? " pt-row--starred" : "") +
-                      (draftedIds && catalogPlayerIdInStringSet(draftedIds, player)
-                        ? " pt-row--drafted"
+                      (isDrafted
+                        ? isResearchLayout
+                          ? " pt-row--research-drafted"
+                          : " pt-row--drafted"
                         : "") +
                       (onPlayerClick ? " pt-row--clickable" : "") +
                       (isResearchLayout &&
@@ -976,21 +1012,15 @@ export default function PlayerTable({
                             className="td-rank-metric"
                             title={marketAdpDetailTooltip(player)}
                           >
-                            {typeof player.market_adp === "number" &&
-                            Number.isFinite(player.market_adp)
-                              ? player.market_adp
-                              : "—"}
+                            {researchTableNumericCell(player.market_adp)}
                           </td>
                         )}
                         {showAuctionRankCol && (
                           <td className="td-rank-metric">
                             {maskEngineColumns ? (
                               <ResearchEngineValueLoading label="Loading auction rank" />
-                            ) : typeof player.auction_rank === "number" &&
-                              Number.isFinite(player.auction_rank) ? (
-                              player.auction_rank
                             ) : (
-                              "—"
+                              researchTableNumericCell(player.auction_rank)
                             )}
                           </td>
                         )}
@@ -1020,7 +1050,10 @@ export default function PlayerTable({
                     )}
 
                     <td className="td-value">
-                      <div className="pt-value-stack">
+                      {draftedDisplay ? (
+                        <ResearchDraftedPaidCell display={draftedDisplay} />
+                      ) : (
+                        <div className="pt-value-stack">
                         <span
                           className="pt-value-stack__primary"
                           title={valueCellTitle}
@@ -1028,51 +1061,68 @@ export default function PlayerTable({
                           {maskEngineColumns ? (
                             <ResearchEngineValueLoading label="Loading auction value" />
                           ) : (
-                            formatResearchAuctionValueDisplay(
-                              primaryValue,
-                              player.valuation_eligible,
-                            )
+                            formatResearchAuctionValueDisplay(primaryValue)
                           )}
                         </span>
-                      </div>
+                        </div>
+                      )}
                     </td>
 
                     {focusedCols
-                      ? focusedCols.map((col, i) => (
-                          <td key={i} className="td-stat">
-                            {getDisplayStatValue(
-                              col,
-                              focusedType!,
-                              bat,
-                              pit,
-                              player,
-                              statBasis,
-                            )}
-                          </td>
-                        ))
+                      ? focusedCols.map((col, i) => {
+                          const raw = getDisplayStatValue(
+                            col,
+                            focusedType!,
+                            bat,
+                            pit,
+                            player,
+                            statBasis,
+                          );
+                          return (
+                            <td key={i} className="td-stat">
+                              {isResearchLayout
+                                ? researchTableTextCell(raw)
+                                : raw}
+                            </td>
+                          );
+                        })
                       : Array.from({ length: numStatCols }, (_, i) => (
                           <td key={i} className="td-stat">
                             {isBatter
                               ? batCols[i]
-                                ? getDisplayStatValue(
-                                    batCols[i],
-                                    "batting",
-                                    bat,
-                                    pit,
-                                    player,
-                                    statBasis,
-                                  )
-                                : "-"
+                                ? (() => {
+                                    const raw = getDisplayStatValue(
+                                      batCols[i],
+                                      "batting",
+                                      bat,
+                                      pit,
+                                      player,
+                                      statBasis,
+                                    );
+                                    return isResearchLayout
+                                      ? researchTableTextCell(raw)
+                                      : raw;
+                                  })()
+                                : isResearchLayout
+                                  ? null
+                                  : "-"
                               : pitCols[i]
-                                ? getDisplayStatValue(
-                                    pitCols[i],
-                                    "pitching",
-                                    bat,
-                                    pit,
-                                    player,
-                                    statBasis,
-                                  )
-                                : "-"}
+                                ? (() => {
+                                    const raw = getDisplayStatValue(
+                                      pitCols[i],
+                                      "pitching",
+                                      bat,
+                                      pit,
+                                      player,
+                                      statBasis,
+                                    );
+                                    return isResearchLayout
+                                      ? researchTableTextCell(raw)
+                                      : raw;
+                                  })()
+                                : isResearchLayout
+                                  ? null
+                                  : "-"}
                           </td>
                         ))}
 
@@ -1103,9 +1153,16 @@ export default function PlayerTable({
           Showing {displayed.length} players · {statBasisFooterLine} · Data via
           MLB Stats API
         </span>
-        <span className="pt-footer-line pt-footer-line--subtle">
-          {RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY}
-        </span>
+        {isResearchLayout ? (
+          <span className="pt-footer-line pt-footer-line--subtle">
+            {RESEARCH_TABLE_FOOTER_AUCTION_ROUNDING_COPY}{" · "}
+            {RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY}
+          </span>
+        ) : (
+          <span className="pt-footer-line pt-footer-line--subtle">
+            {RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY}
+          </span>
+        )}
       </div>
     </div>
   );

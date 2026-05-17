@@ -18,6 +18,15 @@
   /** Soft card / inset strokes. */
   --app-accent-border-faint: rgba(139, 92, 246, 0.12);
 
+  /** Research Players table column header (thead) — shared with Tiers / Depth Charts headers */
+  --pt-research-thead-bg: #140f24;
+  --pt-research-thead-fg: #6b4fa0;
+  --pt-research-thead-hover-fg: #a78bfa;
+  --pt-research-thead-font-size: 0.68rem;
+  --pt-research-thead-font-weight: 700;
+  --pt-research-thead-letter-spacing: 0.06em;
+  --pt-research-thead-line-height: 1.15;
+
   --app-panel-border: rgba(88, 66, 138, 0.45);
   --app-panel-border-soft: rgba(88, 66, 138, 0.35);
 

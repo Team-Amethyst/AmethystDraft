@@ -18,6 +18,39 @@ export const MODEL_TIER_TOOLTIP =
 export const AUCTION_TIER_TOOLTIP =
   "Auction tier: grouping from current league auction value in the Engine (after valuation).";
 
+/** Human-readable auction tier names for Research → Tiers (1–5). */
+export const AUCTION_TIER_SEMANTIC_LABELS: Record<number, string> = {
+  1: "Elite targets",
+  2: "Strong starters",
+  3: "Starter pool",
+  4: "Depth values",
+  5: "Replacement / reserve",
+};
+
+export const MODEL_TIER_SEMANTIC_LABELS: Record<number, string> = {
+  1: "Elite targets",
+  2: "Strong starters",
+  3: "Starter pool",
+  4: "Depth values",
+  5: "Replacement / reserve",
+};
+
+/** Tiers page: rounding vs raw cliffs. */
+export const TIERS_ROUNDING_TOOLTIP =
+  "Displayed dollars are rounded. Tiers and cliffs use raw auction values.";
+
+export function auctionTierSemanticLabel(
+  tier: string | number,
+  poolUsesAuctionTier: boolean,
+): string | null {
+  const n = typeof tier === "number" ? tier : Number(tier);
+  if (!Number.isFinite(n)) return null;
+  const map = poolUsesAuctionTier
+    ? AUCTION_TIER_SEMANTIC_LABELS
+    : MODEL_TIER_SEMANTIC_LABELS;
+  return map[n] ?? null;
+}
+
 /** Shown on tier badges when the pool uses auction tiers but this row has no auction tier yet. */
 export const MODEL_TIER_FALLBACK_TOOLTIP = "Model Tier fallback.";
 

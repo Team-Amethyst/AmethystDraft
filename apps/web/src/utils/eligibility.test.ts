@@ -10,6 +10,7 @@ import {
   normalizePlayerPositions,
   playerDisplayPositionBadges,
   playerIdentityPositionPresentation,
+  countResearchTablePositionParts,
   researchTablePrimaryPositionParts,
   slotAllowsPosition,
 } from "./eligibility";
@@ -237,6 +238,37 @@ describe("researchTablePrimaryPositionParts", () => {
       "DH",
     ]);
     expect(researchTablePrimaryPositionParts(player, noDh)).toEqual(["1B"]);
+  });
+});
+
+describe("countResearchTablePositionParts", () => {
+  const slots = [
+    "C",
+    "1B",
+    "2B",
+    "SS",
+    "3B",
+    "CI",
+    "MI",
+    "OF",
+    "UTIL",
+    "SP",
+    "RP",
+    "BN",
+  ];
+
+  it("counts each displayed primary position badge once", () => {
+    const players = [
+      { positions: ["SS", "3B", "OF"], position: "SS" },
+      { positions: ["SP"], position: "SP" },
+      { positions: ["OF"], position: "OF" },
+    ];
+    expect(countResearchTablePositionParts(players, slots)).toEqual({
+      SS: 1,
+      "3B": 1,
+      OF: 2,
+      P: 1,
+    });
   });
 });
 
