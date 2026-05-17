@@ -10,6 +10,7 @@ import {
   getPlayersCached,
   getTeamDepthChart,
   type DepthChartPlayerRow,
+  type DepthChartPosition,
   type DepthChartResponse,
 } from "../api/players";
 import { getValuation, getValuationPlayer, type ValuationResponse } from "../api/engine";
@@ -90,6 +91,12 @@ import {
   type ResearchDraftablePoolFilter,
 } from "../domain/draftablePoolSemantics";
 import { readResearchModelColumnsPreference } from "../constants/playerTableStorage";
+import {
+  buildDepthChartStubPlayer,
+  depthChartModalContextFromRow,
+  type DepthChartModalContext,
+} from "../domain/depthChartPlayerProfile";
+import { WATCHLIST_REQUIRES_CATALOG_TOOLTIP } from "../domain/playerValuationCopy";
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 
@@ -109,6 +116,9 @@ export default function Research() {
   const { customPlayers, addCustomPlayer, isCustomPlayer } = useCustomPlayers();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedModalPlayer, setSelectedModalPlayer] = useState<Player | null>(null);
+  const [modalDepthChartOnly, setModalDepthChartOnly] = useState(false);
+  const [modalDepthChartContext, setModalDepthChartContext] =
+    useState<DepthChartModalContext | null>(null);
 
   const { id: leagueId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -379,10 +389,8 @@ export default function Research() {
       }
     };
 
-    if (selectedView === "player-database") {
-      void loadPlayers();
-    }
-  }, [selectedView, league?.posEligibilityThreshold, league?.playerPool]);
+    void loadPlayers();
+  }, [league?.posEligibilityThreshold, league?.playerPool]);
 
   useEffect(() => {
     // Wait for league row from layout context. Otherwise `leagueValuationConfigKey(null)` is ""
@@ -468,7 +476,7 @@ export default function Research() {
   ]);
 
   useEffect(() => {
-    if (!selectedModalPlayer || !token || !leagueId) {
+    if (!selectedModalPlayer || modalDepthChartOnly || !token || !leagueId) {
       setModalExplainRow(null);
       setModalExplainLoading(false);
       return;
@@ -507,6 +515,7 @@ export default function Research() {
     };
   }, [
     selectedModalPlayer?.id,
+    modalDepthChartOnly,
     token,
     leagueId,
     user?.id,
@@ -600,23 +609,47 @@ export default function Research() {
     [mergedPlayersWithDraftable, researchDraftablePoolFilter],
   );
 
+  const selectedDepthTeamAbbr = useMemo(
+    () => MLB_TEAMS.find((t) => t.id === selectedDepthTeamId)?.abbr ?? "—",
+    [selectedDepthTeamId],
+  );
+
+  const catalogResolvableMlbIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const p of allPlayers) {
+      if (typeof p.mlbId === "number" && Number.isFinite(p.mlbId) && p.mlbId > 0) {
+        ids.add(p.mlbId);
+      }
+    }
+    return ids;
+  }, [allPlayers]);
+
   const displayModalPlayer = useMemo(() => {
-    if (!selectedModalPlayer) return null;
+    if (!selectedModalPlayer || modalDepthChartOnly) return null;
     const boardRow = valuationsByPlayerId.get(selectedModalPlayer.id);
     let p = mergePlayerWithValuation(selectedModalPlayer, boardRow);
     if (modalExplainRow) {
       p = mergePlayerWithFocusedExplainEnrichment(p, boardRow, modalExplainRow);
     }
     return p;
-  }, [selectedModalPlayer, valuationsByPlayerId, modalExplainRow]);
+  }, [selectedModalPlayer, modalDepthChartOnly, valuationsByPlayerId, modalExplainRow]);
+
+  const closePlayerModal = useCallback(() => {
+    setSelectedModalPlayer(null);
+    setModalDepthChartOnly(false);
+    setModalDepthChartContext(null);
+  }, []);
 
   const handlePlayerClick = (player: Player) => {
+    setModalDepthChartOnly(false);
+    setModalDepthChartContext(null);
     setSelectedModalPlayer(player);
   };
 
   const handleMoveToCommandCenter = (player: Player) => {
+    if (modalDepthChartOnly) return;
     setSelectedPlayer(player);
-    setSelectedModalPlayer(null);
+    closePlayerModal();
     void navigate(`/leagues/${leagueId ?? ""}/command-center`);
   };
 
@@ -634,48 +667,64 @@ export default function Research() {
     return findCatalogPlayerByExternalId(playersFromApi, slot.playerId) ?? null;
   }, [allPlayers, league?.playerPool, league?.posEligibilityThreshold]);
 
-  const handleDepthPlayerClick = useCallback(async (slot: DepthChartPlayerRow) => {
-    setDepthChartError("");
+  const handleDepthPlayerClick = useCallback(
+    async (slot: DepthChartPlayerRow, chartPosition: DepthChartPosition) => {
+      setDepthChartError("");
 
-    try {
-      const matched = await resolveDepthPlayer(slot);
-      if (matched) {
-        handlePlayerClick(matched);
-        return;
+      try {
+        const matched = await resolveDepthPlayer(slot);
+        if (matched) {
+          handlePlayerClick(matched);
+          return;
+        }
+
+        setModalDepthChartOnly(true);
+        setModalDepthChartContext(
+          depthChartModalContextFromRow(slot, chartPosition),
+        );
+        setSelectedModalPlayer(
+          buildDepthChartStubPlayer(slot, selectedDepthTeamAbbr),
+        );
+      } catch (err) {
+        setDepthChartError(
+          err instanceof Error
+            ? err.message
+            : "Failed to open player details from depth chart",
+        );
       }
+    },
+    [handlePlayerClick, resolveDepthPlayer, selectedDepthTeamAbbr],
+  );
 
-      setDepthChartError(`Could not open ${slot.playerName}. Player record was not found in catalog data.`);
-    } catch (err) {
-      setDepthChartError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load player details for command center navigation",
-      );
-    }
-  }, [handlePlayerClick, resolveDepthPlayer]);
+  const handleDepthStarToggle = useCallback(
+    async (slot: DepthChartPlayerRow) => {
+      if (!catalogResolvableMlbIds.has(slot.playerId)) return;
+      setDepthChartError("");
+      try {
+        const matched = await resolveDepthPlayer(slot);
+        if (!matched) return;
 
-  const handleDepthStarToggle = useCallback(async (slot: DepthChartPlayerRow) => {
-    setDepthChartError("");
-    try {
-      const matched = await resolveDepthPlayer(slot);
-      if (!matched) {
-        setDepthChartError(`Could not star ${slot.playerName}. Player record was not found in catalog data.`);
-        return;
+        if (isInWatchlist(matched.id)) {
+          removeFromWatchlist(matched.id);
+        } else {
+          addToWatchlist(matched);
+        }
+      } catch (err) {
+        setDepthChartError(
+          err instanceof Error
+            ? err.message
+            : "Failed to update watchlist from depth chart",
+        );
       }
-
-      if (isInWatchlist(matched.id)) {
-        removeFromWatchlist(matched.id);
-      } else {
-        addToWatchlist(matched);
-      }
-    } catch (err) {
-      setDepthChartError(
-        err instanceof Error
-          ? err.message
-          : "Failed to update watchlist from depth chart",
-      );
-    }
-  }, [addToWatchlist, isInWatchlist, removeFromWatchlist, resolveDepthPlayer]);
+    },
+    [
+      addToWatchlist,
+      catalogResolvableMlbIds,
+      isInWatchlist,
+      removeFromWatchlist,
+      resolveDepthPlayer,
+    ],
+  );
 
   const navigationItems: Array<{
     id: ResearchView;
@@ -908,14 +957,14 @@ export default function Research() {
                                   tabIndex={row ? 0 : undefined}
                                   onClick={() => {
                                     if (row) {
-                                      void handleDepthPlayerClick(row);
+                                      void handleDepthPlayerClick(row, position);
                                     }
                                   }}
                                   onKeyDown={(event) => {
                                     if (!row) return;
                                     if (event.key === "Enter" || event.key === " ") {
                                       event.preventDefault();
-                                      void handleDepthPlayerClick(row);
+                                      void handleDepthPlayerClick(row, position);
                                     }
                                   }}
                                 >
@@ -951,6 +1000,14 @@ export default function Research() {
                                         <button
                                           type="button"
                                           className={`btn-star depth-slot-star ${isInWatchlist(String(row.playerId)) ? "starred" : ""}`}
+                                          disabled={
+                                            !catalogResolvableMlbIds.has(row.playerId)
+                                          }
+                                          title={
+                                            catalogResolvableMlbIds.has(row.playerId)
+                                              ? undefined
+                                              : WATCHLIST_REQUIRES_CATALOG_TOOLTIP
+                                          }
                                           aria-label={
                                             isInWatchlist(String(row.playerId))
                                               ? `Remove ${row.playerName} from watchlist`
@@ -1011,7 +1068,13 @@ export default function Research() {
       />
       <PlayerDetailModal
         isOpen={selectedModalPlayer !== null}
-        player={displayModalPlayer ?? selectedModalPlayer}
+        player={
+          modalDepthChartOnly
+            ? selectedModalPlayer
+            : displayModalPlayer ?? selectedModalPlayer
+        }
+        depthChartOnly={modalDepthChartOnly}
+        depthChartContext={modalDepthChartContext}
         draftedByTeam={
           selectedModalPlayer
             ? lookupRosterMapForCatalogPlayer(draftedByTeam, selectedModalPlayer)
@@ -1030,7 +1093,7 @@ export default function Research() {
         isCustomPlayer={
           selectedModalPlayer ? isCustomPlayer(selectedModalPlayer.id) : false
         }
-        onClose={() => setSelectedModalPlayer(null)}
+        onClose={closePlayerModal}
         onMoveToCommandCenter={handleMoveToCommandCenter}
         valuationContextWarnings={valuationBoardMeta?.warnings}
         valuationContextDev={

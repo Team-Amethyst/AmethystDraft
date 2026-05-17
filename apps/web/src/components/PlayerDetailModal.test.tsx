@@ -50,7 +50,7 @@ describe("PlayerDetailModal valuation strip", () => {
       />,
     );
 
-    expect(screen.getByText("League FMV")).toBeTruthy();
+    expect(screen.getByText("Auction Value")).toBeTruthy();
     expect(screen.getByText("Recommended Bid")).toBeTruthy();
     expect(screen.getByText("Team Value")).toBeTruthy();
     expect(screen.getByText("Bid Edge")).toBeTruthy();
@@ -89,5 +89,40 @@ describe("PlayerDetailModal valuation strip", () => {
     expect(screen.getByText(/Max Bid:/)).toBeTruthy();
     expect(screen.getByText(/hard stop/)).toBeTruthy();
     expect(screen.getByText(/same as Recommended Bid/)).toBeTruthy();
+  });
+
+  it("depth-chart-only player shows No valuation without throwing", () => {
+    const player = makePlayer({
+      id: "999888",
+      mlbId: 999888,
+      name: "Depth Only",
+      team: "NYY",
+      position: "SS",
+      valuation_eligible: false,
+    });
+
+    render(
+      <PlayerDetailModal
+        isOpen
+        player={player}
+        depthChartOnly
+        depthChartContext={{
+          depthRank: 2,
+          chartPosition: "SS",
+          status: "Active",
+        }}
+        onClose={() => {}}
+        onMoveToCommandCenter={() => {}}
+        researchEngineBoardPhase="ready"
+        researchSurface
+      />,
+    );
+
+    expect(screen.getAllByText("No valuation").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/visible from depth chart data/i).length).toBeGreaterThan(0);
+    const ccBtn = screen.getByRole("button", {
+      name: /Draft in Command Center/i,
+    }) as HTMLButtonElement;
+    expect(ccBtn.disabled).toBe(true);
   });
 });

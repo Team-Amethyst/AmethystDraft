@@ -40,7 +40,6 @@ import {
   TierBadge,
 } from "./PlayerTableParts";
 import {
-  formatCurrencyWhole,
   leagueWideAuctionDollarsForDisplay,
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
@@ -66,6 +65,10 @@ import {
   shouldShowOutsideDraftableMinBidTooltip,
   TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
 } from "../domain/draftablePoolSemantics";
+import {
+  formatResearchAuctionValueDisplay,
+  researchAuctionValueCellTitle,
+} from "../domain/playerValuationCopy";
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
 import { researchPlayerCellTooltip } from "../domain/researchPlayerCellTooltip";
@@ -745,12 +748,13 @@ export default function PlayerTable({
                     auctionDollars: primaryValue,
                     valuationEligible: player.valuation_eligible,
                   });
-                const valueCellTitle = showMinBidOutsidePoolTooltip
-                  ? TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID
-                  : player.valuation_eligible === false &&
-                      primaryValue === undefined
-                    ? "Model value unavailable"
-                    : RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE;
+                const valueCellTitle = researchAuctionValueCellTitle({
+                  maskEngineColumns,
+                  valuationEligible: player.valuation_eligible,
+                  showOutsideEnginePoolMinBidTooltip: showMinBidOutsidePoolTooltip,
+                  outsideEnginePoolTooltip: TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
+                  auctionValueTooltip: RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
+                });
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
                   : undefined;
@@ -1024,7 +1028,10 @@ export default function PlayerTable({
                           {maskEngineColumns ? (
                             <ResearchEngineValueLoading label="Loading auction value" />
                           ) : (
-                            formatCurrencyWhole(primaryValue)
+                            formatResearchAuctionValueDisplay(
+                              primaryValue,
+                              player.valuation_eligible,
+                            )
                           )}
                         </span>
                       </div>

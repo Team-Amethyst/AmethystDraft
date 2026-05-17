@@ -10,7 +10,12 @@ import {
   positionFilterAfterStatViewChange,
   positionFilterOptionsForStatView,
 } from "../domain/playerTablePositions";
-import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
+import {
+  RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP,
+  RESEARCH_ENGINE_POOL_FILTER_LABELS,
+  RESEARCH_ENGINE_POOL_FILTER_TOOLTIP,
+  type ResearchDraftablePoolFilter,
+} from "../domain/draftablePoolSemantics";
 import { AppSelect, type AppSelectOption } from "./AppSelect";
 
 export type PlayerTableControlsProps = {
@@ -103,9 +108,17 @@ export function PlayerTableControls({
   const poolOptions = useMemo<AppSelectOption[]>(() => {
     const d = Boolean(researchDraftablePoolFilterDisabled);
     return [
-      { value: "all", label: "Pool (All players)" },
-      { value: "draftable", label: "Draftable pool", disabled: d },
-      { value: "replacement", label: "Replacement / depth", disabled: d },
+      { value: "all", label: RESEARCH_ENGINE_POOL_FILTER_LABELS.all },
+      {
+        value: "draftable",
+        label: RESEARCH_ENGINE_POOL_FILTER_LABELS.inEnginePool,
+        disabled: d,
+      },
+      {
+        value: "replacement",
+        label: RESEARCH_ENGINE_POOL_FILTER_LABELS.outsideEnginePool,
+        disabled: d,
+      },
     ];
   }, [researchDraftablePoolFilterDisabled]);
 
@@ -147,10 +160,10 @@ export function PlayerTableControls({
               options={poolOptions}
               title={
                 researchDraftablePoolFilterDisabled
-                  ? "Draftable pool metadata unavailable from the last valuation"
-                  : "Filter by Engine draftable pool"
+                  ? RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP
+                  : RESEARCH_ENGINE_POOL_FILTER_TOOLTIP
               }
-              aria-label="Draftable pool filter"
+              aria-label="Engine pool filter"
             />
           )}
 

@@ -40,6 +40,14 @@ import {
   STRENGTH_RANK_TOOLTIP,
   STRENGTH_TIER_TOOLTIP,
 } from "../domain/rankTierLabels";
+import type { DepthChartModalContext } from "../domain/depthChartPlayerProfile";
+import {
+  COMMAND_CENTER_REQUIRES_CATALOG_TOOLTIP,
+  WATCHLIST_REQUIRES_CATALOG_TOOLTIP,
+  NO_VALUATION_DEPTH_CHART_DETAIL,
+  NO_VALUATION_INELIGIBLE_DETAIL,
+  NO_VALUATION_LABEL,
+} from "../domain/playerValuationCopy";
 
 /** Must match `isValuationContextDebugEnabled` in Research.tsx (`valuationContextDev` prop). */
 function isValuationContextDebugEnabled(): boolean {
@@ -83,6 +91,11 @@ interface PlayerDetailModalProps {
   researchShowModelMetrics?: boolean;
   /** League roster keys for header position chips (hides DH / UTIL / BN). */
   draftDisplaySlotKeys?: string[];
+  /**
+   * Depth chart row without a Research catalog match — show identity only, no Engine metrics.
+   */
+  depthChartOnly?: boolean;
+  depthChartContext?: DepthChartModalContext | null;
 }
 
 function valueOrDash(value: unknown): string {
@@ -328,6 +341,8 @@ export default function PlayerDetailModal({
   researchSurface = false,
   researchShowModelMetrics = false,
   draftDisplaySlotKeys,
+  depthChartOnly = false,
+  depthChartContext = null,
 }: PlayerDetailModalProps) {
   useEffect(() => {
     if (!isOpen || !player) return;
@@ -342,10 +357,9 @@ export default function PlayerDetailModal({
 
   if (!isOpen || !player) return null;
 
-  const maskEngineMetrics = shouldMaskResearchEngineColumns(
-    researchEngineBoardPhase,
-    player,
-  );
+  const maskEngineMetrics =
+    !depthChartOnly &&
+    shouldMaskResearchEngineColumns(researchEngineBoardPhase, player);
 
   const showResearchModelRail =
     !researchSurface || researchShowModelMetrics;
@@ -400,6 +414,19 @@ export default function PlayerDetailModal({
         aria-label={`${player.name} details`}
       >
         <div className="pdm-body">
+        {depthChartOnly ? (
+          <div className="pdm-depth-only-notice" role="status">
+            <strong>{NO_VALUATION_LABEL}</strong>
+            <p>{NO_VALUATION_DEPTH_CHART_DETAIL}</p>
+            {depthChartContext ? (
+              <p className="pdm-depth-only-notice__meta">
+                Depth chart: {depthChartContext.chartPosition} · rank #
+                {depthChartContext.depthRank} · {depthChartContext.status}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {valuationContextWarnings && valuationContextWarnings.length > 0 ? (
           <div className="pdm-inline-warnings" role="status">
             <strong>Valuation notice</strong>
@@ -416,7 +443,18 @@ export default function PlayerDetailModal({
             <div className="pdm-rail__group">
               <div className="pdm-rail__head">
                 <div className="pdm-rail__identity">
-                  <img className="pdm-headshot" src={player.headshot} alt={player.name} />
+                  {player.headshot ? (
+                    <img
+                      className="pdm-headshot"
+                      src={player.headshot}
+                      alt={player.name}
+                    />
+                  ) : (
+                    <div
+                      className="pdm-headshot pdm-headshot--placeholder"
+                      aria-hidden
+                    />
+                  )}
                   <div className="pdm-identity-text">
                     <div className="pdm-rail-name-row">
                       <h2 className="pdm-title pdm-title--rail">
@@ -550,10 +588,19 @@ export default function PlayerDetailModal({
 
           <div className="pdm-main">
             <section className="pdm-valuation-card" aria-label="Valuation summary">
+              {depthChartOnly ? null : player.valuation_eligible === false ? (
+                <div className="pdm-valuation-unavailable" role="status">
+                  <p className="pdm-valuation-unavailable__title">{NO_VALUATION_LABEL}</p>
+                  <p className="pdm-valuation-unavailable__detail">
+                    {NO_VALUATION_INELIGIBLE_DETAIL}
+                  </p>
+                </div>
+              ) : (
+              <>
               <div className="pdm-valuation-metric-grid pdm-valuation-strip__metrics" role="list">
                 <div className="pdm-metric" role="listitem">
                   <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
-                    League FMV
+                    Auction Value
                   </span>
                   <span className="pdm-metric-value">
                     {maskEngineMetrics && marketValue == null ? (
@@ -623,6 +670,8 @@ export default function PlayerDetailModal({
               {player.edge_note?.trim() ? (
                 <p className="pdm-engine-note">{player.edge_note.trim()}</p>
               ) : null}
+              </>
+              )}
             </section>
 
             <section className="pdm-snapshot-section" aria-label="Performance snapshot">
@@ -828,7 +877,15 @@ export default function PlayerDetailModal({
               className="pdm-draft-notes__textarea"
               aria-labelledby="pdm-player-notes-heading"
               value={note ?? ""}
-              placeholder="Capture target bid, fallback options, roster fit, and risk notes…"
+              placeholder={
+                depthChartOnly
+                  ? "Notes require a catalog player record."
+                  : "Capture target bid, fallback options, roster fit, and risk notes…"
+              }
+              disabled={depthChartOnly}
+              title={
+                depthChartOnly ? WATCHLIST_REQUIRES_CATALOG_TOOLTIP : undefined
+              }
               onChange={(event) => {
                 onNoteChange?.(player.id, event.target.value);
               }}
@@ -842,7 +899,13 @@ export default function PlayerDetailModal({
             <button type="button" className="pdm-btn pdm-btn--secondary" onClick={onClose}>
               Close
             </button>
-            <button type="button" className="pdm-btn pdm-btn--primary" onClick={() => onMoveToCommandCenter(player)}>
+            <button
+              type="button"
+              className="pdm-btn pdm-btn--primary"
+              disabled={depthChartOnly}
+              title={depthChartOnly ? COMMAND_CENTER_REQUIRES_CATALOG_TOOLTIP : undefined}
+              onClick={() => onMoveToCommandCenter(player)}
+            >
               Draft in Command Center
             </button>
           </div>
