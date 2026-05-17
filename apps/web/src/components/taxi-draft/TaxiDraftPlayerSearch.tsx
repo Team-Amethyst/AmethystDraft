@@ -2,6 +2,10 @@ import { useEffect, useRef } from "react";
 import { useWatchlist } from "../../contexts/WatchlistContext";
 import type { Player } from "../../types/player";
 import PosBadge from "../PosBadge";
+import {
+  playerDisplayPositionBadges,
+  playerDisplaySlotEligibilityBadges,
+} from "../../utils/eligibility";
 
 export interface TaxiDraftPlayerSearchProps {
   searchQuery: string;
@@ -13,6 +17,8 @@ export interface TaxiDraftPlayerSearchProps {
   onPickPlayer: (player: Player) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** When set, badges show league-draftable slots (excludes UTIL/BN/DH). */
+  draftDisplaySlotKeys?: string[];
 }
 
 /**
@@ -28,6 +34,7 @@ export function TaxiDraftPlayerSearch({
   onPickPlayer,
   placeholder = "Search player to add to taxi…",
   disabled = false,
+  draftDisplaySlotKeys,
 }: TaxiDraftPlayerSearchProps) {
   const { isInWatchlist } = useWatchlist();
   const searchRef = useRef<HTMLDivElement>(null);
@@ -59,7 +66,16 @@ export function TaxiDraftPlayerSearch({
         {showDropdown && (
           <div className="cc-search-dropdown">
             {results.length > 0 ? (
-              results.map((p) => (
+              results.map((p) => {
+                const posBadges = playerDisplayPositionBadges(
+                  p,
+                  draftDisplaySlotKeys,
+                );
+                const slotBadges = playerDisplaySlotEligibilityBadges(
+                  p,
+                  draftDisplaySlotKeys,
+                );
+                return (
                 <button
                   key={p.id}
                   className="cc-dropdown-item"
@@ -69,7 +85,27 @@ export function TaxiDraftPlayerSearch({
                     onPickPlayer(p);
                   }}
                 >
-                  <PosBadge pos={p.position} />
+                  <div className="cc-dd-lead-col">
+                    <span className="cc-dd-pos-badges">
+                      {posBadges.map((pos) => (
+                        <PosBadge key={`${p.id}-${pos}`} pos={pos} />
+                      ))}
+                    </span>
+                    {slotBadges.length > 0 ? (
+                      <div className="cc-dd-slot-line" title="Roster slots this player can fill">
+                        <span className="cc-dd-slot-label">Slots</span>
+                        <span className="cc-dd-slot-badges">
+                          {slotBadges.map((s) => (
+                            <PosBadge
+                              key={`${p.id}-slot-${s}`}
+                              pos={s}
+                              className="cc-dd-slot-badge"
+                            />
+                          ))}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
                   <span className="cc-dd-name">
                     {p.name}
                     {p.injuryStatus && (
@@ -86,7 +122,8 @@ export function TaxiDraftPlayerSearch({
                   <span className="cc-dd-team">{p.team}</span>
                   <span className="cc-dd-val">${p.value}</span>
                 </button>
-              ))
+                );
+              })
             ) : searchQuery.length >= 2 ? (
               <div className="taxi-draft-search-empty">
                 <span>No eligible taxi players match &ldquo;{searchQuery}&rdquo;</span>

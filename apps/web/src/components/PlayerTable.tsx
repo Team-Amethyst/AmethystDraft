@@ -11,6 +11,11 @@ import {
 import type { Player } from "../types/player";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import PosBadge from "./PosBadge";
+import {
+  playerDisplayPositionBadges,
+  playerDisplaySlotEligibilityBadges,
+  researchTablePrimaryPositionParts,
+} from "../utils/eligibility";
 import { ResearchEngineValueLoading } from "./research/ResearchEngineValueLoading";
 import "./PlayerTable.css";
 import {
@@ -23,7 +28,10 @@ import {
 } from "../domain/playerTableColumns";
 import { sortPlayerTableRows } from "../domain/playerTableSort";
 import { playerTableRowsMatchingTagFilter } from "../domain/playerTableTagFilter";
-import { PLAYER_TABLE_STORAGE_KEYS } from "../constants/playerTableStorage";
+import {
+  PLAYER_TABLE_STORAGE_KEYS,
+  readResearchModelColumnsPreference,
+} from "../constants/playerTableStorage";
 import { PlayerTableControls } from "./PlayerTableControls";
 import {
   NoteCell,
@@ -32,7 +40,6 @@ import {
   TierBadge,
 } from "./PlayerTableParts";
 import {
-  formatCurrencyWhole,
   leagueWideAuctionDollarsForDisplay,
   RESEARCH_TABLE_FOOTER_OPEN_PLAYER_LADDER_COPY,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
@@ -49,13 +56,19 @@ import {
 } from "../domain/rankTierLabels";
 import {
   displayAuctionTier,
+  poolHasAuctionTier,
   poolHasMarketAdp,
+  tierBadgeTooltip,
 } from "../domain/playerRankTier";
 import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
 import {
   shouldShowOutsideDraftableMinBidTooltip,
   TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
 } from "../domain/draftablePoolSemantics";
+import {
+  formatResearchAuctionValueDisplay,
+  researchAuctionValueCellTitle,
+} from "../domain/playerValuationCopy";
 import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 import { shouldMaskResearchEngineColumns } from "../domain/boardValuationFetchPhase";
 import { researchPlayerCellTooltip } from "../domain/researchPlayerCellTooltip";
@@ -95,24 +108,18 @@ interface PlayerTableProps {
   onResearchTableFilterReset?: () => void;
   /** Research: Engine board snapshot phase (loading masks auction $ / rank until first board). */
   researchEngineBoardPhase?: BoardValuationUiPhase;
+  /**
+   * When set with `onResearchModelColumnsVisibleChange`, Research owns “Model rank & tiers” visibility
+   * (e.g. so Player detail can match the table).
+   */
+  researchModelColumnsVisible?: boolean;
+  onResearchModelColumnsVisibleChange?: (visible: boolean) => void;
+  /** League roster keys for Pos column (hides DH / UTIL / BN chips). */
+  draftDisplaySlotKeys?: string[];
 }
 
 type PlayerTableColumnLayout = "default" | "research";
 type ClientSortState = { col: string; dir: "asc" | "desc" };
-
-function readResearchModelColumnsFromLS(
-  columnLayout: PlayerTableColumnLayout,
-): boolean {
-  if (columnLayout !== "research") return false;
-  try {
-    return (
-      localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.researchModelColumns) ===
-      "true"
-    );
-  } catch {
-    return false;
-  }
-}
 
 function sortUsesHiddenResearchModelColumns(
   col: string,
@@ -178,6 +185,9 @@ export default function PlayerTable({
   researchDraftablePoolFilterDisabled = false,
   onResearchTableFilterReset,
   researchEngineBoardPhase = "ready",
+  researchModelColumnsVisible: researchModelColumnsVisibleProp,
+  onResearchModelColumnsVisibleChange,
+  draftDisplaySlotKeys,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [starredOnly, setStarredOnly] = useState<boolean>(() => {
@@ -239,14 +249,26 @@ export default function PlayerTable({
   );
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const isResearchModelControlled =
+    columnLayout === "research" &&
+    typeof researchModelColumnsVisibleProp === "boolean" &&
+    typeof onResearchModelColumnsVisibleChange === "function";
+
+  const [internalResearchModelColumns, setInternalResearchModelColumns] =
+    useState(() => readResearchModelColumnsPreference());
+
+  const researchModelColumns = isResearchModelControlled
+    ? researchModelColumnsVisibleProp
+    : internalResearchModelColumns;
+
   const [clientSort, setClientSort] = useState<ClientSortState>(() =>
     readClientSortFromLS(
       columnLayout,
-      readResearchModelColumnsFromLS(columnLayout),
+      columnLayout === "research" &&
+        typeof researchModelColumnsVisibleProp === "boolean"
+        ? researchModelColumnsVisibleProp
+        : readResearchModelColumnsPreference(),
     ),
-  );
-  const [researchModelColumns, setResearchModelColumns] = useState(() =>
-    readResearchModelColumnsFromLS(columnLayout),
   );
   const valuationSortField: ValuationSortField = defaultValuationSortField;
 
@@ -495,12 +517,7 @@ export default function PlayerTable({
   );
   const showMarketAdpCol = useMemo(() => poolHasMarketAdp(players), [players]);
   const tierHeaderUsesAuction = useMemo(
-    () =>
-      players.some(
-        (p) =>
-          typeof p.auction_tier === "number" &&
-          Number.isFinite(p.auction_tier),
-      ),
+    () => poolHasAuctionTier(players),
     [players],
   );
   const isResearchLayout = columnLayout === "research";
@@ -569,16 +586,20 @@ export default function PlayerTable({
         onResearchModelColumnsToggle={
           columnLayout === "research"
             ? () => {
-                setResearchModelColumns((shown) => {
-                  if (shown) {
-                    setClientSort((prev) =>
-                      sortUsesHiddenResearchModelColumns(prev.col, false)
-                        ? { col: "value", dir: "desc" }
-                        : prev,
-                    );
-                  }
-                  return !shown;
-                });
+                const wasShown = researchModelColumns;
+                const next = !wasShown;
+                if (isResearchModelControlled) {
+                  onResearchModelColumnsVisibleChange?.(next);
+                } else {
+                  setInternalResearchModelColumns(next);
+                }
+                if (wasShown) {
+                  setClientSort((prev) =>
+                    sortUsesHiddenResearchModelColumns(prev.col, false)
+                      ? { col: "value", dir: "desc" }
+                      : prev,
+                  );
+                }
               }
             : undefined
         }
@@ -727,12 +748,13 @@ export default function PlayerTable({
                     auctionDollars: primaryValue,
                     valuationEligible: player.valuation_eligible,
                   });
-                const valueCellTitle = showMinBidOutsidePoolTooltip
-                  ? TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID
-                  : player.valuation_eligible === false &&
-                      primaryValue === undefined
-                    ? "Model value unavailable"
-                    : RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE;
+                const valueCellTitle = researchAuctionValueCellTitle({
+                  maskEngineColumns,
+                  valuationEligible: player.valuation_eligible,
+                  showOutsideEnginePoolMinBidTooltip: showMinBidOutsidePoolTooltip,
+                  outsideEnginePoolTooltip: TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID,
+                  auctionValueTooltip: RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
+                });
                 const draftedTeamName = draftedByTeam
                   ? lookupRosterMapForCatalogPlayer(draftedByTeam, player)
                   : undefined;
@@ -756,6 +778,17 @@ export default function PlayerTable({
                       draftedContractLabel,
                     })
                   : [];
+                const tierBadgeTitle = tierBadgeTooltip(
+                  player,
+                  tierHeaderUsesAuction,
+                );
+                const tierCellTitle =
+                  typeof player.auction_tier === "number" &&
+                  Number.isFinite(player.auction_tier) &&
+                  typeof player.catalog_tier === "number" &&
+                  player.auction_tier !== player.catalog_tier
+                    ? `${tierBadgeTitle} Model tier ${player.catalog_tier}.`
+                    : tierBadgeTitle;
 
                 return (
                   <tr
@@ -845,34 +878,88 @@ export default function PlayerTable({
                     </td>
 
                     <td className="td-pos">
-                      {player.positions && player.positions.length > 1 ? (
-                        <div
-                          className={
-                            "pt-pos-badges" +
-                            (isResearchLayout ? " pt-pos-badges--research" : "")
-                          }
-                        >
-                          {player.positions.map((pos) => (
-                            <PosBadge key={pos} pos={pos} />
-                          ))}
-                        </div>
-                      ) : (
-                        <PosBadge pos={player.position} />
-                      )}
+                      {isResearchLayout
+                        ? (() => {
+                            const parts = researchTablePrimaryPositionParts(
+                              player,
+                              draftDisplaySlotKeys,
+                            );
+                            if (parts.length === 0) {
+                              return <span className="td-pos-empty">—</span>;
+                            }
+                            if (parts.length === 1) {
+                              return <PosBadge pos={parts[0]} />;
+                            }
+                            return (
+                              <div className="pt-pos-badges pt-pos-badges--research">
+                                {parts.map((pos) => (
+                                  <PosBadge
+                                    key={`${player.id}-pos-${pos}`}
+                                    pos={pos}
+                                  />
+                                ))}
+                              </div>
+                            );
+                          })()
+                        : (() => {
+                            const chips = playerDisplayPositionBadges(
+                              player,
+                              draftDisplaySlotKeys,
+                            );
+                            const slotChips = playerDisplaySlotEligibilityBadges(
+                              player,
+                              draftDisplaySlotKeys,
+                            );
+                            const primaryBlock =
+                              chips.length > 1 ? (
+                                <div className="pt-pos-badges">
+                                  {chips.map((pos) => (
+                                    <PosBadge
+                                      key={`${player.id}-${pos}`}
+                                      pos={pos}
+                                    />
+                                  ))}
+                                </div>
+                              ) : chips.length === 1 ? (
+                                <PosBadge pos={chips[0]} />
+                              ) : (
+                                <span className="td-pos-empty">—</span>
+                              );
+                            if (slotChips.length === 0) {
+                              return primaryBlock;
+                            }
+                            return (
+                              <div className="pt-pos-cell">
+                                {primaryBlock}
+                                <div
+                                  className="pt-pos-slots"
+                                  title="Roster slots this player can fill"
+                                >
+                                  <span className="pt-pos-slots-label">
+                                    Slots
+                                  </span>
+                                  <span className="pt-pos-slots-badges">
+                                    {slotChips.map((s) => (
+                                      <PosBadge
+                                        key={`${player.id}-slot-${s}`}
+                                        pos={s}
+                                        className="pos-badge--slot-elig"
+                                      />
+                                    ))}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                     </td>
                     <td className="td-team">{player.team}</td>
 
                     {showTierModelCols && (
-                      <td
-                        className="td-tier"
-                        title={
-                          typeof player.auction_tier === "number" &&
-                          player.auction_tier !== player.catalog_tier
-                            ? `Model tier ${player.catalog_tier}`
-                            : undefined
-                        }
-                      >
-                        <TierBadge tier={displayAuctionTier(player) ?? 1} />
+                      <td className="td-tier" title={tierCellTitle}>
+                        <TierBadge
+                          tier={displayAuctionTier(player) ?? 1}
+                          title={tierBadgeTitle}
+                        />
                       </td>
                     )}
 
@@ -941,7 +1028,10 @@ export default function PlayerTable({
                           {maskEngineColumns ? (
                             <ResearchEngineValueLoading label="Loading auction value" />
                           ) : (
-                            formatCurrencyWhole(primaryValue)
+                            formatResearchAuctionValueDisplay(
+                              primaryValue,
+                              player.valuation_eligible,
+                            )
                           )}
                         </span>
                       </div>

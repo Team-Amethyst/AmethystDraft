@@ -15,6 +15,7 @@ export interface League {
   name: string;
   commissionerId: string;
   memberIds: string[];
+  seasonYear?: number;
   budget: number;
   hitterBudgetPct: number;
   teams: number;
@@ -27,6 +28,8 @@ export interface League {
   playerPool: "Mixed" | "AL" | "NL";
   teamNames: string[];
   posEligibilityThreshold: number;
+  leagueFamilyId: string;
+  previousSeasonLeagueId?: string;
   createdAt: string;
   taxiDraftOrder?: string[];
   taxiRosters?: Record<string, TaxiRosterEntry[]>;

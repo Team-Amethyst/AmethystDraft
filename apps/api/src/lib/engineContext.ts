@@ -9,6 +9,11 @@ import {
   type ValuationIncomingParsed,
   type RosterSlotsNormalized,
 } from "../validation/valuationRequestSchema";
+import { isMinorRosterSlot, isTaxiRosterSlot } from "./rosterSlotKind";
+import {
+  resolveAuctionCurveModelForDraftRequest,
+  type AuctionCurveModel,
+} from "./auctionCurveModel";
 
 export interface EngineRosterSlot {
   position: string;
@@ -86,6 +91,8 @@ export interface EngineValuationContext {
   seed?: number;
   user_team_id?: string;
   inflation_model?: "replacement_slots_v2";
+  /** Surplus → auction dollar curve (`linear_v1` default; demo keeper uses `tiered_surplus_v1`). */
+  auction_curve_model?: AuctionCurveModel;
   /** When true, Engine may attach row-level explain payloads (larger response). */
   explain_valuation_rows?: boolean;
   /** Optional bid-cap hint for Engine experiments; omit in Draftroom by default. */
@@ -150,16 +157,6 @@ function toDraftedPlayers(entries: IRosterEntry[]): EngineDraftedPlayer[] {
       roster_slot: e.rosterSlot,
     };
   });
-}
-
-function isMinorSlot(slot: string | undefined): boolean {
-  const normalized = (slot ?? "").toUpperCase();
-  return normalized.includes("MIN");
-}
-
-function isTaxiSlot(slot: string | undefined): boolean {
-  const normalized = (slot ?? "").toUpperCase();
-  return normalized.includes("TAXI");
 }
 
 function toTeamPlayersSections(
@@ -306,6 +303,7 @@ export function summarizeEngineValuationPayload(
     budget_by_team_id: payload.budget_by_team_id,
     budget_by_team_id_sum,
     inflation_model: payload.inflation_model,
+    auction_curve_model: payload.auction_curve_model,
     user_team_id: payload.user_team_id,
   };
 }
@@ -409,18 +407,26 @@ export function playerDataToInjuryOverrides(
 export async function buildValuationContext(
   league: ILeague,
   rosterEntries: IRosterEntry[],
-  options?: { userTeamId?: string },
+  options?: { userTeamId?: string; auctionCurveModel?: AuctionCurveModel },
 ): Promise<EngineValuationContext> {
   const rosterSlots = leagueRosterSlotsForEngine(league);
   const numTeams = resolveLeagueNumTeams(league);
 
   const keeperEntries = rosterEntries.filter((e) => e.isKeeper);
-  const minorsEntries = rosterEntries.filter((e) => isMinorSlot(e.rosterSlot));
-  const taxiEntries = rosterEntries.filter((e) => isTaxiSlot(e.rosterSlot));
+  const minorsEntries = rosterEntries.filter((e) => isMinorRosterSlot(e.rosterSlot));
+  const taxiEntries = rosterEntries.filter((e) => isTaxiRosterSlot(e.rosterSlot));
   const draftedEntries = rosterEntries.filter(
-    (e) => !e.isKeeper && !isMinorSlot(e.rosterSlot) && !isTaxiSlot(e.rosterSlot),
+    (e) =>
+      !e.isKeeper &&
+      !isMinorRosterSlot(e.rosterSlot) &&
+      !isTaxiRosterSlot(e.rosterSlot),
   );
   const drafted_players = toDraftedPlayers(draftedEntries);
+  // Keeper salaries live in pre_draft_rosters for the engine, but still consume team
+  // budget. Match buildEngineValuationCalculateBodyFromFixture: budgetRows =
+  // [...preDraftFlattened, ...auctionPicks].
+  const keeperBudgetRows = toDraftedPlayers(keeperEntries);
+  const budgetRows = [...keeperBudgetRows, ...drafted_players];
 
   const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
   const diag = process.env.LOG_ENGINE_VALUATION_DIAGNOSTICS === "1";
@@ -460,7 +466,7 @@ export async function buildValuationContext(
     drafted_players,
     budget_by_team_id: computeBudgetByTeamRemaining(
       league.budget,
-      drafted_players,
+      budgetRows,
       numTeams,
     ),
     ...(league.scoringFormat
@@ -477,6 +483,9 @@ export async function buildValuationContext(
     ...(valuationPlayerIds.length > 0 ? { player_ids: valuationPlayerIds } : {}),
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: options?.auctionCurveModel,
+    }),
     pre_draft_rosters: toTeamPlayersSections(keeperEntries),
     minors: toTeamPlayersSections(minorsEntries),
     taxi: toTeamPlayersSections(taxiEntries),
@@ -696,6 +705,9 @@ export function buildEngineValuationCalculateBodyFromFixture(
     user_team_id: fixture.user_team_id ?? fixture.league.user_team_id ?? "team_1",
     inflation_model:
       fixture.inflation_model ?? fixture.league.inflation_model ?? "replacement_slots_v2",
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: fixture.auction_curve_model,
+    }),
   };
 
   return body;
@@ -762,6 +774,9 @@ export function buildEngineValuationCalculateBodyFromFlat(
     ...(flat.seed !== undefined ? { seed: flat.seed } : {}),
     user_team_id: flat.user_team_id ?? "team_1",
     inflation_model: flat.inflation_model ?? "replacement_slots_v2",
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: flat.auction_curve_model,
+    }),
   };
 
   return body;

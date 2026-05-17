@@ -9,3 +9,15 @@ export const PLAYER_TABLE_STORAGE_KEYS = {
   /** Research table: show model rank + tier columns (off by default). */
   researchModelColumns: "amethyst-pt-research-model-cols",
 } as const;
+
+/** Whether Research “Model rank & tiers” columns are enabled (persisted). */
+export function readResearchModelColumnsPreference(): boolean {
+  try {
+    return (
+      localStorage.getItem(PLAYER_TABLE_STORAGE_KEYS.researchModelColumns) ===
+      "true"
+    );
+  } catch {
+    return false;
+  }
+}

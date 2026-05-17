@@ -1,4 +1,6 @@
 import { Router, RequestHandler, Response, NextFunction } from "express";
+import { randomUUID } from "node:crypto";
+import mongoose from "mongoose";
 import League, { ITaxiRosterEntry } from "../models/League";
 import RosterEntry from "../models/RosterEntry";
 import PlayerNote from "../models/PlayerNote";
@@ -11,30 +13,183 @@ import {
   addRosterEntrySchema,
   updateTaxiDraftOrderSchema,
   updateTaxiRostersSchema,
+  startNewSeasonSchema,
+  importKeepersSchema,
+  valuationIncomingSchema,
+  createLeagueFromCheckpointSchema,
 } from "../validation/schemas";
 import {
   NotFoundError,
   ForbiddenError,
   ValidationError,
+  ConflictError,
 } from "../lib/appError";
+import {
+  buildNewSeasonLeaguePayload,
+  persistedLeagueFamilyId,
+  resolveSeasonYear,
+  nextSeasonYear,
+  type LeaguePlainForSeasonClone,
+} from "../lib/leagueSeason";
+import { syncLeagueDraftStatus } from "../lib/draftStatus";
+import { readCheckpointFixtureJson } from "../lib/engineCheckpointCatalog";
+import { extractCheckpointLeagueAndRoster } from "../lib/leagueFromEngineCheckpoint";
+import { inferMongoPositionsFromCheckpointPick } from "../lib/inferredCheckpointPositions";
 
 const router: Router = Router();
 
 router.use(authMiddleware as RequestHandler);
 
+function singleRouteParam(raw: string | string[] | undefined): string {
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id || typeof id !== "string") {
+    throw new ValidationError("Invalid league id", 400, "INVALID_LEAGUE_ID");
+  }
+  return id;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function serializeLeague(league: InstanceType<typeof League>) {
   const obj = league.toObject();
+  const id = String(obj._id);
+  const seasonYear = resolveSeasonYear(league);
+  const leagueFamilyId = persistedLeagueFamilyId({
+    _id: obj._id,
+    leagueFamilyId: obj.leagueFamilyId,
+  });
+  const prev = obj.previousSeasonLeagueId;
   return {
     ...obj,
-    id: String(obj._id),
+    id,
     commissionerId: String(obj.commissionerId),
     memberIds: (obj.memberIds ?? []).map(String),
     _id: undefined,
     __v: undefined,
+    seasonYear,
+    leagueFamilyId,
+    previousSeasonLeagueId: prev ? String(prev) : undefined,
   };
 }
+
+// ─── POST /api/leagues/from-engine-checkpoint ──────────────────────────────────
+// Demo / QA: persist League + RosterEntry rows from bundled Engine checkpoint JSON.
+
+const createLeagueFromEngineCheckpoint: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const body = req.body as {
+      checkpoint_key: string;
+      name?: string;
+      seasonYear?: number;
+    };
+
+    const raw = readCheckpointFixtureJson(
+      body.checkpoint_key as import("../lib/engineCheckpointCatalog").EngineCheckpointId,
+    );
+    let parsed;
+    try {
+      parsed = valuationIncomingSchema.parse(raw);
+    } catch (e) {
+      next(
+        new ValidationError(
+          "Checkpoint fixture failed validation",
+          400,
+          "CHECKPOINT_FIXTURE_INVALID",
+          e instanceof Error ? { message: e.message } : undefined,
+        ),
+      );
+      return;
+    }
+
+    const extracted = extractCheckpointLeagueAndRoster(parsed);
+
+    const nowYear = new Date().getFullYear();
+    const minYear = nowYear - 3;
+    const y = body.seasonYear ?? nowYear;
+    if (y > nowYear || y < minYear) {
+      throw new ValidationError(
+        y > nowYear
+          ? "Season year cannot be in the future"
+          : `Season year cannot be older than ${minYear}`,
+        400,
+        "INVALID_SEASON_YEAR",
+      );
+    }
+
+    const leagueName =
+      typeof body.name === "string" && body.name.trim().length > 0
+        ? body.name.trim()
+        : `[Demo] ${body.checkpoint_key.replace(/_/g, " ")}`;
+
+    const league = await League.create({
+      name: leagueName,
+      commissionerId: req.user!._id,
+      memberIds: [req.user!._id],
+      seasonYear: y,
+      teams: extracted.teams,
+      budget: extracted.budget,
+      hitterBudgetPct: extracted.hitterBudgetPct ?? 70,
+      rosterSlots: extracted.rosterSlots,
+      scoringFormat: extracted.scoringFormat ?? "5x5",
+      scoringCategories: extracted.scoringCategories,
+      playerPool: extracted.playerPool,
+      teamNames: extracted.teamNames,
+      posEligibilityThreshold: extracted.posEligibilityThreshold ?? 20,
+      leagueFamilyId: randomUUID(),
+    });
+
+    const commissionerId = req.user!._id;
+    const teams = extracted.teams;
+
+    const clampTeam = (tid: string): string => {
+      const m = /^team_(\d+)$/i.exec(tid.trim());
+      if (!m?.[1]) return "team_1";
+      let n = Number.parseInt(m[1], 10);
+      if (!Number.isFinite(n) || n < 1) n = 1;
+      if (n > teams) n = teams;
+      return `team_${n}`;
+    };
+
+    const docs = extracted.rosterRows.map((r) => ({
+      leagueId: league._id,
+      userId: commissionerId,
+      teamId: clampTeam(r.teamId),
+      externalPlayerId: r.externalPlayerId,
+      playerName: r.playerName,
+      playerTeam: r.playerTeam,
+      positions: inferMongoPositionsFromCheckpointPick({
+        positions: r.positions,
+        position: undefined,
+        roster_slot: r.rosterSlot,
+      }),
+      price: r.price,
+      rosterSlot: r.rosterSlot,
+      isKeeper: r.isKeeper,
+      keeperContract: "",
+    }));
+
+    if (docs.length > 0) {
+      await RosterEntry.insertMany(docs);
+    }
+    await syncLeagueDraftStatus(league._id);
+
+    const refreshed = await League.findById(league._id);
+    if (!refreshed) {
+      throw new NotFoundError(
+        "League not found after create",
+        500,
+        "LEAGUE_CREATE_FAILED",
+      );
+    }
+    res.status(201).json(serializeLeague(refreshed));
+  } catch (err) {
+    next(err);
+  }
+};
 
 // ─── POST /api/leagues ─────────────────────────────────────────────────────────
 
@@ -46,6 +201,7 @@ const createLeague: RequestHandler = async (
   try {
     const {
       name,
+      seasonYear,
       teams,
       budget,
       hitterBudgetPct,
@@ -56,12 +212,33 @@ const createLeague: RequestHandler = async (
       draftDate,
       teamNames,
       posEligibilityThreshold,
+      leagueFamilyId,
     } = req.body;
+
+    const nowYear = new Date().getFullYear();
+    const minYear = nowYear - 3;
+    if (seasonYear !== undefined) {
+      if (seasonYear > nowYear) {
+        throw new ValidationError(
+          "Season year cannot be in the future",
+          400,
+          "INVALID_SEASON_YEAR",
+        );
+      }
+      if (seasonYear < minYear) {
+        throw new ValidationError(
+          `Season year cannot be older than ${minYear}`,
+          400,
+          "INVALID_SEASON_YEAR",
+        );
+      }
+    }
 
     const league = await League.create({
       name: name.trim(),
       commissionerId: req.user!._id,
       memberIds: [req.user!._id],
+      seasonYear: seasonYear ?? new Date().getFullYear(),
       teams: teams ?? 12,
       budget: budget ?? 260,
       hitterBudgetPct: hitterBudgetPct ?? 70,
@@ -72,6 +249,7 @@ const createLeague: RequestHandler = async (
       draftDate: draftDate ? new Date(draftDate) : undefined,
       teamNames: teamNames ?? [],
       posEligibilityThreshold: posEligibilityThreshold ?? 20,
+      leagueFamilyId: leagueFamilyId?.trim() || randomUUID(),
     });
 
     res.status(201).json(serializeLeague(league));
@@ -88,7 +266,17 @@ const getMyLeagues: RequestHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const leagues = await League.find({ memberIds: req.user!._id });
+    const q: Record<string, unknown> = { memberIds: req.user!._id };
+    const seasonYearParam = req.query.seasonYear;
+    if (seasonYearParam !== undefined) {
+      const parsed = Number(seasonYearParam);
+      if (!Number.isNaN(parsed)) q.seasonYear = parsed;
+    }
+    const leagues = await League.find(q as any).sort([
+      ["leagueFamilyId", 1],
+      ["seasonYear", -1],
+      ["name", 1],
+    ]);
     res.json(leagues.map(serializeLeague));
   } catch (err) {
     next(err);
@@ -166,6 +354,45 @@ const updateLeague: RequestHandler = async (
 
     await league.save();
     res.json(serializeLeague(league));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── DELETE /api/leagues/:id ─────────────────────────────────────────────────
+// Commissioner only. Removes roster, notes, watchlist for this league; clears
+// previousSeasonLeagueId pointers from other league docs.
+
+const deleteLeague: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const id = singleRouteParam(req.params.id);
+    const league = await League.findOne({
+      _id: id,
+      commissionerId: req.user!._id,
+    });
+    if (!league) {
+      throw new NotFoundError(
+        "League not found or not authorized",
+        404,
+        "LEAGUE_NOT_FOUND_OR_UNAUTHORIZED",
+      );
+    }
+    const leagueObjectId = league._id;
+    await Promise.all([
+      RosterEntry.deleteMany({ leagueId: leagueObjectId }),
+      PlayerNote.deleteMany({ leagueId: leagueObjectId }),
+      WatchlistEntry.deleteMany({ leagueId: leagueObjectId }),
+      League.updateMany(
+        { previousSeasonLeagueId: leagueObjectId },
+        { $unset: { previousSeasonLeagueId: 1 } },
+      ),
+    ]);
+    await League.deleteOne({ _id: leagueObjectId });
+    res.sendStatus(204);
   } catch (err) {
     next(err);
   }
@@ -252,6 +479,7 @@ const addRosterEntry: RequestHandler = async (
       keeperContract:
         typeof keeperContract === "string" ? keeperContract.trim() : "",
     });
+    await syncLeagueDraftStatus(league._id);
     res.status(201).json(entry);
   } catch (err) {
     next(err);
@@ -286,6 +514,7 @@ const removeRosterEntry: RequestHandler = async (
       throw new ForbiddenError("Not authorized to remove this entry", 403, "FORBIDDEN_TEAM_WRITE");
     }
     await entry.deleteOne();
+    await syncLeagueDraftStatus(league._id);
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -362,6 +591,7 @@ const updateRosterEntry: RequestHandler = async (
     if (!entry) {
       throw new NotFoundError("Entry not found", 404, "ENTRY_NOT_FOUND");
     }
+    await syncLeagueDraftStatus(league._id);
     res.json(entry);
   } catch (err) {
     next(err);
@@ -437,9 +667,9 @@ const getWatchlist: RequestHandler = async (
         catalog_tier: e.tier,
         value: e.value,
         baseline_value: e.baselineValue,
-        adjusted_value: e.adjustedValue,
+        auction_value: e.adjustedValue,
         recommended_bid: e.recommendedBid,
-        team_adjusted_value: e.teamAdjustedValue,
+        team_value: e.teamAdjustedValue,
       })),
     );
   } catch (err) {
@@ -466,9 +696,9 @@ const upsertWatchlistEntry: RequestHandler = async (
       tier,
       value,
       baseline_value,
-      adjusted_value,
+      auction_value,
       recommended_bid,
-      team_adjusted_value,
+      team_value,
     } = req.body as {
       name: string;
       team?: string;
@@ -480,9 +710,9 @@ const upsertWatchlistEntry: RequestHandler = async (
       value?: number;
       tier?: number;
       baseline_value?: number;
-      adjusted_value?: number;
+      auction_value?: number;
       recommended_bid?: number;
-      team_adjusted_value?: number;
+      team_value?: number;
     };
     await WatchlistEntry.findOneAndUpdate(
       {
@@ -499,9 +729,9 @@ const upsertWatchlistEntry: RequestHandler = async (
         value: value ?? 0,
         tier: catalog_tier ?? tier ?? 5,
         baselineValue: baseline_value,
-        adjustedValue: adjusted_value,
+        adjustedValue: auction_value,
         recommendedBid: recommended_bid,
-        teamAdjustedValue: team_adjusted_value,
+        teamAdjustedValue: team_value,
       },
       { upsert: true, new: true },
     );
@@ -592,12 +822,157 @@ const updateTaxiRosters: RequestHandler = async (
   }
 };
 
+// ─── POST /api/leagues/:id/start-new-season ────────────────────────────────────
+
+const startNewSeason: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const leagueId = singleRouteParam(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(leagueId)) {
+      throw new ValidationError("Invalid league id", 400, "INVALID_LEAGUE_ID");
+    }
+
+    const src = await League.findOne({
+      _id: leagueId,
+      commissionerId: req.user!._id,
+    });
+
+    if (!src) {
+      throw new NotFoundError("League not found or not authorized", 404, "LEAGUE_NOT_FOUND_OR_UNAUTHORIZED");
+    }
+
+    const { seasonYear: requestedYear } = req.body as { seasonYear?: number };
+    const baseYear = resolveSeasonYear(src);
+    const nextYear = nextSeasonYear(src, requestedYear);
+
+    if (nextYear <= baseYear) {
+      throw new ConflictError(
+        "New season year must be greater than the league’s current season year",
+        409,
+        "INVALID_SEASON_YEAR",
+      );
+    }
+
+    const familyId = persistedLeagueFamilyId(src);
+    const dup = await League.findOne({ leagueFamilyId: familyId, seasonYear: nextYear });
+    if (dup) {
+      throw new ConflictError(
+        `A league already exists for season ${nextYear} in this league family`,
+        409,
+        "SEASON_EXISTS",
+      );
+    }
+
+    const plain = { ...src.toObject(), _id: src._id } as LeaguePlainForSeasonClone;
+    const payload = buildNewSeasonLeaguePayload(plain, nextYear, src._id);
+    const created = await League.create(payload);
+    res.status(201).json(serializeLeague(created));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── POST /api/leagues/:id/import-keepers ─────────────────────────────────────
+
+const importKeepers: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const newLeagueId = singleRouteParam(req.params.id);
+    const { fromLeagueId, teamMapping } = req.body as {
+      fromLeagueId: string;
+      teamMapping?: Record<string, string>;
+    };
+
+    if (!mongoose.Types.ObjectId.isValid(newLeagueId) || !mongoose.Types.ObjectId.isValid(fromLeagueId)) {
+      throw new ValidationError("Invalid league id", 400, "INVALID_LEAGUE_ID");
+    }
+
+    if (fromLeagueId === newLeagueId) {
+      throw new ValidationError("fromLeagueId must differ from the target league", 400, "INVALID_IMPORT");
+    }
+
+    const newLeague = await League.findOne({
+      _id: newLeagueId,
+      commissionerId: req.user!._id,
+    });
+
+    if (!newLeague) {
+      throw new NotFoundError("League not found or not authorized", 404, "LEAGUE_NOT_FOUND_OR_UNAUTHORIZED");
+    }
+
+    const fromLeague = await League.findById(fromLeagueId);
+    if (!fromLeague) {
+      throw new NotFoundError("Source league not found", 404, "SOURCE_LEAGUE_NOT_FOUND");
+    }
+
+    const uid = req.user!._id;
+    const fromMembers = fromLeague.memberIds ?? [];
+    const isFromMember = fromMembers.some((m) => m.equals(uid));
+    if (!isFromMember) {
+      throw new ForbiddenError(
+        "You must be a member of the source league to import keepers",
+        403,
+        "NOT_SOURCE_MEMBER",
+      );
+    }
+
+    if (persistedLeagueFamilyId(newLeague) !== persistedLeagueFamilyId(fromLeague)) {
+      throw new ValidationError("Leagues must share the same leagueFamilyId", 400, "FAMILY_MISMATCH");
+    }
+
+    const keepers = await RosterEntry.find({
+      leagueId: fromLeague._id,
+      isKeeper: true,
+    });
+
+    const map = teamMapping ?? {};
+    const docs = keepers.map((e) => ({
+      leagueId: newLeague._id,
+      userId: e.userId,
+      teamId: map[e.teamId] ?? e.teamId,
+      externalPlayerId: e.externalPlayerId,
+      playerName: e.playerName,
+      playerTeam: e.playerTeam,
+      positions: [...e.positions],
+      price: e.price,
+      rosterSlot: e.rosterSlot,
+      isKeeper: e.isKeeper,
+      keeperContract: e.keeperContract,
+      acquiredAt: e.acquiredAt,
+    }));
+
+    if (docs.length > 0) {
+      await RosterEntry.insertMany(docs);
+    }
+
+    await syncLeagueDraftStatus(newLeague._id);
+
+    res.status(201).json({ imported: docs.length });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── Route registration ────────────────────────────────────────────────────────
 
+router.post(
+  "/from-engine-checkpoint",
+  validate(createLeagueFromCheckpointSchema),
+  createLeagueFromEngineCheckpoint,
+);
 router.post("/", validate(createLeagueSchema), createLeague);
 router.get("/", getMyLeagues);
+router.post("/:id/start-new-season", validate(startNewSeasonSchema), startNewSeason);
+router.post("/:id/import-keepers", validate(importKeepersSchema), importKeepers);
 router.get("/:id", getLeague);
 router.patch("/:id", validate(updateLeagueSchema), updateLeague);
+router.delete("/:id", deleteLeague);
 router.get("/:id/roster", getRoster);
 router.post("/:id/roster", validate(addRosterEntrySchema), addRosterEntry);
 router.patch("/:id/roster/:entryId", updateRosterEntry);

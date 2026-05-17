@@ -14,7 +14,14 @@ import {
   logEngineValuationResponseIfEnabled,
   summarizeEngineValuationPayload,
   userIdToTeamId,
+  valuationIncomingToEngineContext,
 } from "../lib/engineContext";
+import {
+  CHECKPOINT_CATALOG_ENTRIES,
+  readCheckpointFixtureJson,
+  isEngineCheckpointId,
+} from "../lib/engineCheckpointCatalog";
+import { resolveAuctionCurveModelForDraftRequest } from "../lib/auctionCurveModel";
 import {
   valuationDiagnosticsEnabled,
   safeJsonByteLength,
@@ -27,16 +34,23 @@ import {
   mockPickSchema,
   newsSignalsQuerySchema,
   valuationBoardBodySchema,
+  valuationCheckpointBodySchema,
   valuationPlayerBodySchema,
   catalogBatchValuesBodySchema,
 } from "../validation/schemas";
+import { valuationIncomingSchema } from "../validation/schemas";
 import { logRequestError } from "../lib/errorLogging";
 import { forwardEngineCorrelationHeaders } from "../lib/engineResponseMeta";
-import { 
-  AppError, 
-  UpstreamError, 
-  NotFoundError 
+import {
+  AppError,
+  UpstreamError,
+  NotFoundError,
+  ValidationError,
 } from "../lib/appError";
+import {
+  parseDraftValuationDebugQuery,
+  shapeValuationResponseForDraft,
+} from "../lib/draftValuationContract";
 
 const router: Router = Router();
 
@@ -44,6 +58,12 @@ const router: Router = Router();
 router.use(authMiddleware as RequestHandler);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function routeParamString(raw: string | string[] | undefined): string {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw) && typeof raw[0] === "string") return raw[0];
+  return "";
+}
 
 function throwEngineError(err: unknown, req: AuthRequest): never {
   if (err instanceof AxiosError) {
@@ -114,6 +134,7 @@ const calculateValuation: RequestHandler = async (
     const body = req.body as {
       explain_valuation_rows?: boolean;
       recommended_bid_soft_cap_ratio?: number;
+      auction_curve_model?: "linear_v1" | "tiered_surplus_v1";
     };
 
     const userTeamId = resolveUserTeamId(req, league);
@@ -122,6 +143,7 @@ const calculateValuation: RequestHandler = async (
     const tContext = Date.now();
     const context = await buildValuationContext(league, entries, {
       userTeamId,
+      auctionCurveModel: body.auction_curve_model,
     });
     msContext = Date.now() - tContext;
 
@@ -177,8 +199,13 @@ const calculateValuation: RequestHandler = async (
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
 
+    const debugBoard = parseDraftValuationDebugQuery(req.query);
+    const shapedBoard = shapeValuationResponseForDraft(axiosRes.data, {
+      debug: debugBoard,
+    });
+
     if (diag) {
-      const responseBytes = safeJsonByteLength(axiosRes.data);
+      const responseBytes = safeJsonByteLength(shapedBoard);
       const summary = summarizeEngineValuationPayload(payloadRecord);
       console.info(
         "[valuation-diag] board_ok",
@@ -205,7 +232,7 @@ const calculateValuation: RequestHandler = async (
       );
     }
 
-    res.json(axiosRes.data);
+    res.json(shapedBoard);
   } catch (err) {
     if (diag) {
       if (err instanceof AppError) {
@@ -283,20 +310,23 @@ const calculateValuationPlayer: RequestHandler = async (
     const entries = await RosterEntry.find({ leagueId: league._id });
     msRoster = Date.now() - tRoster;
 
+    const body = req.body as {
+      player_id: string;
+      explain_valuation_rows?: boolean;
+      recommended_bid_soft_cap_ratio?: number;
+      auction_curve_model?: "linear_v1" | "tiered_surplus_v1";
+    };
+
     const userTeamId = resolveUserTeamId(req, league);
     userTeamIdForLog = userTeamId;
 
     const tContext = Date.now();
     const context = await buildValuationContext(league, entries, {
       userTeamId,
+      auctionCurveModel: body.auction_curve_model,
     });
     msContext = Date.now() - tContext;
 
-    const body = req.body as {
-      player_id: string;
-      explain_valuation_rows?: boolean;
-      recommended_bid_soft_cap_ratio?: number;
-    };
     const base = finalizeEngineValuationPostPayload({
       ...context,
       ...(body.explain_valuation_rows === true
@@ -352,8 +382,13 @@ const calculateValuationPlayer: RequestHandler = async (
     logEngineValuationResponseIfEnabled(axiosRes.data);
     forwardEngineCorrelationHeaders(res, axiosRes);
 
+    const debugPlayer = parseDraftValuationDebugQuery(req.query);
+    const shapedPlayer = shapeValuationResponseForDraft(axiosRes.data, {
+      debug: debugPlayer,
+    });
+
     if (diag) {
-      const responseBytes = safeJsonByteLength(axiosRes.data);
+      const responseBytes = safeJsonByteLength(shapedPlayer);
       const summary = summarizeEngineValuationPayload(base as Record<string, unknown>);
       console.info(
         "[valuation-diag] player_ok",
@@ -381,7 +416,7 @@ const calculateValuationPlayer: RequestHandler = async (
       );
     }
 
-    res.json(axiosRes.data);
+    res.json(shapedPlayer);
   } catch (err) {
     if (diag) {
       if (err instanceof AppError) {
@@ -533,8 +568,97 @@ const postCatalogBatchValues: RequestHandler = async (
   }
 };
 
+// ─── GET /api/engine/checkpoints ────────────────────────────────────────────────
+// Bundled valuation-request fixtures (nested Activity #9 shape); filenames map to Engine portal names — see ENGINE_AGENT_BRIEF.md.
+
+const listEngineCheckpoints: RequestHandler = (_req, res): void => {
+  res.json({ checkpoints: CHECKPOINT_CATALOG_ENTRIES });
+};
+
+const getCheckpointFixtureJsonHandler: RequestHandler = (
+  req: AuthRequest,
+  res: Response,
+): void => {
+  const key = routeParamString(req.params.checkpointKey);
+  if (!isEngineCheckpointId(key)) {
+    throw new ValidationError("Unknown checkpoint key", 400, "CHECKPOINT_UNKNOWN");
+  }
+  res.json(readCheckpointFixtureJson(key));
+};
+
+/** POST body uses the same bundled JSON as graders; Engine receives the flattened POST /valuation/calculate body from {@link valuationIncomingToEngineContext}. */
+const calculateValuationFromCheckpoint: RequestHandler = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  const leagueId = req.params.leagueId;
+  const body = req.body as {
+    checkpoint_key: (typeof CHECKPOINT_CATALOG_ENTRIES)[number]["id"];
+    user_team_id?: string;
+    inflation_model?: "replacement_slots_v2";
+    auction_curve_model?: "linear_v1" | "tiered_surplus_v1";
+    explain_valuation_rows?: boolean;
+    recommended_bid_soft_cap_ratio?: number;
+  };
+
+  const league = await League.findById(leagueId);
+  if (!league) {
+    throw new NotFoundError("League not found", 404, "LEAGUE_NOT_FOUND");
+  }
+
+  let parsedIncoming;
+  try {
+    const raw = readCheckpointFixtureJson(body.checkpoint_key);
+    parsedIncoming = valuationIncomingSchema.parse(raw);
+  } catch (err) {
+    throw new ValidationError(
+      "Checkpoint fixture failed validation — refresh Draft fixtures or schema",
+      400,
+      "CHECKPOINT_FIXTURE_INVALID",
+      err instanceof Error ? { message: err.message } : undefined,
+    );
+  }
+
+  const context = valuationIncomingToEngineContext(parsedIncoming);
+  const userTeamId = resolveUserTeamId(req, league);
+
+  const payload = finalizeEngineValuationPostPayload({
+    ...context,
+    user_team_id: userTeamId,
+    ...(body.inflation_model ? { inflation_model: body.inflation_model } : {}),
+    auction_curve_model: resolveAuctionCurveModelForDraftRequest({
+      auction_curve_model: body.auction_curve_model,
+    }),
+    ...(body.explain_valuation_rows === true
+      ? { explain_valuation_rows: true }
+      : {}),
+    ...(typeof body.recommended_bid_soft_cap_ratio === "number"
+      ? { recommended_bid_soft_cap_ratio: body.recommended_bid_soft_cap_ratio }
+      : {}),
+  });
+
+  logEngineValuationPayloadIfEnabled(payload);
+  try {
+    const axiosRes = await amethyst.post("/valuation/calculate", payload);
+    logEngineValuationResponseIfEnabled(axiosRes.data);
+    forwardEngineCorrelationHeaders(res, axiosRes);
+    const debugCp = parseDraftValuationDebugQuery(req.query);
+    const shapedCp = shapeValuationResponseForDraft(axiosRes.data, { debug: debugCp });
+    res.json(shapedCp);
+  } catch (engineErr) {
+    throwEngineError(engineErr, req);
+  }
+};
+
 // ─── Route registration ───────────────────────────────────────────────────────
 
+router.get("/checkpoints", listEngineCheckpoints);
+router.get("/checkpoints/:checkpointKey/json", getCheckpointFixtureJsonHandler);
+router.post(
+  "/leagues/:leagueId/valuation/checkpoint",
+  validateBody(valuationCheckpointBodySchema),
+  calculateValuationFromCheckpoint,
+);
 router.post(
   "/leagues/:leagueId/valuation",
   validateBody(valuationBoardBodySchema),

@@ -9,9 +9,21 @@ import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
 import type { ValuationResponse } from "../../api/engine";
 import type { TeamSummary } from "../../pages/commandCenterUtils";
-import { LOWER_IS_BETTER_CATS, leagueWideAuctionSlotsRemaining } from "../../pages/commandCenterUtils";
-import { buildInflationKpi, enginePlayersKpiCopy } from "../../pages/commandCenterMarket";
+import {
+  commandCenterBidDecision,
+  commandCenterBidContextMetrics,
+  commandCenterWalletCapsFromMyTeam,
+} from "../../utils/valuation";
+import {
+  activeAuctionEntriesForTeam,
+  isActiveAuctionEntry,
+  leagueWideAuctionSlotsRemaining,
+  rosterSlotsPerTeam,
+} from "../../pages/command-center-utils/roster";
+import { LOWER_IS_BETTER_CATS } from "../../pages/commandCenterUtils";
+import { buildMarketPressureViewModel } from "../../pages/commandCenterMarket";
 import { useProjectedStandings } from "../../pages/useProjectedStandings";
+import { resolvedLeagueTeamNames } from "../../utils/team";
 import { CommandCenterDraftLog } from "./CommandCenterDraftLog";
 import { CommandCenterRightBidContextCard } from "./CommandCenterRightBidContextCard";
 import { CommandCenterRightMarketPressureCard } from "./CommandCenterRightMarketPressureCard";
@@ -86,8 +98,19 @@ export function CommandCenterRightPanel({
     });
   }, [teamData, liqSort]);
 
+  const myTeamEntriesForWallet = useMemo(
+    () => (myTeamId ? activeAuctionEntriesForTeam(rosterEntries, myTeamId) : []),
+    [rosterEntries, myTeamId],
+  );
+
+  const walletCaps = useMemo(
+    () =>
+      league ? commandCenterWalletCapsFromMyTeam(league, myTeamEntriesForWallet) : null,
+    [league, myTeamEntriesForWallet],
+  );
+
   const { scoringCats, projectedStandings, rankMaps } = useProjectedStandings({
-    leagueTeamNames: league?.teamNames,
+    leagueTeamNames: league ? resolvedLeagueTeamNames(league) : undefined,
     leagueScoringCategories: league?.scoringCategories,
     fallbackScoringCategories,
     rosterEntries,
@@ -115,31 +138,47 @@ export function CommandCenterRightPanel({
   const myTeamNameTrim = myTeamName.trim();
   const isMyTeam = (name: string) =>
     myTeamNameTrim !== "" && name.trim() === myTeamNameTrim;
-  const inflationKpi = buildInflationKpi(engineMarket, import.meta.env.DEV);
+  const leagueWideSpotsLeft =
+    league != null ? leagueWideAuctionSlotsRemaining(league, rosterEntries) : null;
+  const activeKeeperCount = useMemo(
+    () =>
+      rosterEntries.filter((e) => e.isKeeper && isActiveAuctionEntry(e)).length,
+    [rosterEntries],
+  );
+  const leagueSlotCapacity =
+    league != null ? rosterSlotsPerTeam(league) * league.teams : null;
 
-  const leagueWideSpotsLeft = league != null ? leagueWideAuctionSlotsRemaining(league, rosterEntries) : null;
-  const enginePlayersKpi = engineMarket
-    ? enginePlayersKpiCopy(
-        engineMarket.players_remaining,
-        engineMarket.valuations?.length ?? 0,
-        leagueWideSpotsLeft,
-      )
-    : null;
-  const marketClass = inflationKpi.marketClass;
+  const marketPressure = useMemo(
+    () =>
+      engineMarket
+        ? buildMarketPressureViewModel(engineMarket, import.meta.env.DEV, {
+            leagueWideOpenSlots: leagueWideSpotsLeft,
+            keeperCount: activeKeeperCount,
+            leagueSlotCapacity,
+          })
+        : null,
+    [engineMarket, leagueWideSpotsLeft, activeKeeperCount, leagueSlotCapacity],
+  );
 
   const selectedNormId = selectedPlayer?.id ? String(selectedPlayer.id).trim() : "";
   const selectedValuationRow =
     selectedNormId && engineMarket
       ? engineMarket.valuations.find((v) => String(v.player_id).trim() === selectedNormId)
       : undefined;
-  const finite = (n: unknown): number | undefined =>
-    typeof n === "number" && Number.isFinite(n) ? n : undefined;
-  const suggestedBidDollars =
-    finite(selectedValuationRow?.recommended_bid) ??
-    finite(selectedPlayer?.recommended_bid);
-  const maxBid = my?.maxBid;
-  const budgetLeft = my?.remaining;
-  const dollarsPerSpot = my?.ppSpot;
+  const bidContextMetrics = useMemo(() => {
+    if (!walletCaps) {
+      return commandCenterBidContextMetrics(null, {
+        suggestedBid: 0,
+        notBidable: false,
+      });
+    }
+    const dec = commandCenterBidDecision(
+      selectedValuationRow ?? null,
+      selectedPlayer?.value,
+      walletCaps,
+    );
+    return commandCenterBidContextMetrics(walletCaps, dec);
+  }, [walletCaps, selectedValuationRow, selectedPlayer?.value]);
 
   const commandCenterValuationAlerts = useMemo(
     () =>
@@ -163,21 +202,19 @@ export function CommandCenterRightPanel({
   return (
     <div className="cc-right">
       <CommandCenterRightBidContextCard
-        suggestedBidDollars={suggestedBidDollars}
-        maxBid={maxBid}
-        budgetLeft={budgetLeft}
-        dollarsPerSpot={dollarsPerSpot}
+        suggestedBidDollars={
+          selectedPlayer ? bidContextMetrics.suggestedBid : undefined
+        }
+        maxBid={walletCaps != null ? bidContextMetrics.maxBid : my?.maxBid}
+        budgetLeft={
+          walletCaps != null ? bidContextMetrics.budgetLeft : my?.remaining
+        }
+        dollarsPerSpot={
+          walletCaps != null ? bidContextMetrics.dollarsPerSpot : my?.ppSpot
+        }
       />
 
-      <CommandCenterRightMarketPressureCard
-        engineMarket={engineMarket}
-        marketClass={marketClass}
-        inflationTitle={inflationKpi.title}
-        inflationGaugeValue={inflationKpi.gaugeValue}
-        isReplacementSlotsV2={inflationKpi.isReplacementSlotsV2}
-        enginePlayersKpiLabel={enginePlayersKpi?.label}
-        enginePlayersKpiTitle={enginePlayersKpi?.title}
-      />
+      <CommandCenterRightMarketPressureCard marketPressure={marketPressure} />
 
       <CommandCenterRightRosterPane
         rightRosterPane={rightRosterPane}

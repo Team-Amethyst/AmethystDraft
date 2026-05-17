@@ -6,7 +6,7 @@
 }
 
 .keeper-slot-override-root--compact {
-  gap: 0.2rem;
+  gap: 0;
 }
 
 .keeper-slot-override-field {
@@ -28,26 +28,6 @@
   display: none;
 }
 
-.keeper-slot-override-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: #9d8cc4;
-  cursor: pointer;
-  user-select: none;
-}
-
-.keeper-slot-override-toggle input {
-  accent-color: #a78bfa;
-  width: 0.85rem;
-  height: 0.85rem;
-  margin: 0;
-  cursor: pointer;
-}
-
 .keeper-slot-override-hint {
   margin: 0;
   font-size: 0.62rem;
@@ -58,4 +38,5 @@
 
 .keeper-slot-override-root--compact .keeper-slot-override-hint {
   font-size: 0.58rem;
+  margin-top: 0.2rem;
 }

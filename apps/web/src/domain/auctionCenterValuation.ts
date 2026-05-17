@@ -2,6 +2,7 @@ import type { ValuationExplain, ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import {
   formatDollar,
+  leagueWideAuctionDollarsForDisplay,
   valuationExplainHasRiskRoleContent,
 } from "../utils/valuation";
 
@@ -33,8 +34,8 @@ export function cleanedYourValueAndRecommendedBid(
   player: Player,
 ): { yourValue: number; bid: number } | null {
   const yourValue =
-    engineFiniteOrNull(valuationRow?.team_adjusted_value) ??
-    engineFiniteOrNull(player.team_adjusted_value);
+    engineFiniteOrNull(valuationRow?.team_value) ??
+    engineFiniteOrNull(player.team_value);
   const bid =
     engineFiniteOrNull(valuationRow?.recommended_bid) ??
     engineFiniteOrNull(player.recommended_bid);
@@ -118,6 +119,26 @@ export function auctionValueForCommandCenterPrefill(
   return engineFiniteOrNull(row.auction_value);
 }
 
+/**
+ * League-wide auction $ for Command Center player typeahead — same source as the card’s
+ * “Auction value” / log price default ({@link auctionValueForCommandCenterPrefill}), not
+ * catalog {@link Player.value}.
+ */
+export function commandCenterSearchDropdownAuctionDollars(
+  player: Player,
+  boardRow: ValuationResult | undefined,
+): number | null {
+  if (boardRow) {
+    const merged = mergeDisplayValuationRow(boardRow, player);
+    if (merged) {
+      const fromEngine = auctionValueForCommandCenterPrefill(merged);
+      if (fromEngine != null) return fromEngine;
+    }
+  }
+  const fromCatalog = leagueWideAuctionDollarsForDisplay(player);
+  return fromCatalog !== undefined ? fromCatalog : null;
+}
+
 /** Merge engine row with catalog `Player` optional valuation fields when the row omits them. */
 export function mergeDisplayValuationRow(
   row: ValuationResult | undefined,
@@ -134,14 +155,10 @@ export function mergeDisplayValuationRow(
       engineFiniteOrNull(row.recommended_bid) ??
       engineFiniteOrNull(player.recommended_bid) ??
       row.recommended_bid,
-    team_adjusted_value:
-      engineFiniteOrNull(row.team_adjusted_value) ??
-      engineFiniteOrNull(player.team_adjusted_value) ??
-      row.team_adjusted_value,
-    adjusted_value:
-      engineFiniteOrNull(row.adjusted_value) ??
-      engineFiniteOrNull(player.adjusted_value) ??
-      row.adjusted_value,
+    team_value:
+      engineFiniteOrNull(row.team_value) ??
+      engineFiniteOrNull(player.team_value) ??
+      row.team_value,
     baseline_value:
       engineFiniteOrNull(row.baseline_value) ??
       engineFiniteOrNull(player.baseline_value) ??

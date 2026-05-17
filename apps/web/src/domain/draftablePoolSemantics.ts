@@ -1,10 +1,28 @@
 /**
- * Engine draftable pool metadata (Research / portal parity).
- * Does not change valuation math — only classification + UI copy.
+ * Engine pool metadata for Research filters (UI only — does not change valuation math).
+ *
+ * Three related concepts (do not conflate):
+ * - **Visible player universe**: catalog + depth chart + custom rows users can browse.
+ * - **Valuation-eligible pool**: Mongo/catalog rows safe for Engine baseline + inflation.
+ * - **`draftable_player_ids`**: Engine *output* from replacement/slot assignment — players
+ *   whose demand still affects remaining slot fill. Not “everyone you can draft in auction.”
  */
 
 export const TOOLTIP_OUTSIDE_DRAFTABLE_MIN_BID =
-  "This player is outside the current draftable pool and is priced at the minimum bid.";
+  "This player is outside the current engine pool and is priced at the minimum bid.";
+
+/** Research pool filter dropdown labels (values remain `draftable` / `replacement`). */
+export const RESEARCH_ENGINE_POOL_FILTER_LABELS = {
+  all: "All players",
+  inEnginePool: "In engine pool",
+  outsideEnginePool: "Outside engine pool",
+} as const;
+
+export const RESEARCH_ENGINE_POOL_FILTER_TOOLTIP =
+  "In engine pool means the player is included in the Engine’s current slot/value assignment. Players outside this pool may still be visible, searchable, and draftable, but may have limited or no model valuation.";
+
+export const RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP =
+  "Engine pool metadata unavailable from the last valuation";
 
 export type ResearchDraftableState = "draftable" | "outside" | "unknown";
 

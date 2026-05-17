@@ -19,6 +19,8 @@ const leagueBase: League = {
   playerPool: "Mixed",
   teamNames: ["Alpha", "Beta"],
   posEligibilityThreshold: 5,
+  seasonYear: 2026,
+  leagueFamilyId: "fam-l1",
   createdAt: "2026-01-01",
 };
 

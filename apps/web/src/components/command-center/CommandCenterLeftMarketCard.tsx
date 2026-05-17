@@ -70,10 +70,10 @@ export function CommandCenterLeftMarketCard({
         <>
           <div className="cc-divider" />
           <div className="msr-tier-header-row">
-            <span className="market-section-label msr-tier-section-label">POSITION TIERS</span>
+            <span className="market-section-label msr-tier-section-label">POSITION AUCTION TIERS</span>
             <span
               className="msr-tier-legend"
-              title="Per tier: undrafted count at this position, then average Draftroom catalog $"
+              title="By auction-value tier at this position: undrafted count, then average Draftroom $ (prefers Engine auction tier when merged)"
             >
               Remaining / Avg $
             </span>
@@ -83,7 +83,7 @@ export function CommandCenterLeftMarketCard({
               <tr>
                 {([1, 2, 3, 4, 5] as const).map((tier) => (
                   <th key={tier} scope="col">
-                    <span className={`msr-tier-chip msr-tier-chip--${tier}`} title={`Tier ${tier}`}>
+                    <span className={`msr-tier-chip msr-tier-chip--${tier}`} title={`Auction tier ${tier}`}>
                       {tier}
                     </span>
                   </th>

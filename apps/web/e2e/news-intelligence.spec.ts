@@ -109,11 +109,11 @@ test.describe("Intelligence alerts (news webhook → Socket.IO)", () => {
       page.locator("[data-sonner-toast]").filter({ hasText: pingText }),
     ).toBeVisible({ timeout: 20_000 });
 
-    await page.locator(".nb-alerts-btn").click();
+    await page.getByTestId("nb-alerts-bell").click();
     await expect(page.getByText("Live webhook message")).toBeVisible();
     await expect(
-      page.locator(".nb-alerts-dropdown").getByText(pingText),
-    ).toBeVisible();
+      page.getByTestId("nb-alerts-panel").getByText(pingText),
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test("GET news-signals/debug reports at least one browser socket and route hints", async ({

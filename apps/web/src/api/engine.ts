@@ -12,24 +12,23 @@ export type { ValuationBoardCacheContext } from "./valuationCache";
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
+/**
+ * One player valuation row — Draft HTTP contract (BFF `shapeValuationResponseForDraft`).
+ * `team_value` is roster-specific; `auction_value` is league-wide fair auction dollars.
+ */
 export interface ValuationResult {
   player_id: string;
   name: string;
   position: string;
   /**
-   * Legacy Engine field: tier by auction value within this valuation response.
-   * Prefer `auction_tier` when present; normalized rows mirror into both.
+   * Legacy mirror: quintile by auction value within this response.
+   * Prefer {@link auction_tier} when present; normalized rows mirror into both.
    */
   tier: number;
-  /** Tier by auction value (canonical). */
   auction_tier?: number;
-  /** Tier by baseline strength (pre-auction economics). */
   baseline_tier?: number;
-  /** Rank by league auction value among pool in this response. */
   auction_rank?: number;
-  /** Rank by baseline strength. */
   baseline_rank?: number;
-  /** External average draft position when Engine attaches a real market source. */
   market_adp?: number;
   market_adp_source?: string;
   market_adp_updated_at?: string;
@@ -37,29 +36,25 @@ export interface ValuationResult {
   market_adp_max?: number;
   market_pick_count?: number;
   baseline_value: number;
-  /** League-wide canonical auction dollars when Engine sends it (else infer from adjusted_value). */
+  /** League-wide fair auction value (Engine historically labeled adjusted_value). */
   auction_value?: number;
-  adjusted_value: number;
+  /** Value to the requesting team (Engine: team_value). */
+  team_value?: number;
+  /** Suggested next bid for this team (≤ max_bid). */
   recommended_bid?: number;
-  team_adjusted_value?: number;
-  /** Optional engine-provided edge vs. recommended bid (UI may derive if absent). */
+  /** Hard auction stop for this team on this player. */
+  max_bid?: number;
+  /** team_value − recommended_bid (contract guarantees when both are present). */
   edge?: number;
-  /** When Engine includes roster-need adjustment (optional; debug / future UI). */
-  positional_need_multiplier?: number;
-  /** When Engine includes budget-pressure adjustment (optional; debug / future UI). */
-  budget_pressure_multiplier?: number;
   inflation_model?: "replacement_slots_v2";
   indicator: "Steal" | "Reach" | "Fair Value";
-  /** Engine explainability; safe to ignore in UI. */
   why?: string[];
   /**
-   * Legacy mirror of {@link auction_rank} when present after normalization.
-   * Raw Engine `adp` on a row is catalog-style ADP — do not use it as auction_rank (see normalize).
+   * Mirror of {@link auction_rank} after normalization (auction-order rank in pool).
    */
   adp?: number;
   inflation_factor?: number;
   team?: string;
-  baseline_components?: Record<string, unknown>;
   scarcity_adjustment?: number;
   inflation_adjustment?: number;
   explain_v2?: {
@@ -78,11 +73,8 @@ export interface ValuationResult {
     }>;
     confidence: number;
   };
-  /** Row-level Engine explainability (present when `explain_valuation_rows` was requested). */
   valuation_explain?: ValuationExplain;
-  /** Short copy clarifying recommended_bid semantics when Engine sends it. */
   recommended_bid_note?: string;
-  /** Short copy clarifying edge vs bid anchor when Engine sends it. */
   edge_note?: string;
 }
 
@@ -107,26 +99,20 @@ export interface ValuationExplain {
   depth_component?: number;
 }
 
+import type { MarketPressureSnapshot } from "./marketPressure";
+
+export type { MarketPressureSnapshot } from "./marketPressure";
+
+/** Slim context_v2 — product fields only (BFF-stripped). */
 export interface ValuationContextV2 {
-  schema_version: "2";
-  calculated_at: string;
-  scope: {
-    league_id: string;
-    player_id?: string;
-    position?: string;
-  };
   market_summary: {
     headline: string;
     inflation_factor: number;
     inflation_percent_vs_neutral: number;
-    /** v2: % change in auction-open-relative index (when Engine sends it). */
     inflation_percent_vs_auction_open?: number;
-    /** v2: current inflation_factor ÷ factor recomputed at auction open (UI hero gauge). */
     inflation_index_vs_opening_auction?: number;
-    budget_left: number;
-    players_left: number;
-    model_version: string;
   };
+  market_pressure?: MarketPressureSnapshot;
   position_alerts: Array<{
     position: string;
     severity: "low" | "medium" | "high" | "critical";
@@ -139,49 +125,44 @@ export interface ValuationContextV2 {
     };
     recommended_action: string;
   }>;
-  assumptions: string[];
-  confidence: {
-    overall: number;
-    notes?: string;
-  };
 }
+
+export interface ValuationDiagnosticsPayload {
+  engine_response: unknown;
+}
+
+export type AuctionCurveModel =
+  | "linear_v1"
+  | "tiered_surplus_v1"
+  | "adaptive_surplus_v1";
 
 export interface ValuationResponse {
   inflation_factor: number;
-  /** When Engine labels the inflation contract (e.g. replacement_slots_v2). */
   inflation_model?: "replacement_slots_v2";
-  /**
-   * v2: auction-open-relative index (current allocator ÷ allocator at auction open).
-   * Prefer this for hero “Inflation Index” when `inflation_model` is v2.
-   */
+  /** Engine surplus curve (debug / contract echo). */
+  auction_curve_model?: AuctionCurveModel;
+  auction_curve_reason?: string;
+  internal_allocation_mode?: string;
+  /** Engine curve audit fields (passed through BFF when present). */
+  curve_inputs?: Record<string, number | string | boolean>;
   inflation_index_vs_opening_auction?: number;
   total_budget_remaining: number;
-  pool_value_remaining: number;
   players_remaining: number;
-  /** Echo of roster context used for team_adjusted_value / edge (when Engine returns it). */
   user_team_id_used?: string;
-  /** Optional Engine fields (when present on JSON; used for diagnostics / UI copy). */
-  remaining_slots?: number;
-  players_left?: number;
   draftable_pool_size?: number;
-  /** MLB catalog person ids in the Engine draftable pool (when returned on the board valuation). */
   draftable_player_ids?: string[];
-  inflation_raw?: number;
-  inflation_bounded_by?: string;
   valuations: ValuationResult[];
   calculated_at: string;
-  /** Present when Engine includes contract version on inflation payloads. */
-  engine_contract_version?: string;
-  /** Engine valuation model label when present (e.g. v2-expert-manual-shape). */
-  valuation_model_version?: string;
-  /** Response-level league context from Engine (inflation, scarcity, monopolies). */
+  /** Valuation model label from Engine. */
+  model_version?: string;
   market_notes?: string[];
-  /** Structured explainability payload (v2, additive). */
   context_v2?: ValuationContextV2;
-  /** Response-level Engine valuation context (opaque JSON; diagnostics / detail UI). */
   valuation_context?: Record<string, unknown>;
-  /** Engine warnings when valuations may be unstable or context-dependent. */
   valuation_context_warnings?: string[];
+  /** Hoisted, deduped category warnings for alert surfaces. */
+  scoring_category_warnings?: string[];
+  /** Present when `?debug=1` or `?detail=1` on the valuation request. */
+  diagnostics?: ValuationDiagnosticsPayload;
 }
 
 export async function getValuation(

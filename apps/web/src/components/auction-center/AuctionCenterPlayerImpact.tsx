@@ -1,7 +1,13 @@
 import type { Player } from "../../types/player";
 import type { AuctionCenterCategoryImpactRow } from "../../pages/command-center-utils/categoryImpactRows";
-import { getStatByCategory } from "../../pages/command-center-utils/market";
+import { getProjStat } from "../../pages/command-center-utils/standings";
+import { normalizeCatName } from "../../pages/command-center-utils/categories";
 import { impactLabelParts } from "../../domain/rotoCategoryDisplay";
+
+function rotoLineClass(roto: string | null | undefined): string {
+  if (!roto) return "";
+  return roto.startsWith("+0") ? " pac-impact-roto-line--zero" : "";
+}
 
 interface AuctionCenterPlayerImpactProps {
   selectedPlayer: Player;
@@ -31,8 +37,8 @@ export function AuctionCenterPlayerImpact({
 
   return (
     <div className="pac-impact-wrap">
-      <div className="pac-snapshot-header">
-        <span className="pac-section-label">PLAYER IMPACT</span>
+      <div className="pac-snapshot-header cc-panel-controls">
+        <span className="pac-section-label">CATEGORY IMPACT</span>
         <div className="stat-view-toggle">
           <button
             className={"svt-btn " + (statView === "hitting" ? "active" : "")}
@@ -55,16 +61,11 @@ export function AuctionCenterPlayerImpact({
           <div className="pac-impact-grid command-center-impact-grid">
             {pitchingCats.map((cat) => {
               const labels = impactLabelParts(cat.name);
-              const raw = getStatByCategory(
-                selectedPlayer,
-                cat.name,
-                "pitching",
+              const catKey = normalizeCatName(cat.name).trim().toUpperCase();
+              const raw = getProjStat(selectedPlayer, cat.name, "pitching");
+              const isRate = ["ERA", "WHIP", "WALKS + HITS PER IP", "W+H/IP"].some(
+                (k) => catKey === k || catKey.includes(k),
               );
-              const isRate = [
-                "ERA",
-                "WHIP",
-                "WALKS + HITS PER IP",
-              ].includes(cat.name.toUpperCase());
               const display =
                 raw === 0
                   ? "—"
@@ -91,11 +92,29 @@ export function AuctionCenterPlayerImpact({
                     </div>
                   ) : null}
                   <div className="pac-impact-mini-stat">{display}</div>
+                  <div className="pac-impact-team-move">
+                    {imp?.teamMovementLine ?? "\u2014"}
+                  </div>
+                  {imp?.playerContributionStr ? (
+                    <div
+                      className="pac-impact-player-add"
+                      title="Projected add from this player"
+                    >
+                      {imp.playerContributionStr}
+                    </div>
+                  ) : null}
                   <div
                     className={`pac-impact-mini-delta-pill pac-impact-mini-delta--${dTone}`}
                   >
-                    {imp?.deltaStr ?? "—"}
+                    {imp?.categoryEffectLabel ?? "\u2014"}
                   </div>
+                  {imp?.rotoPtsLine != null ? (
+                    <div
+                      className={"pac-impact-roto-line" + rotoLineClass(imp.rotoPtsLine)}
+                    >
+                      {imp.rotoPtsLine}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -136,14 +155,9 @@ export function AuctionCenterPlayerImpact({
         <div className="pac-impact-grid command-center-impact-grid">
           {hittingCats.map((cat) => {
             const labels = impactLabelParts(cat.name);
-            const raw = getStatByCategory(
-              selectedPlayer,
-              cat.name,
-              "batting",
-            );
-            const isRate = ["AVG", "OBP", "SLG"].includes(
-              cat.name.toUpperCase(),
-            );
+            const catKey = normalizeCatName(cat.name).trim().toUpperCase();
+            const raw = getProjStat(selectedPlayer, cat.name, "batting");
+            const isRate = ["AVG", "OBP", "SLG"].includes(catKey);
             const display =
               raw === 0
                 ? "—"
@@ -170,11 +184,29 @@ export function AuctionCenterPlayerImpact({
                   </div>
                 ) : null}
                 <div className="pac-impact-mini-stat">{display}</div>
+                <div className="pac-impact-team-move">
+                  {imp?.teamMovementLine ?? "\u2014"}
+                </div>
+                {imp?.playerContributionStr ? (
+                  <div
+                    className="pac-impact-player-add"
+                    title="Projected add from this player"
+                  >
+                    {imp.playerContributionStr}
+                  </div>
+                ) : null}
                 <div
                   className={`pac-impact-mini-delta-pill pac-impact-mini-delta--${dTone}`}
                 >
-                  {imp?.deltaStr ?? "—"}
+                  {imp?.categoryEffectLabel ?? "\u2014"}
                 </div>
+                {imp?.rotoPtsLine != null ? (
+                  <div
+                    className={"pac-impact-roto-line" + rotoLineClass(imp.rotoPtsLine)}
+                  >
+                    {imp.rotoPtsLine}
+                  </div>
+                ) : null}
               </div>
             );
           })}

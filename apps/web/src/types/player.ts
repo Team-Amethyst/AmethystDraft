@@ -45,11 +45,14 @@ export interface Player {
   /** Tier by baseline strength. */
   baseline_tier?: number;
   baseline_value?: number;
-  /** Engine league-wide auction list dollars when present (canonical with adjusted_value). */
+  /** League-wide fair auction dollars from the valuation contract. */
   auction_value?: number;
-  adjusted_value?: number;
+  /** Engine suggested next bid for your team. */
   recommended_bid?: number;
-  team_adjusted_value?: number;
+  /** Engine hard bid cap for this player given your roster context. */
+  max_bid?: number;
+  /** Value to your roster (Engine: team_value historically). */
+  team_value?: number;
   edge?: number;
   inflation_model?: "replacement_slots_v2";
   indicator?: "Steal" | "Reach" | "Fair Value";

@@ -1,0 +1,143 @@
+/**
+ * Toolbar control chrome — panel header rows (Command Center, etc.).
+ * Pair `cc-panel-controls` on the header with AppSelect `variant="toolbar"`.
+ * Segmented toggles use `.stat-view-toggle` / `.svt-btn` in the same zone.
+ */
+
+.cc-panel-controls .stat-view-toggle,
+.pac-snapshot-header .stat-view-toggle {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  background: var(--app-control-track-bg);
+  border-radius: var(--app-control-track-radius);
+  padding: var(--app-control-track-padding);
+}
+
+.cc-panel-controls .svt-btn,
+.pac-snapshot-header .svt-btn {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: var(--app-control-segment-padding);
+  font-size: var(--app-control-trigger-font-size);
+  font-weight: 600;
+  color: var(--app-control-segment-idle-fg);
+  cursor: pointer;
+  font-family: var(--app-font-family);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.cc-panel-controls .svt-btn.active,
+.pac-snapshot-header .svt-btn.active {
+  background: var(--app-control-segment-active-bg);
+  color: var(--app-control-segment-active-fg);
+}
+
+.cc-panel-controls .svt-btn:focus-visible,
+.pac-snapshot-header .svt-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
+}
+
+/* Command Center left/right rails — denser copy */
+.cc-left .cc-panel-controls .svt-btn,
+.cc-right .cc-panel-controls .svt-btn,
+.cc-team-makeup-head.cc-panel-controls .svt-btn {
+  padding: var(--app-control-segment-padding-dense);
+  font-size: var(--app-control-trigger-font-size-dense);
+}
+
+/* AppSelect toolbar — matches stat-view-toggle row height & glass */
+.app-select-root--toolbar {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.app-select-root--toolbar .app-select-trigger {
+  min-height: var(--app-control-trigger-min-height);
+  padding: var(--app-control-trigger-padding);
+  border-radius: var(--app-control-trigger-radius);
+  border: 1px solid var(--app-control-trigger-border);
+  background: var(--app-control-trigger-bg);
+  color: var(--app-control-trigger-fg);
+  font-size: var(--app-control-trigger-font-size);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.app-select-root--toolbar .app-select-trigger:hover {
+  border-color: var(--app-control-trigger-border-hover);
+}
+
+.app-select-root--toolbar .app-select-trigger:focus-visible {
+  border-color: var(--app-control-trigger-border-focus);
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
+}
+
+.app-select-root--toolbar .app-select-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-select-root--toolbar .app-select-trigger-label {
+  font-weight: 600;
+}
+
+.app-select-root--toolbar .app-select-trigger-chevron {
+  color: var(--app-control-trigger-fg-muted);
+}
+
+.cc-left .app-select-root--toolbar .app-select-trigger,
+.cc-team-makeup-head .app-select-root--toolbar .app-select-trigger {
+  font-size: var(--app-control-trigger-font-size-dense);
+  letter-spacing: 0.02em;
+}
+
+.cc-team-makeup-head .app-select-root--toolbar {
+  max-width: min(11rem, 46vw);
+}
+
+.app-select-root--toolbar .app-select-menu {
+  padding: var(--app-control-menu-padding);
+  gap: var(--app-control-menu-gap);
+  background: var(--app-control-menu-bg);
+  border: 1px solid var(--app-control-menu-border);
+  border-radius: var(--app-control-menu-radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    var(--app-control-menu-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.app-select-root--toolbar .app-select-option {
+  min-height: 2.1rem;
+  padding: 0.34rem 0.55rem;
+  border-left: none;
+  border-radius: 6px;
+  color: var(--app-control-option-fg);
+  font-size: var(--app-control-trigger-font-size);
+  font-weight: 500;
+}
+
+.cc-left .app-select-root--toolbar .app-select-option {
+  font-size: var(--app-control-trigger-font-size-dense);
+}
+
+.app-select-root--toolbar .app-select-option:hover:not(:disabled) {
+  background: var(--app-control-option-hover-bg);
+  color: var(--app-control-option-hover-fg);
+}
+
+.app-select-root--toolbar .app-select-option.is-selected {
+  background: var(--app-control-option-selected-bg);
+  color: var(--app-control-option-selected-fg);
+  font-weight: 600;
+}
+
+.app-select-root--toolbar .app-select-option:focus-visible:not(:disabled) {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
+}

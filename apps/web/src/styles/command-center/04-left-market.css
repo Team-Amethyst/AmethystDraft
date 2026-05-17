@@ -73,17 +73,6 @@
   white-space: nowrap;
 }
 
-.cc-my-standings-head .stat-view-toggle,
-.cc-roster-pane-head .stat-view-toggle {
-  flex-shrink: 0;
-}
-
-.cc-my-standings-head .svt-btn,
-.cc-roster-pane-head .svt-btn {
-  padding: 0.22rem 0.5rem;
-  font-size: 0.64rem;
-}
-
 .cc-my-standings-empty {
   font-size: 0.64rem;
   line-height: 1.4;

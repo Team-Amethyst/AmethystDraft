@@ -9,6 +9,7 @@ import Leagues from "./pages/Leagues";
 import LeagueCreate from "./pages/LeaguesCreate";
 import LeagueLayout from "./components/LeagueLayout";
 import LeagueSettings from "./pages/LeagueSettings";
+import LeagueKeepers from "./pages/LeagueKeepers";
 import LeagueOverview from "./pages/LeagueOverview";
 import MyDraft from "./pages/MyDraft";
 import CommandCenter from "./pages/CommandCenter";
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
       { path: "overview", Component: LeagueOverview },
       { path: "taxi-draft", Component: TaxiDraft },
       { path: "settings", Component: LeagueSettings },
+      { path: "keepers", Component: LeagueKeepers },
       { path: "mock-draft", Component: MockDraftPage },
     ],
   },

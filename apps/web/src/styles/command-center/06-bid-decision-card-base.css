@@ -18,6 +18,91 @@
   padding-bottom: var(--cc-space-2);
 }
 
+.bid-decision-card .bdc-decision-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-accent-hairline) 42%, transparent);
+  background: color-mix(in srgb, var(--cc-center-bg, #0d0a1a) 88%, var(--cc-heading-color) 12%);
+}
+
+.bid-decision-card .bdc-decision-callout__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bid-decision-card .bdc-decision-callout__hint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, var(--cc-heading-color) 12%);
+}
+
+.bid-decision-card .bdc-decision-callout--value .bdc-decision-callout__label {
+  color: var(--cc-bdc-success-fg);
+}
+
+.bid-decision-card .bdc-decision-callout--reach .bdc-decision-callout__label,
+.bid-decision-card .bdc-decision-callout--avoid .bdc-decision-callout__label {
+  color: var(--cc-bdc-danger-fg);
+}
+
+.bid-decision-card .bdc-decision-callout--target .bdc-decision-callout__label,
+.bid-decision-card .bdc-decision-callout--fair .bdc-decision-callout__label {
+  color: var(--cc-bdc-fair-fg);
+}
+
+.bdc-why-plain {
+  margin-bottom: 0.55rem;
+}
+
+.bdc-why-plain__headline {
+  margin: 0 0 0.28rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cc-heading-color);
+}
+
+.bdc-why-plain__detail {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--cc-value-muted) 90%, var(--cc-heading-color) 10%);
+}
+
+.bdc-why-technical {
+  margin-top: 0.35rem;
+}
+
+.bdc-why-technical__summary {
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--cc-value-muted) 85%, var(--cc-heading-color) 15%);
+  list-style: none;
+}
+
+.bdc-why-technical__summary::-webkit-details-marker {
+  display: none;
+}
+
+.bdc-why-technical__body {
+  margin-top: 0.45rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--app-accent-hairline) 32%, transparent);
+}
+
+.team-makeup-footnote {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .bid-decision-card {
   width: 100%;
   box-sizing: border-box;
@@ -681,6 +766,39 @@
   opacity: 0.72;
 }
 
+.rp-bid-context-caption {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--cc-value-muted) 90%, white);
+  margin: 0.15rem 0 0.45rem;
+  font-weight: 600;
+}
+
+.rp-bid-context-status {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--cc-value-muted, #9ca3af);
+  margin: 0 0 0.5rem;
+}
+
+.rp-bid-context-status strong {
+  color: color-mix(in srgb, var(--cc-value-muted) 70%, white);
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.bdc-not-bidable-note {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--cc-value-muted, #9ca3af);
+  margin: 0.35rem 0 0;
+}
+
+.bdc-not-bidable-note strong {
+  color: color-mix(in srgb, var(--cc-value-muted) 75%, white);
+  margin-right: 0.35rem;
+}
+
 .rp-bid-context-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -742,10 +860,24 @@
 }
 
 .pac-meta-inline-team {
+  font-weight: 600;
   max-width: 8rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pac-meta-slots-line,
+.pac-meta-role-note {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, white);
+  white-space: nowrap;
+}
+
+.pac-meta-role-note {
+  font-weight: 500;
+  font-style: italic;
 }
 
 .pac-val-line {
@@ -887,9 +1019,9 @@ textarea.pac-notes.pac-notes--always:focus {
 
 .pac-impact-grid .pac-impact-mini,
 .command-center-impact-grid .command-center-impact-card {
-  min-height: 100px;
+  min-height: 112px;
   padding: 0.56rem 0.45rem;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 }
 
@@ -922,6 +1054,43 @@ textarea.pac-notes.pac-notes--always:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.pac-impact-team-move {
+  font-size: 0.66rem;
+  line-height: 1.2;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, white);
+  text-align: center;
+  width: 100%;
+  padding: 0 0.12rem;
+  margin-top: auto;
+}
+
+.pac-impact-player-add {
+  font-size: 0.6rem;
+  line-height: 1.15;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--cc-value-muted) 72%, white);
+  text-align: center;
+  width: 100%;
+}
+
+.pac-impact-roto-line {
+  font-size: 0.62rem;
+  line-height: 1.2;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, #c4b5fd 88%, var(--cc-value-muted));
+  text-align: center;
+  width: 100%;
+}
+
+.pac-impact-roto-line--zero {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--cc-value-muted) 78%, white);
 }
 
 .pac-impact-mini-delta {

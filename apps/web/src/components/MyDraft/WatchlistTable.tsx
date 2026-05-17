@@ -33,6 +33,8 @@ interface WatchlistTableProps {
   targetOverrides: Record<string, number>;
   targetRaw: Record<string, string>;
   priorityOverrides: Record<string, Priority>;
+  /** League roster keys: Pos column shows draftable slots (excludes UTIL/BN/DH). */
+  draftDisplaySlotKeys?: string[];
   getNote: (id: string) => string;
   onViewFilterChange: (filter: ViewFilter) => void;
   onValuationSortFieldChange: (field: ValuationSortField) => void;
@@ -68,6 +70,7 @@ export default function WatchlistTable({
   onRowClick,
   valuationBoardPhase = "ready",
   valuationBoardError = null,
+  draftDisplaySlotKeys,
 }: WatchlistTableProps) {
   return (
     <section className="mydraft-right panel-card">
@@ -93,7 +96,7 @@ export default function WatchlistTable({
         <div className="watchlist-controls">
           <span>View</span>
           <select
-            className="md-select md-select--compact"
+            className="app-select app-select--compact md-select md-select--compact"
             value={viewFilter}
             onChange={(e) => onViewFilterChange(e.target.value as ViewFilter)}
           >
@@ -103,7 +106,7 @@ export default function WatchlistTable({
           </select>
           <span>Sort by</span>
           <select
-            className="md-select md-select--compact"
+            className="app-select app-select--compact md-select md-select--compact"
             value={valuationSortField}
             onChange={(e) =>
               onValuationSortFieldChange(e.target.value as ValuationSortField)
@@ -113,14 +116,14 @@ export default function WatchlistTable({
             <option value="auction_value">
               {valuationSortLabel("auction_value")}
             </option>
-            <option value="team_adjusted_value">
-              {valuationSortLabel("team_adjusted_value")}
+            <option value="team_value">
+              {valuationSortLabel("team_value")}
             </option>
             <option value="recommended_bid">
               {valuationSortLabel("recommended_bid")}
             </option>
-            <option value="adjusted_value">
-              {valuationSortLabel("adjusted_value")}
+            <option value="auction_value">
+              {valuationSortLabel("auction_value")}
             </option>
             <option value="baseline_value">
               {valuationSortLabel("baseline_value")}
@@ -158,13 +161,13 @@ export default function WatchlistTable({
                 );
                 const primary = resolveValuationNumber(player, valuationSortField);
                 const supporting =
-                  valuationSortField === "team_adjusted_value"
+                  valuationSortField === "team_value"
                     ? resolveValuationNumber(player, "recommended_bid")
                     : valuationSortField === "recommended_bid"
-                      ? resolveValuationNumber(player, "team_adjusted_value")
+                      ? resolveValuationNumber(player, "team_value")
                       : resolveValuationNumber(player, "recommended_bid");
                 const defaultTarget = Math.round(
-                  resolveValuationNumber(player, "team_adjusted_value"),
+                  resolveValuationNumber(player, "team_value"),
                 );
                 const targetVal = targetOverrides[player.id] ?? defaultTarget;
                 const priority: Priority =
@@ -177,6 +180,7 @@ export default function WatchlistTable({
                 return (
                   <WatchlistTableRow
                     key={player.id}
+                    draftDisplaySlotKeys={draftDisplaySlotKeys}
                     model={{
                       player,
                       pos,
@@ -210,7 +214,7 @@ export default function WatchlistTable({
 // Moved out of MyDraft — priority derivation belongs with the watchlist display logic
 function derivePriority(player: WatchlistPlayer): Priority {
   // TODO(logic): Replace with backend scoring/recommendation priority.
-  const decisionValue = resolveValuationNumber(player, "team_adjusted_value");
+  const decisionValue = resolveValuationNumber(player, "team_value");
   if (decisionValue >= 45 || player.catalog_tier <= 2) return "High";
   if (decisionValue >= 28 || player.catalog_tier === 3) return "Medium";
   return "Low";

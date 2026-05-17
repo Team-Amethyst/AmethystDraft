@@ -16,7 +16,7 @@ function baseRow(
     position: "OF",
     tier: 3,
     baseline_value: 20,
-    adjusted_value: 22,
+    auction_value: 22,
     indicator: "Fair Value",
     ...overrides,
   };
@@ -30,17 +30,17 @@ describe("valuationNormalize", () => {
       position: "P",
       tier: "2",
       baselineValue: "10",
-      adjustedValue: "11",
+      auctionValue: "11",
       recommendedBid: "13",
-      teamAdjustedValue: "14",
+      teamValue: "14",
       edge: "0.5",
       indicator: "Fair Value",
     });
     expect(row.tier).toBe(2);
     expect(row.baseline_value).toBe(10);
-    expect(row.adjusted_value).toBe(11);
+    expect(row.auction_value).toBe(11);
     expect(row.recommended_bid).toBe(13);
-    expect(row.team_adjusted_value).toBe(14);
+    expect(row.team_value).toBe(14);
     expect(row.edge).toBe(0.5);
   });
 
@@ -51,17 +51,17 @@ describe("valuationNormalize", () => {
       position: "OF",
       tier: 2,
       baselineValue: 10,
-      adjustedValue: 12,
+      auctionValue: 12,
       recommendedBid: 14,
-      teamAdjustedValue: 15,
+      teamValue: 15,
       edge: 1.5,
       indicator: "Steal",
     });
     expect(row.player_id).toBe("660271");
     expect(row.baseline_value).toBe(10);
-    expect(row.adjusted_value).toBe(12);
+    expect(row.auction_value).toBe(12);
     expect(row.recommended_bid).toBe(14);
-    expect(row.team_adjusted_value).toBe(15);
+    expect(row.team_value).toBe(15);
     expect(row.edge).toBe(1.5);
     expect(row.indicator).toBe("Steal");
   });
@@ -76,30 +76,30 @@ describe("valuationNormalize", () => {
   it("mergeValuationBoardRowIntoPrevious keeps prior optional fields when board omits them", () => {
     const prev = baseRow({
       recommended_bid: 9,
-      team_adjusted_value: 11,
+      team_value: 11,
       edge: 2,
     });
     const board = baseRow({
       recommended_bid: undefined,
-      team_adjusted_value: undefined,
+      team_value: undefined,
       edge: undefined,
       baseline_value: 25,
-      adjusted_value: 26,
+      auction_value: 26,
     });
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.recommended_bid).toBe(9);
-    expect(merged.team_adjusted_value).toBe(11);
+    expect(merged.team_value).toBe(11);
     expect(merged.edge).toBe(2);
     expect(merged.baseline_value).toBe(25);
-    expect(merged.adjusted_value).toBe(26);
+    expect(merged.auction_value).toBe(26);
   });
 
   it("merge prefers board optional fields when both are finite", () => {
-    const prev = baseRow({ recommended_bid: 5, team_adjusted_value: 6 });
-    const board = baseRow({ recommended_bid: 30, team_adjusted_value: 31 });
+    const prev = baseRow({ recommended_bid: 5, team_value: 6 });
+    const board = baseRow({ recommended_bid: 30, team_value: 31 });
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.recommended_bid).toBe(30);
-    expect(merged.team_adjusted_value).toBe(31);
+    expect(merged.team_value).toBe(31);
   });
 
   it("does not treat catalog `adp` as auction_rank (catalog ADP alias collides)", () => {
@@ -110,7 +110,7 @@ describe("valuationNormalize", () => {
       adp: 42,
       tier: 2,
       baseline_value: 10,
-      adjusted_value: 11,
+      auction_value: 11,
       indicator: "Fair Value",
     });
     expect(row.auction_rank).toBeUndefined();
@@ -123,7 +123,7 @@ describe("valuationNormalize", () => {
       auction_tier: 0,
       tier: 0,
       baseline_value: 99,
-      adjusted_value: 100,
+      auction_value: 100,
     });
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.auction_tier).toBe(3);
@@ -137,12 +137,10 @@ describe("valuationNormalize", () => {
       position: "P",
       tier: 1,
       baseline_value: 1,
-      auction_value: 40,
-      adjusted_value: 41,
+      auction_value: 41,
       indicator: "Fair Value",
     });
-    expect(snake.auction_value).toBe(40);
-    expect(snake.adjusted_value).toBe(41);
+    expect(snake.auction_value).toBe(41);
 
     const camel = normalizeValuationResultRow({
       playerId: "2",
@@ -150,20 +148,17 @@ describe("valuationNormalize", () => {
       position: "C",
       tier: 1,
       baselineValue: 2,
-      auctionValue: 50,
-      adjustedValue: 51,
+      auctionValue: 51,
       indicator: "Fair Value",
     });
-    expect(camel.auction_value).toBe(50);
-    expect(camel.adjusted_value).toBe(51);
+    expect(camel.auction_value).toBe(51);
   });
 
   it("merge keeps prior auction_value when board row omits it", () => {
-    const prev = baseRow({ auction_value: 40, adjusted_value: 41 });
-    const board = baseRow({ adjusted_value: 42 });
+    const prev = baseRow({ auction_value: 40 });
+    const board = baseRow({ auction_value: undefined as unknown as number });
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.auction_value).toBe(40);
-    expect(merged.adjusted_value).toBe(42);
   });
 
   it("normalizeValuationResponseBody copies user_team_id_used", () => {
@@ -238,7 +233,7 @@ describe("valuationNormalize", () => {
       position: "P",
       tier: 1,
       baseline_value: 1,
-      adjusted_value: 10,
+      auction_value: 10,
       indicator: "Fair Value",
       recommended_bid_note: "anchor high",
       edge_note: "vs bid",
@@ -286,7 +281,7 @@ describe("valuationNormalize", () => {
       valuation_explain: { surplus_basis: "x" },
       recommended_bid_note: "keep me",
     });
-    const board = baseRow({ adjusted_value: 12 });
+    const board = baseRow({ auction_value: 12 });
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.valuation_explain).toEqual({ surplus_basis: "x" });
     expect(merged.recommended_bid_note).toBe("keep me");
@@ -299,7 +294,7 @@ describe("valuationNormalize", () => {
       position: "P",
       tier: 1,
       baseline_value: 1,
-      adjusted_value: 10,
+      auction_value: 10,
       indicator: "Fair Value",
       market_adp: 42,
       market_adp_source: " NFBC ",
@@ -321,7 +316,7 @@ describe("valuationNormalize", () => {
       position: "C",
       tier: 1,
       baselineValue: 2,
-      adjustedValue: 3,
+      auctionValue: 3,
       indicator: "Fair Value",
       marketAdp: 8,
       marketAdpSource: "Source",
@@ -347,7 +342,7 @@ describe("valuationNormalize", () => {
       market_adp_max: 18,
       market_pick_count: 40,
     });
-    const board = baseRow({ adjusted_value: 99 });
+    const board = baseRow({ auction_value: 99 });
     const merged = mergeValuationBoardRowIntoPrevious(prev, board);
     expect(merged.market_adp).toBe(15);
     expect(merged.market_adp_source).toBe("NFBC");
@@ -355,6 +350,6 @@ describe("valuationNormalize", () => {
     expect(merged.market_adp_min).toBe(12);
     expect(merged.market_adp_max).toBe(18);
     expect(merged.market_pick_count).toBe(40);
-    expect(merged.adjusted_value).toBe(99);
+    expect(merged.auction_value).toBe(99);
   });
 });

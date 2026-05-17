@@ -4,6 +4,11 @@ import type { League } from "../../contexts/LeagueContext";
 import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
 import { DraftLogRow } from "../DraftLogRow";
+import {
+  resolvedLeagueTeamNames,
+  teamDisplayNameForTeamId,
+} from "../../utils/team";
+import { isEngineAuctionBoardEntry } from "../../pages/command-center-utils/roster";
 
 type DraftPickVm = {
   entry: RosterEntry;
@@ -50,7 +55,7 @@ export function CommandCenterDraftLog({
   );
   const teamOptions = useMemo(
     () =>
-      (league?.teamNames ?? []).map((name, i) => ({
+      resolvedLeagueTeamNames(league).map((name, i) => ({
         id: `team_${i + 1}`,
         name,
       })),
@@ -59,7 +64,7 @@ export function CommandCenterDraftLog({
   const sorted = useMemo(
     () =>
       [...rosterEntries]
-        .filter((e) => !e.isKeeper)
+        .filter((e) => isEngineAuctionBoardEntry(e))
         .sort(
           (a, b) =>
             new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
@@ -77,10 +82,11 @@ export function CommandCenterDraftLog({
       const teamIdx = entry.teamId
         ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
         : (league?.memberIds.indexOf(entry.userId) ?? -1);
-      const teamName =
-        teamIdx >= 0
-          ? (league?.teamNames[teamIdx] ?? entry.teamId ?? entry.userId)
-          : (entry.teamId ?? entry.userId);
+      const teamName = entry.teamId
+        ? teamDisplayNameForTeamId(league, entry.teamId) || entry.teamId
+        : teamIdx >= 0 && league
+          ? (resolvedLeagueTeamNames(league)[teamIdx] ?? entry.userId)
+          : (entry.userId ?? "");
       const player = playerMap.get(entry.externalPlayerId);
       const isMyTeamPick =
         myTeamId != null &&
@@ -257,6 +263,7 @@ export function CommandCenterDraftLog({
                         teamName={teamName}
                         isMyTeamPick={isMyTeamPick}
                         headshot={player?.headshot}
+                        variant="dense"
                         {...sharedRowProps}
                       />
                     ),

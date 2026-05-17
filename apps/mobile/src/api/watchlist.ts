@@ -16,9 +16,8 @@ export interface WatchlistPlayer {
   catalog_tier?: number;
   baseline_value?: number;
   auction_value?: number;
-  adjusted_value?: number;
   recommended_bid?: number;
-  team_adjusted_value?: number;
+  team_value?: number;
 }
 
 export function playerToWatchlistEntry(player: Player): WatchlistPlayer {
@@ -75,9 +74,8 @@ export async function addWatchlistEntry(
         catalog_tier: entry.catalog_tier ?? entry.tier,
         baseline_value: entry.baseline_value,
         auction_value: entry.auction_value,
-        adjusted_value: entry.adjusted_value,
         recommended_bid: entry.recommended_bid,
-        team_adjusted_value: entry.team_adjusted_value,
+        team_value: entry.team_value,
       }),
     },
     "Failed to add watchlist entry",

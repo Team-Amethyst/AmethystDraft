@@ -1,0 +1,30 @@
+name: Refresh MLB 40-man roster index (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch StatsAPI roster JSON (writes apps/api/test-fixtures/player-api/mlb-statsapi-40man-index.json)
+        env:
+          CHECKPOINT_ROSTER_STATS_SEASON: "2025"
+        run: pnpm --filter api run fixtures:refresh-rosters
+
+      - name: Show diff (commit locally if non-empty)
+        run: git diff --stat -- apps/api/test-fixtures/player-api/mlb-statsapi-40man-index.json || true

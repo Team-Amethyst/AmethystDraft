@@ -131,18 +131,7 @@
 .apm-input::placeholder { color: #4a3a60; }
 .apm-input--error { border-color: rgba(248, 113, 113, 0.5) !important; }
 
-.apm-select {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 8px;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.82rem;
-  color: #e2d9f3;
-  outline: none;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  width: 100%;
-}
+/* Position field uses global `app-select`. */
 
 .apm-error {
   font-size: 0.68rem;

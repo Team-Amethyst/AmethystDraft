@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useMemo, type RefObject } from "react";
 import type { StatBasis } from "@repo/player-stat-basis";
 import {
   statBasisAllValues,
@@ -10,7 +10,13 @@ import {
   positionFilterAfterStatViewChange,
   positionFilterOptionsForStatView,
 } from "../domain/playerTablePositions";
-import type { ResearchDraftablePoolFilter } from "../domain/draftablePoolSemantics";
+import {
+  RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP,
+  RESEARCH_ENGINE_POOL_FILTER_LABELS,
+  RESEARCH_ENGINE_POOL_FILTER_TOOLTIP,
+  type ResearchDraftablePoolFilter,
+} from "../domain/draftablePoolSemantics";
+import { AppSelect, type AppSelectOption } from "./AppSelect";
 
 export type PlayerTableControlsProps = {
   searchQuery: string;
@@ -44,6 +50,24 @@ export type PlayerTableControlsProps = {
   researchDraftablePoolFilterDisabled?: boolean;
 };
 
+const AVAILABILITY_OPTIONS: AppSelectOption[] = [
+  { value: "all", label: "Availability (All)" },
+  { value: "available", label: "Available" },
+  { value: "drafted", label: "Drafted" },
+];
+
+const STAT_VIEW_OPTIONS: AppSelectOption[] = [
+  { value: "all", label: "Hitters/Pitchers" },
+  { value: "hitting", label: "Hitters" },
+  { value: "pitching", label: "Pitchers" },
+];
+
+const INJURY_OPTIONS: AppSelectOption[] = [
+  { value: "all", label: "Health (All)" },
+  { value: "healthy", label: "Healthy only" },
+  { value: "injured", label: "Injured only" },
+];
+
 export function PlayerTableControls({
   searchQuery,
   onSearchChange,
@@ -73,6 +97,31 @@ export function PlayerTableControls({
   onResearchDraftablePoolFilterChange,
   researchDraftablePoolFilterDisabled,
 }: PlayerTableControlsProps) {
+  const positionOptions = useMemo<AppSelectOption[]>(() => {
+    const rows = positionFilterOptionsForStatView(statView).map((p) => ({
+      value: p,
+      label: p,
+    }));
+    return [{ value: "all", label: "Position (All)" }, ...rows];
+  }, [statView]);
+
+  const poolOptions = useMemo<AppSelectOption[]>(() => {
+    const d = Boolean(researchDraftablePoolFilterDisabled);
+    return [
+      { value: "all", label: RESEARCH_ENGINE_POOL_FILTER_LABELS.all },
+      {
+        value: "draftable",
+        label: RESEARCH_ENGINE_POOL_FILTER_LABELS.inEnginePool,
+        disabled: d,
+      },
+      {
+        value: "replacement",
+        label: RESEARCH_ENGINE_POOL_FILTER_LABELS.outsideEnginePool,
+        disabled: d,
+      },
+    ];
+  }, [researchDraftablePoolFilterDisabled]);
+
   return (
     <div className="pt-controls">
       <div className="pt-search">
@@ -88,90 +137,69 @@ export function PlayerTableControls({
       </div>
 
       <div className="pt-filters">
-        <select
-          className="pt-select"
+        <AppSelect
+          compact
           value={availabilityFilter}
-          onChange={(e) =>
-            onAvailabilityFilterChange(
-              e.target.value as "all" | "available" | "drafted",
-            )
+          onChange={(v) =>
+            onAvailabilityFilterChange(v as "all" | "available" | "drafted")
           }
-        >
-          <option value="all">Availability (All)</option>
-          <option value="available">Available</option>
-          <option value="drafted">Drafted</option>
-        </select>
+          options={AVAILABILITY_OPTIONS}
+          aria-label="Availability filter"
+        />
 
-        {onResearchDraftablePoolFilterChange && researchDraftablePoolFilter !== undefined && (
-          <select
-            className="pt-select"
-            title={
-              researchDraftablePoolFilterDisabled
-                ? "Draftable pool metadata unavailable from the last valuation"
-                : "Filter by Engine draftable pool"
-            }
-            value={researchDraftablePoolFilter}
-            onChange={(e) =>
-              onResearchDraftablePoolFilterChange(
-                e.target.value as ResearchDraftablePoolFilter,
-              )
-            }
-          >
-            <option value="all">Pool (All players)</option>
-            <option
-              value="draftable"
-              disabled={Boolean(researchDraftablePoolFilterDisabled)}
-            >
-              Draftable pool
-            </option>
-            <option
-              value="replacement"
-              disabled={Boolean(researchDraftablePoolFilterDisabled)}
-            >
-              Replacement / depth
-            </option>
-          </select>
-        )}
+        {onResearchDraftablePoolFilterChange &&
+          researchDraftablePoolFilter !== undefined && (
+            <AppSelect
+              compact
+              value={researchDraftablePoolFilter}
+              onChange={(v) =>
+                onResearchDraftablePoolFilterChange(
+                  v as ResearchDraftablePoolFilter,
+                )
+              }
+              options={poolOptions}
+              title={
+                researchDraftablePoolFilterDisabled
+                  ? RESEARCH_ENGINE_POOL_FILTER_DISABLED_TOOLTIP
+                  : RESEARCH_ENGINE_POOL_FILTER_TOOLTIP
+              }
+              aria-label="Engine pool filter"
+            />
+          )}
 
-        <select
-          className="pt-select"
+        <AppSelect
+          compact
           value={statView}
-          onChange={(e) => {
-            const v = e.target.value as "all" | "hitting" | "pitching";
-            onStatViewChange(v);
-            const nextPos = positionFilterAfterStatViewChange(v, positionFilter);
+          onChange={(v) => {
+            const next = v as "all" | "hitting" | "pitching";
+            onStatViewChange(next);
+            const nextPos = positionFilterAfterStatViewChange(
+              next,
+              positionFilter,
+            );
             if (nextPos !== null) onPositionChange(nextPos);
           }}
-        >
-          <option value="all">Hitters/Pitchers</option>
-          <option value="hitting">Hitters</option>
-          <option value="pitching">Pitchers</option>
-        </select>
+          options={STAT_VIEW_OPTIONS}
+          aria-label="Hitters or pitchers"
+        />
 
-        <select
-          className="pt-select"
+        <AppSelect
+          compact
           value={positionFilter}
-          onChange={(e) => onPositionChange(e.target.value)}
-        >
-          <option value="all">Position (All)</option>
-          {positionFilterOptionsForStatView(statView).map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+          onChange={onPositionChange}
+          options={positionOptions}
+          aria-label="Position filter"
+        />
 
-        <select
-          className="pt-select"
+        <AppSelect
+          compact
           value={injuryFilter}
-          onChange={(e) =>
-            onInjuryFilterChange(e.target.value as "all" | "healthy" | "injured")
+          onChange={(v) =>
+            onInjuryFilterChange(v as "all" | "healthy" | "injured")
           }
-        >
-          <option value="all">Health (All)</option>
-          <option value="healthy">Healthy only</option>
-          <option value="injured">Injured only</option>
-        </select>
+          options={INJURY_OPTIONS}
+          aria-label="Health filter"
+        />
 
         <button
           type="button"
@@ -185,7 +213,7 @@ export function PlayerTableControls({
           <button
             type="button"
             className={"pt-toggle " + (researchModelColumns ? "active" : "")}
-            title="Show model tier and model rank columns"
+            title="Show catalog model rank and model tier columns (catalog / preseason buckets). Auction tier and rank stay in their own columns when Engine data is loaded."
             onClick={onResearchModelColumnsToggle}
           >
             Model rank & tiers

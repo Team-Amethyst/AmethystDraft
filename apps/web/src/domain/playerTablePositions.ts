@@ -1,6 +1,6 @@
 /**
  * Position filter options for the research player table (must stay aligned with
- * `<select>` options in `PlayerTableControls`).
+ * `AppSelect` options in `PlayerTableControls`).
  */
 export const PLAYER_TABLE_POSITIONS = [
   "all",

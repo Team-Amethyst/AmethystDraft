@@ -8,12 +8,14 @@ import "./CommandCenter.css";
 import { AuctionCenter } from "../components/AuctionCenter";
 import { CommandCenterLeftPanel } from "../components/command-center/CommandCenterLeftPanel";
 import { CommandCenterRightPanel } from "../components/command-center/CommandCenterRightPanel";
-import {
-  computeTeamData,
-} from "./commandCenterUtils";
+import { activeAuctionEntriesForTeam } from "./command-center-utils/roster";
+import { computeTeamData } from "./commandCenterUtils";
 import AddPlayerModal from "../components/AddPlayerModal";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
-import { resolveUserTeamId } from "../utils/team";
+import {
+  resolveUserTeamId,
+  teamDisplayNameForTeamId,
+} from "../utils/team";
 import { readPositionTargetsFromStorage } from "../utils/positionTargetsStorage";
 import { useCommandCenterData } from "./useCommandCenterData";
 import { COMMAND_CENTER_FALLBACK_SCORING_CATS } from "../constants/commandCenterFallbacks";
@@ -35,10 +37,17 @@ export default function CommandCenter() {
     [leagueId],
   );
 
-  const userTeamIdForValuation = useMemo(
+  /** Baseline roster team for this signed-in member (valuation POST default). */
+  const baselineBoardTeamId = useMemo(
     () => resolveUserTeamId(league ?? null, user?.id),
-    [league?.id, league?.memberIds?.join(","), user?.id],
+    [league, user?.id],
   );
+  const [manualBoardTeamId, setManualBoardTeamId] = useState<string | null>(null);
+  useEffect(() => {
+    setManualBoardTeamId(null);
+  }, [baselineBoardTeamId, league?.id]);
+  const boardTeamId = manualBoardTeamId ?? baselineBoardTeamId;
+  const userTeamIdForValuation = boardTeamId;
 
   const valuationBoardLogPlayerId =
     import.meta.env.DEV ? selectedPlayer?.id : undefined;
@@ -59,6 +68,13 @@ export default function CommandCenter() {
     userTeamIdForValuation,
     valuationBoardLogPlayerId,
   });
+
+  const myTeamName = league ? teamDisplayNameForTeamId(league, boardTeamId) : "";
+  const myTeamId = boardTeamId;
+  const myTeamActiveEntries = useMemo(
+    () => activeAuctionEntriesForTeam(rosterEntries, boardTeamId),
+    [rosterEntries, boardTeamId],
+  );
 
   const allPlayers = useMemo(
     () => [...customPlayers, ...mlbPlayers],
@@ -91,13 +107,6 @@ export default function CommandCenter() {
     () => (league ? computeTeamData(league, rosterEntries) : []),
     [league, rosterEntries],
   );
-
-  const myTeamIdx = user?.id && league ? league.memberIds.indexOf(user.id) : -1;
-  const myTeamName = myTeamIdx >= 0 ? (league?.teamNames[myTeamIdx] ?? "") : "";
-  const myTeamId = myTeamIdx >= 0 ? `team_${myTeamIdx + 1}` : null;
-  const myTeamEntries = myTeamId
-    ? rosterEntries.filter((e) => e.teamId === myTeamId)
-    : [];
 
   const [toast, setToast] = useState<{
     message: string;
@@ -134,8 +143,7 @@ export default function CommandCenter() {
       const prev = await updatePick(entryId, data);
       const parts: string[] = [];
       if (data.teamId && league) {
-        const idx = parseInt(data.teamId.replace("team_", ""), 10) - 1;
-        const name = league.teamNames[idx] ?? data.teamId;
+        const name = teamDisplayNameForTeamId(league, data.teamId) || data.teamId;
         parts.push(`team → ${name}`);
       }
       if (data.rosterSlot) parts.push(`slot → ${data.rosterSlot}`);
@@ -171,12 +179,14 @@ export default function CommandCenter() {
           selectedPlayer={selectedPlayer}
           setSelectedPlayer={setSelectedPlayer}
           draftedIds={draftedIds}
-          myTeamEntries={myTeamEntries}
+          myTeamEntries={myTeamActiveEntries}
           showToast={showToast}
           onAddMissingPlayer={() => setShowAddModal(true)}
           engineMarket={engineMarket}
           engineBoardPhase={engineBoardPhase}
           engineBoardError={engineBoardError}
+          valuationBoardTeamId={boardTeamId}
+          onValuationBoardTeamIdChange={setManualBoardTeamId}
         />
         <CommandCenterRightPanel
           league={league}
@@ -208,5 +218,4 @@ export default function CommandCenter() {
       />
     </div>
   );
-
 }

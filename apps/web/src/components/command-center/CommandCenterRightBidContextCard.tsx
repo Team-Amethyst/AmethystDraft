@@ -6,7 +6,7 @@ export function CommandCenterRightBidContextCard({
   budgetLeft,
   dollarsPerSpot,
 }: {
-  /** Engine `recommended_bid` only (not league list value). */
+  /** Engine recommended bid capped to executable budget (undefined when roster is full). */
   suggestedBidDollars: number | undefined;
   maxBid: number | undefined;
   budgetLeft: number | undefined;
@@ -27,7 +27,7 @@ export function CommandCenterRightBidContextCard({
         <div className="budget-card budget-card--row">
           <div
             className="bc-label"
-            title="Maximum legal next bid from your remaining budget and open roster spots (not the model Max Bid from the engine)."
+            title="Maximum legal next bid from remaining budget and open roster spots for the team selected in Log result."
           >
             Budget max
           </div>

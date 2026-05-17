@@ -8,12 +8,15 @@ import {
 } from "../../domain/rankTierLabels";
 import { displayAuctionTier } from "../../domain/playerRankTier";
 import type { BoardValuationUiPhase } from "../../domain/boardValuationFetchPhase";
+import type { CommandCenterWalletCaps } from "../../utils/valuation";
 import { AuctionCenterPlayerImpact } from "./AuctionCenterPlayerImpact";
 import { BidDecisionCard } from "./BidDecisionCard";
 import { PlayerIdentityCard } from "./PlayerIdentityCard";
 
 interface AuctionCenterPlayerStackProps {
   selectedPlayer: Player;
+  draftPrimaryTags: string[];
+  draftableSlots?: string[];
   mergedValuationRow: ValuationResult | undefined;
   rowForValuationUi: ValuationResult | undefined;
   identityValueVsBidBadge: {
@@ -30,10 +33,13 @@ interface AuctionCenterPlayerStackProps {
   pitchingCats: { name: string; type: "batting" | "pitching" }[];
   hittingCats: { name: string; type: "batting" | "pitching" }[];
   engineBoardPhase: BoardValuationUiPhase;
+  walletCaps: CommandCenterWalletCaps | null;
 }
 
 export function AuctionCenterPlayerStack({
   selectedPlayer,
+  draftPrimaryTags,
+  draftableSlots = [],
   mergedValuationRow,
   rowForValuationUi,
   identityValueVsBidBadge,
@@ -46,6 +52,7 @@ export function AuctionCenterPlayerStack({
   pitchingCats,
   hittingCats,
   engineBoardPhase,
+  walletCaps,
 }: AuctionCenterPlayerStackProps) {
   const rowUi = mergedValuationRow;
   const rawEngineTier = rowUi?.auction_tier ?? rowUi?.tier;
@@ -94,6 +101,8 @@ export function AuctionCenterPlayerStack({
     <>
       <PlayerIdentityCard
         selectedPlayer={selectedPlayer}
+        draftPrimaryTags={draftPrimaryTags}
+        draftableSlots={draftableSlots}
         tierValue={tierValue}
         rankLabel={rankLabel}
         rankValue={rankValue}
@@ -119,6 +128,7 @@ export function AuctionCenterPlayerStack({
           valuationRow={rowForValuationUi}
           selectedPlayer={selectedPlayer}
           engineBoardPhase={engineBoardPhase}
+          walletCaps={walletCaps}
         />
       </section>
     </>

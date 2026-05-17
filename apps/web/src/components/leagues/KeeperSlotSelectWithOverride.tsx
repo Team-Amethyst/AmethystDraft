@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import "./KeeperSlotSelectWithOverride.css";
 
+/**
+ * Roster slot dropdown for keepers. Uses open roster capacity (`assignableSlots`) when
+ * non-empty so commissioners can place a player in any legal roster opening without a
+ * separate "override" control; falls back to position-eligible slots otherwise.
+ */
 export function KeeperSlotSelectWithOverride({
   eligibleSlots,
   assignableSlots,
@@ -28,29 +33,13 @@ export function KeeperSlotSelectWithOverride({
   /** When false, omit the “not position-eligible” helper (e.g. tight roster rows). */
   showIneligibleHint?: boolean;
 }) {
-  const eligibleSet = useMemo(() => new Set(eligibleSlots), [eligibleSlots]);
-  const showOverrideToggle =
-    eligibleSlots.length > 0 &&
-    assignableSlots.some((s) => !eligibleSet.has(s));
+  const activeOptions = useMemo(() => {
+    if (assignableSlots.length > 0) return assignableSlots;
+    return eligibleSlots;
+  }, [assignableSlots, eligibleSlots]);
 
-  const [overrideAnyOpen, setOverrideAnyOpen] = useState(false);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-
-  useEffect(() => {
-    setOverrideAnyOpen(false);
-  }, [eligibleSlots.join("|"), assignableSlots.join("|")]);
-
-  const activeOptions = useMemo(() => {
-    if (eligibleSlots.length === 0) return assignableSlots;
-    if (!showOverrideToggle) return eligibleSlots;
-    return overrideAnyOpen ? assignableSlots : eligibleSlots;
-  }, [
-    assignableSlots,
-    eligibleSlots,
-    overrideAnyOpen,
-    showOverrideToggle,
-  ]);
 
   useEffect(() => {
     if (activeOptions.length === 0) return;
@@ -60,6 +49,11 @@ export function KeeperSlotSelectWithOverride({
   }, [activeOptions, value]);
 
   const disabled = activeOptions.length === 0;
+
+  const showNonEligibleHint =
+    showIneligibleHint &&
+    eligibleSlots.length === 0 &&
+    assignableSlots.length > 0;
 
   return (
     <div
@@ -76,18 +70,8 @@ export function KeeperSlotSelectWithOverride({
         }
       >
         {!hideLabel ? <span>Slot</span> : null}
-        {showOverrideToggle ? (
-          <label className="keeper-slot-override-toggle">
-            <input
-              type="checkbox"
-              checked={overrideAnyOpen}
-              onChange={(e) => setOverrideAnyOpen(e.target.checked)}
-            />
-            <span>Any open slot</span>
-          </label>
-        ) : null}
         <select
-          className={selectClassName}
+          className={`app-select app-select--compact ${selectClassName}`}
           value={value}
           disabled={disabled}
           aria-label={hideLabel ? "Roster slot" : undefined}
@@ -100,9 +84,7 @@ export function KeeperSlotSelectWithOverride({
           ))}
         </select>
       </div>
-      {showIneligibleHint &&
-      eligibleSlots.length === 0 &&
-      assignableSlots.length > 0 ? (
+      {showNonEligibleHint ? (
         <p className="keeper-slot-override-hint">
           Not position-eligible on defaults; pick any open roster slot.
         </p>

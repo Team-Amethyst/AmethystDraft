@@ -218,7 +218,7 @@ export default function AddPlayerModal({ isOpen, onClose, onSave }: AddPlayerMod
           <div className="apm-field">
             <label className="apm-label">Position *</label>
             <select
-              className="apm-select"
+              className="app-select app-select--block"
               value={form.position}
               onChange={(e) => set("position", e.target.value)}
             >

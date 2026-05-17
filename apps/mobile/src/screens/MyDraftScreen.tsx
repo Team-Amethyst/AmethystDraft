@@ -31,9 +31,8 @@ type Props = BottomTabScreenProps<LeagueTabParamList, "MyDraft">;
 type ViewFilter = "all" | "hitters" | "pitchers";
 type ValuationSortField =
   | "auction_value"
-  | "team_adjusted_value"
+  | "team_value"
   | "recommended_bid"
-  | "adjusted_value"
   | "baseline_value";
 
 type WatchlistRow = WatchlistPlayer & {
@@ -54,7 +53,7 @@ function watchlistToPlayer(p: WatchlistPlayer): Player {
     positions: p.positions,
     age: 0,
     adp: p.adp,
-    value: p.team_adjusted_value ?? p.recommended_bid ?? p.adjusted_value ?? p.value,
+    value: p.team_value ?? p.recommended_bid ?? p.auction_value ?? p.value,
     tier: p.catalog_tier ?? p.tier,
     headshot: "",
     outlook: "",
@@ -134,13 +133,11 @@ function mergeWatchlistPlayerWithValuation(
       getNumericValue(valuation, "baseline_value") ?? player.baseline_value,
     auction_value:
       getNumericValue(valuation, "auction_value") ?? player.auction_value,
-    adjusted_value:
-      getNumericValue(valuation, "adjusted_value") ?? player.adjusted_value,
     recommended_bid:
       getNumericValue(valuation, "recommended_bid") ?? player.recommended_bid,
-    team_adjusted_value:
-      getNumericValue(valuation, "team_adjusted_value") ??
-      player.team_adjusted_value,
+    team_value:
+      getNumericValue(valuation, "team_value") ??
+      player.team_value,
     tier: getNumericValue(valuation, "tier") ?? player.tier,
     catalog_tier:
       getNumericValue(valuation, "catalog_tier") ?? player.catalog_tier,
@@ -158,9 +155,8 @@ function resolveValuationNumber(
   }
 
   const fallbackKeys = [
-    "team_adjusted_value",
+    "team_value",
     "recommended_bid",
-    "adjusted_value",
     "auction_value",
     "baseline_value",
     "value",
@@ -178,15 +174,15 @@ function resolveValuationNumber(
 }
 
 function valuationLabel(field: ValuationSortField): string {
-  if (field === "team_adjusted_value") return "Team Value";
+  if (field === "team_value") return "Team Value";
   if (field === "recommended_bid") return "Rec Bid";
-  if (field === "adjusted_value") return "Adjusted";
+  if (field === "auction_value") return "Auction";
   if (field === "baseline_value") return "Baseline";
   return "Auction";
 }
 
 function derivePriority(player: WatchlistPlayer): Priority {
-  const decisionValue = resolveValuationNumber(player, "team_adjusted_value");
+  const decisionValue = resolveValuationNumber(player, "team_value");
   const tier = player.catalog_tier ?? player.tier;
 
   if (decisionValue >= 45 || tier <= 2) return "High";
@@ -195,8 +191,8 @@ function derivePriority(player: WatchlistPlayer): Priority {
 }
 
 function supportingFieldFor(field: ValuationSortField): ValuationSortField {
-  if (field === "team_adjusted_value") return "recommended_bid";
-  if (field === "recommended_bid") return "team_adjusted_value";
+  if (field === "team_value") return "recommended_bid";
+  if (field === "recommended_bid") return "team_value";
   return "recommended_bid";
 }
 
@@ -229,7 +225,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
 
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
   const [valuationSortField, setValuationSortField] =
-    useState<ValuationSortField>("team_adjusted_value");
+    useState<ValuationSortField>("team_value");
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationResult>
@@ -388,7 +384,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
       const defaultTarget = Math.max(
         1,
         Math.round(
-          resolveValuationNumber(player, "team_adjusted_value") ||
+          resolveValuationNumber(player, "team_value") ||
             resolveValuationNumber(player, "recommended_bid") ||
             player.value ||
             positionTargets[bucket] ||
@@ -423,7 +419,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
       const defaultTarget = Math.max(
         1,
         Math.round(
-          resolveValuationNumber(player, "team_adjusted_value") ||
+          resolveValuationNumber(player, "team_value") ||
             resolveValuationNumber(player, "recommended_bid") ||
             player.value ||
             positionTargets[bucket] ||
@@ -668,10 +664,10 @@ export default function MyDraftScreen({ route, navigation }: Props) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {(
               [
-                "team_adjusted_value",
+                "team_value",
                 "recommended_bid",
                 "auction_value",
-                "adjusted_value",
+                "auction_value",
                 "baseline_value",
               ] as ValuationSortField[]
             ).map((field) => (

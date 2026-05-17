@@ -3,6 +3,12 @@ import type { Player } from "../types/player";
 import "./TiersView.css";
 import { groupPlayersByTier, calculateTierStats, sortPlayersByValue, formatCurrency } from "../utils/tiers";
 import { leagueWideAuctionDollars, valuationSortLabel } from "../utils/valuation";
+import { playerIdentityPositionPresentation } from "../utils/eligibility";
+import { poolHasAuctionTier } from "../domain/playerRankTier";
+import {
+  AUCTION_TIER_TOOLTIP,
+  MODEL_TIER_FALLBACK_TOOLTIP,
+} from "../domain/rankTierLabels";
 
 type Props = {
   players: Player[];
@@ -15,10 +21,21 @@ type Props = {
   getNote?: (playerId: string) => string;
   onNoteChange?: (playerId: string, note: string) => void;
   isCustomPlayer?: (id: string) => boolean;
+  draftDisplaySlotKeys?: string[];
 };
 
-function TierBadge({ tier }: { tier: string | number }) {
-  return <span className={`tier-badge tier-${tier}`}>{tier}</span>;
+function TierBadge({
+  tier,
+  title,
+}: {
+  tier: string | number;
+  title?: string;
+}) {
+  return (
+    <span className={`tier-badge tier-${tier}`} title={title}>
+      {tier}
+    </span>
+  );
 }
 
 export default function TiersView({
@@ -29,10 +46,11 @@ export default function TiersView({
   isInWatchlist,
   addToWatchlist,
   removeFromWatchlist,
+  draftDisplaySlotKeys,
 }: Props) {
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortBy, setSortBy] = useState<
-    "auction_value" | "recommended_bid" | "team_adjusted_value"
+    "auction_value" | "recommended_bid" | "team_value"
   >("auction_value");
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -43,6 +61,10 @@ export default function TiersView({
 
   const groups = useMemo(() => groupPlayersByTier(players), [players]);
   const stats = useMemo(() => calculateTierStats(groups, draftedIds), [groups, draftedIds]);
+  const poolUsesAuctionTier = useMemo(
+    () => poolHasAuctionTier(players),
+    [players],
+  );
 
   const filteredStats = useMemo(() => {
     if (positionFilter === "all") return stats;
@@ -74,8 +96,14 @@ export default function TiersView({
     <div className="tiers-view">
       <div className="tiers-header">
         <div>
-          <h2>Tiers</h2>
-          <p>Strategic tier breakdown with position scarcity and value cliffs to guide draft decisions</p>
+          <h2 title={poolUsesAuctionTier ? undefined : MODEL_TIER_FALLBACK_TOOLTIP}>
+            {poolUsesAuctionTier ? "Auction tiers" : "Model tiers"}
+          </h2>
+          <p>
+            {poolUsesAuctionTier
+              ? "Players grouped by Engine auction tier (current league auction value), with position scarcity and value cliffs."
+              : "Grouped by catalog model tier until league auction tiers are available for this pool. Same 1–5 buckets as preseason catalog value."}
+          </p>
         </div>
 
         <div className="tiers-controls">
@@ -83,6 +111,7 @@ export default function TiersView({
             <label htmlFor="position-filter">Position</label>
             <select
               id="position-filter"
+              className="app-select"
               value={positionFilter}
               onChange={(e) => setPositionFilter(e.target.value)}
             >
@@ -99,6 +128,7 @@ export default function TiersView({
             <label htmlFor="sort-by">Sort By</label>
             <select
               id="sort-by"
+              className="app-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             >
@@ -108,8 +138,8 @@ export default function TiersView({
               <option value="recommended_bid">
                 {valuationSortLabel("recommended_bid")}
               </option>
-              <option value="team_adjusted_value">
-                {valuationSortLabel("team_adjusted_value")}
+              <option value="team_value">
+                {valuationSortLabel("team_value")}
               </option>
             </select>
           </div>
@@ -122,7 +152,14 @@ export default function TiersView({
             <div className="tier-group__header">
               <div className="tier-group__header-left">
                 <div className="tier-header-badge">
-                  <TierBadge tier={tierStat.tier} />
+                  <TierBadge
+                    tier={tierStat.tier}
+                    title={
+                      poolUsesAuctionTier
+                        ? AUCTION_TIER_TOOLTIP
+                        : MODEL_TIER_FALLBACK_TOOLTIP
+                    }
+                  />
                   <span className="tier-available">
                     {tierStat.availableCount}/{tierStat.players.length}
                   </span>
@@ -170,7 +207,12 @@ export default function TiersView({
                       ? leagueWideAuctionDollars(player) ?? 0
                       : sortBy === "recommended_bid"
                         ? player.recommended_bid ?? 0
-                        : player.team_adjusted_value ?? 0;
+                        : player.team_value ?? 0;
+                  const { primaryTags, draftableSlots } =
+                    playerIdentityPositionPresentation(
+                      player,
+                      draftDisplaySlotKeys ?? null,
+                    );
 
                   return (
                     <div
@@ -190,9 +232,20 @@ export default function TiersView({
                         }}
                       >
                         <div>
-                          <div className="tier-player-row__name">{player.name}</div>
+                          <div className="tier-player-row__name">
+                            <span>{player.name}</span>
+                            {primaryTags.length > 0 ? (
+                              <span className="tier-player-row__name-pos">
+                                {primaryTags.join(" / ")}
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="tier-player-row__meta">
-                            <span className="chip">{player.position}</span>
+                            {draftableSlots.length > 0 ? (
+                              <span className="chip chip--slots" title="Roster slots you can draft into">
+                                Slots: {draftableSlots.join(" · ")}
+                              </span>
+                            ) : null}
                             <span className="chip">{player.team}</span>
                           </div>
                         </div>

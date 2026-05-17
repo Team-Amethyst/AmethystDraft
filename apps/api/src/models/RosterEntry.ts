@@ -53,7 +53,7 @@ const rosterEntrySchema = new Schema<IRosterEntry>(
     price: {
       type: Number,
       required: true,
-      min: 1,
+      min: 0,
     },
     rosterSlot: {
       type: String,

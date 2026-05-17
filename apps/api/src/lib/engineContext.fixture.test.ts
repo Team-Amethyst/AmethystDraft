@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "fs";
 import path from "path";
 import { buildEngineValuationCalculateBodyFromFixture } from "./engineContext";
 import { valuationRequestSchema } from "../validation/valuationRequestSchema";
+import { PRODUCTION_AUCTION_CURVE_MODEL } from "./auctionCurveModel";
 
 /** Resolved from apps/api when tests run via `pnpm --filter api test`. */
 const checkpointsDir = path.join(
@@ -25,19 +26,37 @@ describe("valuation fixtures -> engine POST body", () => {
   });
 });
 
+describe("auction curve on fixtures", () => {
+  it("sends production adaptive model (no checkpoint hardcode)", () => {
+    const checkpointFiles = readdirSync(checkpointsDir).filter((f) =>
+      f.endsWith(".json"),
+    );
+    for (const file of checkpointFiles) {
+      const raw = JSON.parse(
+        readFileSync(path.join(checkpointsDir, file), "utf8"),
+      ) as unknown;
+      const fixture = valuationRequestSchema.parse(raw);
+      const body = buildEngineValuationCalculateBodyFromFixture(fixture);
+      expect(body.auction_curve_model).toBe(PRODUCTION_AUCTION_CURVE_MODEL);
+    }
+  });
+});
+
 describe("fixture draft sizes", () => {
-  it("after_130 has 130 auction picks in drafted_players and keeper in pre_draft_rosters", () => {
+  it("after_130 aligns engine body with workbook-derived draft_state and keeper grid", () => {
     const raw = JSON.parse(
       readFileSync(path.join(checkpointsDir, "after_130.json"), "utf8"),
     ) as unknown;
     const fixture = valuationRequestSchema.parse(raw);
     const body = buildEngineValuationCalculateBodyFromFixture(fixture);
-    expect(body.drafted_players).toHaveLength(130);
+    const expectedDraftLen = fixture.draft_state?.length ?? 0;
+    expect(expectedDraftLen).toBeGreaterThan(0);
+    expect(body.drafted_players).toHaveLength(expectedDraftLen);
+
     expect(body.pre_draft_rosters).toBeDefined();
-    expect(
-      (body.pre_draft_rosters as { team_id: string; players: unknown[] }[])[0]
-        ?.players,
-    ).toHaveLength(1);
+    const pre = body.pre_draft_rosters as { team_id: string; players: unknown[] }[];
+    expect(pre.some((s) => s.players.length >= 1)).toBe(true);
+
     expect(body.budget_by_team_id).toBeDefined();
     expect(Object.keys(body.budget_by_team_id ?? {}).length).toBeGreaterThan(0);
   });

@@ -3,6 +3,8 @@
 @import "./styles/theme.css";
 @import "./styles/cc-design-tokens.css";
 @import "./styles/scrollbars.css";
+@import "./styles/app-select.css";
+@import "./styles/app-control-chrome.css";
 
 @custom-variant dark (&:is(.dark *));
 

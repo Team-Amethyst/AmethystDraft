@@ -15,5 +15,8 @@ export interface League {
   playerPool: "Mixed" | "AL" | "NL";
   teamNames: string[];
   posEligibilityThreshold: number;
+  seasonYear: number;
+  leagueFamilyId: string;
+  previousSeasonLeagueId?: string;
   createdAt: string;
 }

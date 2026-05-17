@@ -1,8 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AppSelect } from "../AppSelect";
 import type { League } from "../../contexts/LeagueContext";
 import type { RosterEntry } from "../../api/roster";
 import { myDraftSlotsForPosition } from "../../constants/positionAllocationPlan";
+import {
+  activeAuctionEntriesForTeam,
+  isReserveRosterSlot,
+} from "../../pages/command-center-utils/roster";
+import { assignTeamEntriesToRosterRows } from "../../pages/command-center-utils/rosterAssignment";
 import PosBadge from "../PosBadge";
+import { resolvedLeagueTeamNames } from "../../utils/team";
 
 export function CommandCenterTeamMakeupSection({
   league,
@@ -19,15 +26,17 @@ export function CommandCenterTeamMakeupSection({
 }) {
   const [makeupTeamId, setMakeupTeamId] = useState(() => myTeamId ?? "team_1");
 
+  const displayTeamNames = league ? resolvedLeagueTeamNames(league) : [];
+
   useEffect(() => {
     const fallback = myTeamId ?? "team_1";
-    if (!league?.teamNames.length) return;
+    if (!displayTeamNames.length) return;
     setMakeupTeamId((prev) => {
       const n = parseInt(String(prev).replace(/^team_/i, ""), 10);
-      const valid = Number.isFinite(n) && n >= 1 && n <= league.teamNames.length;
+      const valid = Number.isFinite(n) && n >= 1 && n <= displayTeamNames.length;
       return valid ? `team_${n}` : fallback;
     });
-  }, [myTeamId, league?.teamNames]);
+  }, [myTeamId, displayTeamNames.length]);
 
   const totalSlots = league
     ? Object.values(league.rosterSlots).reduce((a, b) => a + b, 0)
@@ -35,30 +44,28 @@ export function CommandCenterTeamMakeupSection({
   const viewingOwnTargets =
     myTeamId != null && makeupTeamId !== "" && makeupTeamId === myTeamId;
   const teamMakeupEntries = makeupTeamId
-    ? rosterEntries
-        .filter((e) => e.teamId === makeupTeamId)
-        .slice()
-        .sort(
-          (a, b) =>
-            new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
-            new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
-        )
+    ? activeAuctionEntriesForTeam(rosterEntries, makeupTeamId)
     : [];
-  const teamEntriesBySlot = new Map<string, RosterEntry[]>();
-  teamMakeupEntries.forEach((entry) => {
-    const slotKey = entry.rosterSlot || "BN";
-    const curr = teamEntriesBySlot.get(slotKey) ?? [];
-    curr.push(entry);
-    teamEntriesBySlot.set(slotKey, curr);
-  });
+  const reserveCountForTeam = makeupTeamId
+    ? rosterEntries.filter(
+        (e) => e.teamId === makeupTeamId && isReserveRosterSlot(e.rosterSlot ?? ""),
+      ).length
+    : 0;
+  const assignedRows =
+    league != null
+      ? assignTeamEntriesToRosterRows(league.rosterSlots, teamMakeupEntries)
+      : [];
   const teamMakeupRows = league
-    ? Object.entries(league.rosterSlots).flatMap(([slot, count]) => {
-        const entriesForSlot = teamEntriesBySlot.get(slot) ?? [];
+    ? assignedRows.map((row, idx) => {
+        const slot = row.position;
+        const count = league.rosterSlots[slot] ?? 1;
+        const slotIndex = assignedRows
+          .slice(0, idx)
+          .filter((r) => r.position === slot).length;
         const totalTargetForPosition = viewingOwnTargets
           ? (savedPositionTargets[slot] ??
             Math.round((count / totalSlots) * (league.budget ?? 260)))
           : Math.round((count / totalSlots) * (league.budget ?? 260));
-        /* My Draft “Per Slot” only for your team; other teams use even slot share of budget */
         const slotsForPerSlotDivisor = viewingOwnTargets
           ? (myDraftSlotsForPosition(slot) ?? count)
           : count;
@@ -66,17 +73,15 @@ export function CommandCenterTeamMakeupSection({
           slotsForPerSlotDivisor > 0 && Number.isFinite(totalTargetForPosition)
             ? totalTargetForPosition / slotsForPerSlotDivisor
             : null;
-        return Array.from({ length: count }, (_, idx) => {
-          const entry = entriesForSlot[idx];
-          return {
-            key: `${slot}-${idx}`,
-            slot,
-            playerName: entry?.playerName ?? "— empty —",
-            target: perSlotTarget,
-            price: entry?.price ?? null,
-            filled: !!entry,
-          };
-        });
+        const entry = row.entry;
+        return {
+          key: `${slot}-${slotIndex}`,
+          slot,
+          playerName: entry?.playerName ?? "— empty —",
+          target: perSlotTarget,
+          price: entry?.price ?? null,
+          filled: !!entry,
+        };
       })
     : [];
   const fmtDollar = (n: number | null | undefined) =>
@@ -87,28 +92,28 @@ export function CommandCenterTeamMakeupSection({
     return `$${s.endsWith(".0") ? s.slice(0, -2) : s}`;
   };
 
+  const makeupTeamOptions = useMemo(
+    () =>
+      displayTeamNames.map((name, idx) => {
+        const tid = `team_${idx + 1}`;
+        const you = myTeamId != null && tid === myTeamId ? " (You)" : "";
+        return { value: tid, label: `${name}${you}` };
+      }),
+    [displayTeamNames, myTeamId],
+  );
+
   return (
     <section className={sectionClassName}>
-      <div className="pac-snapshot-header cc-team-makeup-head">
+      <div className="pac-snapshot-header cc-team-makeup-head cc-panel-controls">
         <span className="market-section-label">TEAM MAKEUP</span>
-        {league && league.teamNames.length > 0 ? (
-          <select
-            className="cc-team-makeup-select"
+        {league && makeupTeamOptions.length > 0 ? (
+          <AppSelect
+            variant="toolbar"
             aria-label="Roster to display"
             value={makeupTeamId}
-            onChange={(e) => setMakeupTeamId(e.target.value)}
-          >
-            {league.teamNames.map((name, idx) => {
-              const tid = `team_${idx + 1}`;
-              const you = myTeamId != null && tid === myTeamId ? " (You)" : "";
-              return (
-                <option key={tid} value={tid}>
-                  {name}
-                  {you}
-                </option>
-              );
-            })}
-          </select>
+            onChange={setMakeupTeamId}
+            options={makeupTeamOptions}
+          />
         ) : null}
       </div>
       <div className="team-makeup-slots">
@@ -166,6 +171,13 @@ export function CommandCenterTeamMakeupSection({
         })}
         {teamMakeupRows.length === 0 && <div className="dim">No slots available.</div>}
       </div>
+      <p className="team-makeup-footnote dim">
+        Active auction roster only—Minors and Taxi reserves are excluded from
+        these slots
+        {reserveCountForTeam > 0
+          ? ` (${reserveCountForTeam} reserve player${reserveCountForTeam === 1 ? "" : "s"} on this team; see League Overview).`
+          : " (see League Overview for reserves)."}
+      </p>
     </section>
   );
 }

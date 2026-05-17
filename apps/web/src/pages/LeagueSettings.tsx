@@ -1,72 +1,44 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, ChevronDown, Search, Save, X } from "lucide-react";
-import { useNavigate } from "react-router";
-import PosBadge from "../components/PosBadge";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useLeague } from "../contexts/LeagueContext";
 import type { League } from "../contexts/LeagueContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeagueForm } from "../hooks/useLeagueForm";
 import { usePageTitle } from "../hooks/usePageTitle";
-import {
-  hittingStats,
-  pitchingStats,
-  type Player,
-  type TeamKeeper,
-} from "../types/league";
-import { updateLeague } from "../api/leagues";
-import { getRoster, addRosterEntry, removeRosterEntry } from "../api/roster";
-import type { RosterEntry } from "../api/roster";
-import { getPlayers, getPlayersCached } from "../api/players";
-import type { Player as ApiPlayer } from "../types/player";
+import { hittingStats, pitchingStats } from "../types/league";
+import { deleteLeague, updateLeague } from "../api/leagues";
 import { LeagueRosterSlotsEditor } from "../components/leagues/LeagueRosterSlotsEditor";
-import { KeeperDraftFormPopover } from "../components/leagues/KeeperDraftFormPopover";
-import { KeeperSlotSelectWithOverride } from "../components/leagues/KeeperSlotSelectWithOverride";
+import { LeagueKeepersForm } from "./LeagueKeepersForm";
 import {
   PLAYER_POOL_OPTIONS,
   extractStatAbbreviation,
-  keeperDisplayPositions,
   poolApiToForm,
   poolFormToApi,
-  toLeagueFormPlayer,
 } from "../features/leagues/shared";
+import {
+  LEAGUE_TEAMS_MAX,
+  LEAGUE_TEAMS_MIN,
+  leaguePayloadFromCreateForm,
+  validateLeaguePayload,
+} from "../validation/leaguePayload";
 import "./LeagueSettings.css";
-import { MODEL_RANK_TOOLTIP } from "../domain/rankTierLabels";
 
 type Section = "setup" | "scoring" | "teams" | "keepers";
-
-function keepersToMap(
-  entries: RosterEntry[],
-  teamNames: string[],
-): Record<string, TeamKeeper[]> {
-  const result: Record<string, TeamKeeper[]> = {};
-  for (const entry of entries) {
-    if (!entry.isKeeper) continue;
-    // teamId is "team_N" where N is 1-based index
-    const idx = entry.teamId
-      ? parseInt(entry.teamId.replace("team_", ""), 10) - 1
-      : -1;
-    const teamName = teamNames[idx] ?? `Team ${idx + 1}`;
-    if (!result[teamName]) result[teamName] = [];
-    result[teamName].push({
-      slot: entry.rosterSlot,
-      playerName: entry.playerName,
-      team: entry.playerTeam,
-      cost: entry.price,
-      contractType: entry.keeperContract,
-      playerId: entry.externalPlayerId,
-      positions: entry.positions?.length ? entry.positions : undefined,
-      entryId: entry._id,
-    });
-  }
-  return result;
-}
 
 const navItems: { id: Section; label: string; desc: string }[] = [
   { id: "setup", label: "League Setup", desc: "Name, teams, budget, roster" },
   { id: "scoring", label: "Scoring", desc: "Player pool & stat categories" },
   { id: "teams", label: "Team Names", desc: "Customize each team's name" },
-  { id: "keepers", label: "Keepers", desc: "Manage keeper rosters per team" },
+  { id: "keepers", label: "Keepers", desc: "Keeper slots, costs & contracts" },
 ];
+
+function sectionFromParam(value: string | null): Section {
+  if (value === "scoring" || value === "teams" || value === "keepers") {
+    return value;
+  }
+  return "setup";
+}
 
 export default function LeagueSettings() {
   const { league, loading } = useLeague();
@@ -87,29 +59,24 @@ export default function LeagueSettings() {
 
 function LeagueSettingsForm({ league }: { league: League }) {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { token, user } = useAuth();
   const { refreshLeagues } = useLeague();
 
   usePageTitle(`${league.name} Settings`);
-  const [activeSection, setActiveSection] = useState<Section>("setup");
+  const [activeSection, setActiveSection] = useState<Section>(() =>
+    sectionFromParam(searchParams.get("section")),
+  );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [savedKeeperEntries, setSavedKeeperEntries] = useState<RosterEntry[]>(
-    [],
-  );
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [posEligibilityRaw, setPosEligibilityRaw] = useState(
     String(league.posEligibilityThreshold ?? 20),
   );
-  const [keeperPlayers, setKeeperPlayers] = useState<Player[]>(() => {
-    const cached = getPlayersCached(
-      "catalog_rank",
-      league.posEligibilityThreshold,
-      league.playerPool,
-    );
-    return cached
-      ? cached.map((p: ApiPlayer) => toLeagueFormPlayer(p))
-      : [];
-  });
+  const isCommissioner = Boolean(user && user.id === league.commissionerId);
+  const [deleteExpanded, setDeleteExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     leagueName,
@@ -129,28 +96,10 @@ function LeagueSettingsForm({ league }: { league: League }) {
     selectedPitching,
     setSelectedPitching,
     teamNames,
-    activeKeeperTeam,
-    setActiveKeeperTeam,
-    playerSearch,
-    setPlayerSearch,
-    teamKeepers,
-    setTeamKeepers,
-    currentKeepers,
-    filteredPlayers,
     toggleStat,
     setRosterCount,
     resetRosterSlots,
     updateTeamName,
-    addKeeper,
-    removeKeeper,
-    getEligibleSlotsForPlayer,
-    getOpenSlotsForPlayer,
-    keeperOwnerMap,
-    updateKeeperCost,
-    updateKeeperContract,
-    updateKeeperSlot,
-    getEligibleSlotsForKeeperAtIndex,
-    getOpenSlotsForKeeperAtIndex,
   } = useLeagueForm({
     initialName: league.name,
     initialTeams: league.teams,
@@ -170,61 +119,60 @@ function LeagueSettingsForm({ league }: { league: League }) {
     initialTeamNames: league.teamNames,
     initialPosEligibilityThreshold: league.posEligibilityThreshold ?? 20,
     initialKeepers: {},
-    externalPlayers: keeperPlayers,
+    externalPlayers: [],
   });
-
-  const keeperAnchorRef = useRef<HTMLButtonElement | null>(null);
-  const [keeperDraftPlayerId, setKeeperDraftPlayerId] = useState<string | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (activeSection !== "keepers") setKeeperDraftPlayerId(null);
-  }, [activeSection]);
-
-  useEffect(() => {
-    setKeeperDraftPlayerId(null);
-  }, [activeKeeperTeam]);
-
-  useEffect(() => {
-    if (!token) return;
-    getRoster(league.id, token)
-      .then((entries) => {
-        const keeperEntries = entries.filter((e) => e.isKeeper);
-        setSavedKeeperEntries(keeperEntries);
-        setTeamKeepers(keepersToMap(keeperEntries, league.teamNames));
-      })
-      .catch(() => {
-        /* non-fatal */
-      });
-    void getPlayers(
-      "catalog_rank",
-      league.posEligibilityThreshold,
-      league.playerPool,
-    ).then((apiPlayers: ApiPlayer[]) =>
-      setKeeperPlayers(apiPlayers.map((p) => toLeagueFormPlayer(p))),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [league.id, token]);
-
-  // Re-fetch keeper player list when the form's playerPool or posEligibilityThreshold changes
-  useEffect(() => {
-    const apiPool = poolFormToApi(playerPool);
-    void getPlayers("catalog_rank", posEligibilityThreshold, apiPool).then(
-      (apiPlayers: ApiPlayer[]) =>
-        setKeeperPlayers(apiPlayers.map((p) => toLeagueFormPlayer(p))),
-    );
-  }, [playerPool, posEligibilityThreshold]);
 
   const backPath = `/leagues/${league.id}/research`;
 
+  useEffect(() => {
+    setActiveSection(sectionFromParam(searchParams.get("section")));
+  }, [searchParams]);
+
+  const selectSection = (section: Section) => {
+    setActiveSection(section);
+    const next = new URLSearchParams(searchParams);
+    if (section === "setup") {
+      next.delete("section");
+    } else {
+      next.set("section", section);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   const handleSave = async () => {
     if (!token) return;
-    setSaving(true);
-    setSaveError(null);
     const rosterSlotsMap = Object.fromEntries(
       rosterSlots.map((s) => [s.position, s.count]),
     );
+    const validation = validateLeaguePayload(
+      leaguePayloadFromCreateForm({
+        leagueName,
+        teams,
+        budget,
+        posEligibilityThreshold: Math.max(1, posEligibilityThreshold || 1),
+        rosterSlots: rosterSlotsMap,
+        scoringCategories: [
+          ...selectedHitting.map((s) => ({
+            name: extractStatAbbreviation(s),
+            type: "batting" as const,
+          })),
+          ...selectedPitching.map((s) => ({
+            name: extractStatAbbreviation(s),
+            type: "pitching" as const,
+          })),
+        ],
+        playerPool: poolFormToApi(playerPool),
+      }),
+    );
+    if (!validation.valid) {
+      setFieldErrors(validation.fieldErrors);
+      setSaveError(validation.message);
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    setFieldErrors({});
     try {
       await updateLeague(
         league.id,
@@ -250,41 +198,6 @@ function LeagueSettingsForm({ league }: { league: League }) {
         token,
       );
 
-      // Save keepers: delete all existing, then re-add current local state
-      await Promise.all(
-        savedKeeperEntries.map((e) =>
-          removeRosterEntry(league.id, e._id, token),
-        ),
-      );
-      const currentTeamNames = teamNames.slice(0, teams);
-      const keeperAdds: Promise<unknown>[] = [];
-      for (let i = 0; i < currentTeamNames.length; i++) {
-        const teamName = currentTeamNames[i];
-        const keepers = teamKeepers[teamName] ?? [];
-        const teamUserId = league.memberIds[i];
-        for (const keeper of keepers) {
-          keeperAdds.push(
-            addRosterEntry(
-              league.id,
-              {
-                externalPlayerId: keeper.playerId,
-                playerName: keeper.playerName,
-                playerTeam: keeper.team,
-                positions: keeper.positions ?? [keeper.slot],
-                price: keeper.cost,
-                rosterSlot: keeper.slot,
-                isKeeper: true,
-                    keeperContract: keeper.contractType,
-                teamId: `team_${i + 1}`,
-                userId: teamUserId,
-              },
-              token,
-            ),
-          );
-        }
-      }
-      await Promise.all(keeperAdds);
-
       refreshLeagues();
       navigate(backPath);
     } catch (err) {
@@ -293,6 +206,23 @@ function LeagueSettingsForm({ league }: { league: League }) {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteLeague = async () => {
+    if (!token || !deleteExpanded) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteLeague(league.id, token);
+      refreshLeagues();
+      navigate("/leagues");
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete league",
+      );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -307,8 +237,8 @@ function LeagueSettingsForm({ league }: { league: League }) {
         <div className="ls-header">
           <h1>{league.name} Settings</h1>
           <p>
-            Edit any section independently — changes won't be saved until you
-            click Save.
+            Update league setup, scoring, team names, and keeper rosters. Keepers
+            use their own save button on the Keepers tab.
           </p>
         </div>
 
@@ -322,7 +252,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                   "ls-nav-item" +
                   (activeSection === item.id ? " ls-nav-item-active" : "")
                 }
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => selectSection(item.id)}
               >
                 <span className="ls-nav-label">{item.label}</span>
                 <span className="ls-nav-desc">{item.desc}</span>
@@ -348,9 +278,20 @@ function LeagueSettingsForm({ league }: { league: League }) {
                       <label>TEAMS</label>
                       <input
                         type="number"
+                        min={LEAGUE_TEAMS_MIN}
+                        max={LEAGUE_TEAMS_MAX}
+                        step={1}
                         value={teams}
                         onChange={(e) => setTeams(Number(e.target.value))}
+                        aria-invalid={fieldErrors.teams ? true : undefined}
                       />
+                      {fieldErrors.teams ? (
+                        <p className="ls-field-error">{fieldErrors.teams}</p>
+                      ) : (
+                        <p className="ls-field-hint">
+                          {LEAGUE_TEAMS_MIN}–{LEAGUE_TEAMS_MAX} teams
+                        </p>
+                      )}
                     </div>
                     <div className="ls-field">
                       <label>BUDGET ($)</label>
@@ -412,6 +353,63 @@ function LeagueSettingsForm({ league }: { league: League }) {
                     />
                   </div>
                 </div>
+
+                {isCommissioner && (
+                  <div className="ls-danger-zone">
+                    <div className="ls-danger-zone-head">
+                      <h2 className="ls-danger-zone-title">Delete league</h2>
+                      <p className="ls-danger-zone-copy">
+                        Permanently remove this league, all roster entries,
+                        watchlists, and notes for every member. This cannot be
+                        undone.
+                      </p>
+                    </div>
+                    {!deleteExpanded ? (
+                      <button
+                        type="button"
+                        className="ls-danger-btn"
+                        onClick={() => {
+                          setDeleteExpanded(true);
+                          setDeleteError(null);
+                        }}
+                      >
+                        <Trash2 size={15} aria-hidden />
+                        <span>Delete league…</span>
+                      </button>
+                    ) : (
+                      <div className="ls-danger-confirm">
+                        <p className="ls-danger-confirm-hint">
+                          Press <strong>Confirm delete</strong> again to remove
+                          this league permanently.
+                        </p>
+                        {deleteError && (
+                          <p className="ls-save-error">{deleteError}</p>
+                        )}
+                        <div className="ls-danger-confirm-actions">
+                          <button
+                            type="button"
+                            className="ls-danger-cancel"
+                            disabled={deleting}
+                            onClick={() => {
+                              setDeleteExpanded(false);
+                              setDeleteError(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="ls-danger-confirm-btn"
+                            disabled={deleting}
+                            onClick={() => void handleDeleteLeague()}
+                          >
+                            {deleting ? "Deleting…" : "Confirm delete"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -489,366 +487,11 @@ function LeagueSettingsForm({ league }: { league: League }) {
               </div>
             )}
 
-            {activeSection === "keepers" &&
-              (() => {
-                // Group current keepers by slot for the right panel
-                const keepersBySlot: Record<
-                  string,
-                  { keeper: TeamKeeper; keeperIdx: number }[]
-                > = {};
-                currentKeepers.forEach((k, i) => {
-                  if (!keepersBySlot[k.slot]) keepersBySlot[k.slot] = [];
-                  keepersBySlot[k.slot].push({ keeper: k, keeperIdx: i });
-                });
+            {activeSection === "keepers" && (
+              <LeagueKeepersForm league={league} embedded />
+            )}
 
-                // All roster slot rows for the right panel
-                const keeperRosterRows = rosterSlots.flatMap((s) =>
-                  Array.from({ length: s.count }, (_, i) => ({
-                    pos: s.position,
-                    entry: keepersBySlot[s.position]?.[i] ?? null,
-                  })),
-                );
-
-                const keeperAvailablePlayers = filteredPlayers.filter(
-                  (p) => !keeperOwnerMap.get(String(p.id)),
-                );
-
-                return (
-                  <div className="ls-section">
-                    <div className="ls-section-heading">Keepers</div>
-
-                    <div className="ls-keepers-layout">
-                      <div className="ls-keeper-panel ls-keeper-panel--available">
-                        <div className="ls-keeper-title">AVAILABLE PLAYERS</div>
-                        <div className="ls-searchbar ls-searchbar--keepers">
-                          <Search size={14} />
-                          <input
-                            placeholder="Search..."
-                            value={playerSearch}
-                            onChange={(e) => setPlayerSearch(e.target.value)}
-                          />
-                        </div>
-                        <div className="ls-player-list ls-player-list--keepers">
-                          <div
-                            className="ls-available-table-head ls-player-row ls-player-row--keepers"
-                            role="row"
-                            aria-hidden
-                          >
-                            <span className="ls-available-th ls-available-th--avatar" />
-                            <div className="ls-available-th">Player</div>
-                            <div className="ls-available-th">Team</div>
-                            <div className="ls-available-th ls-available-th--pos">
-                              Pos
-                            </div>
-                            <div
-                              className="ls-available-th ls-available-th--adp"
-                              title={MODEL_RANK_TOOLTIP}
-                            >
-                              Model rank
-                            </div>
-                            <span
-                              className="ls-available-th ls-available-th--action ls-available-th--action-spacer"
-                              aria-hidden
-                            />
-                          </div>
-                          {keeperAvailablePlayers.map((player) => {
-                            const eligible = getEligibleSlotsForPlayer(player);
-                            const openSlots = getOpenSlotsForPlayer(player);
-                            const draftOpen =
-                              keeperDraftPlayerId === String(player.id);
-                            return (
-                              <div key={player.id} className="ls-keeper-player-stack">
-                                <div className="ls-player-row ls-player-row--keepers">
-                                {player.headshot ? (
-                                  <img
-                                    src={player.headshot}
-                                    alt={player.name}
-                                    className="ls-keeper-headshot"
-                                  />
-                                ) : (
-                                  <div className="ls-avatar">
-                                    {player.name
-                                      .split(" ")
-                                      .map((n) => n[0])
-                                      .slice(0, 2)
-                                      .join("")}
-                                  </div>
-                                )}
-                                <div className="ls-player-main ls-player-main--name-only">
-                                  <div className="ls-player-name">
-                                    {player.name}
-                                  </div>
-                                </div>
-                                <div className="ls-player-team-col">
-                                  {player.team || "—"}
-                                </div>
-                                <div className="ls-pos-badges">
-                                  {keeperDisplayPositions(player)
-                                    .slice(0, 3)
-                                    .map((pos) => (
-                                      <PosBadge key={pos} pos={pos} />
-                                    ))}
-                                </div>
-                                <div className="ls-player-adp">
-                                  {player.catalog_rank ?? "—"}
-                                </div>
-                                <div className="keeper-draft-popover-anchor ls-keeper-draft-trigger-cell">
-                                  {openSlots.length === 0 ? (
-                                    <span
-                                      className="ls-keeper-row-status ls-keeper-row-status--muted"
-                                      title="No open roster slots"
-                                    >
-                                      —
-                                    </span>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      className="ls-keeper-draft-icon-btn"
-                                      aria-label={`Draft ${player.name} as keeper`}
-                                      aria-expanded={draftOpen}
-                                      aria-haspopup="dialog"
-                                      ref={(el) => {
-                                        if (draftOpen) {
-                                          keeperAnchorRef.current = el;
-                                        }
-                                      }}
-                                      onClick={() => {
-                                        const id = String(player.id);
-                                        setKeeperDraftPlayerId((prev) =>
-                                          prev === id ? null : id,
-                                        );
-                                      }}
-                                    >
-                                      <ChevronDown
-                                        className="ls-keeper-draft-icon-btn-chevron"
-                                        aria-hidden
-                                        size={18}
-                                        strokeWidth={2.25}
-                                      />
-                                    </button>
-                                  )}
-                                  {keeperDraftPlayerId === String(player.id) && (
-                                    <KeeperDraftFormPopover
-                                      key={player.id}
-                                      anchorRef={keeperAnchorRef}
-                                      player={player}
-                                      eligibleSlots={eligible}
-                                      assignableSlots={openSlots}
-                                      defaultCost={
-                                        player.value ??
-                                        Math.floor(player.catalog_rank * 2 + 10)
-                                      }
-                                      onClose={() =>
-                                        setKeeperDraftPlayerId(null)
-                                      }
-                                      onDraft={(slot, cost, contract) => {
-                                        addKeeper(
-                                          player,
-                                          slot,
-                                          cost,
-                                          contract,
-                                        );
-                                      }}
-                                    />
-                                  )}
-                                </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="ls-keeper-panel ls-keeper-panel--roster">
-                        <div className="ls-keeper-cc-head">
-                          <span className="ls-keeper-cc-label">Keeper roster</span>
-                          <select
-                            className="ls-keeper-team-select ls-keeper-team-select--cc"
-                            aria-label="Team to edit keepers for"
-                            value={activeKeeperTeam}
-                            onChange={(e) => {
-                              setActiveKeeperTeam(e.target.value);
-                            }}
-                          >
-                            {teamNames.slice(0, teams).map((name, i) => (
-                              <option key={i} value={name}>
-                                {name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="team-makeup-slots ls-keeper-makeup">
-                          <div
-                            className="team-makeup-head-row ls-keeper-makeup-head"
-                            aria-hidden
-                          >
-                            <span className="team-makeup-head-badge-spacer" />
-                            <div className="team-makeup-head-player">Player</div>
-                            <div className="ls-keeper-makeup-head-cell">Slot</div>
-                            <div className="team-makeup-head-money">Paid</div>
-                            <div className="ls-keeper-makeup-head-cell ls-keeper-makeup-head-contract">
-                              Contract
-                            </div>
-                            <span className="ls-keeper-makeup-head-actions" />
-                          </div>
-                          {keeperRosterRows.map(({ pos, entry }, i) => {
-                            const rowKey = `${pos}-${i}`;
-                            const eligibleSlots = entry
-                              ? getEligibleSlotsForKeeperAtIndex(entry.keeperIdx)
-                              : [];
-                            const assignableSlots = entry
-                              ? getOpenSlotsForKeeperAtIndex(entry.keeperIdx)
-                              : [];
-                            return (
-                              <div
-                                key={rowKey}
-                                className={
-                                  "team-makeup-slot-row ls-keeper-makeup-row" +
-                                  (entry
-                                    ? " team-makeup-slot-row--filled"
-                                    : " team-makeup-slot-row--empty")
-                                }
-                              >
-                                <PosBadge pos={pos} />
-                                {entry ? (
-                                  <>
-                                    <div
-                                      className="team-makeup-slot-player ls-keeper-makeup-player"
-                                      title={entry.keeper.playerName}
-                                    >
-                                      {(() => {
-                                        const p = keeperPlayers.find(
-                                          (kp) =>
-                                            String(kp.id) ===
-                                            entry.keeper.playerId,
-                                        );
-                                        return p?.headshot ? (
-                                          <img
-                                            src={p.headshot}
-                                            alt={entry.keeper.playerName}
-                                            className="ls-keeper-headshot-sm"
-                                          />
-                                        ) : (
-                                          <div className="ls-keeper-init">
-                                            {entry.keeper.playerName
-                                              .split(" ")
-                                              .map((n) => n[0])
-                                              .slice(0, 2)
-                                              .join("")}
-                                          </div>
-                                        );
-                                      })()}
-                                      <span className="ls-keeper-makeup-name">
-                                        {entry.keeper.playerName}
-                                        <span className="ls-keeper-team">
-                                          {entry.keeper.team}
-                                        </span>
-                                      </span>
-                                    </div>
-                                    <KeeperSlotSelectWithOverride
-                                      eligibleSlots={eligibleSlots}
-                                      assignableSlots={assignableSlots}
-                                      value={entry.keeper.slot}
-                                      onChange={(slot) =>
-                                        updateKeeperSlot(
-                                          entry.keeperIdx,
-                                          slot,
-                                        )
-                                      }
-                                      selectClassName="ls-keeper-slot-select"
-                                      hideLabel
-                                      compact
-                                      showIneligibleHint={false}
-                                      rootClassName="ls-keeper-slot-select-wrap"
-                                    />
-                                    <label className="ls-keeper-makeup-paid">
-                                      <span className="ls-keeper-makeup-sr">
-                                        Paid
-                                      </span>
-                                      <span>$</span>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={entry.keeper.cost}
-                                        onChange={(e) =>
-                                          updateKeeperCost(
-                                            entry.keeperIdx,
-                                            parseInt(e.target.value, 10) || 1,
-                                          )
-                                        }
-                                        className="ls-cost-input ls-keeper-makeup-cost-input"
-                                      />
-                                    </label>
-                                    <label className="ls-keeper-makeup-contract">
-                                      <span className="ls-keeper-makeup-sr">
-                                        Contract
-                                      </span>
-                                      <input
-                                        type="text"
-                                        value={entry.keeper.contractType ?? ""}
-                                        onChange={(e) =>
-                                          updateKeeperContract(
-                                            entry.keeperIdx,
-                                            e.target.value,
-                                          )
-                                        }
-                                        className="ls-cost-input ls-contract-input ls-keeper-makeup-contract-input"
-                                        placeholder="Arb / 3Y"
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      className="ls-keeper-makeup-remove"
-                                      aria-label={`Remove ${entry.keeper.playerName} from keepers`}
-                                      onClick={() =>
-                                        removeKeeper(entry.keeperIdx)
-                                      }
-                                    >
-                                      <X size={15} strokeWidth={2.25} aria-hidden />
-                                    </button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div
-                                      className="team-makeup-slot-player ls-keeper-empty-player"
-                                      title="Empty roster slot"
-                                    >
-                                      — empty —
-                                    </div>
-                                    <div
-                                      className="ls-keeper-roster-cell ls-keeper-roster-cell--slot ls-keeper-roster-cell--empty"
-                                      aria-hidden
-                                    >
-                                      —
-                                    </div>
-                                    <div
-                                      className="ls-keeper-roster-cell ls-keeper-roster-cell--paid ls-keeper-roster-cell--empty"
-                                      aria-hidden
-                                    >
-                                      —
-                                    </div>
-                                    <div
-                                      className="ls-keeper-roster-cell ls-keeper-roster-cell--contract ls-keeper-roster-cell--empty"
-                                      aria-hidden
-                                    >
-                                      —
-                                    </div>
-                                    <span
-                                      className="ls-keeper-roster-actions-spacer"
-                                      aria-hidden
-                                    />
-                                  </>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
+            {activeSection !== "keepers" && (
             <div className="ls-save-row">
               {saveError && (
                 <p className="ls-save-error">{saveError}</p>
@@ -862,6 +505,7 @@ function LeagueSettingsForm({ league }: { league: League }) {
                 <span>{saving ? "Saving…" : "Save Settings"}</span>
               </button>
             </div>
+            )}
           </div>
         </div>
       </div>

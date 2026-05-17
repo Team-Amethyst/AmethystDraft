@@ -32,6 +32,16 @@ export interface MockDraftState {
   pendingAIBids: string[];
   isRebidRound: boolean;
   message: string;
+  /**
+   * When set, valuations use bundled Engine checkpoints (`POST …/valuation/checkpoint`)
+   * and roster layout frozen from that fixture until reset / fresh start.
+   */
+  checkpointHydration?: {
+    checkpointKey: string;
+    rosterSlots: Record<string, number>;
+    budget: number;
+    teamNames: string[];
+  };
 }
 
 export const initialMockDraftState: MockDraftState = {

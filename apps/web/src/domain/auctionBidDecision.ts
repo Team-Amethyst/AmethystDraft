@@ -26,7 +26,7 @@ export type AuctionDecisionSignal =
  * UI label for the bid / value gap (`playerValuationEdgeOrDiff` / Bid Edge).
  */
 export function auctionDecisionSignalFromPlayer(
-  player: Pick<Player, "edge" | "recommended_bid" | "team_adjusted_value">,
+  player: Pick<Player, "edge" | "recommended_bid" | "team_value">,
 ): AuctionDecisionSignal {
   return auctionDecisionSignalFromValueDiff(playerValuationEdgeOrDiff(player));
 }
@@ -51,15 +51,15 @@ function finiteDollar(n: unknown): number | undefined {
 
 /**
  * Suggested bid headline for quick UI: `recommended_bid` first (bid anchor), then
- * `team_adjusted_value`, then league-wide `adjusted_value` — not the official
- * league auction list value (use `leagueWideAuctionDollars` for that).
+ * `team_value`, then league-wide `auction_value` — not the official
+ * league auction list display (use `leagueWideAuctionDollars` for that).
  */
 export function auctionTargetBidDollars(
-  player: Pick<Player, "recommended_bid" | "team_adjusted_value" | "adjusted_value">,
+  player: Pick<Player, "recommended_bid" | "team_value" | "auction_value">,
 ): number | undefined {
   return (
     finiteDollar(player.recommended_bid) ??
-    finiteDollar(player.team_adjusted_value) ??
-    finiteDollar(player.adjusted_value)
+    finiteDollar(player.team_value) ??
+    finiteDollar(player.auction_value)
   );
 }

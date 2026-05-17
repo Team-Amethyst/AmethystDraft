@@ -52,9 +52,6 @@ export function useMockDraft(
   allPlayers: Player[],
   watchlist: Player[],
 ) {
-  const totalSlots = Object.values(rosterSlots).reduce((a, b) => a + b, 0);
-  const numRounds  = totalSlots;
-
   // Load saved state for this league, fall back to setup
   const [state, setState] = useState<MockDraftState>(() => {
     const saved = loadMockDraftState(leagueId);
@@ -96,6 +93,8 @@ export function useMockDraft(
   // ── Start draft ───────────────────────────────────────────────────────────────
 
   const startDraft = useCallback(() => {
+    const numRounds = Object.values(rosterSlots).reduce((a, b) => a + b, 0);
+
     const rosters: AIRoster[] = teamNames.map((name, i) => ({
       teamName: name,
       budget,
@@ -112,6 +111,7 @@ export function useMockDraft(
     const newState: MockDraftState = {
       ...initialMockDraftState,
       phase: "nomination",
+      checkpointHydration: undefined,
       rosters,
       undraftedPlayers,
       snakeOrder,
@@ -122,7 +122,7 @@ export function useMockDraft(
 
     setState(newState);
     saveMockDraftState(leagueId, newState);
-  }, [teamNames, budget, numRounds, allPlayers, leagueId]);
+  }, [teamNames, budget, rosterSlots, allPlayers, leagueId]);
 
   // ── Reset draft ───────────────────────────────────────────────────────────────
 
@@ -131,11 +131,18 @@ export function useMockDraft(
     setState(initialMockDraftState);
   }, [leagueId]);
 
+  const hydrateFromCheckpoint = useCallback((full: MockDraftState) => {
+    clearMockDraftState(leagueId);
+    setState(full);
+    saveMockDraftState(leagueId, full);
+  }, [leagueId]);
+
   // ── Nominate a player ─────────────────────────────────────────────────────────
 
   const nominatePlayer = useCallback((player: Player) => {
     setState((prev) => {
-      const nomTeam = currentTeam(prev);
+      const idx = prev.snakeOrder[prev.currentOrderIdx] ?? 0;
+      const nomTeam = prev.rosters[idx];
       // All other AI teams get queued to bid
       const otherAI = prev.rosters
         .filter((r) => !r.isUser && r.teamName !== nomTeam?.teamName)
@@ -165,7 +172,8 @@ export function useMockDraft(
       if (!userRoster) return prev;
 
       const remaining  = userRoster.budget - userRoster.spent;
-      const open       = openSlots(userRoster, rosterSlots);
+      const slots      = prev.checkpointHydration?.rosterSlots ?? rosterSlots;
+      const open       = openSlots(userRoster, slots);
       const mustKeep   = Math.max(0, open - 1);
       const maxAllowed = remaining - mustKeep;
 
@@ -214,16 +222,18 @@ export function useMockDraft(
     const winner  = s.rosters.find((r) => r.teamName === s.currentBidder);
     if (!winner) return;
 
+    const slots = s.checkpointHydration?.rosterSlots ?? rosterSlots;
+
     // Determine roster slot
     const pos      = player.positions?.[0] ?? player.position ?? "UTIL";
     const filled   = winner.picks.filter((p) => p.slot === pos).length;
-    const slotCount = rosterSlots[pos] ?? 0;
+    const slotCount = slots[pos] ?? 0;
     const isPit    = ["SP", "RP", "P"].includes(pos);
 
     let slot = pos;
     if (filled >= slotCount) {
       const utilFilled = winner.picks.filter((p) => p.slot === "UTIL").length;
-      const utilCount  = rosterSlots["UTIL"] ?? 0;
+      const utilCount  = slots["UTIL"] ?? 0;
       slot = (!isPit && utilFilled < utilCount) ? "UTIL" : "BN";
     }
 
@@ -283,16 +293,19 @@ export function useMockDraft(
     const team = currentTeam(state);
     if (!team?.isUser) return;
 
+    const slots =
+      state.checkpointHydration?.rosterSlots ?? rosterSlots;
+
     const suggestion = suggestNomination(
       team,
       watchlist,
       state.undraftedPlayers,
-      rosterSlots,
+      slots,
       state.rosters,
     );
     setState((prev) => ({ ...prev, suggestion }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase, state.currentOrderIdx]);
+  }, [state.phase, state.currentOrderIdx, state.checkpointHydration, rosterSlots]);
 
   // ── AI nomination trigger ─────────────────────────────────────────────────────
 
@@ -309,7 +322,8 @@ export function useMockDraft(
     const timer = setTimeout(() => {
       const s = stateRef.current;
       if (s.phase !== "nomination") return;
-      const nominated = aiNominate(team, s.undraftedPlayers, rosterSlots, s.rosters);
+      const slots = s.checkpointHydration?.rosterSlots ?? rosterSlots;
+      const nominated = aiNominate(team, s.undraftedPlayers, slots, s.rosters);
       if (nominated) nominatePlayer(nominated);
     }, NOMINATE_DELAY_MS);
 
@@ -360,7 +374,7 @@ export function useMockDraft(
         s.nominatedPlayer,
         nextAIRoster,
         s.currentBid,
-        rosterSlots,
+        s.checkpointHydration?.rosterSlots ?? rosterSlots,
         s.rosters,
         s.undraftedPlayers,
       );
@@ -403,6 +417,7 @@ export function useMockDraft(
     placeBid,
     keepBidding,
     confirmSell,
+    hydrateFromCheckpoint,
     currentTeamIdx: currentTeamIdx(state),
     isUserTurn: currentTeam(state)?.isUser ?? false,
     hasSavedDraft: loadMockDraftState(leagueId) !== null,

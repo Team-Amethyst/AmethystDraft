@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Zap,
@@ -7,8 +7,6 @@ import {
   LogOut,
   UserCog,
   Bell,
-  AlertTriangle,
-  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -25,6 +23,14 @@ import {
   useNewsSignalsRealtime,
   type NewsSocketConnectionState,
 } from "../hooks/useNewsSignalsRealtime";
+import { sortLeaguesNewestFirst } from "../domain/leagueSeasonGroups";
+import {
+  IntelligenceAlertsPanel,
+} from "./intelligence-alerts/IntelligenceAlertsPanel";
+import {
+  signalTypeForApiFilter,
+  type IntelligenceAlertFilter,
+} from "./intelligence-alerts/intelligenceAlertsUi";
 import "./AuthNavbar.css";
 
 const NEWS_LOOKBACK_DAYS = 7;
@@ -64,53 +70,6 @@ function saveWebhookPingsToStorage(rows: StoredWebhookPing[]) {
     /* private mode / quota */
   }
 }
-type NewsSignalType =
-  | "injury"
-  | "role_change"
-  | "trade"
-  | "demotion"
-  | "promotion";
-
-/** Dropdown filter; maps to `GET /signals/news` optional `signal_type`. */
-type AlertFilter = "all" | NewsSignalType;
-
-const ALERT_FILTER_OPTIONS: { value: AlertFilter; label: string }[] = [
-  { value: "all", label: "All types" },
-  { value: "injury", label: "Injuries" },
-  { value: "role_change", label: "Role & playing time" },
-  { value: "trade", label: "Trades" },
-  { value: "promotion", label: "Promotions" },
-  { value: "demotion", label: "Demotions" },
-];
-
-function signalTypeForFilter(filter: AlertFilter): NewsSignalType | undefined {
-  return filter === "all" ? undefined : filter;
-}
-
-function getAlertClass(signalType: string): "injury" | "trade" | "structural" {
-  if (signalType === "injury") return "injury";
-  if (signalType === "trade") return "trade";
-  return "structural";
-}
-
-function formatAlertTime(effectiveDate: string): string {
-  const parsed = new Date(effectiveDate);
-  if (Number.isNaN(parsed.getTime())) return "Just now";
-  const diffMinutes = Math.floor((Date.now() - parsed.getTime()) / 60000);
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
-}
-
-function formatAlertType(signalType: string): string {
-  return signalType
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (match) => match.toUpperCase());
-}
-
 function signalFingerprint(s: NewsSignal): string {
   return `${s.player_name}|${s.effective_date}|${s.signal_type}|${s.description}|${s.source}`;
 }
@@ -120,12 +79,17 @@ export default function AuthNavbar() {
   const location = useLocation();
   const { user, logout, token } = useAuth();
   const { league, allLeagues } = useLeague();
+  const leaguesForSelector = useMemo(
+    () => [...allLeagues].sort(sortLeaguesNewestFirst),
+    [allLeagues],
+  );
   const { boardValuationAlerts, clearBoardValuationAlerts } =
     useValuationBoardAlerts();
   const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
+  const [alertFilter, setAlertFilter] =
+    useState<IntelligenceAlertFilter>("all");
   const [alertSignals, setAlertSignals] = useState<NewsSignal[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState<string | null>(null);
@@ -137,7 +101,6 @@ export default function AuthNavbar() {
     useState<NewsSocketConnectionState>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
-  const alertsRef = useRef<HTMLDivElement>(null);
   const baselineEstablishedRef = useRef(false);
   const knownKeysRef = useRef<Set<string>>(new Set());
   /** Coalesce rapid Socket.IO pushes into one news fetch + toast cycle. */
@@ -260,24 +223,12 @@ export default function AuthNavbar() {
   }, [userDropdownOpen]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
-        setAlertsOpen(false);
-      }
-    };
-    if (alertsOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [alertsOpen]);
-
-  useEffect(() => {
     if (!alertsOpen || !token) {
       if (!alertsOpen) alertsPanelKeyRef.current = "";
       return;
     }
 
-    const signalType = signalTypeForFilter(alertFilter);
+    const signalType = signalTypeForApiFilter(alertFilter);
     const cacheKey = newsSignalsCacheKey(NEWS_LOOKBACK_DAYS, signalType);
     const panelKey = `${alertsOpen}|${alertFilter}|${token}`;
     const panelContextChanged = alertsPanelKeyRef.current !== panelKey;
@@ -345,7 +296,6 @@ export default function AuthNavbar() {
 
   const leagueBase = league ? `/leagues/${league.id}` : "";
   const isActive = (path: string) => location.pathname === path;
-  const visibleAlerts = alertSignals;
 
   useEffect(() => {
     if (!league) return;
@@ -376,7 +326,8 @@ export default function AuthNavbar() {
   }, [token, clearBoardValuationAlerts]);
 
   return (
-    <nav className="auth-navbar">
+    <>
+      <nav className="auth-navbar">
       <div className="auth-navbar-logo" onClick={() => navigate("/leagues")}>
         <Zap size={18} className="logo-icon" />
         <span className="logo-text">DRAFTROOM</span>
@@ -441,7 +392,7 @@ export default function AuthNavbar() {
               className="league-selector-btn"
               onClick={() => setLeagueDropdownOpen((o) => !o)}
             >
-              <span>{league.name}</span>
+              <span className="league-selector-btn-name">{league.name}</span>
               <ChevronDown
                 size={14}
                 className={
@@ -452,7 +403,7 @@ export default function AuthNavbar() {
             </button>
             {leagueDropdownOpen && (
               <div className="league-selector-dropdown">
-                {allLeagues.map((l) => (
+                {leaguesForSelector.map((l) => (
                   <div
                     key={l.id}
                     className={
@@ -467,7 +418,7 @@ export default function AuthNavbar() {
                         setLeagueDropdownOpen(false);
                       }}
                     >
-                      {l.name}
+                      <span className="league-selector-item-name">{l.name}</span>
                     </button>
                     <button
                       className="league-selector-settings"
@@ -496,13 +447,17 @@ export default function AuthNavbar() {
           </div>
         )}
         {token && (
-          <div className="nb-alerts-wrap" ref={alertsRef}>
+          <div className="nb-alerts-wrap">
             <button
               type="button"
               className={
                 "nb-alerts-btn" +
                 (newsSocketState === false ? " nb-alerts-btn--socket-off" : "")
               }
+              data-testid="nb-alerts-bell"
+              aria-expanded={alertsOpen}
+              aria-controls={alertsOpen ? "intelligence-alerts-panel" : undefined}
+              aria-haspopup="dialog"
               onClick={() => setAlertsOpen((o) => !o)}
               title={
                 newsSocketState === false
@@ -512,157 +467,6 @@ export default function AuthNavbar() {
             >
               <Bell size={15} />
             </button>
-            {alertsOpen && (
-              <div className="nb-alerts-dropdown">
-                <div className="nb-alerts-header">
-                  <span className="nb-alerts-title">Intelligence Alerts</span>
-                </div>
-                {newsSocketState === false && (
-                  <div className="nb-alerts-socket-warning" role="status">
-                    <strong>No live socket to the API.</strong> A 204 webhook still
-                    broadcasts only to connected browsers. Keep this tab open while
-                    testing; add{" "}
-                    <code className="nb-alerts-code">{window.location.origin}</code>{" "}
-                    to API <code className="nb-alerts-code">CORS_ORIGIN</code> if the
-                    connection fails. Your hook response header{" "}
-                    <code className="nb-alerts-code">
-                      X-Draftroom-Socket-Connections
-                    </code>{" "}
-                    must be ≥ 1 for a toast or row here.
-                  </div>
-                )}
-                <div className="nb-alerts-filter-row">
-                  <label className="nb-alerts-filter-label" htmlFor="nb-alerts-filter">
-                    Show
-                  </label>
-                  <select
-                    id="nb-alerts-filter"
-                    className="nb-alerts-filter-select"
-                    value={alertFilter}
-                    onChange={(e) =>
-                      setAlertFilter(e.target.value as AlertFilter)
-                    }
-                  >
-                    {ALERT_FILTER_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="nb-alerts-list">
-                  {webhookPings.map((w) => (
-                    <div key={w.id} className="nb-alert-item alert-webhook">
-                      <div className="nb-alert-icon">●</div>
-                      <div className="nb-alert-body">
-                        <div className="nb-alert-head">
-                          <span className="nb-alert-title">
-                            Live webhook message
-                          </span>
-                          <span className="nb-alert-time">
-                            {formatAlertTime(new Date(w.at).toISOString())}
-                          </span>
-                        </div>
-                        <div className="nb-alert-meta">
-                          <span className="nb-alert-pill nb-alert-pill-source">
-                            Custom
-                          </span>
-                          <span className="nb-alert-source">Engine hook</span>
-                        </div>
-                        <div className="nb-alert-desc">{w.message}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {boardValuationAlerts.length > 0 && (
-                    <>
-                      <div className="nb-board-valuation-heading">
-                        Board valuation
-                      </div>
-                      {boardValuationAlerts.slice(0, 2).map((a) => (
-                        <div
-                          key={a.id}
-                          className={
-                            "nb-alert-item nb-alert-board-valuation nb-alert-board-valuation--" +
-                            a.severity
-                          }
-                        >
-                          <div className="nb-alert-icon">∑</div>
-                          <div className="nb-alert-body">
-                            <div className="nb-alert-head nb-alert-head--tight">
-                              <span className="nb-alert-title">{a.title}</span>
-                            </div>
-                            <div className="nb-alert-desc nb-alert-desc--oneline">
-                              {a.message}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {boardValuationAlerts.length > 2 ? (
-                        <div className="nb-board-valuation-more">
-                          +{boardValuationAlerts.length - 2} more
-                        </div>
-                      ) : null}
-                    </>
-                  )}
-                  {alertsLoading && (
-                    <div className="nb-alerts-state nb-alerts-loading">
-                      <RefreshCw size={13} className="nb-alerts-spinner" />
-                      Loading MLB alerts...
-                    </div>
-                  )}
-                  {!alertsLoading && alertsError && (
-                    <div className="nb-alerts-state nb-alerts-error">
-                      <AlertTriangle size={13} />
-                      <span>{alertsError}</span>
-                    </div>
-                  )}
-                  {!alertsLoading &&
-                    !alertsError &&
-                    visibleAlerts.length === 0 &&
-                    webhookPings.length === 0 &&
-                    boardValuationAlerts.length === 0 && (
-                    <div className="nb-alerts-empty">
-                      No MLB alerts match this filter right now.
-                    </div>
-                  )}
-                  {!alertsLoading &&
-                    !alertsError &&
-                    visibleAlerts.map((signal) => {
-                      const alertClass = getAlertClass(signal.signal_type);
-                      return (
-                        <div
-                          key={`${signal.player_name}-${signal.effective_date}-${signal.signal_type}`}
-                          className={`nb-alert-item alert-${alertClass}`}
-                        >
-                          <div className="nb-alert-icon">
-                            {signal.severity[0].toUpperCase()}
-                          </div>
-                          <div className="nb-alert-body">
-                            <div className="nb-alert-head">
-                              <span className="nb-alert-title">
-                                {signal.player_name}
-                              </span>
-                              <span className="nb-alert-time">
-                                {formatAlertTime(signal.effective_date)}
-                              </span>
-                            </div>
-                            <div className="nb-alert-meta">
-                              <span className={`nb-alert-pill nb-alert-pill-${signal.severity}`}>
-                                {signal.severity}
-                              </span>
-                              <span className="nb-alert-pill nb-alert-pill-source">
-                                {formatAlertType(signal.signal_type)}
-                              </span>
-                              <span className="nb-alert-source">{signal.source}</span>
-                            </div>
-                            <div className="nb-alert-desc">{signal.description}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
           </div>
         )}
         <div className="user-avatar-wrap" ref={userDropdownRef}>
@@ -704,5 +508,20 @@ export default function AuthNavbar() {
         </div>
       </div>
     </nav>
+    {token ? (
+      <IntelligenceAlertsPanel
+        open={alertsOpen}
+        onRequestClose={() => setAlertsOpen(false)}
+        alertFilter={alertFilter}
+        onAlertFilterChange={setAlertFilter}
+        signals={alertSignals}
+        loading={alertsLoading}
+        error={alertsError}
+        webhookPings={webhookPings}
+        boardValuationAlerts={boardValuationAlerts}
+        newsSocketDisconnected={newsSocketState === false}
+      />
+    ) : null}
+    </>
   );
 }

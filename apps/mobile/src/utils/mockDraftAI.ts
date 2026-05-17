@@ -48,16 +48,14 @@ function finiteNumber(value: unknown): number | null {
 function playerAuctionValue(player: Player): number {
   const data = player as Player & {
     auction_value?: unknown;
-    adjusted_value?: unknown;
-    team_adjusted_value?: unknown;
+    team_value?: unknown;
     recommended_bid?: unknown;
   };
 
   return (
     finiteNumber(data.auction_value) ??
-    finiteNumber(data.team_adjusted_value) ??
+    finiteNumber(data.team_value) ??
     finiteNumber(data.recommended_bid) ??
-    finiteNumber(data.adjusted_value) ??
     finiteNumber(player.value) ??
     0
   );

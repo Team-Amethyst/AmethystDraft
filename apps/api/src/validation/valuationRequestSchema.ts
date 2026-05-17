@@ -18,6 +18,7 @@ const checkpointSchema = z.enum([
   "after_pick_50",
   "after_pick_100",
   "after_pick_130",
+  "finished_league",
 ]);
 
 const scoringCategorySchema = z.object({
@@ -92,8 +93,13 @@ const leagueFixtureSchema = z.object({
   hitter_budget_pct: z.number().min(0).max(100).optional(),
   pos_eligibility_threshold: z.number().int().min(1).max(162).optional(),
   budget_by_team_id: z.record(z.string(), z.number().min(0)).optional(),
+  /** Workbook fantasy team labels (e.g. Team A … Team I). */
+  team_names: z.array(z.string().min(1)).optional(),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: z
+    .enum(["linear_v1", "tiered_surplus_v1", "adaptive_surplus_v1"])
+    .optional(),
 });
 
 /**
@@ -115,6 +121,9 @@ export const valuationRequestSchema = z.object({
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: z
+    .enum(["linear_v1", "tiered_surplus_v1", "adaptive_surplus_v1"])
+    .optional(),
 });
 
 export type ValuationRequestFixture = z.infer<typeof valuationRequestSchema>;
@@ -133,6 +142,7 @@ export const valuationFlatRequestSchema = z.object({
   schemaVersion: engineSchemaVersionString.optional(),
   checkpoint: checkpointSchema.optional(),
   budget_by_team_id: z.record(z.string(), z.number().min(0)).optional(),
+  team_names: z.array(z.string().min(1)).optional(),
   scoring_format: z.enum(["5x5", "6x6", "points"]).optional(),
   hitter_budget_pct: z.number().min(0).max(100).optional(),
   pos_eligibility_threshold: z.number().int().min(1).max(162).optional(),
@@ -146,6 +156,9 @@ export const valuationFlatRequestSchema = z.object({
   seed: z.number().int().optional(),
   user_team_id: z.string().min(1).optional(),
   inflation_model: z.enum(["replacement_slots_v2"]).optional(),
+  auction_curve_model: z
+    .enum(["linear_v1", "tiered_surplus_v1", "adaptive_surplus_v1"])
+    .optional(),
 });
 
 export type ValuationFlatRequest = z.infer<typeof valuationFlatRequestSchema>;

@@ -200,6 +200,90 @@
   min-width: 0;
 }
 
+.pdm-rail-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.pdm-rail-name-pos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.pdm-identity-pos-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  margin-top: 0.28rem;
+  min-width: 0;
+}
+
+.pdm-primary-pos-row {
+  justify-content: flex-start;
+}
+
+.pdm-primary-pos-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pdm-pos-sep {
+  color: color-mix(in srgb, var(--app-text-muted) 70%, transparent);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.pdm-slot-elig-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--app-text) 55%, var(--app-text-muted) 45%);
+}
+
+.pdm-slot-elig-label {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-dim);
+}
+
+.pdm-slot-elig-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.pdm-slot-elig-badge {
+  font-size: 0.58rem;
+  padding: 0.05rem 0.28rem;
+  opacity: 0.92;
+}
+
+.pdm-role-line {
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--app-text) 52%, var(--app-text-muted) 48%);
+}
+
+.pdm-role-main {
+  font-weight: 600;
+}
+
+.pdm-role-note {
+  font-style: italic;
+  color: var(--app-text-dim);
+}
+
 .pdm-header-positions {
   margin-top: 0;
   display: flex;
@@ -539,6 +623,28 @@
     font-size: 0.62rem;
     letter-spacing: 0.085em;
   }
+}
+
+.pdm-metric--secondary .pdm-metric-label {
+  font-size: 0.62rem;
+  opacity: 0.88;
+}
+
+.pdm-metric--secondary .pdm-metric-value {
+  font-size: 0.95rem;
+  opacity: 0.92;
+}
+
+.pdm-max-bid-explain {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--app-text) 72%, var(--app-text-muted) 28%);
+}
+
+.pdm-max-bid-explain-note {
+  font-weight: 500;
+  color: var(--app-text-dim);
 }
 
 .pdm-valuation-metric-grid .pdm-metric-label {
@@ -906,6 +1012,20 @@
 .pdm-valuation-explain > .pdm-explain-layout {
   padding: var(--cc-gap-md) var(--cc-space-16) var(--cc-gap-lg);
   box-sizing: border-box;
+}
+
+/* Ensure max bid explain text uses the same horizontal inset as explain sections */
+.pdm-valuation-explain > .pdm-max-bid-explain {
+  padding-left: var(--cc-space-16);
+  padding-right: var(--cc-space-16);
+  box-sizing: border-box;
+}
+
+@media (min-width: 761px) {
+  .pdm-valuation-explain > .pdm-max-bid-explain {
+    padding-left: var(--cc-space-20);
+    padding-right: var(--cc-space-20);
+  }
 }
 
 /* Baseline row is outside .pdm-explain-layout — match horizontal inset so $ doesn’t hug the card edge */
@@ -1396,6 +1516,46 @@
 .pdm-inline-warnings ul {
   margin: 0.32rem 0 0;
   padding-left: 1.05rem;
+}
+
+.pdm-depth-only-notice,
+.pdm-valuation-unavailable {
+  margin: 0 0 var(--cc-gap-md);
+  padding: var(--cc-space-12) var(--cc-space-16);
+  border-radius: var(--cc-card-radius);
+  border: 1px solid color-mix(in srgb, var(--app-text-muted) 35%, transparent);
+  background: color-mix(in srgb, var(--app-bg-soft) 88%, #1a1528);
+  color: var(--app-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.pdm-depth-only-notice strong,
+.pdm-valuation-unavailable__title {
+  display: block;
+  color: var(--app-text);
+  font-size: 0.88rem;
+  margin-bottom: 0.35rem;
+}
+
+.pdm-depth-only-notice__meta {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.pdm-valuation-unavailable__detail {
+  margin: 0;
+}
+
+.pdm-draft-notes__textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pdm-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 760px) {

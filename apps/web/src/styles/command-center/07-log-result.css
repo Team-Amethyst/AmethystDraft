@@ -30,16 +30,6 @@
 }
 
 .log-select {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: var(--cc-card-radius);
-  padding: 0 0.5rem;
-  min-height: 2.35rem;
-  font-size: 0.76rem;
-  color: #c4b5d4;
-  outline: none;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
   box-sizing: border-box;
 }
 

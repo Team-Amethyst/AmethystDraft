@@ -6,6 +6,7 @@ import type { ValuationPlayerResponse, ValuationResponse } from "./engine";
 import {
   __getValuationExecutors,
   __setValuationExecutorsForTests,
+  executeCheckpointBoardValuationRequest,
   type ExecutePlayerValuationOptions,
 } from "./engineValuationInternal";
 
@@ -16,6 +17,11 @@ export type ValuationBoardCacheContext = {
   rosterFingerprint: string;
   /** Extra discriminator when engine context depends on local-only inputs (e.g. custom player ids). */
   extras?: string;
+  /**
+   * When set, calls POST `/api/engine/leagues/:id/valuation/checkpoint` with this key instead of
+   * roster-derived valuation (bundled Draft fixtures → Engine flat body).
+   */
+  checkpointKey?: string | null;
 };
 
 const SEP = "\u001f";
@@ -66,6 +72,7 @@ export function buildValuationBoardCacheKey(
     ctx.leagueConfigKey,
     ctx.rosterFingerprint,
     ctx.extras ?? "",
+    ctx.checkpointKey ?? "",
   ].join(SEP);
 }
 
@@ -129,13 +136,24 @@ export async function fetchBoardValuationWithCache(args: {
   }
 
   logValuationCacheDev("miss", "board", { reason: "fetch", key });
-  const exec = __getValuationExecutors().board;
-  const p = exec(
-    args.leagueId,
-    args.token,
-    args.userTeamId,
-    args.devLogFocusPlayerId ?? null,
-  )
+  const ck = args.cacheContext.checkpointKey?.trim();
+  const execBoard = ck
+    ? () =>
+        executeCheckpointBoardValuationRequest(
+          args.leagueId,
+          args.token,
+          ck,
+          args.userTeamId,
+          args.devLogFocusPlayerId ?? null,
+        )
+    : () =>
+        __getValuationExecutors().board(
+          args.leagueId,
+          args.token,
+          args.userTeamId,
+          args.devLogFocusPlayerId ?? null,
+        );
+  const p = execBoard()
     .then((res) => {
       boardResultCache.set(key, res);
       boardInflight.delete(key);

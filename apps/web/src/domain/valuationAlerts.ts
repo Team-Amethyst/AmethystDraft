@@ -180,6 +180,18 @@ export function normalizeValuationAlerts(
     });
   }
 
+  for (const line of response.scoring_category_warnings ?? []) {
+    if (typeof line !== "string" || !line.trim()) continue;
+    const t = line.trim();
+    out.push({
+      id: stableId(["score-env", t]),
+      kind: "unsupported_category",
+      severity: "warning",
+      title: "Scoring category",
+      message: t,
+    });
+  }
+
   const ctx = response.valuation_context;
   if (ctx && typeof ctx === "object" && !Array.isArray(ctx)) {
     try {

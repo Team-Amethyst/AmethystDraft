@@ -30,7 +30,7 @@ function money(value: number | null): string {
 
 function getAuctionValue(row: ValuationResult | null, player: Player): number | null {
   return (
-    finiteNumber(row?.adjusted_value) ??
+    finiteNumber(row?.auction_value) ??
     finiteNumber(row?.baseline_value) ??
     finiteNumber(player.value)
   );
@@ -38,8 +38,8 @@ function getAuctionValue(row: ValuationResult | null, player: Player): number | 
 
 function getTeamValue(row: ValuationResult | null, player: Player): number | null {
   return (
-    finiteNumber(row?.team_adjusted_value) ??
-    finiteNumber(row?.adjusted_value) ??
+    finiteNumber(row?.team_value) ??
+    finiteNumber(row?.auction_value) ??
     finiteNumber(player.value)
   );
 }
@@ -47,8 +47,8 @@ function getTeamValue(row: ValuationResult | null, player: Player): number | nul
 function getRecommendedBid(row: ValuationResult | null, player: Player): number | null {
   return (
     finiteNumber(row?.recommended_bid) ??
-    finiteNumber(row?.team_adjusted_value) ??
-    finiteNumber(row?.adjusted_value) ??
+    finiteNumber(row?.team_value) ??
+    finiteNumber(row?.auction_value) ??
     finiteNumber(player.value)
   );
 }

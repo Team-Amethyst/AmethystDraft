@@ -312,7 +312,7 @@ describe("buildValuationContext", () => {
         players: [expect.objectContaining({ player_id: "660274" })],
       }),
     ]);
-    expect(ctx.budget_by_team_id).toEqual({ team_1: 260, team_2: 242 });
+    expect(ctx.budget_by_team_id).toEqual({ team_1: 235, team_2: 242 });
     expect(ctx.scoring_format).toBe("5x5");
     expect(ctx.hitter_budget_pct).toBe(72);
     expect(ctx.pos_eligibility_threshold).toBe(15);
@@ -337,6 +337,64 @@ describe("buildValuationContext", () => {
     expect(draftedOverride?.positions).toEqual(["LF", "OF"]);
 
     expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(15);
+  });
+
+  it("includes keeper salaries in budget_by_team_id (Mongo / Research path)", async () => {
+    const league = {
+      rosterSlots: { OF: 1 },
+      scoringCategories: [{ name: "HR", type: "batting" as const }],
+      budget: 260,
+      teams: 3,
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    const entries = [
+      {
+        externalPlayerId: "k1",
+        playerName: "Keeper A",
+        positions: ["1B"],
+        rosterSlot: "1B",
+        teamId: "team_1",
+        price: 40,
+        isKeeper: true,
+        playerTeam: "TOR",
+      },
+      {
+        externalPlayerId: "k2",
+        playerName: "Keeper B",
+        positions: ["SS"],
+        rosterSlot: "SS",
+        teamId: "team_2",
+        price: 30,
+        isKeeper: true,
+        playerTeam: "BOS",
+      },
+      {
+        externalPlayerId: "p1",
+        playerName: "Auction Pick",
+        positions: ["OF"],
+        rosterSlot: "OF",
+        teamId: "team_3",
+        price: 20,
+        isKeeper: false,
+        playerTeam: "NYY",
+      },
+    ] as unknown as IRosterEntry[];
+
+    const ctx = await buildValuationContext(league, entries, {});
+
+    expect(ctx.budget_by_team_id).toEqual({
+      team_1: 220,
+      team_2: 230,
+      team_3: 240,
+    });
+    const sumRemaining = Object.values(ctx.budget_by_team_id ?? {}).reduce(
+      (s, v) => s + v,
+      0,
+    );
+    expect(sumRemaining).toBe(260 * 3 - (40 + 30 + 20));
+    expect(ctx.drafted_players).toHaveLength(1);
+    expect(ctx.pre_draft_rosters).toHaveLength(2);
   });
 
   it("passes League.posEligibilityThreshold into catalog fetch", async () => {
@@ -571,5 +629,6 @@ describe("buildEngineValuationCalculateBodyFromFlat", () => {
     expect(body.schema_version).toBe("1.0.0");
     expect(body.user_team_id).toBe("team_3");
     expect(body.inflation_model).toBe("replacement_slots_v2");
+    expect(body.auction_curve_model).toBe("adaptive_surplus_v1");
   });
 });

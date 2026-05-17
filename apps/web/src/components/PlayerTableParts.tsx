@@ -5,10 +5,17 @@ import {
 } from "../constants/tierBadgeColors";
 import CustomPlayerHeadshot from "./CustomPlayerHeadshot";
 
-export function TierBadge({ tier }: { tier: number }) {
+export function TierBadge({
+  tier,
+  title,
+}: {
+  tier: number;
+  title?: string;
+}) {
   return (
     <span
       className="tier-badge"
+      title={title}
       style={{
         background:
           TIER_BADGE_BACKGROUND[tier] ?? TIER_BADGE_FALLBACK_BACKGROUND,

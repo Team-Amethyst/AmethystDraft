@@ -48,10 +48,63 @@ export function getProjStat(
   return 0;
 }
 
+/** Team-level batting average: ΣH / ΣAB when components exist; else falls back to weighted AVG pace. */
+function battingHitsAbFromPlayer(player: Player): { h: number; ab: number } | null {
+  const proj = player.projection?.batting as
+    | { h?: number; hits?: number; ab?: number; avg?: string }
+    | undefined;
+  const st = player.stats?.batting as
+    | { h?: number; hits?: number; ab?: number; avg?: string }
+    | undefined;
+  const ss = player.springStats?.batting;
+  const ab = Math.max(
+    0,
+    proj?.ab ?? st?.ab ?? ss?.ab ?? 0,
+  );
+  const hExplicit = proj?.hits ?? proj?.h ?? st?.hits ?? st?.h;
+  if (ab > 0 && hExplicit != null && Number.isFinite(hExplicit)) {
+    return { h: Number(hExplicit), ab };
+  }
+  const avgStr = proj?.avg ?? st?.avg;
+  const avg = typeof avgStr === "string" ? parseFloat(avgStr) : Number(avgStr);
+  if (ab > 0 && Number.isFinite(avg) && avg > 0 && avg <= 1) {
+    return { h: avg * ab, ab };
+  }
+  return null;
+}
+
+/** Map roster `externalPlayerId` (catalog id or MLB id string) to catalog `Player`. */
+export function buildPlayerMapForStandings(
+  allPlayers: readonly Player[],
+): Map<string, Player> {
+  const m = new Map<string, Player>();
+  for (const p of allPlayers) {
+    m.set(p.id, p);
+    if (Number.isFinite(p.mlbId) && String(p.mlbId) !== p.id) {
+      m.set(String(p.mlbId), p);
+    }
+  }
+  return m;
+}
+
 export function teamBattingRatePaceForCategory(
   teamPlayers: Player[],
   catName: string,
 ): number {
+  const n = normalizeCatName(catName).trim().toUpperCase();
+  if (n === "AVG") {
+    let hits = 0;
+    let ab = 0;
+    for (const p of teamPlayers) {
+      const chunk = battingHitsAbFromPlayer(p);
+      if (chunk) {
+        hits += chunk.h;
+        ab += chunk.ab;
+      }
+    }
+    if (ab > 0) return hits / ab;
+  }
+
   const batters = teamPlayers.filter(
     (p) => !!(p.projection?.batting ?? p.stats?.batting),
   );
@@ -82,7 +135,7 @@ export function teamPitchingRatePaceForCategory(
     const ip =
       p.projection?.pitching?.innings ??
       parseFloat(String(p.stats?.pitching?.innings ?? "0"));
-    if (rate > 0 && ip > 0) {
+    if (ip > 0 && Number.isFinite(rate)) {
       weightedSum += rate * ip;
       totalIP += ip;
     }
@@ -90,7 +143,7 @@ export function teamPitchingRatePaceForCategory(
   if (totalIP > 0) return weightedSum / totalIP;
   const vals = pitchers
     .map((p) => getProjStat(p, catName, "pitching"))
-    .filter((v) => v > 0);
+    .filter((v) => Number.isFinite(v) && v > 0);
   return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
 }
 

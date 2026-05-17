@@ -5,6 +5,8 @@ import { BID_EDGE_TOOLTIP } from "../../utils/valuation";
 
 export function PlayerIdentityCard({
   selectedPlayer,
+  draftPrimaryTags,
+  draftableSlots = [],
   tierValue,
   rankLabel,
   rankValue,
@@ -15,6 +17,8 @@ export function PlayerIdentityCard({
   setPlayerNote,
 }: {
   selectedPlayer: Player;
+  draftPrimaryTags: string[];
+  draftableSlots?: string[];
   tierValue: number;
   rankLabel: string;
   rankValue: number;
@@ -50,31 +54,54 @@ export function PlayerIdentityCard({
               />
             )}
             <div className="pic-identity-text">
-              <h1 className="pac-name pac-name--identity">
-                {selectedPlayer.name}
-                {selectedPlayer.injuryStatus && (
-                  <span className="pt-il-badge">
-                    {selectedPlayer.injuryStatus.replace("DL", "IL")}
+              <div className="pic-name-row">
+                <h1 className="pac-name pac-name--identity">
+                  <span className="pic-name-text">
+                    {selectedPlayer.name}
+                    {selectedPlayer.injuryStatus && (
+                      <span className="pt-il-badge">
+                        {selectedPlayer.injuryStatus.replace("DL", "IL")}
+                      </span>
+                    )}
+                    {isInWatchlist(selectedPlayer.id) && (
+                      <span className="pac-wl-badge" title="On your watchlist">
+                        ★
+                      </span>
+                    )}
                   </span>
-                )}
-                {isInWatchlist(selectedPlayer.id) && (
-                  <span className="pac-wl-badge" title="On your watchlist">
-                    ★
+                </h1>
+                {draftPrimaryTags.length > 0 ? (
+                  <span
+                    className="pic-name-pos"
+                    title="Primary positions"
+                    aria-label="Primary positions"
+                  >
+                    {draftPrimaryTags.map((pos) => (
+                      <PosBadge
+                        key={pos}
+                        pos={pos}
+                        className="pic-primary-pos-badge"
+                      />
+                    ))}
                   </span>
-                )}
-              </h1>
+                ) : null}
+              </div>
+
+              {draftableSlots.length > 0 ? (
+                <div
+                  className="pic-slot-elig"
+                  title="Roster slots you can draft this player into"
+                >
+                  <span className="pic-slot-elig-label">Slots:</span>
+                  <span className="pic-slot-elig-badges">
+                    {draftableSlots.map((s) => (
+                      <PosBadge key={s} pos={s} className="pic-slot-elig-badge" />
+                    ))}
+                  </span>
+                </div>
+              ) : null}
+
               <div className="pac-meta-inline">
-                <span className="pac-meta-inline-badges">
-                  {(selectedPlayer.positions?.length
-                    ? selectedPlayer.positions
-                    : [selectedPlayer.position]
-                  ).map((pos) => (
-                    <PosBadge key={pos} pos={pos} />
-                  ))}
-                </span>
-                <span className="pac-meta-dot" aria-hidden>
-                  ·
-                </span>
                 <span className="pac-meta-inline-team" title={selectedPlayer.team}>
                   {selectedPlayer.team}
                 </span>

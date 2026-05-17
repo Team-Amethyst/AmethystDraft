@@ -2,6 +2,10 @@ import { Minus, Plus, Star, X } from "lucide-react";
 import type { WatchlistPlayer } from "../../api/watchlist";
 import PosBadge from "../PosBadge";
 import {
+  playerDisplayPositionBadges,
+  playerDisplaySlotEligibilityBadges,
+} from "../../utils/eligibility";
+import {
   formatDollar,
   valuationSortLabel,
   valuationTooltip,
@@ -23,6 +27,8 @@ export interface WatchlistTableRowModel {
 
 interface WatchlistTableRowProps {
   model: WatchlistTableRowModel;
+  /** When set, Pos badges follow league draft slots (not raw MLB positions). */
+  draftDisplaySlotKeys?: string[];
   valuationSortField: ValuationSortField;
   getNote: (id: string) => string;
   onRowClick: (playerId: string) => void;
@@ -40,6 +46,7 @@ interface WatchlistTableRowProps {
 
 export function WatchlistTableRow({
   model,
+  draftDisplaySlotKeys,
   valuationSortField,
   getNote,
   onRowClick,
@@ -52,6 +59,27 @@ export function WatchlistTableRow({
 }: WatchlistTableRowProps) {
   const { player, pos, primary, supporting, defaultTarget, targetVal, priority, displayVal } =
     model;
+
+  const primaryBadges = playerDisplayPositionBadges(
+    {
+      positions: player.positions,
+      position: player.position ?? pos,
+    },
+    draftDisplaySlotKeys,
+  );
+
+  const slotBadges = playerDisplaySlotEligibilityBadges(
+    {
+      positions: player.positions,
+      position: player.position ?? pos,
+    },
+    draftDisplaySlotKeys,
+  );
+
+  const chips =
+    primaryBadges.length > 0
+      ? primaryBadges
+      : [pos].filter((x) => x !== "DH" && x !== "UTIL");
 
   return (
     <tr
@@ -69,25 +97,37 @@ export function WatchlistTableRow({
       </td>
 
       <td>
-        {player.positions && player.positions.length > 1 ? (
+        <div className="watchlist-pos-cell">
           <div className="watchlist-pos-badges">
-            {player.positions.map((p) => (
-              <PosBadge key={p} pos={p} />
+            {chips.map((p) => (
+              <PosBadge key={`${player.id}-${p}`} pos={p} />
             ))}
           </div>
-        ) : (
-          <PosBadge pos={pos} />
-        )}
+          {slotBadges.length > 0 ? (
+            <div className="watchlist-pos-slots" title="Roster slots this player can fill">
+              <span className="watchlist-pos-slots-label">Slots</span>
+              <span className="watchlist-pos-slots-badges">
+                {slotBadges.map((s) => (
+                  <PosBadge
+                    key={`${player.id}-slot-${s}`}
+                    pos={s}
+                    className="pos-badge--slot-elig"
+                  />
+                ))}
+              </span>
+            </div>
+          ) : null}
+        </div>
       </td>
 
       <td className="money" title={valuationTooltip(valuationSortField)}>
         {formatDollar(primary)}
         <div className="watchlist-supporting-value">
           {valuationSortLabel(
-            valuationSortField === "team_adjusted_value"
+            valuationSortField === "team_value"
               ? "recommended_bid"
               : valuationSortField === "recommended_bid"
-                ? "team_adjusted_value"
+                ? "team_value"
                 : "recommended_bid",
           )}
           : {formatDollar(supporting)}
@@ -128,7 +168,7 @@ export function WatchlistTableRow({
 
       <td onClick={(e) => e.stopPropagation()}>
         <select
-          className={`md-select md-select--priority priority-select ${priority.toLowerCase()}`}
+          className={`app-select app-select--compact md-select md-select--priority priority-select ${priority.toLowerCase()}`}
           value={priority}
           onChange={(e) =>
             onPriorityChange(player.id, e.target.value as Priority)

@@ -261,6 +261,13 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(body.pre_draft_rosters[0]?.players[0]?.player_id).toBe("k1");
       expect(body.minors[0]?.players[0]?.player_id).toBe("m1");
       expect(body.taxi[0]?.players[0]?.player_id).toBe("t1");
+      const budgetPayload = payload as {
+        budget_by_team_id?: Record<string, number>;
+      };
+      expect(budgetPayload.budget_by_team_id).toEqual({
+        team_1: 250,
+        team_2: 243,
+      });
     });
   });
 
@@ -423,6 +430,111 @@ describe("engine routes (BFF → Amethyst)", () => {
 
       expect(res.status).toBe(400);
       expect(getMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("GET /api/engine/checkpoints", () => {
+    it("returns fixture catalog", async () => {
+      const res = await request(app)
+        .get("/api/engine/checkpoints")
+        .set("Authorization", "Bearer t");
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.checkpoints)).toBe(true);
+      expect(
+        res.body.checkpoints.some(
+          (c: { id: string }) => c.id === "pre_draft",
+        ),
+      ).toBe(true);
+      expect(
+        res.body.checkpoints.some(
+          (c: { id: string }) => c.id === "finished_league",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("GET /api/engine/checkpoints/:checkpointKey/json", () => {
+    it("returns pre_draft fixture JSON", async () => {
+      const res = await request(app)
+        .get("/api/engine/checkpoints/pre_draft/json")
+        .set("Authorization", "Bearer t");
+
+      expect(res.status).toBe(200);
+      expect(res.body.checkpoint).toBe("pre_draft");
+      expect(res.body.draft_state).toHaveLength(0);
+      expect(res.body.league.team_names).toEqual([
+        "Team A",
+        "Team B",
+        "Team C",
+        "Team D",
+        "Team E",
+        "Team F",
+        "Team G",
+        "Team H",
+        "Team I",
+      ]);
+    });
+
+    it("returns distinct draft_state per checkpoint key", async () => {
+      const cases: Array<{ key: string; len: number }> = [
+        { key: "after_pick_10", len: 10 },
+        { key: "finished_league", len: 133 },
+      ];
+      for (const { key, len } of cases) {
+        const res = await request(app)
+          .get(`/api/engine/checkpoints/${key}/json`)
+          .set("Authorization", "Bearer t");
+        expect(res.status).toBe(200);
+        expect(res.body.checkpoint).toBe(key);
+        expect(res.body.draft_state).toHaveLength(len);
+      }
+    });
+
+    it("400 on unknown checkpoint key", async () => {
+      const res = await request(app)
+        .get("/api/engine/checkpoints/not_real/json")
+        .set("Authorization", "Bearer t");
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("POST /api/engine/leagues/:leagueId/valuation/checkpoint", () => {
+    it("proxies bundled checkpoint to POST /valuation/calculate", async () => {
+      postMock.mockResolvedValue({
+        data: {
+          inflation_factor: 1,
+          valuations: [],
+          calculated_at: "x",
+        },
+        headers: { "x-request-id": "ckpt-1" },
+      });
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation/checkpoint`)
+        .set("Authorization", "Bearer t")
+        .send({ checkpoint_key: "pre_draft" });
+
+      expect(res.status).toBe(200);
+      expect(postMock).toHaveBeenCalledTimes(1);
+      const [path, payload] = postMock.mock.calls[0] ?? [];
+      expect(path).toBe("/valuation/calculate");
+      expect(payload).toMatchObject({
+        drafted_players: [],
+      });
+    });
+
+    it("404 when league missing", async () => {
+      vi.mocked(League.findById).mockResolvedValueOnce(null as never);
+
+      const res = await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation/checkpoint`)
+        .set("Authorization", "Bearer t")
+        .send({ checkpoint_key: "pre_draft" });
+
+      expect(res.status).toBe(404);
+      expect(postMock).not.toHaveBeenCalled();
     });
   });
 

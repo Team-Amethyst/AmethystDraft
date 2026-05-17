@@ -278,6 +278,15 @@
   background: rgba(167, 139, 250, 0.72);
 }
 
+/* Modal is wide — let dense rows use more horizontal space before truncating */
+.cc-draft-log-modal-list .dl-name--dense {
+  max-width: min(46%, 20rem);
+}
+
+.cc-draft-log-modal-list .dl-fantasy-team--dense {
+  max-width: 11rem;
+}
+
 .cc-draft-log-modal-empty {
   color: rgba(196, 181, 225, 0.72);
   padding: 1.6rem 1.25rem;

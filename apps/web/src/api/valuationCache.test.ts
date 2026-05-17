@@ -277,7 +277,7 @@ describe("valuationCache", () => {
       extras: "custom:a",
     });
     expect(k.startsWith(`L1\u001fteam_1\u001freplacement_slots_v2\u001f`)).toBe(true);
-    expect(k.endsWith("\u001fcustom:a")).toBe(true);
+    expect(k.endsWith(`\u001fcustom:a\u001f`)).toBe(true);
   });
 
   it("peekBoardValuationCache returns stored board for active key", async () => {

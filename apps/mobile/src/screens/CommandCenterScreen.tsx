@@ -1144,7 +1144,7 @@ export default function CommandCenterScreen({ route }: Props) {
                     <Text style={{ fontWeight: "700", marginBottom: 4 }}>
                       Engine Player View
                     </Text>
-                    <Text>Adjusted ${focusedValuation.adjusted_value}</Text>
+                    <Text>Adjusted ${focusedValuation.auction_value}</Text>
                     <Text>Baseline ${focusedValuation.baseline_value}</Text>
                     <Text>Tier {focusedValuation.tier}</Text>
                     {focusedValuation.recommended_bid !== undefined ? (
@@ -1257,8 +1257,8 @@ export default function CommandCenterScreen({ route }: Props) {
                 <Text>
                   {valuationSnapshot.players_remaining} players left
                 </Text>
-                {valuationSnapshot.valuation_model_version ? (
-                  <Text>Model {valuationSnapshot.valuation_model_version}</Text>
+                {valuationSnapshot.model_version ? (
+                  <Text>Model {valuationSnapshot.model_version}</Text>
                 ) : null}
                 {valuationSnapshot.context_v2?.market_summary?.headline ? (
                   <Text style={{ marginTop: 8, color: "#6b7280" }}>

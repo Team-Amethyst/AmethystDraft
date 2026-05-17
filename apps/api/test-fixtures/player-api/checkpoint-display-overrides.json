@@ -1,0 +1,70 @@
+{
+  "M. Muncy": {
+    "player_id": "571970",
+    "reason": "40-man naming collision vs OAK org (Max Muncy is LAD)"
+  },
+  "J. Walker": {
+    "player_id": "691023",
+    "reason": "Initials collision Josh Walker BAL vs Jordan Walker STL; workbook OF keeper is Jordan Walker"
+  },
+  "Joseph Ortiz": {
+    "player_id": "687401",
+    "reason": "Sheet uses Joseph; MLB full name Joey Ortiz (MIL)"
+  },
+  "F. Crews": {
+    "player_id": "686611",
+    "reason": "Spreadsheet typo: keeper is Dylan Crews (WSH)"
+  },
+  "draft_picks": {
+    "5": {
+      "player_id": "606466",
+      "reason": "Sheet lists WAS; Ketel Marte is ARI in 40-man snapshot"
+    },
+    "25": {
+      "player_id": "621242",
+      "reason": "Sheet lists NYM; Edwin Díaz appears under LAD in this roster snapshot"
+    },
+    "46": {
+      "player_id": "681082",
+      "reason": "Sheet lists PIT; Bryson Stott is PHI"
+    },
+    "51": {
+      "player_id": "665804",
+      "reason": "Sheet lists PIT; Miguel Amaya is CHC"
+    },
+    "69": {
+      "player_id": "672275",
+      "reason": "Sheet lists SF; Patrick Bailey is CLE in this snapshot"
+    },
+    "82": {
+      "player_id": "681393",
+      "reason": "Sheet spelling Conor/COL vs Connor Norby (MIA)"
+    }
+  },
+  "extra_roster_entries": [
+    {
+      "player_id": "677651",
+      "name": "Luis Garcia",
+      "abbr": "NYM",
+      "raw_position": "P",
+      "fantasy_pitch": "RP",
+      "reason": "Workbook Mets pick; not present on NYM 40-man in committed snapshot"
+    },
+    {
+      "player_id": "643565",
+      "name": "Mike Tauchman",
+      "abbr": "NYM",
+      "raw_position": "RF",
+      "fantasy_pitch": null,
+      "reason": "AAA Mets affiliate in StatsAPI; omitted from active 40-man snapshot"
+    },
+    {
+      "player_id": "694393",
+      "name": "Jaxon Wiggins",
+      "abbr": "CHC",
+      "raw_position": "P",
+      "fantasy_pitch": "SP",
+      "reason": "Sheet omitted MLB org; Cubs system in StatsAPI"
+    }
+  ]
+}

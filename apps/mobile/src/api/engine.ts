@@ -13,60 +13,75 @@ export type { ValuationBoardCacheContext };
 
 // ─── /api/engine/leagues/:leagueId/valuation ──────────────────────────────────
 
+/** Mirrors `apps/web/src/api/engine.ts` — Draft BFF valuation contract. */
+export interface ValuationExplain {
+  effective_positions?: string[];
+  replacement_key_used?: string;
+  replacement_value_used?: number;
+  surplus_basis?: string;
+  inflation_factor?: number;
+  pool_to_slot_ratio?: number;
+  scoring_category_warnings?: string[];
+  age_years?: number;
+  age_multiplier?: number;
+  depth_chart_position_resolved?: string;
+  depth_multiplier?: number;
+  age_depth_combined_multiplier?: number;
+  injury_severity?: string | number;
+  injury_multiplier?: number;
+  age_component?: number;
+  depth_component?: number;
+}
+
 export interface ValuationResult {
   player_id: string;
   name: string;
   position: string;
   tier: number;
+  auction_tier?: number;
+  baseline_tier?: number;
+  auction_rank?: number;
+  baseline_rank?: number;
+  market_adp?: number;
+  market_adp_source?: string;
+  market_adp_updated_at?: string;
+  market_adp_min?: number;
+  market_adp_max?: number;
+  market_pick_count?: number;
   baseline_value: number;
-  adjusted_value: number;
+  auction_value?: number;
+  team_value?: number;
   recommended_bid?: number;
-  team_adjusted_value?: number;
+  max_bid?: number;
   edge?: number;
-  positional_need_multiplier?: number;
-  budget_pressure_multiplier?: number;
   inflation_model?: "replacement_slots_v2";
   indicator: "Steal" | "Reach" | "Fair Value";
   why?: string[];
   adp?: number;
   inflation_factor?: number;
   team?: string;
-  baseline_components?: Record<string, unknown>;
   scarcity_adjustment?: number;
   inflation_adjustment?: number;
   explain_v2?: {
     indicator: "Steal" | "Reach" | "Fair Value";
     auction_target: number;
     list_value: number;
-    adjustments: {
-      scarcity: number;
-      inflation: number;
-      other: number;
-    };
-    drivers: Array<{
-      label: string;
-      impact: number;
-      reason: string;
-    }>;
+    adjustments: { scarcity: number; inflation: number; other: number };
+    drivers: Array<{ label: string; impact: number; reason: string }>;
     confidence: number;
   };
+  valuation_explain?: ValuationExplain;
+  recommended_bid_note?: string;
+  edge_note?: string;
 }
 
 export interface ValuationContextV2 {
-  schema_version: "2";
-  calculated_at: string;
-  scope: {
-    league_id: string;
-    player_id?: string;
-    position?: string;
-  };
   market_summary: {
     headline: string;
     inflation_factor: number;
     inflation_percent_vs_neutral: number;
-    budget_left: number;
-    players_left: number;
-    model_version: string;
+    inflation_percent_vs_auction_open?: number;
+    inflation_index_vs_opening_auction?: number;
   };
   position_alerts: Array<{
     position: string;
@@ -80,30 +95,30 @@ export interface ValuationContextV2 {
     };
     recommended_action: string;
   }>;
-  assumptions: string[];
-  confidence: {
-    overall: number;
-    notes?: string;
-  };
+}
+
+export interface ValuationDiagnosticsPayload {
+  engine_response: unknown;
 }
 
 export interface ValuationResponse {
   inflation_factor: number;
+  inflation_model?: "replacement_slots_v2";
+  inflation_index_vs_opening_auction?: number;
   total_budget_remaining: number;
-  pool_value_remaining: number;
   players_remaining: number;
-  remaining_slots?: number;
-  players_left?: number;
+  user_team_id_used?: string;
   draftable_pool_size?: number;
   draftable_player_ids?: string[];
-  inflation_raw?: number;
-  inflation_bounded_by?: string;
   valuations: ValuationResult[];
   calculated_at: string;
-  engine_contract_version?: string;
-  valuation_model_version?: string;
+  model_version?: string;
   market_notes?: string[];
   context_v2?: ValuationContextV2;
+  valuation_context?: Record<string, unknown>;
+  valuation_context_warnings?: string[];
+  scoring_category_warnings?: string[];
+  diagnostics?: ValuationDiagnosticsPayload;
 }
 
 export async function getValuation(

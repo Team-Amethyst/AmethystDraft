@@ -63,7 +63,6 @@ describe("normalizeValuationAlerts", () => {
             tier: 1,
             baseline_value: 1,
             auction_value: 1,
-            adjusted_value: 1,
             valuation_explain: {
               scoring_category_warnings: ["SV is thin", "SV is thin"],
             },
@@ -75,7 +74,6 @@ describe("normalizeValuationAlerts", () => {
             tier: 1,
             baseline_value: 1,
             auction_value: 1,
-            adjusted_value: 1,
             valuation_explain: {
               scoring_category_warnings: ["SV is thin"],
             },
@@ -191,7 +189,6 @@ describe("normalizeValuationAlerts", () => {
           tier: 1,
           baseline_value: 1,
           auction_value: 1,
-          adjusted_value: 1,
           valuation_explain: {
             scoring_category_warnings: ["Only for P1"],
           },
@@ -203,7 +200,6 @@ describe("normalizeValuationAlerts", () => {
           tier: 1,
           baseline_value: 1,
           auction_value: 1,
-          adjusted_value: 1,
           valuation_explain: {
             scoring_category_warnings: ["Only for P2"],
           },
