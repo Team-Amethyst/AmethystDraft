@@ -278,7 +278,7 @@ describe("valuationCache", () => {
     });
     expect(
       k.startsWith(
-        `L1\u001fteam_1\u001ffresh-empty-opening-tiered-v1\u001freplacement_slots_v2\u001f`,
+        `L1\u001fteam_1\u001ffresh-empty-opening-tiered-v2\u001freplacement_slots_v2\u001f`,
       ),
     ).toBe(true);
     expect(k.endsWith(`\u001fcustom:a\u001f`)).toBe(true);

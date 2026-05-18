@@ -23,6 +23,16 @@ import {
 } from "../src/lib/engineCheckpointCatalog";
 import { valuationIncomingSchema } from "../src/validation/schemas";
 import { shapeValuationResponseForDraft } from "../src/lib/draftValuationContract";
+import { getOrRefreshCatalogPlayers } from "../src/lib/catalogPlayerFetch";
+import {
+  buildCanonicalPlayerIdByNormName,
+  buildCatalogIdByNormName,
+} from "../src/lib/valuationRowLookup";
+import {
+  resolveDemoKeeperPreDraftLeague,
+  resolveFriendlyLeagueForAudit,
+  resolveOriginalDemoLeague,
+} from "../src/lib/canonicalAuditLeagues";
 
 const TRACKED = [
   "Tarik Skubal",
@@ -148,7 +158,9 @@ async function evaluateLeagueState(params: {
     distinct_from_demo?: boolean;
   };
   firstPickPlayerId?: string;
+  catalogIdByNorm?: ReadonlyMap<string, string>;
 }): Promise<StateRow> {
+  const catalogIdByNorm = params.catalogIdByNorm ?? new Map<string, string>();
   const ctx = await buildValuationContext(
     params.league,
     params.entries,
@@ -172,9 +184,7 @@ async function evaluateLeagueState(params: {
     player_id?: string;
     auction_value?: number;
   }>;
-  const idByNorm = new Map(
-    vals.map((v) => [normName(String(v.name ?? "")), String(v.player_id)]),
-  );
+  const idByNorm = buildCanonicalPlayerIdByNormName(vals, draftable, catalogIdByNorm);
   const sorted = vals
     .filter((v) => v.player_id && draftable.has(String(v.player_id)))
     .sort((a, b) => (b.auction_value ?? 0) - (a.auction_value ?? 0));
@@ -335,7 +345,9 @@ async function evaluatePayloadState(params: {
   picks: number;
   expect: Parameters<typeof evaluateLeagueState>[0]["expect"];
   firstPickPlayerId?: string;
+  catalogIdByNorm?: ReadonlyMap<string, string>;
 }): Promise<StateRow> {
+  const catalogIdByNorm = params.catalogIdByNorm ?? new Map<string, string>();
   const raw = await postEngine(params.payload);
   const shaped = shapeValuationResponseForDraft(raw, {});
   const draftable = new Set(
@@ -346,9 +358,7 @@ async function evaluatePayloadState(params: {
     player_id?: string;
     auction_value?: number;
   }>;
-  const idByNorm = new Map(
-    vals.map((v) => [normName(String(v.name ?? "")), String(v.player_id)]),
-  );
+  const idByNorm = buildCanonicalPlayerIdByNormName(vals, draftable, catalogIdByNorm);
   const sorted = vals
     .filter((v) => v.player_id && draftable.has(String(v.player_id)))
     .sort((a, b) => (b.auction_value ?? 0) - (a.auction_value ?? 0));
@@ -464,7 +474,10 @@ async function evaluatePayloadState(params: {
   return row;
 }
 
-async function checkpointRow(id: EngineCheckpointId): Promise<StateRow> {
+async function checkpointRow(
+  id: EngineCheckpointId,
+  catalogIdByNorm: ReadonlyMap<string, string>,
+): Promise<StateRow> {
   const cp = readCheckpointFixtureJson(id);
   const parsed = valuationIncomingSchema.parse(cp);
   const ctx = valuationIncomingToEngineContext(parsed);
@@ -501,6 +514,7 @@ async function checkpointRow(id: EngineCheckpointId): Promise<StateRow> {
             ? { max_max_auction: 18 }
             : {}),
     },
+    catalogIdByNorm,
   });
 }
 
@@ -510,12 +524,12 @@ async function main() {
 
   await mongoose.connect(uri);
 
-  const original = await League.findOne({ name: /^original$/i }).lean();
-  const friendly = await League.findOne({
-    name: "Friendly League",
-    _id: { $ne: original?._id },
-  }).lean();
-  const demoPre = await League.findOne({ name: /\[Demo\].*pre\s*draft/i }).lean();
+  const catalog = await getOrRefreshCatalogPlayers(20);
+  const catalogIdByNorm = buildCatalogIdByNormName(catalog);
+
+  const original = await resolveOriginalDemoLeague();
+  const friendly = await resolveFriendlyLeagueForAudit();
+  const demoPre = await resolveDemoKeeperPreDraftLeague();
 
   if (!original || !friendly || !demoPre) {
     throw new Error("Missing Original, Friendly League, or [Demo] pre draft in Mongo");
@@ -542,7 +556,9 @@ async function main() {
         max_max_auction: 36,
         min_t1: 4,
         curve_excludes: "keeper_compressed",
+        woo_max: 28,
       },
+      catalogIdByNorm,
     }),
   );
 
@@ -561,6 +577,7 @@ async function main() {
         min_t1: 5,
         curve_includes: "keeper_compressed",
       },
+      catalogIdByNorm,
     }),
   );
 
@@ -583,6 +600,7 @@ async function main() {
         util_near: 56.6,
         util_tol: 3,
       },
+      catalogIdByNorm,
     }),
   );
 
@@ -605,6 +623,7 @@ async function main() {
           n === 0
             ? { calibration: "stage3b_demo_v1", min_max_auction: 28 }
             : { calibration: null, max_max_auction: 35 },
+        catalogIdByNorm,
       }),
     );
     rows.push(
@@ -629,6 +648,7 @@ async function main() {
               }
             : { max_max_auction: 40 }),
         },
+        catalogIdByNorm,
       }),
     );
   }
@@ -640,7 +660,7 @@ async function main() {
     "after_pick_100",
     "after_pick_130",
   ] as EngineCheckpointId[]) {
-    rows.push(await checkpointRow(ck));
+    rows.push(await checkpointRow(ck, catalogIdByNorm));
   }
 
   const distinctEmpty =

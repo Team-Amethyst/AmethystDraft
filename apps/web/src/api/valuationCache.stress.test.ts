@@ -246,7 +246,7 @@ describe("valuation cache stale-state stress (league switch / pick / refresh)", 
 
     // Cache key components present on every step
     for (const entry of log) {
-      expect(entry.cacheKey).toContain("fresh-empty-opening-tiered-v1");
+      expect(entry.cacheKey).toContain("fresh-empty-opening-tiered-v2");
       expect(entry.cacheKey).toContain("replacement_slots_v2");
       expect(entry.cacheKey).toContain(TEAM);
     }

@@ -19,6 +19,12 @@ import { amethyst, resolveAmethystEngineBaseUrl } from "../src/lib/amethyst";
 import { readCheckpointFixtureJson } from "../src/lib/engineCheckpointCatalog";
 import { valuationIncomingSchema } from "../src/validation/schemas";
 import { shapeValuationResponseForDraft } from "../src/lib/draftValuationContract";
+import { getOrRefreshCatalogPlayers } from "../src/lib/catalogPlayerFetch";
+import {
+  buildCatalogIdByNormName,
+  findValuationNameCollisions,
+  pickCanonicalValuationRowForName,
+} from "../src/lib/valuationRowLookup";
 
 const TRACKED_PLAYERS = [
   "Shohei Ohtani",
@@ -203,6 +209,7 @@ function buildCells(
   shapedResp: Record<string, unknown>,
   rostered: Map<string, { paid: number; isKeeper: boolean }>,
   leagueBudget: number,
+  catalogIdByNorm: ReadonlyMap<string, string>,
 ): StateResult {
   const draftable = new Set(
     ((rawResp.draftable_player_ids as string[]) ?? []).map(String),
@@ -213,11 +220,6 @@ function buildCells(
     shapedVals.map((v) => [String(v.player_id), v]),
   );
 
-  const byNorm = new Map<string, ValRow>();
-  for (const v of rawVals) {
-    if (v.name) byNorm.set(normName(v.name), v);
-  }
-
   const sorted = rawVals
     .filter((v) => v.player_id && draftable.has(String(v.player_id)))
     .sort((a, b) => (b.auction_value ?? 0) - (a.auction_value ?? 0));
@@ -227,7 +229,12 @@ function buildCells(
   const players: Record<string, PlayerCell> = {};
 
   for (const name of TRACKED_PLAYERS) {
-    const row = byNorm.get(normName(name));
+    const row = pickCanonicalValuationRowForName(
+      rawVals,
+      draftable,
+      name,
+      catalogIdByNorm,
+    ) as ValRow | undefined;
     const pid = row?.player_id ? String(row.player_id) : null;
     const inVals = Boolean(row);
     const inPool = pid != null && draftable.has(pid);
@@ -290,6 +297,7 @@ async function evaluateLeague(
   league: ILeague,
   entries: IRosterEntry[],
   picks: number,
+  catalogIdByNorm: ReadonlyMap<string, string>,
 ): Promise<StateResult> {
   const ctx = await buildValuationContext(league, entries, {
     userTeamId: "team_1",
@@ -314,7 +322,14 @@ async function evaluateLeague(
       paid: e.price ?? 0,
       draftable_pool: draftable.has(String(e.externalPlayerId)),
     }));
-  const result = buildCells(stateId, raw, shaped, ros, league.budget ?? 260);
+  const result = buildCells(
+    stateId,
+    raw,
+    shaped,
+    ros,
+    league.budget ?? 260,
+    catalogIdByNorm,
+  );
   result.picks = picks;
   result.label = stateId;
   result.opening_board_calibration =
@@ -323,7 +338,11 @@ async function evaluateLeague(
   return result;
 }
 
-async function evaluateCheckpoint(stateId: string, key: string): Promise<StateResult> {
+async function evaluateCheckpoint(
+  stateId: string,
+  key: string,
+  catalogIdByNorm: ReadonlyMap<string, string>,
+): Promise<StateResult> {
   const cp = readCheckpointFixtureJson(key as "after_pick_50");
   const parsed = valuationIncomingSchema.parse(cp);
   const ctx = valuationIncomingToEngineContext(parsed);
@@ -344,7 +363,14 @@ async function evaluateCheckpoint(stateId: string, key: string): Promise<StateRe
   }
   const raw = await postEngine(payload);
   const shaped = shapeValuationResponseForDraft(raw, {});
-  const result = buildCells(stateId, raw, shaped, ros, parsed.total_budget);
+  const result = buildCells(
+    stateId,
+    raw,
+    shaped,
+    ros,
+    parsed.total_budget,
+    catalogIdByNorm,
+  );
   result.picks = picks.length;
   result.draft_picks_logged = picks.map((p) => ({
     name: p.name,
@@ -395,6 +421,22 @@ function buildFlags(states: StateResult[]): string[] {
     }
     if (empty.opening_board_calibration) {
       flags.push("real_empty_non_original: unexpected opening_board_calibration");
+    }
+   	const max = empty.top1_auction_raw ?? 0;
+    const shelf = Object.values(empty.players).filter(
+      (c) =>
+        c.draftable_pool &&
+        c.auction_value_raw != null &&
+        max - c.auction_value_raw < 0.6,
+    );
+    if (shelf.length > 5) {
+      flags.push(
+        `real_empty_non_original: ${shelf.length} players within $0.60 of top (possible cap shelf)`,
+      );
+    }
+    const woo = empty.players["Bryan Woo"];
+    if (woo?.auction_rank === 1 || empty.top1_name?.toLowerCase().includes("woo")) {
+      flags.push("real_empty_non_original: Bryan Woo must not be #1 on true empty");
     }
   }
 
@@ -486,6 +528,23 @@ function printMarkdown(states: StateResult[], flags: string[]) {
 
 async function main() {
   await mongoose.connect(process.env.MONGO_URI!);
+  const catalog = await getOrRefreshCatalogPlayers(20);
+  const catalogIdByNorm = buildCatalogIdByNormName(catalog);
+  const catalogCollisions = catalog.filter(
+    (p, i, arr) =>
+      arr.findIndex(
+        (q) => normName(q.name) === normName(p.name) && q.id !== p.id,
+      ) !== i,
+  );
+  if (catalogCollisions.length > 0) {
+    console.warn(
+      `Catalog name collisions (sample): ${catalogCollisions
+        .slice(0, 5)
+        .map((p) => `${p.name} id=${p.id}`)
+        .join("; ")}`,
+    );
+  }
+
   const original = (await League.findOne({ name: /^original$/i }).lean()) as ILeague;
   const friendly = (await League.findById("69adf94bf906d9524b83f2df").lean()) as ILeague;
   const demoPre = (await League.findOne({
@@ -508,10 +567,17 @@ async function main() {
       original,
       [],
       0,
+      catalogIdByNorm,
     ),
   );
   states.push(
-    await evaluateLeague("real_empty_non_original", friendly, [], 0),
+    await evaluateLeague(
+      "real_empty_non_original",
+      friendly,
+      [],
+      0,
+      catalogIdByNorm,
+    ),
   );
   states.push(
     await evaluateLeague(
@@ -519,6 +585,7 @@ async function main() {
       demoPre,
       (await RosterEntry.find({ leagueId: demoPre._id }).lean()) as IRosterEntry[],
       0,
+      catalogIdByNorm,
     ),
   );
 
@@ -530,6 +597,7 @@ async function main() {
       original,
       entries,
       n,
+      catalogIdByNorm,
     );
     if (n >= 1 && slice[0]) {
       st.label = `${st.state_id} (drafted: ${slice[0].name} $${slice[0].paid ?? 0})`;
@@ -538,7 +606,11 @@ async function main() {
   }
 
   states.push(
-    await evaluateCheckpoint("checkpoint_after_pick_50", "after_pick_50"),
+    await evaluateCheckpoint(
+      "checkpoint_after_pick_50",
+      "after_pick_50",
+      catalogIdByNorm,
+    ),
   );
 
   const flags = buildFlags(states);

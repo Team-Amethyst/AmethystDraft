@@ -17,6 +17,14 @@ import {
 import { resolveAuctionCurveModelForDraftRequest } from "../src/lib/auctionCurveModel";
 import { amethyst } from "../src/lib/amethyst";
 import { readCheckpointFixtureJson } from "../src/lib/engineCheckpointCatalog";
+import { getOrRefreshCatalogPlayers } from "../src/lib/catalogPlayerFetch";
+import { resolveLeagueForAudit } from "../src/lib/canonicalAuditLeagues";
+import {
+  buildCatalogIdByNormName,
+  findValuationNameCollisions,
+  normValuationPlayerName,
+  pickCanonicalValuationRowForName,
+} from "../src/lib/valuationRowLookup";
 
 const TRACKED = [
   "Shohei Ohtani",
@@ -31,14 +39,6 @@ const TRACKED = [
   "Garrett Crochet",
   "Hunter Brown",
 ];
-
-function normName(n: string): string {
-  return n
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
 
 function displayTier(raw: number): number {
   if (!Number.isFinite(raw) || raw < 1) return 5;
@@ -62,6 +62,19 @@ function tierCounts(
   return c;
 }
 
+function countCapShelf(
+  sorted: Array<{ auction_value?: number }>,
+  within = 0.6,
+): { top: number; count: number } {
+  const top = sorted[0]?.auction_value ?? 0;
+  const count = sorted.filter(
+    (r) =>
+      typeof r.auction_value === "number" &&
+      top - r.auction_value <= within,
+  ).length;
+  return { top, count };
+}
+
 async function postEngine(payload: Record<string, unknown>) {
   const { data } = await amethyst.post("/valuation/calculate", payload);
   return data as Record<string, unknown>;
@@ -82,32 +95,27 @@ async function main() {
 
   await mongoose.connect(uri);
 
-  let league = leagueId
-    ? await League.findById(leagueId).lean()
-    : null;
-  if (!league) {
-    const matches = await League.find({ name: namePattern })
+  const catalog = await getOrRefreshCatalogPlayers(20);
+  const catalogIdByNorm = buildCatalogIdByNormName(catalog);
+
+  let league;
+  try {
+    league = await resolveLeagueForAudit({
+      leagueId,
+      namePattern: leagueId ? undefined : namePattern,
+    });
+  } catch {
+    console.error("No league matching", namePattern);
+    const recent = await League.find({})
       .sort({ updatedAt: -1 })
-      .limit(5)
+      .limit(15)
+      .select("name _id updatedAt")
       .lean();
-    if (matches.length === 0) {
-      console.error("No league matching", namePattern);
-      const recent = await League.find({})
-        .sort({ updatedAt: -1 })
-        .limit(15)
-        .select("name _id updatedAt")
-        .lean();
-      console.log("Recent leagues:");
-      for (const l of recent) {
-        console.log(" ", l._id?.toString(), l.name);
-      }
-      process.exit(1);
+    console.log("Recent leagues:");
+    for (const l of recent) {
+      console.log(" ", l._id?.toString(), l.name);
     }
-    if (matches.length > 1) {
-      console.log("Multiple matches — using most recently updated:");
-      for (const m of matches) console.log(" ", m._id?.toString(), m.name);
-    }
-    league = matches[0]!;
+    process.exit(1);
   }
 
   const entries = await RosterEntry.find({ leagueId: league._id }).lean();
@@ -194,6 +202,9 @@ async function main() {
     (a, b) => (b.auction_value ?? 0) - (a.auction_value ?? 0),
   );
 
+  const collisions = findValuationNameCollisions(valuations, draftableIds);
+  const shelf = countCapShelf(sorted);
+
   const util =
     (resp.replacement_values_by_slot_or_position as Record<string, number>)
       ?.UTIL ?? null;
@@ -210,13 +221,49 @@ async function main() {
     remaining_slots: resp.remaining_slots,
     max_auction: sorted[0]?.auction_value,
     top1: sorted[0]?.name,
+    cap_shelf_within_0_60: shelf,
     tier_counts: tierCounts(draftable),
+    valuation_name_collisions: collisions.length,
   });
 
-  console.log("\nTop 25 auction_value:");
+  if (collisions.length > 0) {
+    console.log("\n=== Valuation name collisions (Engine rows) ===");
+    for (const c of collisions.slice(0, 12)) {
+      console.log(`  ${c.norm_name}:`);
+      for (const row of c.rows) {
+        const cat = catalogIdByNorm.get(c.norm_name);
+        const mark =
+          row.player_id === cat
+            ? "catalog"
+            : row.in_draftable_pool
+              ? "draftable"
+              : "other";
+        console.log(
+          `    ${mark.padEnd(9)} ${row.player_id} $${row.auction_value?.toFixed(2) ?? "—"} ${row.name}`,
+        );
+      }
+    }
+  }
+
+  console.log("\nTop 25 auction_value (raw sort — may duplicate names):");
   for (const r of sorted.slice(0, 25)) {
     console.log(
-      `  ${String(r.auction_rank ?? "").padStart(3)} ${(r.auction_value ?? 0).toFixed(2).padStart(6)} ${r.name}`,
+      `  ${String(r.auction_rank ?? "").padStart(3)} ${(r.auction_value ?? 0).toFixed(2).padStart(6)} ${r.name} [${r.player_id}]`,
+    );
+  }
+
+  console.log("\n=== Tracked players (canonical catalog row) ===");
+  console.log("Player | catalog_id | auction | in_pool");
+  for (const name of TRACKED) {
+    const row = pickCanonicalValuationRowForName(
+      valuations,
+      draftableIds,
+      name,
+      catalogIdByNorm,
+    );
+    const catId = catalogIdByNorm.get(normValuationPlayerName(name));
+    console.log(
+      `${name} | ${catId ?? "—"} | ${row?.auction_value?.toFixed(2) ?? "—"} | ${row?.player_id ? draftableIds.has(String(row.player_id)) : false}`,
     );
   }
 
@@ -231,16 +278,21 @@ async function main() {
     auction_value?: number;
   }>;
   const cpByName = new Map(
-    cpVals.map((v) => [normName(v.name ?? ""), v.auction_value]),
+    cpVals.map((v) => [normValuationPlayerName(v.name ?? ""), v.auction_value]),
   );
 
-  console.log("\n=== Player comparison (accepted pre_draft fixture vs this league) ===");
+  console.log("\n=== Player comparison (accepted pre_draft fixture vs canonical league) ===");
   console.log(
-    "Player | Accepted fresh | League live | Diff",
+    "Player | Accepted fresh | League canonical | Diff",
   );
   for (const name of TRACKED) {
-    const live = sorted.find((r) => normName(r.name ?? "") === normName(name));
-    const acc = cpByName.get(normName(name));
+    const live = pickCanonicalValuationRowForName(
+      valuations,
+      draftableIds,
+      name,
+      catalogIdByNorm,
+    );
+    const acc = cpByName.get(normValuationPlayerName(name));
     const liveV = live?.auction_value;
     const diff =
       typeof acc === "number" && typeof liveV === "number"

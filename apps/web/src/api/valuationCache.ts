@@ -27,7 +27,7 @@ export type ValuationBoardCacheContext = {
 const SEP = "\u001f";
 const BOARD_INFLATION_MODEL = "replacement_slots_v2";
 /** Bump when Engine opening-board economics change (invalidates stale flat-board cache). */
-const VALUATION_BOARD_CACHE_VERSION = "fresh-empty-opening-tiered-v1";
+const VALUATION_BOARD_CACHE_VERSION = "fresh-empty-opening-tiered-v2";
 
 const boardResultCache = new Map<string, ValuationResponse>();
 const boardInflight = new Map<string, Promise<ValuationResponse>>();
