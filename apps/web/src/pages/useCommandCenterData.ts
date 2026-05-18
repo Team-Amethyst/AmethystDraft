@@ -88,6 +88,7 @@ export function useCommandCenterData({
     () => leagueValuationConfigKey(league ?? null),
     [
       league?.id,
+      league?.name,
       league?.teams,
       league?.budget,
       league ? JSON.stringify(league.rosterSlots) : "",

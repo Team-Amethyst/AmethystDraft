@@ -272,6 +272,7 @@ export default function Research() {
     () => leagueValuationConfigKey(league ?? null),
     [
       league?.id,
+      league?.name,
       league?.teams,
       league?.budget,
       league ? JSON.stringify(league.rosterSlots) : "",
@@ -294,17 +295,17 @@ export default function Research() {
   }, [customPlayerIds]);
 
   useEffect(() => {
+    lastResearchBoardRef.current = null;
+    researchBoardSuccessKeyRef.current = null;
     if (!leagueId) {
       setRosterEntries([]);
       setValuationsByPlayerId(new Map());
       setLastResearchBoardValuation(null);
-      researchBoardSuccessKeyRef.current = null;
       return;
     }
     setRosterEntries(getRosterCached(leagueId) ?? []);
     setValuationsByPlayerId(new Map());
     setLastResearchBoardValuation(null);
-    researchBoardSuccessKeyRef.current = null;
   }, [leagueId]);
 
   useEffect(() => {

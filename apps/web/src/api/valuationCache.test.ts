@@ -278,10 +278,28 @@ describe("valuationCache", () => {
     });
     expect(
       k.startsWith(
-        `L1\u001fteam_1\u001fstage3b-demo-only-v1\u001freplacement_slots_v2\u001f`,
+        `L1\u001fteam_1\u001ffresh-empty-opening-tiered-v1\u001freplacement_slots_v2\u001f`,
       ),
     ).toBe(true);
     expect(k.endsWith(`\u001fcustom:a\u001f`)).toBe(true);
+  });
+
+  it("separates Original demo calibration from other leagues in leagueConfigKey segment", () => {
+    const originalCfg =
+      '{"id":"A","name":"Original","opening_board_calibration":"stage3b_demo_v1"}';
+    const friendlyCfg =
+      '{"id":"B","name":"Friendly","opening_board_calibration":"fresh_board_linear"}';
+    const kOriginal = buildValuationBoardCacheKey("A", "team_1", {
+      leagueConfigKey: originalCfg,
+      rosterFingerprint: "",
+    });
+    const kFriendly = buildValuationBoardCacheKey("B", "team_1", {
+      leagueConfigKey: friendlyCfg,
+      rosterFingerprint: "",
+    });
+    expect(kOriginal).not.toBe(kFriendly);
+    expect(kOriginal).toContain("stage3b_demo_v1");
+    expect(kFriendly).toContain("fresh_board_linear");
   });
 
   it("peekBoardValuationCache returns stored board for active key", async () => {

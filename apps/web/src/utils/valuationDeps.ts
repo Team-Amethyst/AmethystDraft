@@ -13,11 +13,24 @@ export function rosterValuationFingerprint(entries: RosterEntry[]): string {
     .join("|");
 }
 
+/**
+ * Client cache discriminator for BFF/Engine stage3b demo opening calibration.
+ * Must stay aligned with {@link ../../api/src/lib/stage3bDemoCalibration.ts}.
+ */
+export function openingBoardCalibrationCacheProfile(
+  league: Pick<League, "name"> | null,
+): "stage3b_demo_v1" | "fresh_board_linear" {
+  const name = String(league?.name ?? "").trim();
+  return /^original$/i.test(name) ? "stage3b_demo_v1" : "fresh_board_linear";
+}
+
 /** Stable JSON key for league fields that affect engine valuation context. */
 export function leagueValuationConfigKey(league: League | null): string {
   if (!league) return "";
   return JSON.stringify({
     id: league.id,
+    name: league.name,
+    opening_board_calibration: openingBoardCalibrationCacheProfile(league),
     teams: league.teams,
     budget: league.budget,
     rosterSlots: league.rosterSlots,
