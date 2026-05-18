@@ -1,5 +1,8 @@
 import type { Player } from "../../types/player";
-import { displayAuctionTier } from "../../domain/playerRankTier";
+import {
+  resolveDisplayTierConfig,
+  userFacingDisplayTierForMarketPlayer,
+} from "../../domain/displayTiers";
 import type { RosterEntry } from "../../api/roster";
 import { getEffectiveTierValue, type TierValueOverride } from "../../utils/effectiveTierValue";
 import { slotAllowsPosition } from "../../utils/eligibility";
@@ -83,8 +86,22 @@ export function computePositionMarket(
   draftedIds: Set<string>,
   rosterEntries: RosterEntry[],
   tierValueOverrides?: ReadonlyMap<string, TierValueOverride>,
+  leagueBudget?: number,
 ): PositionMarket | null {
+  const tierBands = resolveDisplayTierConfig(leagueBudget).bands;
   if (!marketSlot || allPlayers.length === 0) return null;
+
+  const engineAuctionValueByPlayerId = tierValueOverrides
+    ? new Map(
+        [...tierValueOverrides.entries()]
+          .filter(([, o]) => Number.isFinite(o.value))
+          .map(([id, o]) => [id, o.value]),
+      )
+    : undefined;
+  const marketTierOpts = {
+    leagueBudget,
+    engineAuctionValueByPlayerId,
+  };
 
   const posPlayers = allPlayers.filter((p) =>
     playerEligibleForMarketSlot(p, marketSlot),
@@ -112,7 +129,8 @@ export function computePositionMarket(
             getEffectiveTierValue(
               p.id,
               {
-                tier: displayAuctionTier(p) ?? p.catalog_tier,
+                tier:
+                  userFacingDisplayTierForMarketPlayer(p, marketTierOpts) ?? 5,
                 value: p.value,
               },
               tierValueOverrides,
@@ -126,21 +144,6 @@ export function computePositionMarket(
       ? Math.round((avgWinPrice / avgProjValue - 1) * 100)
       : 0;
 
-  const allTiers = [
-    ...new Set(
-      remaining.map(
-        (p) =>
-          getEffectiveTierValue(
-            p.id,
-            {
-              tier: displayAuctionTier(p) ?? p.catalog_tier,
-              value: p.value,
-            },
-            tierValueOverrides,
-          ).tier,
-      ),
-    ),
-  ].sort((a, b) => a - b);
   const avgOrNull = (arr: Player[]) =>
     arr.length
       ? Math.round(
@@ -150,9 +153,10 @@ export function computePositionMarket(
               getEffectiveTierValue(
                 p.id,
                 {
-                tier: displayAuctionTier(p) ?? p.catalog_tier,
-                value: p.value,
-              },
+                  tier:
+                    userFacingDisplayTierForMarketPlayer(p, marketTierOpts) ?? 5,
+                  value: p.value,
+                },
                 tierValueOverrides,
               ).value,
             0,
@@ -165,19 +169,12 @@ export function computePositionMarket(
     avgWinPrice,
     avgProjValue,
     inflation,
-    supply: allTiers.map((tier) => {
+    supply: tierBands.map((band) => {
       const arr = remaining.filter(
         (p) =>
-          getEffectiveTierValue(
-            p.id,
-            {
-              tier: displayAuctionTier(p) ?? p.catalog_tier,
-              value: p.value,
-            },
-            tierValueOverrides,
-          ).tier === tier,
+          userFacingDisplayTierForMarketPlayer(p, marketTierOpts) === band.tier,
       );
-      return { tier, count: arr.length, avgVal: avgOrNull(arr) };
+      return { tier: band.tier, count: arr.length, avgVal: avgOrNull(arr) };
     }),
   };
 }

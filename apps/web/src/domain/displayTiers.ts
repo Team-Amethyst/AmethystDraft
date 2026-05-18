@@ -1,3 +1,4 @@
+import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
 import { catalogPlayerIdInStringSet } from "./catalogPlayerKeys";
 import { researchTableAuctionDollars } from "./researchDraftedDisplay";
@@ -10,47 +11,30 @@ import {
   type TierStats,
 } from "../utils/tiers";
 import { leagueWideAuctionDollars } from "../utils/valuation";
+import {
+  bandForDisplayTier,
+  DISPLAY_TIER_BAND_SPECS,
+  displayTierForRawWithConfig,
+  REFERENCE_AUCTION_BUDGET,
+  resolveDisplayTierConfig,
+  userFacingTierTooltip,
+  type DisplayTierConfig,
+  type DisplayTierNumber,
+  type ResolvedDisplayTierBand,
+} from "./displayTierThresholds";
 
-/** User-facing T1–T5 bands from raw auction dollars (display only; Engine tier unchanged). */
-export const DISPLAY_TIER_BANDS = [
-  {
-    tier: 1,
-    minInclusive: 25,
-    maxExclusive: Number.POSITIVE_INFINITY,
-    label: "Elite targets",
-    shortRange: "$25+",
-  },
-  {
-    tier: 2,
-    minInclusive: 15,
-    maxExclusive: 25,
-    label: "Strong starters",
-    shortRange: "$15–24",
-  },
-  {
-    tier: 3,
-    minInclusive: 10,
-    maxExclusive: 15,
-    label: "Starter targets",
-    shortRange: "$10–14",
-  },
-  {
-    tier: 4,
-    minInclusive: 5,
-    maxExclusive: 10,
-    label: "Depth values",
-    shortRange: "$5–9",
-  },
-  {
-    tier: 5,
-    minInclusive: 1,
-    maxExclusive: 5,
-    label: "Min-bid / reserve",
-    shortRange: "$1–4",
-  },
-] as const;
+export type { DisplayTierConfig, DisplayTierNumber, ResolvedDisplayTierBand };
+export {
+  DISPLAY_TIER_BAND_SPECS,
+  REFERENCE_AUCTION_BUDGET,
+  resolveDisplayTierConfig,
+  scaleTierDollarThreshold,
+  userFacingTierTooltip,
+} from "./displayTierThresholds";
 
-export type DisplayTierNumber = (typeof DISPLAY_TIER_BANDS)[number]["tier"];
+/** Default ($260) resolved bands — use {@link resolveDisplayTierConfig} when league budget is known. */
+export const DISPLAY_TIER_BANDS: readonly ResolvedDisplayTierBand[] =
+  resolveDisplayTierConfig().bands;
 
 export type DisplayTierGroup = { tier: DisplayTierNumber; players: Player[] };
 
@@ -59,8 +43,11 @@ export const DISPLAY_TIER_SEMANTIC_LABELS: Record<DisplayTierNumber, string> =
     DISPLAY_TIER_BANDS.map((b) => [b.tier, b.label]),
   ) as Record<DisplayTierNumber, string>;
 
-export const DISPLAY_TIER_TOOLTIP =
-  "Display tier from raw auction value bands ($25+, $15–24, $10–14, $5–9, $1–4). Cliffs and ranges use unrounded model dollars.";
+/** Default ($260) tooltip — prefer {@link userFacingTierTooltip} with league budget when available. */
+export const USER_FACING_TIER_TOOLTIP = userFacingTierTooltip();
+
+/** @deprecated Use {@link USER_FACING_TIER_TOOLTIP} or {@link userFacingTierTooltip}. */
+export const DISPLAY_TIER_TOOLTIP = USER_FACING_TIER_TOOLTIP;
 
 export const ENGINE_TIER_METADATA_TOOLTIP =
   "Engine auction tier from valuation (may differ from the display tier above).";
@@ -76,13 +63,85 @@ function rawTierAuctionValueForDisplay(
   return dollars === undefined ? null : dollars;
 }
 
-export function displayTierForRaw(raw: number): DisplayTierNumber {
-  if (!Number.isFinite(raw)) return 5;
-  if (raw >= 25) return 1;
-  if (raw >= 15) return 2;
-  if (raw >= 10) return 3;
-  if (raw >= 5) return 4;
-  return 5;
+function tierConfigFromOptions(
+  options?: DisplayTierGroupingOptions,
+): DisplayTierConfig {
+  return resolveDisplayTierConfig(options?.leagueBudget);
+}
+
+export function displayTierForRaw(
+  raw: number,
+  config?: DisplayTierConfig,
+): DisplayTierNumber {
+  return displayTierForRawWithConfig(raw, config);
+}
+
+/** Raw league auction dollars for tier assignment (never rounded). */
+export function rawAuctionValueForUserFacingTier(
+  player: Pick<
+    Player,
+    | "auction_value"
+    | "valuation_eligible"
+    | "recommended_bid"
+    | "team_value"
+  >,
+  valuationRow?: Pick<ValuationResult, "auction_value"> | null,
+): number | null {
+  if (valuationRow != null) {
+    const rowVal = valuationRow.auction_value;
+    if (typeof rowVal === "number" && Number.isFinite(rowVal)) {
+      return rowVal;
+    }
+  }
+  return rawTierAuctionValueForDisplay(player);
+}
+
+/**
+ * Canonical user-facing T1–T5 for any surface (Research, Command Center, tables).
+ * Uses raw `auction_value`; optional valuation row wins when merged on the player object lags.
+ */
+export function userFacingDisplayTier(
+  player: Player,
+  options?: DisplayTierGroupingOptions & {
+    valuationRow?: Pick<ValuationResult, "auction_value"> | null;
+  },
+): DisplayTierNumber | undefined {
+  const fromPlayer = displayTierGroupingRaw(player, options);
+  if (fromPlayer != null) return fromPlayer;
+  const raw = rawAuctionValueForUserFacingTier(player, options?.valuationRow);
+  if (raw == null) return undefined;
+  const config = tierConfigFromOptions(options);
+  return displayTierForRaw(raw, config);
+}
+
+/** Undrafted pool tier for market counts (model dollars only, not sale price). */
+export function userFacingDisplayTierForAvailablePlayer(
+  player: Player,
+  leagueBudget?: number,
+): DisplayTierNumber | undefined {
+  const raw = rawTierAuctionValueForDisplay(player);
+  if (raw == null) return undefined;
+  return displayTierForRaw(raw, resolveDisplayTierConfig(leagueBudget));
+}
+
+/**
+ * Position-market tier bucket: prefer Engine board `auction_value` when the catalog
+ * player row has not been merged yet (Command Center left panel).
+ */
+export function userFacingDisplayTierForMarketPlayer(
+  player: Player,
+  options?: {
+    leagueBudget?: number;
+    engineAuctionValueByPlayerId?: ReadonlyMap<string, number>;
+  },
+): DisplayTierNumber | undefined {
+  const engineVal = options?.engineAuctionValueByPlayerId?.get(player.id);
+  const raw =
+    typeof engineVal === "number" && Number.isFinite(engineVal)
+      ? engineVal
+      : rawTierAuctionValueForDisplay(player);
+  if (raw == null) return undefined;
+  return displayTierForRaw(raw, resolveDisplayTierConfig(options?.leagueBudget));
 }
 
 export function displayTierSemanticLabel(
@@ -93,16 +152,22 @@ export function displayTierSemanticLabel(
   return DISPLAY_TIER_SEMANTIC_LABELS[n as DisplayTierNumber] ?? null;
 }
 
-export function displayTierBandShortRange(tier: string | number): string | null {
+export function displayTierBandShortRange(
+  tier: string | number,
+  leagueBudget?: number,
+): string | null {
   const n = typeof tier === "number" ? tier : Number(tier);
-  const band = DISPLAY_TIER_BANDS.find((b) => b.tier === n);
-  return band?.shortRange ?? null;
+  if (!Number.isFinite(n) || n < 1 || n > 5) return null;
+  return bandForDisplayTier(n as DisplayTierNumber, resolveDisplayTierConfig(leagueBudget))
+    ?.shortRange ?? null;
 }
 
 export type DisplayTierGroupingOptions = {
   draftedIds?: ReadonlySet<string>;
   draftedPriceByPlayerId?: ReadonlyMap<string, number>;
   draftedContractByPlayerId?: ReadonlyMap<string, string>;
+  /** League auction budget; defaults to {@link REFERENCE_AUCTION_BUDGET} ($260). */
+  leagueBudget?: number;
 };
 
 function isDrafted(
@@ -117,12 +182,13 @@ export function displayTierGroupingRaw(
   player: Player,
   options?: DisplayTierGroupingOptions,
 ): number | null {
+  const config = tierConfigFromOptions(options);
   const model = rawTierAuctionValueForDisplay(player);
-  if (model != null) return displayTierForRaw(model);
+  if (model != null) return displayTierForRaw(model, config);
 
   if (isDrafted(player, options?.draftedIds)) {
     const paid = researchTableAuctionDollars(player, options);
-    if (paid != null && paid > 0) return displayTierForRaw(paid);
+    if (paid != null && paid > 0) return displayTierForRaw(paid, config);
   }
 
   return null;
@@ -132,8 +198,9 @@ export function groupPlayersByDisplayTier(
   players: readonly Player[],
   options?: DisplayTierGroupingOptions,
 ): DisplayTierGroup[] {
+  const config = tierConfigFromOptions(options);
   const map = new Map<number, Player[]>();
-  for (const band of DISPLAY_TIER_BANDS) {
+  for (const band of config.bands) {
     map.set(band.tier, []);
   }
 
@@ -143,37 +210,42 @@ export function groupPlayersByDisplayTier(
     map.get(tier)!.push(p);
   }
 
-  return DISPLAY_TIER_BANDS.map((b) => ({
-    tier: b.tier,
-    players: map.get(b.tier) ?? [],
-  })).filter((g) => g.players.length > 0);
+  return config.bands
+    .map((b) => ({
+      tier: b.tier,
+      players: map.get(b.tier) ?? [],
+    }))
+    .filter((g) => g.players.length > 0);
 }
 
+/** Engine `auction_tier` only (rank bucket metadata — not user-facing T1–T5). */
 export function engineAuctionTierNumber(
-  player: Pick<Player, "auction_tier" | "catalog_tier">,
+  player: Pick<Player, "auction_tier">,
 ): number | null {
-  const t =
-    (typeof player.auction_tier === "number" && Number.isFinite(player.auction_tier)
-      ? player.auction_tier
-      : undefined) ??
-    (typeof player.catalog_tier === "number" && Number.isFinite(player.catalog_tier)
-      ? player.catalog_tier
-      : undefined);
-  if (t == null) return null;
-  const n = typeof t === "number" ? t : Number(t);
-  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
+  const t = player.auction_tier;
+  if (typeof t !== "number" || !Number.isFinite(t)) return null;
+  return t >= 1 && t <= 5 ? t : null;
 }
 
 /** Whole-dollar ceiling for a display tier band (e.g. T5 → $4). */
-export function displayTierMaxWholeDollar(tier: DisplayTierNumber): number | null {
-  const band = DISPLAY_TIER_BANDS.find((b) => b.tier === tier);
+export function displayTierMaxWholeDollar(
+  tier: DisplayTierNumber,
+  leagueBudget?: number,
+): number | null {
+  const band = bandForDisplayTier(tier, resolveDisplayTierConfig(leagueBudget));
   if (!band || !Number.isFinite(band.maxExclusive)) return null;
   return band.maxExclusive - 1;
 }
 
 /** Whole-dollar floor for a display tier band (e.g. T1 → $25). */
-export function displayTierMinWholeDollar(tier: DisplayTierNumber): number {
-  return DISPLAY_TIER_BANDS.find((b) => b.tier === tier)?.minInclusive ?? 1;
+export function displayTierMinWholeDollar(
+  tier: DisplayTierNumber,
+  leagueBudget?: number,
+): number {
+  return (
+    bandForDisplayTier(tier, resolveDisplayTierConfig(leagueBudget))?.minInclusive ??
+    1
+  );
 }
 
 /**
@@ -190,13 +262,14 @@ export function formatDisplayTierBandDisplay(
     | "shelvedCount"
     | "valuedPlayerCount"
   >,
+  leagueBudget?: number,
 ): TierBandDisplay {
   if (stat.valuedPlayerCount === 0) {
     return formatTierBandDisplay(stat);
   }
 
-  const bandMax = displayTierMaxWholeDollar(displayTier);
-  const bandMin = displayTierMinWholeDollar(displayTier);
+  const bandMax = displayTierMaxWholeDollar(displayTier, leagueBudget);
+  const bandMin = displayTierMinWholeDollar(displayTier, leagueBudget);
   const maxCapped =
     bandMax != null ? Math.min(stat.maxValueDisplay, bandMax) : stat.maxValueDisplay;
   const minCapped = Math.max(stat.minValueDisplay, bandMin);

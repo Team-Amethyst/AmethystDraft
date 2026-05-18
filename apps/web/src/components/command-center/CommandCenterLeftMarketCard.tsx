@@ -114,12 +114,12 @@ export function CommandCenterLeftMarketCard({
       {posMarket?.supply?.length ? (
         <div className="cc-left-market-tiers">
           <div className="cc-left-market-tiers-head">
-            <span className="cc-left-market-tiers-label">Auction tiers</span>
+            <span className="cc-left-market-tiers-label">Value tiers</span>
             <span
               className="cc-left-market-tiers-legend"
-              title="By auction-value tier at this position: undrafted count, then average Draftroom $ (prefers Engine auction tier when merged)"
+              title="Undrafted players at this position by auction value band ($25+, $15–24, $10–14, $5–9, $1–4). Count left, then average $."
             >
-              Remaining / avg $
+              Left / avg $
             </span>
           </div>
           <table className="msr-tier-table msr-tier-table--5col cc-left-market-tier-table">
@@ -129,7 +129,7 @@ export function CommandCenterLeftMarketCard({
                   <th key={tier} scope="col">
                     <span
                       className={`msr-tier-chip msr-tier-chip--${tier}`}
-                      title={`Auction tier ${tier}`}
+                      title={`Value tier ${tier} (auction dollar band)`}
                     >
                       {tier}
                     </span>

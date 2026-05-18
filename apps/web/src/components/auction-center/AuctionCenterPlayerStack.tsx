@@ -29,6 +29,7 @@ interface AuctionCenterPlayerStackProps {
   walletCaps: CommandCenterWalletCaps | null;
   auctionRankByPlayerId?: ReadonlyMap<string, number>;
   engineBoardLoaded: boolean;
+  leagueBudget?: number;
 }
 
 export function AuctionCenterPlayerStack({
@@ -49,6 +50,7 @@ export function AuctionCenterPlayerStack({
   walletCaps,
   auctionRankByPlayerId,
   engineBoardLoaded,
+  leagueBudget,
 }: AuctionCenterPlayerStackProps) {
   const rowUi = mergedValuationRow;
   const { tierValue, tierKind } = commandCenterIdentityAuctionTier(
@@ -56,6 +58,7 @@ export function AuctionCenterPlayerStack({
     rowUi,
     auctionRankByPlayerId,
     engineBoardLoaded,
+    leagueBudget,
   );
 
   const { displayPlayer, marketAdp, auctionRank } = commandCenterIdentityRanks(

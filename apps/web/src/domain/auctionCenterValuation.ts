@@ -1,4 +1,8 @@
 import type { ValuationExplain, ValuationResult } from "../api/engine";
+import {
+  engineAuctionTierNumber,
+  userFacingDisplayTier,
+} from "./displayTiers";
 import type { Player } from "../types/player";
 import {
   formatDollar,
@@ -177,8 +181,8 @@ export function withDerivedAuctionRank(
 }
 
 /**
- * Auction tier quintile (1 = top ~20% by league auction value) from global rank in the
- * valued pool. Matches Engine `auction_tier` semantics in `AUCTION_TIER_TOOLTIP`.
+ * Internal rank quintile for Engine row merge only — not user-facing T1–T5.
+ * User-facing tiers use {@link userFacingDisplayTier} (auction dollar bands).
  */
 export function deriveAuctionTierFromRank(
   auctionRank: number,
@@ -199,42 +203,39 @@ export function withDerivedAuctionTier(
 
 export type CommandCenterTierKind = "auction" | "model";
 
+export type CommandCenterIdentityTiers = {
+  /** User-facing value-band tier (T1–T5). */
+  tierValue: number | undefined;
+  /** Engine rank bucket when present (metadata only). */
+  engineTier: number | undefined;
+  /** @deprecated User-facing tiers are always value bands; kept for callers. */
+  tierKind: CommandCenterTierKind;
+};
+
 /**
- * Command Center `T{n}` badge: auction quintile from derived board rank when the engine
- * board is loaded. Do not show model `catalog_tier` as `T1` while auction rank is 358.
+ * Command Center header tier: same raw auction-dollar bands as Research → Tiers.
+ * Engine `auction_tier` is returned separately for an optional metadata chip.
  */
 export function commandCenterIdentityAuctionTier(
   player: Player,
   row: ValuationResult | undefined,
-  auctionRankByPlayerId: ReadonlyMap<string, number> | undefined,
-  engineBoardLoaded: boolean,
-): { tierValue: number | undefined; tierKind: CommandCenterTierKind } {
-  const pid = normalizeValuationPlayerId(player.id);
-  const poolSize = auctionRankByPlayerId?.size ?? 0;
-  const derivedRank =
-    pid && auctionRankByPlayerId
-      ? engineFiniteOrNull(auctionRankByPlayerId.get(pid) ?? null)
-      : null;
-  if (derivedRank != null && poolSize > 0) {
-    const tier = deriveAuctionTierFromRank(derivedRank, poolSize);
-    if (tier > 0) return { tierValue: tier, tierKind: "auction" };
-  }
-
-  const rowTier = engineFiniteOrNull(row?.auction_tier ?? row?.tier ?? null);
-  if (rowTier != null && rowTier > 0) {
-    return { tierValue: rowTier, tierKind: "auction" };
-  }
-
-  if (!engineBoardLoaded) {
-    const modelTier =
-      engineFiniteOrNull(player.auction_tier ?? null) ??
-      engineFiniteOrNull(player.catalog_tier ?? null);
-    if (modelTier != null && modelTier > 0) {
-      return { tierValue: modelTier, tierKind: "model" };
-    }
-  }
-
-  return { tierValue: undefined, tierKind: "auction" };
+  _auctionRankByPlayerId?: ReadonlyMap<string, number>,
+  _engineBoardLoaded?: boolean,
+  leagueBudget?: number,
+): CommandCenterIdentityTiers {
+  const displayPlayer = mergePlayerWithValuation(player, row);
+  const tierValue = userFacingDisplayTier(displayPlayer, {
+    valuationRow: row ?? undefined,
+    leagueBudget,
+  });
+  const engineTier = engineAuctionTierNumber({
+    auction_tier: row?.auction_tier ?? displayPlayer.auction_tier,
+  });
+  return {
+    tierValue,
+    engineTier: engineTier ?? undefined,
+    tierKind: "auction",
+  };
 }
 
 /**

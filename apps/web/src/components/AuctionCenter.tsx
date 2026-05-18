@@ -929,6 +929,7 @@ export function AuctionCenter({
                 walletCaps={myWalletCaps}
                 auctionRankByPlayerId={auctionRankByPlayerId}
                 engineBoardLoaded={engineBoardLoaded}
+                leagueBudget={league?.budget}
               />
             </div>
 

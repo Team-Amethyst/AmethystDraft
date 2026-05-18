@@ -262,7 +262,7 @@ describe("TiersView", () => {
     ).toBe(false);
   });
 
-  it("shows Engine tier chip when Engine tier differs from display tier", async () => {
+  it("does not show Engine tier chip on expanded tier rows", async () => {
     const user = userEvent.setup();
     render(
       <TiersView
@@ -283,7 +283,8 @@ describe("TiersView", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /expand tier 5/i }));
-    expect(screen.getByText("Engine T1")).toBeTruthy();
+    expect(screen.getByText("Mismatch")).toBeTruthy();
+    expect(screen.queryByText(/Engine T\d/)).toBeNull();
   });
 
   it("de-emphasizes min-bid replacement tier", () => {

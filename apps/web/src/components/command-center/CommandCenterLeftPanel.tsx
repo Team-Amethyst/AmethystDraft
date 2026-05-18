@@ -85,8 +85,16 @@ export function CommandCenterLeftPanel({
       draftedIds,
       rosterEntries,
       engineTierValueMap,
+      league?.budget,
     );
-  }, [activeMarketSlot, allPlayers, draftedIds, rosterEntries, engineMarket]);
+  }, [
+    activeMarketSlot,
+    allPlayers,
+    draftedIds,
+    rosterEntries,
+    engineMarket,
+    league?.budget,
+  ]);
 
   return (
     <div className="cc-left">

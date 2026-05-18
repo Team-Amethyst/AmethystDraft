@@ -362,6 +362,7 @@ function resolveBuildFullTierViewOptions(
         draftedIds,
         draftedPriceByPlayerId: options.draftedPriceByPlayerId,
         draftedContractByPlayerId: options.draftedContractByPlayerId,
+        leagueBudget: options.leagueBudget,
       },
     };
   }

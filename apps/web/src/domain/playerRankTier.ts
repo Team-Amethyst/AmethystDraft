@@ -9,10 +9,12 @@ function finite(n: unknown): number | undefined {
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
-/** Prefer Engine auction tier, then catalog model tier. */
+/** Engine `auction_tier` rank bucket — metadata only, not user-facing value bands. */
 export function displayAuctionTier(p: Player): number | undefined {
-  return finite(p.auction_tier) ?? finite(p.catalog_tier);
+  return finite(p.auction_tier);
 }
+
+export { userFacingDisplayTier as userFacingAuctionTier } from "./displayTiers";
 
 /** True when any player in the pool has a defined Engine auction tier (grouping is auction-first). */
 export function poolHasAuctionTier(players: readonly Player[]): boolean {

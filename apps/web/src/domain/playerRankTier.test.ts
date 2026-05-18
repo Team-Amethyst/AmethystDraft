@@ -43,7 +43,7 @@ describe("displayAuctionTier", () => {
   });
 
   it("falls back to catalog_tier", () => {
-    expect(displayAuctionTier(p({ catalog_tier: 3 }))).toBe(3);
+    expect(displayAuctionTier(p({ catalog_tier: 3 }))).toBeUndefined();
   });
 });
 

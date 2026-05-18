@@ -133,16 +133,18 @@ describe("deriveAuctionTierFromRank", () => {
 });
 
 describe("commandCenterIdentityAuctionTier", () => {
-  it("uses auction quintile from derived rank, not model catalog_tier", () => {
+  it("uses value band from raw auction_value, not rank quintile", () => {
     const player = minimalPlayer({
       id: "player-358",
       catalog_tier: 1,
-      auction_tier: undefined,
+      auction_tier: 1,
+      auction_value: 4,
     });
     const row = {
       player_id: "player-358",
       tier: 1,
-      auction_value: 1,
+      auction_value: 4,
+      auction_tier: 1,
     } as ValuationResult;
     const ranks = new Map<string, number>();
     for (let i = 1; i <= 400; i += 1) {
@@ -150,14 +152,15 @@ describe("commandCenterIdentityAuctionTier", () => {
     }
     const out = commandCenterIdentityAuctionTier(player, row, ranks, true);
     expect(out.tierValue).toBe(5);
+    expect(out.engineTier).toBe(1);
     expect(out.tierKind).toBe("auction");
   });
 
-  it("allows model tier before the engine board loads", () => {
+  it("returns undefined user-facing tier without auction value", () => {
     const player = minimalPlayer({ catalog_tier: 2 });
     const out = commandCenterIdentityAuctionTier(player, undefined, undefined, false);
-    expect(out.tierValue).toBe(2);
-    expect(out.tierKind).toBe("model");
+    expect(out.tierValue).toBeUndefined();
+    expect(out.tierKind).toBe("auction");
   });
 });
 

@@ -846,6 +846,7 @@ export default function Research() {
                       setResearchModelColumnsVisible
                     }
                     draftDisplaySlotKeys={researchPositionSlotKeys}
+                    leagueBudget={league?.budget}
                   />
                   {researchBoardPhase === "loading" ? (
                     <p className="research-board-engine-hint">
@@ -871,6 +872,7 @@ export default function Research() {
             <TiersView
               players={mergedPlayersWithDraftable}
               researchBoardPhase={researchBoardPhase}
+              leagueBudget={league?.budget}
               draftedIds={draftedIds}
               draftedByTeam={draftedByTeam}
               draftedPriceByPlayerId={draftedPriceByPlayerId}

@@ -22,9 +22,10 @@ import {
 } from "../utils/tiers";
 import { poolHasAuctionTier, poolHasMarketAdp } from "../domain/playerRankTier";
 import {
-  DISPLAY_TIER_TOOLTIP,
   displayTierSemanticLabel,
   formatDisplayTierBandDisplay,
+  resolveDisplayTierConfig,
+  userFacingTierTooltip,
   type DisplayTierNumber,
 } from "../domain/displayTiers";
 import {
@@ -64,6 +65,8 @@ type Props = {
   getNote?: (playerId: string) => string;
   onNoteChange?: (playerId: string, note: string) => void;
   researchBoardPhase?: BoardValuationUiPhase;
+  /** League auction budget; scales tier dollar bands (defaults to $260). */
+  leagueBudget?: number;
 };
 
 function tierBadgeNumber(tier: string | number): number | null {
@@ -138,6 +141,7 @@ function renderTierSection(
   args: {
     poolUsesAuctionTier: boolean;
     tierBadgeTitle: string;
+    leagueBudget?: number;
     expanded: Record<string, boolean>;
     setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
     showPositionMix: boolean;
@@ -180,7 +184,11 @@ function renderTierSection(
   const availability = formatTierAvailabilitySummary(tierStat);
   const bandDisplay =
     !depleted && tierNum != null && tierNum >= 1 && tierNum <= 5
-      ? formatDisplayTierBandDisplay(tierNum as DisplayTierNumber, tierStat)
+      ? formatDisplayTierBandDisplay(
+          tierNum as DisplayTierNumber,
+          tierStat,
+          args.leagueBudget,
+        )
       : depleted
         ? { rangeLabel: "—", shelfNote: null }
         : formatTierBandDisplay(tierStat);
@@ -508,6 +516,7 @@ export default function TiersView({
   getNote,
   onNoteChange,
   researchBoardPhase = "ready",
+  leagueBudget,
 }: Props) {
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortBy, setSortBy] = useState<TierSortField>("auction_value");
@@ -549,6 +558,7 @@ export default function TiersView({
         draftedPriceByPlayerId,
         draftedContractByPlayerId,
         rosterSlotKeys: draftDisplaySlotKeys,
+        leagueBudget,
       }),
     [
       players,
@@ -557,6 +567,7 @@ export default function TiersView({
       draftDisplaySlotKeys,
       draftedPriceByPlayerId,
       draftedContractByPlayerId,
+      leagueBudget,
     ],
   );
 
@@ -612,12 +623,13 @@ export default function TiersView({
   }, [showMarketAdp]);
 
   const tierBadgeTitle = poolUsesAuctionTier
-    ? DISPLAY_TIER_TOOLTIP
+    ? userFacingTierTooltip(resolveDisplayTierConfig(leagueBudget))
     : MODEL_TIER_FALLBACK_TOOLTIP;
 
   const sectionArgs = {
     poolUsesAuctionTier,
     tierBadgeTitle,
+    leagueBudget,
     expanded,
     setExpanded,
     showPositionMix,

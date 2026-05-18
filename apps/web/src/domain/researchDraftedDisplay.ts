@@ -12,6 +12,8 @@ export type ResearchTableAuctionDollarsOptions = {
   draftedIds?: ReadonlySet<string>;
   draftedPriceByPlayerId?: ReadonlyMap<string, number>;
   draftedContractByPlayerId?: ReadonlyMap<string, string>;
+  /** Scales user-facing T1–T5 dollar bands (defaults to $260 reference). */
+  leagueBudget?: number;
 };
 
 function parseDraftedPriceFromContract(
