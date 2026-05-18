@@ -21,11 +21,11 @@ import {
 } from "../../domain/researchAuctionValueDisplay";
 import {
   formatCurrencyWhole,
-  leagueWideAuctionDollarsForDisplay,
   RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
   RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
   valuationTooltip,
 } from "../../utils/valuation";
+import { researchTableAuctionDollars } from "../../domain/researchDraftedDisplay";
 import { marketAdpDetailTooltip } from "../../domain/rankTierLabels";
 import {
   shouldShowOutsideDraftableMinBidTooltip,
@@ -41,6 +41,8 @@ export type ResearchPlayerTableRowProps = {
   draftedTeamName?: string;
   draftedContractLabel?: string;
   draftedIds?: ReadonlySet<string>;
+  draftedPriceByPlayerId?: ReadonlyMap<string, number>;
+  draftedContractByPlayerId?: ReadonlyMap<string, string>;
   isStarred?: boolean;
   onPlayerClick?: (player: Player) => void;
   onToggleWatchlist?: (player: Player) => void;
@@ -63,6 +65,8 @@ export function ResearchPlayerTableRow({
   draftedTeamName,
   draftedContractLabel,
   draftedIds,
+  draftedPriceByPlayerId,
+  draftedContractByPlayerId,
   isStarred = false,
   onPlayerClick,
   onToggleWatchlist,
@@ -80,7 +84,11 @@ export function ResearchPlayerTableRow({
     draftedIds != null &&
     catalogPlayerIdInStringSet(draftedIds, player);
 
-  const primaryValue = leagueWideAuctionDollarsForDisplay(player);
+  const primaryValue = researchTableAuctionDollars(player, {
+    draftedIds,
+    draftedPriceByPlayerId,
+    draftedContractByPlayerId,
+  });
   const showMinBidOutsidePoolTooltip = shouldShowOutsideDraftableMinBidTooltip({
     draftable: player.research_draftable ?? "unknown",
     auctionDollars: primaryValue,
