@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Button,
   RefreshControl,
   ScrollView,
   Text,
@@ -46,6 +45,14 @@ type SlotRow = {
   keeperContract?: string;
 };
 
+type ReserveRow = {
+  playerName: string;
+  playerTeam: string | null;
+  rosterSlot: string;
+  price: number;
+  isKeeper: boolean;
+};
+
 type TeamCardData = {
   teamId: string;
   teamName: string;
@@ -56,6 +63,9 @@ type TeamCardData = {
   budgetRemaining: number;
   bidAvg: number;
   maxBid: number;
+  minors: ReserveRow[];
+  taxi: ReserveRow[];
+  otherReserves: ReserveRow[];
 };
 
 type ScoringCategory = {
@@ -66,6 +76,12 @@ type ScoringCategory = {
 type StandingRow = {
   teamName: string;
   stats: Record<string, number>;
+};
+
+type RotoSummary = {
+  totalPoints: number;
+  ranks: Record<string, number>;
+  points: Record<string, number>;
 };
 
 const SLOT_ORDER = [
@@ -84,17 +100,20 @@ const SLOT_ORDER = [
 ];
 
 const FALLBACK_CATS: ScoringCategory[] = [
+  { name: "R", type: "batting" },
   { name: "HR", type: "batting" },
   { name: "RBI", type: "batting" },
   { name: "SB", type: "batting" },
   { name: "AVG", type: "batting" },
   { name: "W", type: "pitching" },
   { name: "SV", type: "pitching" },
+  { name: "K", type: "pitching" },
   { name: "ERA", type: "pitching" },
   { name: "WHIP", type: "pitching" },
 ];
 
 const LOWER_IS_BETTER = new Set(["ERA", "WHIP"]);
+const ROTO_POINTS_SORT_KEY = "PTS";
 
 function teamIdFromIndex(index: number): string {
   return `team_${index + 1}`;
@@ -112,24 +131,81 @@ function teamNameFromId(teamId: string, teamNames: string[]): string {
 
 function safeTeamNames(teams: number, teamNames?: string[]): string[] {
   if (teamNames && teamNames.length > 0) {
-    return teamNames.slice(0, teams);
+    const names = teamNames.slice(0, teams);
+
+    while (names.length < teams) {
+      names.push(`Team ${names.length + 1}`);
+    }
+
+    return names;
   }
 
   return Array.from({ length: teams }, (_, index) => `Team ${index + 1}`);
 }
 
 function formatMoney(value: number): string {
+  if (!Number.isFinite(value)) return "$0";
   return `$${Math.round(value)}`;
+}
+
+function formatMlbTeam(team: string | null | undefined): string | null {
+  if (!team) return null;
+  return team.trim().toUpperCase();
 }
 
 function normalizeCatName(name: string): string {
   return name.trim().toUpperCase();
 }
 
-function sortRosterEntries(entries: RosterEntry[]): RosterEntry[] {
-  return [...entries].sort((a, b) => {
-    const slotCompare = a.rosterSlot.localeCompare(b.rosterSlot);
+function normalizePosition(position: string): string {
+  return position.trim().toUpperCase();
+}
 
+function isReserveRosterSlot(rosterSlot: string | undefined | null): boolean {
+  const slot = normalizePosition(rosterSlot ?? "");
+  return slot.includes("MIN") || slot.includes("TAXI");
+}
+
+function isTaxiReserveEntry(entry: RosterEntry): boolean {
+  const slot = normalizePosition(entry.rosterSlot ?? "");
+  return slot.includes("TAXI") && !slot.includes("MIN");
+}
+
+function isMinorsReserveEntry(entry: RosterEntry): boolean {
+  return normalizePosition(entry.rosterSlot ?? "").includes("MIN");
+}
+
+function isReserveEntry(entry: RosterEntry): boolean {
+  return isReserveRosterSlot(entry.rosterSlot);
+}
+
+function isActiveAuctionEntry(entry: RosterEntry): boolean {
+  return !isReserveEntry(entry);
+}
+
+function isDraftAuctionEntry(entry: RosterEntry): boolean {
+  return isActiveAuctionEntry(entry) && !entry.isKeeper;
+}
+
+function orderedRosterSlots(rosterSlots: Record<string, number>): string[] {
+  return [
+    ...SLOT_ORDER.filter((pos) => rosterSlots[pos] !== undefined),
+    ...Object.keys(rosterSlots).filter((pos) => !SLOT_ORDER.includes(pos)),
+  ];
+}
+
+function sortRosterEntries(entries: RosterEntry[]): RosterEntry[] {
+  const order = new Map(SLOT_ORDER.map((slot, index) => [slot, index]));
+
+  return [...entries].sort((a, b) => {
+    const aSlot = normalizePosition(a.rosterSlot);
+    const bSlot = normalizePosition(b.rosterSlot);
+    const aIndex = order.get(aSlot) ?? 999;
+    const bIndex = order.get(bSlot) ?? 999;
+
+    if (aIndex !== bIndex) return aIndex - bIndex;
+
+    const slotCompare = aSlot.localeCompare(bSlot);
     if (slotCompare !== 0) return slotCompare;
 
     return a.playerName.localeCompare(b.playerName);
@@ -141,15 +217,18 @@ function sortDraftLog(entries: RosterEntry[]): RosterEntry[] {
     const at = new Date(a.acquiredAt ?? a.createdAt).getTime();
     const bt = new Date(b.acquiredAt ?? b.createdAt).getTime();
 
-    return bt - at;
+    return at - bt;
   });
 }
 
-function orderedRosterSlots(rosterSlots: Record<string, number>): string[] {
-  return [
-    ...SLOT_ORDER.filter((pos) => rosterSlots[pos] !== undefined),
-    ...Object.keys(rosterSlots).filter((pos) => !SLOT_ORDER.includes(pos)),
-  ];
+function buildReserveRow(entry: RosterEntry): ReserveRow {
+  return {
+    playerName: entry.playerName,
+    playerTeam: formatMlbTeam(entry.playerTeam),
+    rosterSlot: entry.rosterSlot,
+    price: entry.price,
+    isKeeper: entry.isKeeper,
+  };
 }
 
 function buildTeamCardData(
@@ -161,14 +240,18 @@ function buildTeamCardData(
 ): TeamCardData {
   const teamId = teamIdFromIndex(teamIndex);
   const teamEntries = entries.filter((entry) => entry.teamId === teamId);
+  const activeEntries = sortRosterEntries(teamEntries.filter(isActiveAuctionEntry));
+  const reserveEntries = teamEntries.filter(isReserveEntry);
   const orderedPositions = orderedRosterSlots(rosterSlots);
   const usedIds = new Set<string>();
   const slots: SlotRow[] = [];
 
   for (const position of orderedPositions) {
     const count = rosterSlots[position] ?? 0;
-    const entriesAtSlot = teamEntries.filter(
-      (entry) => entry.rosterSlot === position && !usedIds.has(entry._id),
+    const entriesAtSlot = activeEntries.filter(
+      (entry) =>
+        normalizePosition(entry.rosterSlot) === normalizePosition(position) &&
+        !usedIds.has(entry._id),
     );
 
     for (let i = 0; i < count; i++) {
@@ -181,7 +264,7 @@ function buildTeamCardData(
       slots.push({
         position,
         playerName: entry?.playerName ?? null,
-        playerTeam: entry?.playerTeam ?? null,
+        playerTeam: formatMlbTeam(entry?.playerTeam),
         price: entry?.price ?? null,
         isKeeper: entry?.isKeeper ?? false,
         keeperContract: entry?.keeperContract,
@@ -189,11 +272,39 @@ function buildTeamCardData(
     }
   }
 
+  const unassignedActive = activeEntries.filter((entry) => !usedIds.has(entry._id));
+
+  for (const entry of unassignedActive) {
+    slots.push({
+      position: entry.rosterSlot,
+      playerName: entry.playerName,
+      playerTeam: formatMlbTeam(entry.playerTeam),
+      price: entry.price,
+      isKeeper: entry.isKeeper,
+      keeperContract: entry.keeperContract,
+    });
+  }
+
   const rosterFilled = slots.filter((slot) => slot.playerName !== null).length;
-  const rosterTotal = slots.length;
-  const spent = teamEntries.reduce((sum, entry) => sum + entry.price, 0);
-  const budgetRemaining = budget - spent;
+  const rosterTotal = orderedPositions.reduce(
+    (sum, position) => sum + (rosterSlots[position] ?? 0),
+    0,
+  );
+  const spent = activeEntries.reduce((sum, entry) => sum + entry.price, 0);
+  const budgetRemaining = Math.max(0, budget - spent);
   const open = Math.max(0, rosterTotal - rosterFilled);
+
+  const minors = reserveEntries
+    .filter(isMinorsReserveEntry)
+    .map(buildReserveRow);
+
+  const taxi = reserveEntries
+    .filter(isTaxiReserveEntry)
+    .map(buildReserveRow);
+
+  const otherReserves = reserveEntries
+    .filter((entry) => !isMinorsReserveEntry(entry) && !isTaxiReserveEntry(entry))
+    .map(buildReserveRow);
 
   return {
     teamId,
@@ -205,7 +316,56 @@ function buildTeamCardData(
     budgetRemaining,
     bidAvg: open > 0 ? Math.round(budgetRemaining / open) : 0,
     maxBid: open > 0 ? Math.max(1, budgetRemaining - (open - 1)) : 0,
+    minors,
+    taxi,
+    otherReserves,
   };
+}
+
+function playerKeyCandidates(player: Player): string[] {
+  const keys: string[] = [];
+
+  function push(value: unknown) {
+    if (value === undefined || value === null) return;
+
+    const text = String(value).trim();
+
+    if (!text) return;
+    if (!keys.includes(text)) keys.push(text);
+  }
+
+  push(player.id);
+  push(player.mlbId);
+
+  return keys;
+}
+
+function buildPlayerMap(players: Player[]): Map<string, Player> {
+  const map = new Map<string, Player>();
+
+  for (const player of players) {
+    for (const key of playerKeyCandidates(player)) {
+      map.set(key, player);
+    }
+  }
+
+  return map;
+}
+
+function numberFromUnknown(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
 }
 
 function playerStat(
@@ -240,6 +400,9 @@ function playerStat(
     AVG: ["avg"],
     OBP: ["obp"],
     SLG: ["slg"],
+    TB: ["tb", "totalBases"],
+    H: ["hits", "h"],
+    BB: ["walks", "bb"],
     W: ["wins", "w"],
     K: ["strikeouts", "k", "so"],
     ERA: ["era"],
@@ -247,23 +410,16 @@ function playerStat(
     SV: ["saves", "sv"],
     HLD: ["holds", "hld"],
     IP: ["innings", "ip"],
+    CG: ["completeGames", "cg"],
   };
 
   const keys = aliases[cat] ?? [cat.toLowerCase()];
 
   for (const key of keys) {
-    const raw = source[key];
+    const parsed = numberFromUnknown(source[key]);
 
-    if (typeof raw === "number" && Number.isFinite(raw)) {
-      return raw;
-    }
-
-    if (typeof raw === "string") {
-      const parsed = Number(raw);
-
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
+    if (parsed !== null) {
+      return parsed;
     }
   }
 
@@ -280,7 +436,7 @@ function buildProjectedStandings(
     const teamId = teamIdFromIndex(index);
     const teamPlayers = entries
       .filter((entry) => entry.teamId === teamId)
-      .map((entry) => playerMap.get(entry.externalPlayerId))
+      .map((entry) => playerMap.get(String(entry.externalPlayerId)))
       .filter((player): player is Player => Boolean(player));
 
     const stats: Record<string, number> = {};
@@ -288,16 +444,13 @@ function buildProjectedStandings(
     for (const cat of scoringCats) {
       const catName = normalizeCatName(cat.name);
 
-      if (catName === "AVG" || catName === "OBP" || catName === "SLG") {
-        const values = teamPlayers
-          .map((player) => playerStat(player, catName, cat.type))
-          .filter((value) => value > 0);
-
-        stats[catName] =
-          values.length > 0
-            ? values.reduce((sum, value) => sum + value, 0) / values.length
-            : 0;
-      } else if (catName === "ERA" || catName === "WHIP") {
+      if (
+        catName === "AVG" ||
+        catName === "OBP" ||
+        catName === "SLG" ||
+        catName === "ERA" ||
+        catName === "WHIP"
+      ) {
         const values = teamPlayers
           .map((player) => playerStat(player, catName, cat.type))
           .filter((value) => value > 0);
@@ -319,7 +472,7 @@ function buildProjectedStandings(
 }
 
 function formatStatCell(cat: string, value: number): string {
-  if (value === 0) return "—";
+  if (!Number.isFinite(value) || value === 0) return "—";
 
   const normalized = normalizeCatName(cat);
 
@@ -334,28 +487,283 @@ function formatStatCell(cat: string, value: number): string {
   return String(Math.round(value));
 }
 
-function rankForCategory(
-  standings: StandingRow[],
-  teamName: string,
-  cat: string,
-): number {
+function rankColor(rank: number, teamCount: number): string {
+  if (rank <= Math.max(1, Math.ceil(teamCount * 0.25))) return colors.green;
+  if (rank >= Math.max(1, Math.floor(teamCount * 0.75))) return "#fb7185";
+  return colors.gold;
+}
+
+function isEmptyStatValue(value: number): boolean {
+  return !Number.isFinite(value) || value === 0;
+}
+
+function compareCategoryValues(cat: string, a: number, b: number): number {
   const lowerIsBetter = LOWER_IS_BETTER.has(normalizeCatName(cat));
 
-  const sorted = [...standings].sort((a, b) => {
-    const av = a.stats[cat] ?? 0;
-    const bv = b.stats[cat] ?? 0;
+  if (lowerIsBetter) {
+    if (a === 0 && b === 0) return 0;
+    if (a === 0) return 1;
+    if (b === 0) return -1;
+    return a - b;
+  }
 
-    if (lowerIsBetter) {
-      if (av === 0 && bv === 0) return 0;
-      if (av === 0) return 1;
-      if (bv === 0) return -1;
-      return av - bv;
+  return b - a;
+}
+
+function computeRankMaps(
+  standings: StandingRow[],
+  catNames: string[],
+): Record<string, Map<string, { rank: number; points: number }>> {
+  const output: Record<string, Map<string, { rank: number; points: number }>> = {};
+  const teamCount = standings.length;
+
+  for (const cat of catNames) {
+    const sorted = [...standings].sort((a, b) =>
+      compareCategoryValues(cat, a.stats[cat] ?? 0, b.stats[cat] ?? 0),
+    );
+
+    const map = new Map<string, { rank: number; points: number }>();
+
+    sorted.forEach((row, index) => {
+      const value = row.stats[cat] ?? 0;
+      const rank = index + 1;
+      const points = isEmptyStatValue(value)
+        ? 0
+        : Math.max(1, teamCount - index);
+
+      map.set(row.teamName, { rank, points });
+    });
+
+    output[cat] = map;
+  }
+
+  return output;
+}
+
+function computeRotoSummaries(
+  teamNames: string[],
+  catNames: string[],
+  rankMaps: Record<string, Map<string, { rank: number; points: number }>>,
+): Map<string, RotoSummary> {
+  const summaries = new Map<string, RotoSummary>();
+
+  for (const teamName of teamNames) {
+    const ranks: Record<string, number> = {};
+    const points: Record<string, number> = {};
+    let totalPoints = 0;
+
+    for (const cat of catNames) {
+      const row = rankMaps[cat]?.get(teamName);
+      const categoryRank = row?.rank ?? teamNames.length;
+      const categoryPoints = row?.points ?? 0;
+
+      ranks[cat] = categoryRank;
+      points[cat] = categoryPoints;
+      totalPoints += categoryPoints;
     }
 
-    return bv - av;
-  });
+    summaries.set(teamName, {
+      totalPoints,
+      ranks,
+      points,
+    });
+  }
 
-  return sorted.findIndex((row) => row.teamName === teamName) + 1;
+  return summaries;
+}
+
+function compareStandingRows(
+  a: StandingRow,
+  b: StandingRow,
+  sortCat: string,
+  sortAsc: boolean,
+  summaries: Map<string, RotoSummary>,
+): number {
+  if (sortCat === ROTO_POINTS_SORT_KEY) {
+    const av = summaries.get(a.teamName)?.totalPoints ?? 0;
+    const bv = summaries.get(b.teamName)?.totalPoints ?? 0;
+    const diff = bv - av;
+
+    return sortAsc ? -diff : diff;
+  }
+
+  const diff = compareCategoryValues(
+    sortCat,
+    a.stats[sortCat] ?? 0,
+    b.stats[sortCat] ?? 0,
+  );
+
+  return sortAsc ? -diff : diff;
+}
+
+function TeamStatPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        minWidth: 72,
+        backgroundColor: "#241638",
+        borderColor: "#3d2864",
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        marginRight: 6,
+      }}
+    >
+      <Text
+        style={{
+          color: colors.muted,
+          fontSize: 10,
+          fontWeight: "900",
+          letterSpacing: 0.6,
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: colors.text,
+          fontSize: 16,
+          fontWeight: "900",
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function PositionBadge({ label }: { label: string }) {
+  return (
+    <View
+      style={{
+        minWidth: 34,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: "#5b3a89",
+        backgroundColor: "#2c1a47",
+        paddingVertical: 3,
+        paddingHorizontal: 6,
+        marginRight: 8,
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ color: "#f4e9ff", fontSize: 11, fontWeight: "900" }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function FilledSlotRow({ slot }: { slot: SlotRow }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 6,
+        borderTopWidth: 1,
+        borderTopColor: "#261a3c",
+      }}
+    >
+      <PositionBadge label={slot.position} />
+
+      <Text
+        numberOfLines={1}
+        style={{
+          color: slot.playerName ? colors.text : colors.muted,
+          flex: 1,
+          fontWeight: slot.playerName ? "800" : "600",
+        }}
+      >
+        {slot.playerName
+          ? `${slot.playerName}${slot.playerTeam ? ` · ${slot.playerTeam}` : ""}`
+          : "— empty —"}
+      </Text>
+
+      {slot.price !== null ? (
+        <Text style={{ color: colors.gold, marginLeft: 6, fontWeight: "900" }}>
+          {formatMoney(slot.price)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function ReserveSummary({
+  minors,
+  taxi,
+  otherReserves,
+}: {
+  minors: ReserveRow[];
+  taxi: ReserveRow[];
+  otherReserves: ReserveRow[];
+}) {
+  const total = minors.length + taxi.length + otherReserves.length;
+
+  if (total === 0) {
+    return (
+      <Text style={{ color: colors.muted, marginTop: 8 }}>
+        Minors 0 · Taxi 0
+      </Text>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={{ color: colors.muted, fontWeight: "800" }}>
+        Minors {minors.length} · Taxi {taxi.length}
+        {otherReserves.length > 0 ? ` · Reserves ${otherReserves.length}` : ""}
+      </Text>
+    </View>
+  );
+}
+
+function DraftButton({
+  label,
+  onPress,
+  tone = "default",
+}: {
+  label: string;
+  onPress: () => void;
+  tone?: "default" | "danger";
+}) {
+  const danger = tone === "danger";
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={{
+        backgroundColor: danger ? "#3a1420" : "#321d4f",
+        borderColor: danger ? "#7f1d1d" : "#6d3fb8",
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 8,
+      }}
+    >
+      <Text
+        style={{
+          color: danger ? "#fecaca" : "#f5eaff",
+          fontWeight: "900",
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 export default function LeagueOverviewScreen({ route }: Props) {
@@ -383,12 +791,13 @@ export default function LeagueOverviewScreen({ route }: Props) {
   );
   const [selectedTeamId, setSelectedTeamId] = useState("team_1");
   const [edits, setEdits] = useState<Record<string, EntryEdit>>({});
-  const [sortCat, setSortCat] = useState("HR");
+  const [sortCat, setSortCat] = useState(ROTO_POINTS_SORT_KEY);
   const [sortAsc, setSortAsc] = useState(false);
   const [loading, setLoading] = useState(() => getRosterCached(leagueId) === null);
   const [refreshing, setRefreshing] = useState(false);
   const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [showSelectedReserves, setShowSelectedReserves] = useState(false);
 
   const loadOverview = useCallback(
     async (mode: "load" | "refresh" = "load") => {
@@ -461,6 +870,18 @@ export default function LeagueOverviewScreen({ route }: Props) {
     return orderedRosterSlots(league?.rosterSlots ?? {});
   }, [league]);
 
+  const activeEntries = useMemo(() => {
+    return entries.filter(isActiveAuctionEntry);
+  }, [entries]);
+
+  const reserveEntries = useMemo(() => {
+    return entries.filter(isReserveEntry);
+  }, [entries]);
+
+  const draftLog = useMemo(() => {
+    return sortDraftLog(entries.filter(isDraftAuctionEntry));
+  }, [entries]);
+
   const teamCards = useMemo(() => {
     if (!league) return [];
 
@@ -475,32 +896,28 @@ export default function LeagueOverviewScreen({ route }: Props) {
     );
   }, [league, teamNames, entries]);
 
-  const totalSpent = useMemo(() => {
-    return entries.reduce((sum, entry) => sum + entry.price, 0);
-  }, [entries]);
+  const selectedTeamCard = useMemo(() => {
+    return teamCards.find((team) => team.teamId === selectedTeamId) ?? teamCards[0] ?? null;
+  }, [teamCards, selectedTeamId]);
 
-  const teamSpent = useMemo(() => {
-    const totals: Record<string, number> = {};
+  const totalActiveSpent = useMemo(() => {
+    return activeEntries.reduce((sum, entry) => sum + entry.price, 0);
+  }, [activeEntries]);
 
-    for (const entry of entries) {
-      totals[entry.teamId] = (totals[entry.teamId] ?? 0) + entry.price;
-    }
-
-    return totals;
-  }, [entries]);
-
-  const selectedTeamEntries = useMemo(() => {
+  const selectedTeamActiveEntries = useMemo(() => {
     return sortRosterEntries(
-      entries.filter((entry) => entry.teamId === selectedTeamId),
+      activeEntries.filter((entry) => entry.teamId === selectedTeamId),
     );
-  }, [entries, selectedTeamId]);
+  }, [activeEntries, selectedTeamId]);
 
-  const draftLog = useMemo(() => {
-    return sortDraftLog(entries.filter((entry) => !entry.isKeeper));
-  }, [entries]);
+  const selectedTeamReserveEntries = useMemo(() => {
+    return sortRosterEntries(
+      reserveEntries.filter((entry) => entry.teamId === selectedTeamId),
+    );
+  }, [reserveEntries, selectedTeamId]);
 
   const playerMap = useMemo(() => {
-    return new Map(allPlayers.map((player) => [player.id, player]));
+    return buildPlayerMap(allPlayers);
   }, [allPlayers]);
 
   const scoringCats = useMemo(() => {
@@ -518,19 +935,33 @@ export default function LeagueOverviewScreen({ route }: Props) {
   }, [scoringCats]);
 
   const standings = useMemo(() => {
-    return buildProjectedStandings(teamNames, entries, playerMap, scoringCats);
-  }, [teamNames, entries, playerMap, scoringCats]);
+    return buildProjectedStandings(teamNames, activeEntries, playerMap, scoringCats);
+  }, [teamNames, activeEntries, playerMap, scoringCats]);
+
+  const rankMaps = useMemo(() => {
+    return computeRankMaps(standings, allCatNames);
+  }, [standings, allCatNames]);
+
+  const rotoSummaries = useMemo(() => {
+    return computeRotoSummaries(teamNames, allCatNames, rankMaps);
+  }, [teamNames, allCatNames, rankMaps]);
 
   const sortedStandings = useMemo(() => {
-    return [...standings].sort((a, b) => {
-      const av = a.stats[sortCat] ?? 0;
-      const bv = b.stats[sortCat] ?? 0;
-      const lowerIsBetter = LOWER_IS_BETTER.has(sortCat);
-      const diff = lowerIsBetter ? av - bv : bv - av;
+    return [...standings].sort((a, b) =>
+      compareStandingRows(a, b, sortCat, sortAsc, rotoSummaries),
+    );
+  }, [standings, sortCat, sortAsc, rotoSummaries]);
 
-      return sortAsc ? -diff : diff;
-    });
-  }, [standings, sortCat, sortAsc]);
+  const leagueActiveSlotTotal = useMemo(() => {
+    if (!league) return 0;
+
+    const perTeam = Object.values(league.rosterSlots ?? {}).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+
+    return perTeam * league.teams;
+  }, [league]);
 
   function toggleSort(cat: string) {
     if (cat === sortCat) {
@@ -582,8 +1013,8 @@ export default function LeagueOverviewScreen({ route }: Props) {
     const edit = getEdit(entry);
     const parsedPrice = Number.parseInt(edit.price, 10);
 
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 1) {
-      Alert.alert("Invalid price", "Price must be at least $1.");
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      Alert.alert("Invalid price", "Price must be at least $0.");
       return;
     }
 
@@ -657,6 +1088,114 @@ export default function LeagueOverviewScreen({ route }: Props) {
     );
   }
 
+  function renderEditableEntry(entry: RosterEntry) {
+    const edit = getEdit(entry);
+    const isSaving = savingEntryId === entry._id;
+
+    return (
+      <View
+        key={entry._id}
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          paddingVertical: 12,
+        }}
+      >
+        <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+          {entry.playerName}
+        </Text>
+
+        <Text style={{ color: colors.muted, marginTop: 2 }}>
+          {formatMlbTeam(entry.playerTeam) || "FA"} • {(entry.positions ?? []).join("/") || entry.rosterSlot}
+          {entry.isKeeper ? " • Keeper" : ""}
+          {entry.keeperContract ? ` • ${entry.keeperContract}` : ""}
+        </Text>
+
+        <View style={{ flexDirection: "row", marginTop: 10 }}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={{ color: colors.muted, marginBottom: 4 }}>Price</Text>
+            <TextInput
+              value={edit.price}
+              keyboardType="number-pad"
+              onChangeText={(value) => updateEdit(entry._id, { price: value })}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: 8,
+                padding: 10,
+              }}
+            />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.muted, marginBottom: 4 }}>Contract</Text>
+            <TextInput
+              value={edit.keeperContract}
+              onChangeText={(value) =>
+                updateEdit(entry._id, { keeperContract: value })
+              }
+              placeholder="Arb / 3Y"
+              placeholderTextColor={colors.muted}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: 8,
+                padding: 10,
+              }}
+            />
+          </View>
+        </View>
+
+        <Text style={{ color: colors.muted, marginTop: 10 }}>Slot</Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+          {[...rosterSlotOptions, "MIN", "TAXI"].map((slot) => (
+            <AppChip
+              key={slot}
+              label={slot}
+              selected={edit.rosterSlot === slot}
+              onPress={() => updateEdit(entry._id, { rosterSlot: slot })}
+              style={{ marginRight: 8 }}
+            />
+          ))}
+        </ScrollView>
+
+        <Text style={{ color: colors.muted, marginTop: 10 }}>Move to team</Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+          {teamNames.map((teamName, index) => {
+            const teamId = teamIdFromIndex(index);
+
+            return (
+              <AppChip
+                key={teamId}
+                label={teamName}
+                selected={edit.teamId === teamId}
+                onPress={() => updateEdit(entry._id, { teamId })}
+                style={{ marginRight: 8 }}
+              />
+            );
+          })}
+        </ScrollView>
+
+        <View style={{ flexDirection: "row", marginTop: 12 }}>
+          <DraftButton
+            label={isSaving ? "Saving..." : "Save"}
+            onPress={() => void handleSaveEntry(entry)}
+          />
+
+          <DraftButton
+            label="Remove"
+            tone="danger"
+            onPress={() => handleRemoveEntry(entry)}
+          />
+        </View>
+      </View>
+    );
+  }
+
   if (!league) {
     return (
       <SafeAreaView style={{ flex: 1, padding: 16, backgroundColor: colors.bg }}>
@@ -666,8 +1205,7 @@ export default function LeagueOverviewScreen({ route }: Props) {
   }
 
   const selectedTeamName = teamNameFromId(selectedTeamId, teamNames);
-  const selectedTeamSpent = teamSpent[selectedTeamId] ?? 0;
-  const selectedTeamRemaining = league.budget - selectedTeamSpent;
+  const selectedTeamRemaining = selectedTeamCard?.budgetRemaining ?? league.budget;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -681,7 +1219,14 @@ export default function LeagueOverviewScreen({ route }: Props) {
           />
         }
       >
-        <Text style={{ fontSize: 24, fontWeight: "900", color: colors.text, marginBottom: 4 }}>
+        <Text
+          style={{
+            fontSize: 24,
+            fontWeight: "900",
+            color: colors.text,
+            marginBottom: 4,
+          }}
+        >
           League Overview
         </Text>
 
@@ -696,7 +1241,14 @@ export default function LeagueOverviewScreen({ route }: Props) {
         ) : (
           <>
             <AppCard>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 10 }}>
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 18,
+                  fontWeight: "900",
+                  marginBottom: 10,
+                }}
+              >
                 League Summary
               </Text>
 
@@ -716,33 +1268,62 @@ export default function LeagueOverviewScreen({ route }: Props) {
                 </View>
 
                 <View style={{ width: "50%", marginBottom: 12 }}>
-                  <Text style={{ color: colors.muted }}>Players Drafted</Text>
+                  <Text style={{ color: colors.muted }}>Active Filled</Text>
+                  <Text style={{ color: colors.text, fontWeight: "900", fontSize: 18 }}>
+                    {activeEntries.length}/{leagueActiveSlotTotal}
+                  </Text>
+                </View>
+
+                <View style={{ width: "50%", marginBottom: 12 }}>
+                  <Text style={{ color: colors.muted }}>Rostered Players</Text>
                   <Text style={{ color: colors.text, fontWeight: "900", fontSize: 18 }}>
                     {entries.length}
                   </Text>
                 </View>
 
                 <View style={{ width: "50%", marginBottom: 12 }}>
-                  <Text style={{ color: colors.muted }}>Total Spent</Text>
+                  <Text style={{ color: colors.muted }}>Auction Picks</Text>
                   <Text style={{ color: colors.text, fontWeight: "900", fontSize: 18 }}>
-                    {formatMoney(totalSpent)}
+                    {draftLog.length}
+                  </Text>
+                </View>
+
+                <View style={{ width: "50%", marginBottom: 12 }}>
+                  <Text style={{ color: colors.muted }}>Active Spend</Text>
+                  <Text style={{ color: colors.text, fontWeight: "900", fontSize: 18 }}>
+                    {formatMoney(totalActiveSpent)}
                   </Text>
                 </View>
               </View>
             </AppCard>
 
             <AppCard>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 10 }}>
-                Team Comparison
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "baseline",
+                  marginBottom: 10,
+                }}
+              >
+                <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
+                  Team Comparison
+                </Text>
+                <Text style={{ color: colors.muted, marginLeft: 8 }}>
+                  {teamCards.length} teams · scroll horizontally
+                </Text>
+              </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {teamCards.map((team) => (
                   <TouchableOpacity
                     key={team.teamId}
-                    onPress={() => setSelectedTeamId(team.teamId)}
+                    activeOpacity={0.86}
+                    onPress={() => {
+                      setSelectedTeamId(team.teamId);
+                      setShowSelectedReserves(false);
+                    }}
                     style={{
-                      width: 270,
+                      width: 278,
                       borderWidth: 1,
                       borderColor:
                         selectedTeamId === team.teamId ? colors.purple2 : colors.border,
@@ -758,88 +1339,87 @@ export default function LeagueOverviewScreen({ route }: Props) {
                     </Text>
 
                     <Text style={{ color: colors.muted, marginTop: 3, marginBottom: 10 }}>
-                      {team.rosterFilled}/{team.rosterTotal} filled
+                      {team.rosterFilled}/{team.rosterTotal} roster filled
                     </Text>
 
-                    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                      <Text style={{ color: colors.gold, marginRight: 12, marginBottom: 6 }}>
-                        Left {formatMoney(team.budgetRemaining)}
-                      </Text>
-                      <Text style={{ color: colors.muted, marginRight: 12, marginBottom: 6 }}>
-                        Avg {formatMoney(team.bidAvg)}
-                      </Text>
-                      <Text style={{ color: colors.muted, marginBottom: 6 }}>
-                        Max {team.maxBid > 0 ? formatMoney(team.maxBid) : "—"}
-                      </Text>
+                    <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                      <TeamStatPill label="REMAINING" value={formatMoney(team.budgetRemaining)} />
+                      <TeamStatPill label="BID AVG" value={formatMoney(team.bidAvg)} />
+                      <TeamStatPill
+                        label="MAX BID"
+                        value={team.maxBid > 0 ? formatMoney(team.maxBid) : "—"}
+                      />
                     </View>
 
-                    <View style={{ marginTop: 8 }}>
-                      {team.slots.slice(0, 10).map((slot, index) => (
-                        <View
+                    <View style={{ marginTop: 4 }}>
+                      {team.slots.slice(0, 13).map((slot, index) => (
+                        <FilledSlotRow
                           key={`${team.teamId}-${slot.position}-${index}`}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingVertical: 5,
-                            borderTopWidth: index === 0 ? 0 : 1,
-                            borderTopColor: colors.border,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: colors.text,
-                              fontWeight: "800",
-                              width: 42,
-                            }}
-                          >
-                            {slot.position}
-                          </Text>
-
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              color: slot.playerName ? colors.text : colors.muted,
-                              flex: 1,
-                            }}
-                          >
-                            {slot.playerName
-                              ? `${slot.playerName}${slot.isKeeper ? " (K)" : ""}`
-                              : "— empty —"}
-                          </Text>
-
-                          {slot.price !== null ? (
-                            <Text style={{ color: colors.gold, marginLeft: 6 }}>
-                              {formatMoney(slot.price)}
-                            </Text>
-                          ) : null}
-                        </View>
+                          slot={slot}
+                        />
                       ))}
 
-                      {team.slots.length > 10 ? (
+                      {team.slots.length > 13 ? (
                         <Text style={{ color: colors.muted, marginTop: 6 }}>
-                          +{team.slots.length - 10} more slots
+                          +{team.slots.length - 13} more active slots
                         </Text>
                       ) : null}
                     </View>
+
+                    <ReserveSummary
+                      minors={team.minors}
+                      taxi={team.taxi}
+                      otherReserves={team.otherReserves}
+                    />
+
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setSelectedTeamId(team.teamId);
+                        setShowSelectedReserves(true);
+                      }}
+                      style={{
+                        marginTop: 10,
+                        borderWidth: 1,
+                        borderColor: "#6d3fb8",
+                        backgroundColor: "#2a1845",
+                        borderRadius: 8,
+                        paddingVertical: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: "#e9d5ff", fontWeight: "900", fontSize: 12 }}>
+                        VIEW ROSTER
+                      </Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </AppCard>
 
             <AppCard>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 8 }}>
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 18,
+                  fontWeight: "900",
+                  marginBottom: 8,
+                }}
+              >
                 Projected Standings
               </Text>
 
               <Text style={{ color: colors.muted, marginBottom: 10 }}>
-                Sort by category. Values use available player projections/stats.
+                Pre-season projections. Sort by total roto points or by category.
               </Text>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {allCatNames.map((cat) => (
+                {[ROTO_POINTS_SORT_KEY, ...allCatNames].map((cat) => (
                   <AppChip
                     key={cat}
-                    label={`${cat}${sortCat === cat ? (sortAsc ? " ↑" : " ↓") : ""}`}
+                    label={`${cat === ROTO_POINTS_SORT_KEY ? "Pts" : cat}${
+                      sortCat === cat ? (sortAsc ? " ↑" : " ↓") : ""
+                    }`}
                     selected={sortCat === cat}
                     onPress={() => toggleSort(cat)}
                     style={{ marginRight: 8 }}
@@ -848,8 +1428,15 @@ export default function LeagueOverviewScreen({ route }: Props) {
               </ScrollView>
 
               {sortedStandings.map((row, index) => {
-                const value = row.stats[sortCat] ?? 0;
-                const rank = rankForCategory(standings, row.teamName, sortCat);
+                const summary = rotoSummaries.get(row.teamName);
+                const sortValue =
+                  sortCat === ROTO_POINTS_SORT_KEY
+                    ? summary?.totalPoints ?? 0
+                    : row.stats[sortCat] ?? 0;
+                const sortRank =
+                  sortCat === ROTO_POINTS_SORT_KEY
+                    ? index + 1
+                    : summary?.ranks[sortCat] ?? index + 1;
 
                 return (
                   <View
@@ -857,46 +1444,93 @@ export default function LeagueOverviewScreen({ route }: Props) {
                     style={{
                       borderTopWidth: index === 0 ? 0 : 1,
                       borderTopColor: colors.border,
-                      paddingVertical: 10,
+                      paddingVertical: 11,
                     }}
                   >
-                    <Text style={{ color: colors.text, fontWeight: "900" }}>
-                      #{rank} {row.teamName}
+                    <Text style={{ color: colors.text, fontWeight: "900", fontSize: 15 }}>
+                      #{index + 1} {row.teamName}
                     </Text>
 
                     <Text style={{ color: colors.muted, marginTop: 3 }}>
-                      {sortCat}: {formatStatCell(sortCat, value)}
+                      {sortCat === ROTO_POINTS_SORT_KEY
+                        ? `Total roto points: ${summary?.totalPoints ?? 0}`
+                        : `${sortCat}: ${formatStatCell(sortCat, sortValue)} · rank #${sortRank}`}
                     </Text>
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                      {allCatNames.map((cat) => (
-                        <Text
-                          key={cat}
-                          style={{
-                            color: cat === sortCat ? colors.gold : colors.muted,
-                            marginRight: 12,
-                            fontSize: 12,
-                          }}
-                        >
-                          {cat} {formatStatCell(cat, row.stats[cat] ?? 0)}
-                        </Text>
-                      ))}
-                    </ScrollView>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        marginTop: 8,
+                      }}
+                    >
+                      {allCatNames.map((cat) => {
+                        const value = row.stats[cat] ?? 0;
+                        const rank = summary?.ranks[cat] ?? 0;
+                        const points = summary?.points[cat] ?? 0;
+                        const empty = isEmptyStatValue(value);
+
+                        return (
+                          <Text
+                            key={cat}
+                            style={{
+                              width: "50%",
+                              color: cat === sortCat ? colors.gold : colors.muted,
+                              fontSize: 12,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <Text style={{ fontWeight: "900" }}>{cat}</Text>{" "}
+                            <Text
+                              style={{
+                                color: empty ? colors.muted : rankColor(rank, teamNames.length),
+                              }}
+                            >
+                              {formatStatCell(cat, value)}
+                            </Text>{" "}
+                            · {points} pts
+                          </Text>
+                        );
+                      })}
+                    </View>
                   </View>
                 );
               })}
             </AppCard>
 
             <AppCard>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 4 }}>
-                {selectedTeamName} Roster
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 4,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
+                    {selectedTeamName} Roster
+                  </Text>
 
-              <Text style={{ color: colors.muted, marginBottom: 12 }}>
-                {selectedTeamEntries.length} players • {formatMoney(selectedTeamRemaining)} remaining
-              </Text>
+                  <Text style={{ color: colors.muted, marginTop: 4 }}>
+                    Active {selectedTeamCard?.rosterFilled ?? 0}/{selectedTeamCard?.rosterTotal ?? 0}
+                    {" · "}
+                    Minors {selectedTeamCard?.minors.length ?? 0}
+                    {" · "}
+                    Taxi {selectedTeamCard?.taxi.length ?? 0}
+                    {" · "}
+                    {formatMoney(selectedTeamRemaining)} remaining
+                  </Text>
+                </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                <AppChip
+                  label={showSelectedReserves ? "Active" : "Reserves"}
+                  selected
+                  onPress={() => setShowSelectedReserves((value) => !value)}
+                />
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 12 }}>
                 {teamNames.map((teamName, index) => {
                   const teamId = teamIdFromIndex(index);
 
@@ -905,148 +1539,47 @@ export default function LeagueOverviewScreen({ route }: Props) {
                       key={teamId}
                       label={teamName}
                       selected={selectedTeamId === teamId}
-                      onPress={() => setSelectedTeamId(teamId)}
+                      onPress={() => {
+                        setSelectedTeamId(teamId);
+                        setShowSelectedReserves(false);
+                      }}
                       style={{ marginRight: 8 }}
                     />
                   );
                 })}
               </ScrollView>
 
-              {selectedTeamEntries.length === 0 ? (
-                <EmptyState label="No players on this team yet." />
+              {showSelectedReserves ? (
+                selectedTeamReserveEntries.length === 0 ? (
+                  <EmptyState label="No reserve, minors, or taxi players for this team." />
+                ) : (
+                  selectedTeamReserveEntries.map(renderEditableEntry)
+                )
+              ) : selectedTeamActiveEntries.length === 0 ? (
+                <EmptyState label="No active players on this team yet." />
               ) : (
-                selectedTeamEntries.map((entry) => {
-                  const edit = getEdit(entry);
-                  const isSaving = savingEntryId === entry._id;
-
-                  return (
-                    <View
-                      key={entry._id}
-                      style={{
-                        borderTopWidth: 1,
-                        borderTopColor: colors.border,
-                        paddingVertical: 12,
-                      }}
-                    >
-                      <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
-                        {entry.playerName}
-                      </Text>
-
-                      <Text style={{ color: colors.muted, marginTop: 2 }}>
-                        {entry.playerTeam || "FA"} • {(entry.positions ?? []).join("/") || entry.rosterSlot}
-                        {entry.isKeeper ? " • Keeper" : ""}
-                        {entry.keeperContract ? ` • ${entry.keeperContract}` : ""}
-                      </Text>
-
-                      <View style={{ flexDirection: "row", marginTop: 10 }}>
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                          <Text style={{ color: colors.muted, marginBottom: 4 }}>
-                            Price
-                          </Text>
-                          <TextInput
-                            value={edit.price}
-                            keyboardType="number-pad"
-                            onChangeText={(value) =>
-                              updateEdit(entry._id, { price: value })
-                            }
-                            style={{
-                              borderWidth: 1,
-                              borderColor: colors.border,
-                              color: colors.text,
-                              borderRadius: 8,
-                              padding: 10,
-                            }}
-                          />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: colors.muted, marginBottom: 4 }}>
-                            Contract
-                          </Text>
-                          <TextInput
-                            value={edit.keeperContract}
-                            onChangeText={(value) =>
-                              updateEdit(entry._id, { keeperContract: value })
-                            }
-                            placeholder="Arb / 3Y"
-                            placeholderTextColor={colors.muted}
-                            style={{
-                              borderWidth: 1,
-                              borderColor: colors.border,
-                              color: colors.text,
-                              borderRadius: 8,
-                              padding: 10,
-                            }}
-                          />
-                        </View>
-                      </View>
-
-                      <Text style={{ color: colors.muted, marginTop: 10 }}>
-                        Slot
-                      </Text>
-
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                        {rosterSlotOptions.map((slot) => (
-                          <AppChip
-                            key={slot}
-                            label={slot}
-                            selected={edit.rosterSlot === slot}
-                            onPress={() =>
-                              updateEdit(entry._id, { rosterSlot: slot })
-                            }
-                            style={{ marginRight: 8 }}
-                          />
-                        ))}
-                      </ScrollView>
-
-                      <Text style={{ color: colors.muted, marginTop: 10 }}>
-                        Move to team
-                      </Text>
-
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                        {teamNames.map((teamName, index) => {
-                          const teamId = teamIdFromIndex(index);
-
-                          return (
-                            <AppChip
-                              key={teamId}
-                              label={teamName}
-                              selected={edit.teamId === teamId}
-                              onPress={() => updateEdit(entry._id, { teamId })}
-                              style={{ marginRight: 8 }}
-                            />
-                          );
-                        })}
-                      </ScrollView>
-
-                      <View style={{ flexDirection: "row", marginTop: 12 }}>
-                        <View style={{ marginRight: 8 }}>
-                          <Button
-                            title={isSaving ? "Saving..." : "Save"}
-                            disabled={isSaving}
-                            onPress={() => void handleSaveEntry(entry)}
-                          />
-                        </View>
-
-                        <Button
-                          title="Remove"
-                          color="#b91c1c"
-                          onPress={() => handleRemoveEntry(entry)}
-                        />
-                      </View>
-                    </View>
-                  );
-                })
+                selectedTeamActiveEntries.map(renderEditableEntry)
               )}
             </AppCard>
 
             <AppCard>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 10 }}>
-                Draft Log
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "baseline",
+                  marginBottom: 10,
+                }}
+              >
+                <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
+                  Draft Log
+                </Text>
+                <Text style={{ color: colors.muted, marginLeft: 8 }}>
+                  {draftLog.length} picks
+                </Text>
+              </View>
 
               {draftLog.length === 0 ? (
-                <EmptyState label="No draft picks logged yet." />
+                <EmptyState label="No picks yet." />
               ) : (
                 draftLog.map((entry, index) => (
                   <View
@@ -1057,17 +1590,44 @@ export default function LeagueOverviewScreen({ route }: Props) {
                       paddingVertical: 10,
                     }}
                   >
-                    <Text style={{ color: colors.text, fontWeight: "900" }}>
-                      #{draftLog.length - index} {entry.playerName}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text
+                        style={{
+                          color: colors.muted,
+                          width: 42,
+                          fontWeight: "900",
+                        }}
+                      >
+                        #{index + 1}
+                      </Text>
 
-                    <Text style={{ color: colors.muted, marginTop: 2 }}>
-                      {teamNameFromId(entry.teamId, teamNames)} • {entry.rosterSlot} • {formatMoney(entry.price)}
-                    </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontWeight: "900" }}>
+                          {entry.playerName}
+                        </Text>
 
-                    <Text style={{ color: colors.muted, marginTop: 2 }}>
-                      {new Date(entry.acquiredAt ?? entry.createdAt).toLocaleString()}
-                    </Text>
+                        <Text style={{ color: colors.muted, marginTop: 2 }}>
+                          {formatMlbTeam(entry.playerTeam) || "FA"} ·{" "}
+                          {teamNameFromId(entry.teamId, teamNames)} ·{" "}
+                          {entry.rosterSlot} · {formatMoney(entry.price)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: "row", marginTop: 8 }}>
+                      <DraftButton
+                        label="Edit in roster"
+                        onPress={() => {
+                          setSelectedTeamId(entry.teamId);
+                          setShowSelectedReserves(false);
+                        }}
+                      />
+                      <DraftButton
+                        label="Remove"
+                        tone="danger"
+                        onPress={() => handleRemoveEntry(entry)}
+                      />
+                    </View>
                   </View>
                 ))
               )}

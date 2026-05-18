@@ -1,201 +1,279 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { updateLeague } from "../api/leagues";
+import { deleteLeague, updateLeague, type LeaguePlayerPool } from "../api/leagues";
 import AppButton from "../components/ui/AppButton";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
+import AppTextInput from "../components/ui/AppTextInput";
 import { EmptyState, ErrorState } from "../components/ui/ScreenState";
+import LeagueKeeperEditor from "../components/leagues/LeagueKeeperEditor";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import type { RootStackParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
+import type { League } from "../types/league";
+import {
+  DEFAULT_BUDGET,
+  DEFAULT_HITTING_STATS,
+  DEFAULT_LEAGUE_NAME,
+  DEFAULT_PITCHING_STATS,
+  DEFAULT_POS_ELIGIBILITY_THRESHOLD,
+  DEFAULT_ROSTER_SLOTS,
+  DEFAULT_TEAM_COUNT,
+  HITTING_STATS,
+  LEAGUE_TEAMS_MAX,
+  LEAGUE_TEAMS_MIN,
+  PITCHING_STATS,
+  PLAYER_POOL_OPTIONS,
+  ROSTER_SLOT_DEFINITIONS,
+  buildScoringCategories,
+  clampNumber,
+  normalizeRosterSlots,
+  normalizeTeamNames,
+  parseInteger,
+  rosterSpotsTotal,
+  scoringKeysByType,
+  validateBaseLeagueForm,
+  type LeagueSettingsSection,
+} from "../domain/leagueForm";
 
 type Props = NativeStackScreenProps<RootStackParamList, "LeagueSettings">;
 
-type PlayerPool = "Mixed" | "AL" | "NL";
-type Section = "setup" | "scoring" | "teams" | "roster";
-
-const ROSTER_SLOT_ORDER = [
-  "C",
-  "1B",
-  "2B",
-  "SS",
-  "3B",
-  "MI",
-  "CI",
-  "OF",
-  "UTIL",
-  "SP",
-  "RP",
-  "BN",
+const SECTION_META: { key: LeagueSettingsSection; title: string; subtitle: string }[] = [
+  {
+    key: "setup",
+    title: "League Setup",
+    subtitle: "Name, teams, budget, roster",
+  },
+  {
+    key: "scoring",
+    title: "Scoring",
+    subtitle: "Player pool & stat categories",
+  },
+  {
+    key: "teams",
+    title: "Team Names",
+    subtitle: "Customize each team's name",
+  },
+  {
+    key: "keepers",
+    title: "Keepers",
+    subtitle: "Keeper slots, costs & contracts",
+  },
 ];
 
-const HITTING_STATS = [
-  "R",
-  "HR",
-  "RBI",
-  "SB",
-  "AVG",
-  "OBP",
-  "SLG",
-  "TB",
-  "H",
-  "BB",
-  "K",
-];
-
-const PITCHING_STATS = [
-  "W",
-  "K",
-  "ERA",
-  "WHIP",
-  "SV",
-  "HLD",
-  "IP",
-  "CG",
-];
-
-const DEFAULT_ROSTER_SLOTS: Record<string, number> = {
-  C: 1,
-  "1B": 1,
-  "2B": 1,
-  SS: 1,
-  "3B": 1,
-  MI: 1,
-  CI: 1,
-  OF: 3,
-  UTIL: 1,
-  SP: 5,
-  RP: 2,
-  BN: 3,
-};
-
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: 10,
-  padding: 12,
-  marginBottom: 12,
-  backgroundColor: colors.surface2,
-  color: colors.text,
-};
-
-function normalizeTeamNames(teams: number, names?: string[]): string[] {
-  const result = Array.from({ length: Math.max(1, teams) }, (_, index) => {
-    return names?.[index]?.trim() || `Team ${index + 1}`;
-  });
-
-  return result;
-}
-
-function normalizeRosterSlots(
-  slots?: Record<string, number>,
-): Record<string, number> {
-  const result = { ...DEFAULT_ROSTER_SLOTS };
-
-  if (slots) {
-    for (const [key, value] of Object.entries(slots)) {
-      result[key] = Math.max(0, Math.round(Number(value) || 0));
-    }
+function toggleValue(values: string[], value: string): string[] {
+  if (values.includes(value)) {
+    return values.filter((item) => item !== value);
   }
 
-  return result;
+  return [...values, value];
 }
 
-function scoringHas(
-  categories: { name: string; type: "batting" | "pitching" }[],
-  name: string,
-  type: "batting" | "pitching",
-): boolean {
-  return categories.some((cat) => cat.name === name && cat.type === type);
+function fieldLabel(label: string) {
+  return (
+    <Text
+      style={{
+        color: colors.purple2,
+        fontSize: 12,
+        fontWeight: "900",
+        letterSpacing: 1,
+        marginBottom: 7,
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </Text>
+  );
+}
+
+function SettingsNav({
+  selected,
+  onSelect,
+}: {
+  selected: LeagueSettingsSection;
+  onSelect: (section: LeagueSettingsSection) => void;
+}) {
+  return (
+    <AppCard backgroundColor="#0f0a18" borderColor="#25173b">
+      {SECTION_META.map((section) => (
+        <TouchableOpacity
+          key={section.key}
+          activeOpacity={0.85}
+          onPress={() => onSelect(section.key)}
+          style={{
+            borderWidth: 1,
+            borderColor: selected === section.key ? colors.purple2 : colors.border,
+            backgroundColor: selected === section.key ? "#3b1d56" : colors.surface,
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 8,
+          }}
+        >
+          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>
+            {section.title}
+          </Text>
+          <Text style={{ color: colors.muted, marginTop: 3 }}>{section.subtitle}</Text>
+        </TouchableOpacity>
+      ))}
+    </AppCard>
+  );
+}
+
+function RosterSlotEditor({
+  rosterSlots,
+  onChange,
+}: {
+  rosterSlots: Record<string, number>;
+  onChange: (position: string, value: number) => void;
+}) {
+  return (
+    <AppCard backgroundColor="#0f0a18" borderColor="#25173b">
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <Text style={{ color: colors.purple2, fontWeight: "900", letterSpacing: 1 }}>
+          ROSTER SLOTS (MLB STANDARD)
+        </Text>
+        <Text style={{ color: colors.muted, fontWeight: "800" }}>
+          Total: {rosterSpotsTotal(rosterSlots)}
+        </Text>
+      </View>
+
+      {ROSTER_SLOT_DEFINITIONS.map((row, index) => (
+        <View
+          key={row.position}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            borderTopWidth: index === 0 ? 0 : 1,
+            borderTopColor: colors.border,
+            paddingVertical: 9,
+          }}
+        >
+          <View
+            style={{
+              width: 48,
+              borderWidth: 1,
+              borderColor: "#5b3a89",
+              backgroundColor: "#271a3d",
+              borderRadius: 8,
+              paddingVertical: 5,
+              alignItems: "center",
+              marginRight: 10,
+            }}
+          >
+            <Text style={{ color: "#ddd6fe", fontWeight: "900" }}>{row.position}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontWeight: "900" }}>{row.label}</Text>
+          </View>
+          <AppTextInput
+            value={String(rosterSlots[row.position] ?? 0)}
+            onChangeText={(value) => onChange(row.position, Math.max(0, parseInteger(value, 0)))}
+            keyboardType="number-pad"
+            containerStyle={{ marginBottom: 0, width: 76 }}
+            style={{ textAlign: "center", paddingVertical: 8 }}
+          />
+        </View>
+      ))}
+
+      <View style={{ marginTop: 12 }}>
+        <AppButton
+          title="Reset roster defaults"
+          variant="secondary"
+          onPress={() => {
+            for (const row of ROSTER_SLOT_DEFINITIONS) {
+              onChange(row.position, row.count);
+            }
+          }}
+        />
+      </View>
+    </AppCard>
+  );
+}
+
+function readLeagueValues(league: League | null) {
+  const keys = scoringKeysByType(league?.scoringCategories);
+
+  return {
+    name: league?.name ?? DEFAULT_LEAGUE_NAME,
+    teams: String(league?.teams ?? DEFAULT_TEAM_COUNT),
+    budget: String(league?.budget ?? DEFAULT_BUDGET),
+    posEligibility: String(league?.posEligibilityThreshold ?? DEFAULT_POS_ELIGIBILITY_THRESHOLD),
+    seasonYear: String(league?.seasonYear ?? new Date().getFullYear()),
+    playerPool: league?.playerPool ?? "Mixed" as LeaguePlayerPool,
+    rosterSlots: normalizeRosterSlots(league?.rosterSlots ?? DEFAULT_ROSTER_SLOTS),
+    teamNames: normalizeTeamNames(league?.teams ?? DEFAULT_TEAM_COUNT, league?.teamNames),
+    hittingStats: keys.hitting.length > 0 ? keys.hitting : DEFAULT_HITTING_STATS,
+    pitchingStats: keys.pitching.length > 0 ? keys.pitching : DEFAULT_PITCHING_STATS,
+  };
 }
 
 export default function LeagueSettingsScreen({ route, navigation }: Props) {
   const { leagueId } = route.params;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { allLeagues, refreshLeagues } = useLeague();
 
   const league = allLeagues.find((item) => item.id === leagueId) ?? null;
 
-  const [section, setSection] = useState<Section>("setup");
-  const [leagueName, setLeagueName] = useState("");
-  const [teamsRaw, setTeamsRaw] = useState("12");
-  const [budgetRaw, setBudgetRaw] = useState("260");
-  const [posEligibilityRaw, setPosEligibilityRaw] = useState("20");
-  const [playerPool, setPlayerPool] = useState<PlayerPool>("Mixed");
-  const [rosterSlots, setRosterSlots] = useState<Record<string, number>>(
-    DEFAULT_ROSTER_SLOTS,
-  );
-  const [teamNames, setTeamNames] = useState<string[]>([]);
-  const [hittingCats, setHittingCats] = useState<string[]>([]);
-  const [pitchingCats, setPitchingCats] = useState<string[]>([]);
+  const initial = useMemo(() => readLeagueValues(league), [league]);
+
+  const [section, setSection] = useState<LeagueSettingsSection>("setup");
+  const [leagueName, setLeagueName] = useState(initial.name);
+  const [teamsRaw, setTeamsRaw] = useState(initial.teams);
+  const [budgetRaw, setBudgetRaw] = useState(initial.budget);
+  const [posEligibilityRaw, setPosEligibilityRaw] = useState(initial.posEligibility);
+  const [seasonYearRaw, setSeasonYearRaw] = useState(initial.seasonYear);
+  const [playerPool, setPlayerPool] = useState<LeaguePlayerPool>(initial.playerPool);
+  const [rosterSlots, setRosterSlots] = useState<Record<string, number>>(initial.rosterSlots);
+  const [teamNames, setTeamNames] = useState<string[]>(initial.teamNames);
+  const [hittingStats, setHittingStats] = useState<string[]>(initial.hittingStats);
+  const [pitchingStats, setPitchingStats] = useState<string[]>(initial.pitchingStats);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!league) return;
-
-    setLeagueName(league.name);
-    setTeamsRaw(String(league.teams));
-    setBudgetRaw(String(league.budget));
-    setPosEligibilityRaw(String(league.posEligibilityThreshold ?? 20));
-    setPlayerPool(league.playerPool ?? "Mixed");
-    setRosterSlots(normalizeRosterSlots(league.rosterSlots));
-    setTeamNames(normalizeTeamNames(league.teams, league.teamNames));
-
-    setHittingCats(
-      HITTING_STATS.filter((stat) =>
-        scoringHas(league.scoringCategories ?? [], stat, "batting"),
-      ),
-    );
-
-    setPitchingCats(
-      PITCHING_STATS.filter((stat) =>
-        scoringHas(league.scoringCategories ?? [], stat, "pitching"),
-      ),
-    );
+    const next = readLeagueValues(league);
+    setLeagueName(next.name);
+    setTeamsRaw(next.teams);
+    setBudgetRaw(next.budget);
+    setPosEligibilityRaw(next.posEligibility);
+    setSeasonYearRaw(next.seasonYear);
+    setPlayerPool(next.playerPool);
+    setRosterSlots(next.rosterSlots);
+    setTeamNames(next.teamNames);
+    setHittingStats(next.hittingStats);
+    setPitchingStats(next.pitchingStats);
   }, [league]);
 
-  const teamCount = useMemo(() => {
-    const parsed = Number.parseInt(teamsRaw, 10);
-    if (!Number.isFinite(parsed)) return 1;
-    return Math.max(1, Math.min(30, parsed));
-  }, [teamsRaw]);
+  const teamCount = clampNumber(parseInteger(teamsRaw, DEFAULT_TEAM_COUNT), 1, LEAGUE_TEAMS_MAX);
+  const budgetValue = Math.max(1, parseInteger(budgetRaw, DEFAULT_BUDGET));
+  const posEligibilityValue = Math.max(1, parseInteger(posEligibilityRaw, DEFAULT_POS_ELIGIBILITY_THRESHOLD));
+  const seasonYear = Math.max(2000, parseInteger(seasonYearRaw, new Date().getFullYear()));
 
   useEffect(() => {
     setTeamNames((current) => normalizeTeamNames(teamCount, current));
   }, [teamCount]);
 
-  const totalRosterSpots = useMemo(() => {
-    return Object.values(rosterSlots).reduce((sum, value) => sum + value, 0);
-  }, [rosterSlots]);
+  const keeperLeagueShape = useMemo(
+    () => ({
+      id: league?.id,
+      teams: teamCount,
+      teamNames,
+      rosterSlots,
+      posEligibilityThreshold: posEligibilityValue,
+      playerPool,
+    }),
+    [league?.id, playerPool, posEligibilityValue, rosterSlots, teamCount, teamNames],
+  );
 
-  function toggleHittingCat(stat: string) {
-    setHittingCats((current) => {
-      if (current.includes(stat)) {
-        return current.filter((item) => item !== stat);
-      }
-
-      return [...current, stat];
-    });
-  }
-
-  function togglePitchingCat(stat: string) {
-    setPitchingCats((current) => {
-      if (current.includes(stat)) {
-        return current.filter((item) => item !== stat);
-      }
-
-      return [...current, stat];
-    });
+  function updateRosterSlot(position: string, value: number) {
+    setRosterSlots((current) => ({
+      ...current,
+      [position]: value,
+    }));
   }
 
   function updateTeamName(index: number, value: string) {
@@ -206,65 +284,23 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
     });
   }
 
-  function updateRosterSlot(position: string, value: string) {
-    const parsed = Number.parseInt(value, 10);
-    const count = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-
-    setRosterSlots((current) => ({
-      ...current,
-      [position]: count,
-    }));
-  }
-
   async function handleSave() {
     if (!league || !token) return;
 
-    const cleanName = leagueName.trim();
-    const parsedTeams = Number.parseInt(teamsRaw, 10);
-    const parsedBudget = Number.parseInt(budgetRaw, 10);
-    const parsedPosEligibility = Number.parseInt(posEligibilityRaw, 10);
+    const formError = validateBaseLeagueForm({
+      name: leagueName,
+      teams: teamCount,
+      budget: budgetValue,
+      rosterSlots,
+      hittingStats,
+      pitchingStats,
+      posEligibilityThreshold: posEligibilityValue,
+    });
 
-    if (!cleanName) {
-      Alert.alert("Missing league name", "Please enter a league name.");
+    if (formError) {
+      Alert.alert("Fix the form first", formError);
       return;
     }
-
-    if (!Number.isFinite(parsedTeams) || parsedTeams < 1) {
-      Alert.alert("Invalid teams", "Team count must be at least 1.");
-      return;
-    }
-
-    if (!Number.isFinite(parsedBudget) || parsedBudget < 1) {
-      Alert.alert("Invalid budget", "Budget must be at least $1.");
-      return;
-    }
-
-    if (!Number.isFinite(parsedPosEligibility) || parsedPosEligibility < 1) {
-      Alert.alert(
-        "Invalid position eligibility",
-        "Position eligibility must be at least 1 game.",
-      );
-      return;
-    }
-
-    if (hittingCats.length === 0 || pitchingCats.length === 0) {
-      Alert.alert(
-        "Missing scoring categories",
-        "Please select at least one hitting and one pitching category.",
-      );
-      return;
-    }
-
-    const scoringCategories = [
-      ...hittingCats.map((name) => ({
-        name,
-        type: "batting" as const,
-      })),
-      ...pitchingCats.map((name) => ({
-        name,
-        type: "pitching" as const,
-      })),
-    ];
 
     setSaving(true);
     setError("");
@@ -273,32 +309,60 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
       await updateLeague(
         league.id,
         {
-          name: cleanName,
-          teams: parsedTeams,
-          budget: parsedBudget,
-          posEligibilityThreshold: parsedPosEligibility,
+          name: leagueName.trim(),
+          teams: teamCount,
+          budget: budgetValue,
           rosterSlots,
-          scoringCategories,
+          scoringFormat: league.scoringFormat ?? "roto",
+          scoringCategories: buildScoringCategories(hittingStats, pitchingStats),
           playerPool,
-          teamNames: normalizeTeamNames(parsedTeams, teamNames),
+          posEligibilityThreshold: posEligibilityValue,
+          teamNames: normalizeTeamNames(teamCount, teamNames),
+          seasonYear,
         },
         token,
       );
 
       await refreshLeagues();
-
-      Alert.alert("Saved", "League settings were updated.", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      Alert.alert("Saved", "League settings were updated.");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to save league settings.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to save settings.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function confirmDeleteLeague() {
+    if (!league || !token) return;
+
+    Alert.alert(
+      "Delete league?",
+      `Permanently remove ${league.name}, all roster entries, watchlists, and notes? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void handleDeleteLeague(),
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteLeague() {
+    if (!league || !token) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      await deleteLeague(league.id, token);
+      await refreshLeagues();
+      navigation.replace("Leagues");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete league.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -312,248 +376,170 @@ export default function LeagueSettingsScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-        <Text style={{ fontSize: 28, fontWeight: "900", color: colors.text, marginBottom: 4 }}>
-          League Settings
-        </Text>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 36 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 14 }}>
+          <Text style={{ color: colors.muted, fontSize: 16 }}>← Back</Text>
+        </TouchableOpacity>
 
+        <Text style={{ color: colors.text, fontSize: 30, fontWeight: "900", marginBottom: 6 }}>
+          {league.name} Settings
+        </Text>
         <Text style={{ color: colors.muted, marginBottom: 16 }}>
-          Edit setup, scoring, team names, and roster slots.
+          Update league setup, scoring, team names, and keeper rosters. Keepers save directly on the Keepers tab.
         </Text>
-
-        <View style={{ marginBottom: 12 }}>
-          <AppButton
-            title="Manage Keepers"
-            onPress={() =>
-              navigation.navigate("KeeperSettings", {
-                leagueId: league.id,
-                leagueName: league.name,
-              })
-            }
-          />
-        </View>
 
         {error ? <ErrorState label={error} /> : null}
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 14 }}
-        >
-          <AppChip
-            label="Setup"
-            selected={section === "setup"}
-            onPress={() => setSection("setup")}
-            style={{ marginRight: 8 }}
-          />
-          <AppChip
-            label="Scoring"
-            selected={section === "scoring"}
-            onPress={() => setSection("scoring")}
-            style={{ marginRight: 8 }}
-          />
-          <AppChip
-            label="Teams"
-            selected={section === "teams"}
-            onPress={() => setSection("teams")}
-            style={{ marginRight: 8 }}
-          />
-          <AppChip
-            label="Roster"
-            selected={section === "roster"}
-            onPress={() => setSection("roster")}
-            style={{ marginRight: 8 }}
-          />
-        </ScrollView>
+        <SettingsNav selected={section} onSelect={setSection} />
 
         {section === "setup" ? (
-          <AppCard>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
+          <AppCard backgroundColor="#120b1e" borderColor="#2b1a44">
+            <Text style={{ color: colors.text, fontSize: 24, fontWeight: "900", marginBottom: 6 }}>
               League Setup
             </Text>
 
-            <Text style={{ color: colors.muted, marginBottom: 4 }}>
-              League name
-            </Text>
-            <TextInput
-              value={leagueName}
-              onChangeText={setLeagueName}
-              style={inputStyle}
-            />
+            <AppCard backgroundColor="#0f0a18" borderColor="#25173b">
+              <AppTextInput label="League Name" value={leagueName} onChangeText={setLeagueName} />
+              <AppTextInput label="Teams" value={teamsRaw} onChangeText={setTeamsRaw} keyboardType="number-pad" />
+              <Text style={{ color: colors.muted, marginTop: -6, marginBottom: 10 }}>
+                {LEAGUE_TEAMS_MIN}–{LEAGUE_TEAMS_MAX} teams
+              </Text>
+              <AppTextInput label="Budget ($)" value={budgetRaw} onChangeText={setBudgetRaw} keyboardType="number-pad" />
+              <AppTextInput label="Position Eligibility (min. games)" value={posEligibilityRaw} onChangeText={setPosEligibilityRaw} keyboardType="number-pad" />
+              <AppTextInput label="Season Year" value={seasonYearRaw} onChangeText={setSeasonYearRaw} keyboardType="number-pad" />
 
-            <Text style={{ color: colors.muted, marginBottom: 4 }}>Teams</Text>
-            <TextInput
-              value={teamsRaw}
-              onChangeText={setTeamsRaw}
-              keyboardType="number-pad"
-              style={inputStyle}
-            />
+              {fieldLabel("Player Pool")}
+              <View style={{ gap: 10 }}>
+                {PLAYER_POOL_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.apiValue}
+                    activeOpacity={0.85}
+                    onPress={() => setPlayerPool(option.apiValue)}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: playerPool === option.apiValue ? colors.purple2 : colors.border,
+                      backgroundColor: playerPool === option.apiValue ? "#3b1d56" : colors.surface,
+                      borderRadius: 12,
+                      padding: 12,
+                    }}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: "900" }}>{option.label}</Text>
+                    <Text style={{ color: colors.muted, marginTop: 3 }}>{option.description}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </AppCard>
 
-            <Text style={{ color: colors.muted, marginBottom: 4 }}>
-              Budget ($)
-            </Text>
-            <TextInput
-              value={budgetRaw}
-              onChangeText={setBudgetRaw}
-              keyboardType="number-pad"
-              style={inputStyle}
-            />
+            <RosterSlotEditor rosterSlots={rosterSlots} onChange={updateRosterSlot} />
 
-            <Text style={{ color: colors.muted, marginBottom: 4 }}>
-              Position eligibility minimum games
-            </Text>
-            <TextInput
-              value={posEligibilityRaw}
-              onChangeText={setPosEligibilityRaw}
-              keyboardType="number-pad"
-              style={inputStyle}
-            />
-
-            <Text style={{ color: colors.muted, marginBottom: 8 }}>
-              Player pool
-            </Text>
-
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {(["Mixed", "AL", "NL"] as PlayerPool[]).map((pool) => (
-                <AppChip
-                  key={pool}
-                  label={pool}
-                  selected={playerPool === pool}
-                  tone="info"
-                  onPress={() => setPlayerPool(pool)}
-                />
-              ))}
-            </View>
+            <AppCard backgroundColor="#26101f" borderColor="#7f1d1d">
+              <Text style={{ color: "#fecaca", fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+                DELETE LEAGUE
+              </Text>
+              <Text style={{ color: "#fecaca", marginBottom: 12 }}>
+                Permanently remove this league, all roster entries, watchlists, and notes for every member. This cannot be undone.
+              </Text>
+              <AppButton
+                title={deleting ? "Deleting..." : "Delete league..."}
+                variant="danger"
+                loading={deleting}
+                disabled={deleting}
+                onPress={confirmDeleteLeague}
+              />
+            </AppCard>
           </AppCard>
         ) : null}
 
         {section === "scoring" ? (
-          <AppCard>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
-              Scoring Categories
+          <AppCard backgroundColor="#120b1e" borderColor="#2b1a44">
+            <Text style={{ color: colors.text, fontSize: 24, fontWeight: "900", marginBottom: 6 }}>
+              Scoring
+            </Text>
+            <Text style={{ color: colors.muted, marginBottom: 16 }}>
+              Select the individual stats for your Rotisserie league scoring.
             </Text>
 
-            <Text style={{ color: colors.text, fontWeight: "800", marginBottom: 8 }}>
-              Hitting
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            <AppCard backgroundColor="#0f0a18" borderColor="#25173b">
+              {fieldLabel("Hitting Stats")}
               {HITTING_STATS.map((stat) => (
                 <AppChip
-                  key={stat}
-                  label={stat}
-                  selected={hittingCats.includes(stat)}
-                  tone="info"
-                  onPress={() => toggleHittingCat(stat)}
+                  key={stat.key}
+                  label={stat.label}
+                  selected={hittingStats.includes(stat.key)}
+                  onPress={() => setHittingStats((current) => toggleValue(current, stat.key))}
+                  fullWidth
+                  style={{ marginBottom: 8, alignItems: "flex-start" }}
                 />
               ))}
-            </View>
+            </AppCard>
 
-            <View style={{ height: 18 }} />
-
-            <Text style={{ color: colors.text, fontWeight: "800", marginBottom: 8 }}>
-              Pitching
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            <AppCard backgroundColor="#0f0a18" borderColor="#25173b">
+              {fieldLabel("Pitching Stats")}
               {PITCHING_STATS.map((stat) => (
                 <AppChip
-                  key={stat}
-                  label={stat}
-                  selected={pitchingCats.includes(stat)}
-                  tone="info"
-                  onPress={() => togglePitchingCat(stat)}
+                  key={stat.key}
+                  label={stat.label}
+                  selected={pitchingStats.includes(stat.key)}
+                  onPress={() => setPitchingStats((current) => toggleValue(current, stat.key))}
+                  fullWidth
+                  style={{ marginBottom: 8, alignItems: "flex-start" }}
                 />
               ))}
-            </View>
+            </AppCard>
           </AppCard>
         ) : null}
 
         {section === "teams" ? (
-          <AppCard>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
+          <AppCard backgroundColor="#120b1e" borderColor="#2b1a44">
+            <Text style={{ color: colors.text, fontSize: 24, fontWeight: "900", marginBottom: 6 }}>
               Team Names
             </Text>
+            <Text style={{ color: colors.muted, marginBottom: 16 }}>
+              Name all {teamCount} teams in your league.
+            </Text>
 
-            {teamNames.slice(0, teamCount).map((teamName, index) => (
-              <View key={index} style={{ marginBottom: 12 }}>
-                <Text style={{ color: colors.muted, marginBottom: 4 }}>
-                  Team {index + 1}
-                </Text>
-                <TextInput
+            <AppCard backgroundColor="#0f0a18" borderColor="#25173b">
+              {teamNames.slice(0, teamCount).map((teamName, index) => (
+                <AppTextInput
+                  key={index}
+                  label={`Team ${index + 1}`}
                   value={teamName}
                   onChangeText={(value) => updateTeamName(index, value)}
-                  style={inputStyle}
                 />
-              </View>
-            ))}
+              ))}
+            </AppCard>
           </AppCard>
         ) : null}
 
-        {section === "roster" ? (
-          <AppCard>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 4 }}>
-              Roster Slots
+        {section === "keepers" ? (
+          <AppCard backgroundColor="#120b1e" borderColor="#2b1a44">
+            <Text style={{ color: colors.text, fontSize: 24, fontWeight: "900", marginBottom: 6 }}>
+              Keepers
+            </Text>
+            <Text style={{ color: colors.muted, marginBottom: 16 }}>
+              Add, remove, and edit keeper slots, costs, and contracts.
             </Text>
 
-            <Text style={{ color: colors.muted, marginBottom: 12 }}>
-              Total roster spots: {totalRosterSpots}
-            </Text>
-
-            {ROSTER_SLOT_ORDER.map((position) => (
-              <View
-                key={position}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border,
-                  paddingVertical: 10,
-                }}
-              >
-                <Text style={{ color: colors.text, fontWeight: "800", width: 80 }}>
-                  {position}
-                </Text>
-
-                <TextInput
-                  value={String(rosterSlots[position] ?? 0)}
-                  onChangeText={(value) => updateRosterSlot(position, value)}
-                  keyboardType="number-pad"
-                  style={{
-                    ...inputStyle,
-                    marginBottom: 0,
-                    padding: 10,
-                    width: 90,
-                    textAlign: "center",
-                  }}
-                />
-              </View>
-            ))}
-
-            <View style={{ height: 12 }} />
-
-            <AppButton
-              title="Reset roster defaults"
-              variant="secondary"
-              onPress={() => setRosterSlots(DEFAULT_ROSTER_SLOTS)}
+            <LeagueKeeperEditor
+              mode="persisted"
+              league={keeperLeagueShape}
+              leagueId={league.id}
+              token={token}
+              userId={user?.id}
             />
           </AppCard>
         ) : null}
 
-        <View style={{ height: 8 }} />
-
-        <AppButton
-          title="Save Settings"
-          loading={saving}
-          onPress={() => void handleSave()}
-        />
-
-        <View style={{ height: 12 }} />
-
-        <AppButton
-          title="Back"
-          variant="secondary"
-          onPress={() => navigation.goBack()}
-        />
+        {section !== "keepers" ? (
+          <View style={{ marginTop: 4 }}>
+            <AppButton
+              title={saving ? "Saving..." : "Save Settings"}
+              loading={saving}
+              disabled={saving}
+              onPress={() => void handleSave()}
+            />
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

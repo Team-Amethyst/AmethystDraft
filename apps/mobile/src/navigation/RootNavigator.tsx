@@ -8,6 +8,7 @@ import LeaguesScreen from "../screens/LeaguesScreen";
 import CreateLeagueScreen from "../screens/CreateLeagueScreen";
 import LeagueSettingsScreen from "../screens/LeagueSettingsScreen";
 import KeeperSettingsScreen from "../screens/KeeperSettingsScreen";
+import AccountScreen from "../screens/AccountScreen";
 import LeagueTabs from "./LeagueTabs";
 import type { RootStackParamList } from "./types";
 import { colors } from "../theme/colors";
@@ -55,6 +56,11 @@ export default function RootNavigator() {
           <Stack.Screen name="Leagues" component={LeaguesScreen} />
           <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
           <Stack.Screen
+            name="Account"
+            component={AccountScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="LeagueSettings"
             component={LeagueSettingsScreen}
             options={({ route }) => ({
@@ -71,9 +77,7 @@ export default function RootNavigator() {
           <Stack.Screen
             name="LeagueTabs"
             component={LeagueTabs}
-            options={({ route }) => ({
-              title: route.params.leagueName,
-            })}
+            options={{ headerShown: false }}
           />
         </>
       )}

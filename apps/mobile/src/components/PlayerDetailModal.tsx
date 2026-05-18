@@ -32,6 +32,7 @@ type Props = {
   draftedByTeam?: string;
   draftedPrice?: number;
   draftedContract?: string;
+  isDrafted?: boolean;
   depthChartContext?: DepthChartContext | null;
   onClose: () => void;
   onToggleWatchlist: () => void;
@@ -412,6 +413,7 @@ export default function PlayerDetailModal({
   draftedByTeam,
   draftedPrice,
   draftedContract,
+  isDrafted: isDraftedProp,
   depthChartContext,
   onClose,
   onToggleWatchlist,
@@ -423,15 +425,19 @@ export default function PlayerDetailModal({
 
   const imageUrl = getPlayerImageUrl(player);
   const positions = displayPosition(player).split("/").filter(Boolean);
-  const auctionValue = finiteNumber(displayValue) ?? valueFromRow(engineRow, "auction_value") ?? finiteNumber(player.value);
-  const recommendedBid = getRecommendedBid(engineRow);
-  const teamValue = getTeamValue(engineRow);
-  const bidEdge = getBidEdge(engineRow);
+  const isDrafted = Boolean(
+    isDraftedProp || draftedByTeam || draftedPrice !== undefined || draftedContract,
+  );
+  const auctionValue = isDrafted
+    ? null
+    : finiteNumber(displayValue) ?? valueFromRow(engineRow, "auction_value") ?? finiteNumber(player.value);
+  const recommendedBid = isDrafted ? null : getRecommendedBid(engineRow);
+  const teamValue = isDrafted ? null : getTeamValue(engineRow);
+  const bidEdge = isDrafted ? null : getBidEdge(engineRow);
   const auctionRank = getAuctionRank(player, engineRow);
   const marketAdp = getMarketAdp(player, engineRow);
   const indicator = engineRow?.indicator ?? playerRecord(player).indicator;
   const injury = player.injuryStatus?.trim();
-  const isDrafted = Boolean(draftedByTeam || draftedPrice !== undefined || draftedContract);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -509,8 +515,13 @@ export default function PlayerDetailModal({
           </AppCard>
 
           <AppCard backgroundColor="#100c18" borderColor="#31224f">
+            {isDrafted ? (
+              <Text style={{ color: colors.muted, marginBottom: 10, lineHeight: 20 }}>
+                This player is already drafted. Live auction recommendation numbers are hidden; paid price is shown in Profile.
+              </Text>
+            ) : null}
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              <MetricTile label="Auction Value" value={formatMoney(auctionValue)} highlight />
+              <MetricTile label="Auction Value" value={formatMoney(auctionValue)} highlight={!isDrafted} />
               <MetricTile label="Recommended Bid" value={formatMoney(recommendedBid)} />
               <MetricTile label="Team Value" value={formatMoney(teamValue)} />
               <MetricTile label="Bid Edge" value={formatSignedMoney(bidEdge)} />
@@ -652,3 +663,4 @@ export default function PlayerDetailModal({
     </Modal>
   );
 }
+

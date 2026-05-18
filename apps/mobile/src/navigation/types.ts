@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from "@react-navigation/native";
+import type { EngineCheckpointKey } from "../api/leagues";
 
 export type LeagueTabParamList = {
   Research: { leagueId: string };
@@ -15,7 +16,13 @@ export type RootStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   Leagues: undefined;
-  CreateLeague: undefined;
+  CreateLeague:
+    | {
+        demo?: boolean;
+        demoCheckpointKey?: EngineCheckpointKey;
+      }
+    | undefined;
+  Account: undefined;
   LeagueSettings: {
     leagueId: string;
     leagueName: string;

@@ -4,9 +4,10 @@ export interface AuthUser {
   id: string;
   displayName: string;
   email: string;
+  createdAt?: string;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   token: string;
   user: AuthUser;
 }
@@ -51,5 +52,63 @@ export async function forgotPassword(email: string): Promise<void> {
       body: JSON.stringify({ email }),
     },
     "Request failed",
+  );
+}
+
+export async function resetPassword(
+  email: string,
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  return requestVoid(
+    "/api/auth/reset-password",
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ email, token, newPassword }),
+    },
+    "Password reset failed",
+  );
+}
+
+export async function updateProfile(
+  data: { displayName?: string; email?: string },
+  token: string,
+): Promise<AuthUser> {
+  return requestJson<AuthUser>(
+    "/api/auth/me",
+    {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    },
+    "Failed to update profile",
+  );
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  token: string,
+): Promise<void> {
+  return requestVoid(
+    "/api/auth/change-password",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    },
+    "Failed to change password",
+  );
+}
+
+export async function deleteAccount(userId: string, token: string): Promise<void> {
+  return requestVoid(
+    `/api/auth/users/${userId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(token),
+    },
+    "Failed to delete account",
   );
 }

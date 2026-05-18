@@ -34,6 +34,10 @@ import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
 import {
+  draftSetHasPlayer,
+  resolvePlayerDraftState,
+} from "../domain/draftState";
+import {
   MOBILE_TIER_SORT_OPTIONS,
   buildMobileTierView,
   formatMobileTierAvailability,
@@ -1190,6 +1194,10 @@ function PlayerResearchCard({
   researchStatKeys,
   note,
   onChangeNote,
+  draftedByTeam,
+  draftedPrice,
+  draftedContract,
+  isDrafted = false,
   onOpen,
   onToggleWatchlist,
   showEngineValues,
@@ -1206,6 +1214,10 @@ function PlayerResearchCard({
   researchStatKeys: ResearchStatKeys;
   note: string;
   onChangeNote: (note: string) => void;
+  draftedByTeam?: string;
+  draftedPrice?: number;
+  draftedContract?: string;
+  isDrafted?: boolean;
   showEngineValues: boolean;
   onOpen: () => void;
   onToggleWatchlist: () => void;
@@ -1223,6 +1235,9 @@ function PlayerResearchCard({
   const cardTags = getPlayerTags(player, statBasis);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const trimmedNote = note.trim();
+  const draftedDisplayLabel = isDrafted
+    ? `${draftedByTeam ?? "Drafted"}${draftedPrice !== undefined ? ` · $${Math.round(draftedPrice)}` : ""}`
+    : "";
 
   return (
     <AppCard backgroundColor="#151021" borderColor="#31224f">
@@ -1362,9 +1377,9 @@ function PlayerResearchCard({
             value={auctionRank === null ? "—" : `#${Math.round(auctionRank)}`}
           />
           <MetricCell
-            label="Auction Value"
-            value={formatMoney(displayValue)}
-            highlight
+            label={isDrafted ? "Drafted" : "Auction Value"}
+            value={isDrafted ? draftedDisplayLabel : formatMoney(displayValue)}
+            highlight={!isDrafted}
           />
         </View>
 
@@ -1403,6 +1418,12 @@ function PlayerResearchCard({
         {injury ? (
           <Text style={{ color: "#fca5a5", fontWeight: "800", marginTop: 6 }}>
             Injury: {injury}
+          </Text>
+        ) : null}
+
+        {isDrafted && draftedContract ? (
+          <Text style={{ color: "#a1a1aa", fontWeight: "800", marginTop: 4 }}>
+            Contract: {draftedContract}
           </Text>
         ) : null}
 
@@ -1872,7 +1893,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
       const posTextMatch = positionText.includes(q);
       const posMatch = positionMatches(player, positionFilter);
       const watched = isInWatchlist(leagueId, player.id);
-      const drafted = draftedIds.has(player.id);
+      const drafted = draftSetHasPlayer(draftedIds, player);
       const injured = playerHasInjury(player);
       const pitcher = isPitcher(player);
 
@@ -2282,6 +2303,16 @@ export default function ResearchScreen({ route, navigation }: Props) {
     }
   }
 
+  const selectedDraftState = selectedModalPlayer
+    ? resolvePlayerDraftState({
+        player: selectedModalPlayer,
+        draftedIds,
+        draftedByTeam,
+        draftedPriceByPlayerId,
+        draftedContractByPlayerId,
+      })
+    : null;
+
   const selectedEngineRow = selectedModalPlayer
     ? valuationsByPlayerId.get(selectedModalPlayer.id)
     : undefined;
@@ -2667,6 +2698,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
                       const watched = isInWatchlist(leagueId, item.id);
                       const engineRow = valuationsByPlayerId.get(item.id);
                       const custom = isCustomPlayer(item.id);
+                      const draftState = resolvePlayerDraftState({
+                        player: item,
+                        draftedIds,
+                        draftedByTeam,
+                        draftedPriceByPlayerId,
+                        draftedContractByPlayerId,
+                      });
 
                       return (
                         <PlayerResearchCard
@@ -2681,6 +2719,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
                           researchStatKeys={researchStatKeys}
                           note={getNote(leagueId, item.id)}
                           onChangeNote={(note) => setNote(leagueId, item.id, note)}
+                          draftedByTeam={draftState.teamName}
+                          draftedPrice={draftState.paid}
+                          draftedContract={draftState.contract}
+                          isDrafted={draftState.isDrafted}
                           showEngineValues={showEngineValues}
                           onOpen={() => handleOpenPlayer(item)}
                           onToggleWatchlist={() => void handleToggleWatchlist(item)}
@@ -2969,6 +3011,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
                                 const engineRow = valuationsByPlayerId.get(player.id);
                                 const watched = isInWatchlist(leagueId, player.id);
                                 const custom = isCustomPlayer(player.id);
+                                const draftState = resolvePlayerDraftState({
+                                  player,
+                                  draftedIds,
+                                  draftedByTeam,
+                                  draftedPriceByPlayerId,
+                                  draftedContractByPlayerId,
+                                });
 
                                 return (
                                   <PlayerResearchCard
@@ -2983,6 +3032,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
                                     researchStatKeys={researchStatKeys}
                                     note={getNote(leagueId, player.id)}
                                     onChangeNote={(note) => setNote(leagueId, player.id, note)}
+                                    draftedByTeam={draftState.teamName}
+                                    draftedPrice={draftState.paid}
+                                    draftedContract={draftState.contract}
+                                    isDrafted={draftState.isDrafted}
                                     showEngineValues={showEngineValues}
                                     onOpen={() => handleOpenPlayer(player)}
                                     onToggleWatchlist={() => void handleToggleWatchlist(player)}
@@ -3011,8 +3064,15 @@ export default function ResearchScreen({ route, navigation }: Props) {
                                   const engineRow = valuationsByPlayerId.get(player.id);
                                   const watched = isInWatchlist(leagueId, player.id);
                                   const custom = isCustomPlayer(player.id);
-                                  const draftedTeam = draftedByTeam.get(player.id);
-                                  const draftedPrice = draftedPriceByPlayerId.get(player.id);
+                                  const draftState = resolvePlayerDraftState({
+                                    player,
+                                    draftedIds,
+                                    draftedByTeam,
+                                    draftedPriceByPlayerId,
+                                    draftedContractByPlayerId,
+                                  });
+                                  const draftedTeam = draftState.teamName;
+                                  const draftedPrice = draftState.paid;
 
                                   return (
                                     <View key={`drafted-${bucket.key}-${player.id}`}>
@@ -3040,6 +3100,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
                                         researchStatKeys={researchStatKeys}
                                         note={getNote(leagueId, player.id)}
                                         onChangeNote={(note) => setNote(leagueId, player.id, note)}
+                                        draftedByTeam={draftState.teamName}
+                                        draftedPrice={draftState.paid}
+                                        draftedContract={draftState.contract}
+                                        isDrafted={draftState.isDrafted}
                                         showEngineValues={showEngineValues}
                                         onOpen={() => handleOpenPlayer(player)}
                                         onToggleWatchlist={() => void handleToggleWatchlist(player)}
@@ -3461,19 +3525,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
             setNote(leagueId, selectedModalPlayer.id, note);
           }
         }}
-        draftedByTeam={
-          selectedModalPlayer ? draftedByTeam.get(selectedModalPlayer.id) : undefined
-        }
-        draftedPrice={
-          selectedModalPlayer
-            ? draftedPriceByPlayerId.get(selectedModalPlayer.id)
-            : undefined
-        }
-        draftedContract={
-          selectedModalPlayer
-            ? draftedContractByPlayerId.get(selectedModalPlayer.id)
-            : undefined
-        }
+        draftedByTeam={selectedDraftState?.teamName}
+        draftedPrice={selectedDraftState?.paid}
+        draftedContract={selectedDraftState?.contract}
+        isDrafted={selectedDraftState?.isDrafted ?? false}
         depthChartContext={selectedDepthContext}
         onClose={() => {
           setSelectedModalPlayer(null);
@@ -3507,4 +3562,5 @@ export default function ResearchScreen({ route, navigation }: Props) {
     </SafeAreaView>
   );
 }
+
 
