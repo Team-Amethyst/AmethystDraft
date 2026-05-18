@@ -14,6 +14,12 @@ import {
   resolveAuctionCurveModelForDraftRequest,
   type AuctionCurveModel,
 } from "./auctionCurveModel";
+import { readCheckpointFixtureJson } from "./engineCheckpointCatalog";
+import {
+  leagueQualifiesForStage3bDemoOpeningCalibration,
+  STAGE3B_DEMO_OPENING_CALIBRATION,
+  type Stage3bDemoOpeningCalibration,
+} from "./stage3bDemoCalibration";
 
 export interface EngineRosterSlot {
   position: string;
@@ -105,6 +111,11 @@ export interface EngineValuationContext {
   explain_valuation_rows?: boolean;
   /** Optional bid-cap hint for Engine experiments; omit in Draftroom by default. */
   recommended_bid_soft_cap_ratio?: number;
+  /**
+   * Explicit opening-board calibration (demo preset only from BFF).
+   * `stage3b_demo_v1` enables Engine Stage 3b demo economics — never set for real empty leagues.
+   */
+  opening_board_calibration?: Stage3bDemoOpeningCalibration;
 }
 
 export interface EngineTeamPlayersSection {
@@ -189,6 +200,51 @@ function toTeamPlayersSections(
     team_id,
     players,
   }));
+}
+
+/**
+ * Sum of per-team budget remaining on the Stage 3b `pre_draft` checkpoint (9-team keeper board).
+ * Used only with {@link STAGE3B_DEMO_OPENING_CALIBRATION} on the "Original" demo preset.
+ */
+export const STAGE3B_OPENING_BUDGET_REMAINING_TOTAL = 1424;
+
+/** Even split of {@link STAGE3B_OPENING_BUDGET_REMAINING_TOTAL} across `numTeams`. */
+export function stage3bOpeningBudgetByTeamId(
+  numTeams: number,
+): Record<string, number> {
+  const n = Math.max(1, Math.floor(numTeams));
+  const base = Math.floor(STAGE3B_OPENING_BUDGET_REMAINING_TOTAL / n);
+  const remainder = STAGE3B_OPENING_BUDGET_REMAINING_TOTAL - base * n;
+  const out: Record<string, number> = {};
+  for (let i = 1; i <= n; i++) {
+    out[`team_${i}`] = base + (i <= remainder ? 1 : 0);
+  }
+  return out;
+}
+
+function isTrulyEmptyLeagueRoster(entries: IRosterEntry[]): boolean {
+  return entries.length === 0;
+}
+
+/** Valuation-only Stage 3b keeper + budget shape for the Original demo preset (UI may stay empty). */
+export function stage3bOpeningValuationAugmentation(numTeams: number): {
+  budget_by_team_id: Record<string, number>;
+  pre_draft_rosters: EngineTeamPlayersSection[];
+} {
+  const raw = readCheckpointFixtureJson("pre_draft") as {
+    league?: {
+      num_teams?: number;
+      budget_by_team_id?: Record<string, number>;
+    };
+    pre_draft_rosters?: EngineTeamPlayersSection[];
+  };
+  const fixtureTeams = raw.league?.num_teams ?? 9;
+  const sections = raw.pre_draft_rosters ?? [];
+  const budget_by_team_id =
+    numTeams === fixtureTeams && raw.league?.budget_by_team_id
+      ? raw.league.budget_by_team_id
+      : stage3bOpeningBudgetByTeamId(numTeams);
+  return { budget_by_team_id, pre_draft_rosters: sections };
 }
 
 /** Remaining budget per team: total_budget − sum(paid) for players on that team. */
@@ -501,6 +557,13 @@ export async function buildValuationContext(
     ?.map((id) => String(id).trim())
     .filter((id) => id.length > 0);
 
+  const trulyEmpty = isTrulyEmptyLeagueRoster(rosterEntries);
+  const useDemoOpeningCalibration =
+    trulyEmpty && leagueQualifiesForStage3bDemoOpeningCalibration(league);
+  const openingAugment = useDemoOpeningCalibration
+    ? stage3bOpeningValuationAugmentation(numTeams)
+    : null;
+
   return {
     roster_slots: rosterSlots,
     scoring_categories: league.scoringCategories,
@@ -508,11 +571,9 @@ export async function buildValuationContext(
     num_teams: numTeams,
     league_scope: league.playerPool,
     drafted_players,
-    budget_by_team_id: computeBudgetByTeamRemaining(
-      league.budget,
-      budgetRows,
-      numTeams,
-    ),
+    budget_by_team_id:
+      openingAugment?.budget_by_team_id ??
+      computeBudgetByTeamRemaining(league.budget, budgetRows, numTeams),
     ...(league.scoringFormat
       ? { scoring_format: league.scoringFormat }
       : {}),
@@ -526,12 +587,17 @@ export async function buildValuationContext(
     ...(injury_overrides?.length ? { injury_overrides } : {}),
     ...(player_ids?.length ? { player_ids } : {}),
     ...(eligibleIds?.length ? { eligible_player_ids: eligibleIds } : {}),
+    ...(useDemoOpeningCalibration
+      ? { opening_board_calibration: STAGE3B_DEMO_OPENING_CALIBRATION }
+      : {}),
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
     auction_curve_model: resolveAuctionCurveModelForDraftRequest({
       auction_curve_model: options?.auctionCurveModel,
     }),
-    pre_draft_rosters: toTeamPlayersSections(keeperEntries),
+    pre_draft_rosters:
+      openingAugment?.pre_draft_rosters ??
+      toTeamPlayersSections(keeperEntries),
     minors: toTeamPlayersSections(minorsEntries),
     taxi: toTeamPlayersSections(taxiEntries),
   };

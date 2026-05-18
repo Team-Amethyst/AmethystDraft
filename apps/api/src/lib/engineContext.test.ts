@@ -11,6 +11,8 @@ import type { PlayerData } from "./playerCatalog";
 import { getOrRefreshCatalogPlayers } from "./catalogPlayerFetch";
 import {
   computeBudgetByTeamRemaining,
+  stage3bOpeningBudgetByTeamId,
+  STAGE3B_OPENING_BUDGET_REMAINING_TOTAL,
   buildValuationContext,
   buildEngineValuationCalculateBodyFromFixture,
   buildEngineValuationCalculateBodyFromFlat,
@@ -23,6 +25,17 @@ import {
   valuationRequestSchema,
   valuationFlatRequestSchema,
 } from "../validation/valuationRequestSchema";
+
+describe("stage3bOpeningBudgetByTeamId", () => {
+  it("sums to Stage 3b opening total for any team count", () => {
+    for (const n of [9, 12]) {
+      const m = stage3bOpeningBudgetByTeamId(n);
+      const sum = Object.values(m).reduce((s, v) => s + v, 0);
+      expect(sum).toBe(STAGE3B_OPENING_BUDGET_REMAINING_TOTAL);
+      expect(Object.keys(m)).toHaveLength(n);
+    }
+  });
+});
 
 describe("computeBudgetByTeamRemaining", () => {
   it("returns full budget for every team when no players", () => {
@@ -481,6 +494,41 @@ describe("buildValuationContext", () => {
     });
     expect(ctx.eligible_player_ids).toEqual(["592450", "660271"]);
     expect(vi.mocked(getOrRefreshCatalogPlayers)).not.toHaveBeenCalled();
+  });
+
+  it("uses Stage 3b demo calibration only for the Original preset when empty", async () => {
+    const original = {
+      rosterSlots: { C: 1, UTIL: 1, BN: 1 },
+      scoringCategories: [],
+      budget: 260,
+      teams: 12,
+      name: "Original",
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    const ctx = await buildValuationContext(original, [], {});
+    expect(ctx.opening_board_calibration).toBe("stage3b_demo_v1");
+    expect(ctx.budget_by_team_id).toEqual(stage3bOpeningBudgetByTeamId(12));
+    expect(
+      Object.values(ctx.budget_by_team_id ?? {}).reduce((s, v) => s + v, 0),
+    ).toBe(STAGE3B_OPENING_BUDGET_REMAINING_TOTAL);
+    expect(ctx.pre_draft_rosters?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("does not inject demo calibration for other empty user leagues", async () => {
+    const league = {
+      rosterSlots: { C: 1, UTIL: 1, BN: 1 },
+      scoringCategories: [],
+      budget: 260,
+      teams: 12,
+      name: "My Auction League",
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    const ctx = await buildValuationContext(league, [], {});
+    expect(ctx.opening_board_calibration).toBeUndefined();
+    expect(ctx.pre_draft_rosters ?? []).toHaveLength(0);
+    expect(ctx.budget_by_team_id?.team_1).toBe(260);
   });
 
   it("passes League.posEligibilityThreshold into catalog fetch when syncing catalog", async () => {

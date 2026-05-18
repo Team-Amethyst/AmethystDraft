@@ -26,6 +26,8 @@ export type ValuationBoardCacheContext = {
 
 const SEP = "\u001f";
 const BOARD_INFLATION_MODEL = "replacement_slots_v2";
+/** Bump when Engine opening-board economics change (invalidates stale flat-board cache). */
+const VALUATION_BOARD_CACHE_VERSION = "stage3b-demo-only-v1";
 
 const boardResultCache = new Map<string, ValuationResponse>();
 const boardInflight = new Map<string, Promise<ValuationResponse>>();
@@ -68,6 +70,7 @@ export function buildValuationBoardCacheKey(
   return [
     leagueId,
     userTeamId,
+    VALUATION_BOARD_CACHE_VERSION,
     BOARD_INFLATION_MODEL,
     ctx.leagueConfigKey,
     ctx.rosterFingerprint,
