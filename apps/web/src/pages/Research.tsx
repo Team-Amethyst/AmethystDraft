@@ -855,7 +855,7 @@ export default function Research() {
           )}
           {selectedView === "tiers" && (
             <TiersView
-              players={mergedPlayers}
+              players={mergedPlayersWithDraftable}
               draftedIds={draftedIds}
               draftedByTeam={draftedByTeam}
               draftedPriceByPlayerId={draftedPriceByPlayerId}

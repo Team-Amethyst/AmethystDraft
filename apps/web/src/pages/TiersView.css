@@ -6,6 +6,8 @@
   padding: 0;
   min-width: 0;
   max-width: 100%;
+  container-type: inline-size;
+  container-name: tiers;
 }
 
 /* Tiers header reuses depth-chart-page-header + research-view-field (see Research.css) */
@@ -22,6 +24,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 /* ── Tier card = same shell as Research player table ── */
@@ -31,6 +34,51 @@
 
 .tier-group--muted {
   opacity: 0.82;
+}
+
+.tier-group--depleted {
+  opacity: 0.52;
+}
+
+.tier-group--depleted .tier-group__summary {
+  background: color-mix(in srgb, var(--pt-research-thead-bg) 48%, transparent);
+}
+
+.tier-group--depleted .tier-group__summary:hover {
+  background: color-mix(in srgb, var(--pt-research-thead-bg) 58%, transparent);
+}
+
+.tier-group--depleted .tier-group__summary-title,
+.tier-group--depleted .tier-group__semantic {
+  color: color-mix(in srgb, var(--app-text) 72%, var(--app-text-dim));
+}
+
+.tier-group--depleted .tier-badge {
+  filter: grayscale(0.55) saturate(0.65);
+  opacity: 0.62;
+}
+
+.tier-group__availability--depleted {
+  font-weight: 600;
+  color: var(--app-text-dim);
+}
+
+.tier-group__metric--inactive .tier-group__metric-value {
+  color: var(--app-text-dim);
+  opacity: 0.55;
+}
+
+.tier-group--outside-model {
+  opacity: 0.55;
+}
+
+.tier-group--outside-model .tier-group__summary {
+  background: color-mix(in srgb, #0c0a14 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--app-accent-border-faint) 45%, transparent);
+}
+
+.tier-group--outside-model .tier-badge {
+  opacity: 0.5;
 }
 
 .tier-group__summary {
@@ -369,15 +417,52 @@
   border: 0;
 }
 
-@media (max-width: 900px) {
+/* Narrow tiers column: stack summary (container = content width; media = viewport fallback). */
+@container tiers (max-width: 60rem) {
+  .tiers-page-header.depth-chart-page-header {
+    gap: 0.28rem;
+    padding: 0.42rem 0.55rem;
+  }
+
+  .tiers-page-header .depth-chart-page-header__top {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.45rem;
+    row-gap: 0.28rem;
+    align-items: end;
+  }
+
+  .tiers-page-header .depth-chart-page-header__intro {
+    grid-column: 1 / -1;
+    flex: 0 0 auto;
+  }
+
+  .tiers-page-header .depth-chart-page-header__intro h2 {
+    font-size: 0.95rem;
+  }
+
+  .tiers-page-header .depth-chart-page-header__intro p {
+    display: none;
+  }
+
+  .tiers-page-header .depth-chart-page-header__controls {
+    display: contents;
+  }
+
+  .tiers-page-header .depth-chart-page-header__controls .research-view-field {
+    gap: 0.14rem;
+    min-width: 0;
+  }
+
   .tier-summary-columns {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto auto auto;
-    row-gap: 0.45rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    row-gap: 0.32rem;
+    column-gap: 0.5rem;
   }
 
   .tier-summary-columns--no-mix {
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
   }
 
   .tier-summary-columns__lead {
@@ -388,45 +473,130 @@
 
   .tier-group__summary-lead {
     max-width: none;
+    align-items: center;
+  }
+
+  .tier-group__summary-title-block {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.35rem;
+    row-gap: 0;
+  }
+
+  .tier-group__summary-title {
+    white-space: nowrap;
+  }
+
+  .tier-group__semantic {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .tier-group__semantic::before {
+    content: "·";
+    margin-right: 0.35rem;
+    color: var(--app-text-dim);
+    font-weight: 400;
   }
 
   .tier-summary-columns__metrics {
     grid-column: 1 / -1;
     grid-row: 2;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.18rem 0.42rem;
     width: 100%;
     min-width: 0;
     max-width: none;
-    column-gap: 1rem;
-    row-gap: 0.35rem;
   }
 
-  .tier-summary-columns--no-mix .tier-summary-columns__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .tier-group__metric {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  .tier-group__metric:not(:last-child)::after {
+    content: "·";
+    margin-left: 0.42rem;
+    color: color-mix(in srgb, var(--app-text-dim) 88%, transparent);
+    font-weight: 400;
+    pointer-events: none;
+  }
+
+  .tier-group--depleted .tier-group__metric--inactive {
+    display: none;
+  }
+
+  .tier-group__metric--value .tier-group__metric-value {
+    font-weight: 600;
+  }
+
+  .tier-group__metric--pool .tier-group__metric-value,
+  .tier-group__metric--value .tier-group__metric-value,
+  .tier-group__metric--avg .tier-group__metric-value,
+  .tier-group__metric--cliff .tier-group__metric-value {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .tier-summary-columns__mix {
     grid-column: 1 / -1;
     grid-row: 3;
-    justify-self: start;
-    width: auto;
+    justify-self: stretch;
+    width: 100%;
     min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.1rem;
+    max-width: none;
+    padding: 0.32rem 0 0;
+    margin: 0;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--app-accent-hairline) 42%, transparent);
+    border-radius: 0;
+    background: none;
   }
 
   .tier-group__mix-grid {
-    width: max-content;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.18rem;
+    width: 100%;
     max-width: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start;
+  }
+
+  .tier-group__mix-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tier-group__mix-slot {
+    width: var(--tier-mix-slot-width);
+    min-width: var(--tier-mix-slot-width);
+    max-width: var(--tier-mix-slot-width);
+    flex: 0 0 auto;
   }
 
   .tier-summary-columns__action {
     grid-row: 1;
     grid-column: -1;
     justify-self: end;
+    align-self: center;
+    font-size: 0.72rem;
   }
 
   .tier-summary-columns--no-mix .tier-summary-columns__action {
@@ -438,49 +608,23 @@
   }
 }
 
-@media (max-width: 640px) {
+@container tiers (max-width: 36rem) {
   .tiers-list {
-    --tier-mix-slot-width: 2.2rem;
-    --tier-mix-gap: 0.1rem;
+    --tier-mix-slot-width: 2rem;
+    --tier-mix-gap: 0.08rem;
     gap: 0.5rem;
   }
 
   .tier-group__summary {
-    padding: 0.5rem 0.55rem;
-  }
-
-  .tier-summary-columns {
-    column-gap: 0.5rem;
-    row-gap: 0.4rem;
-  }
-
-  .tier-summary-columns__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 0.5rem;
+    padding: 0.48rem 0.55rem;
   }
 
   .tier-group__metric-value {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
   }
 
-  .tier-table.pt-table--research {
-    min-width: 44rem;
-  }
-
-}
-
-@media (max-width: 480px) {
-  .tiers-list {
-    --tier-mix-slot-width: 2rem;
-  }
-
-  .tier-summary-columns__metrics {
-    grid-template-columns: 1fr;
-    row-gap: 0.45rem;
-  }
-
-  .tier-summary-columns--no-mix .tier-summary-columns__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .tier-group__range {
+    font-size: 0.76rem;
   }
 
   .tier-group__summary-title {
@@ -489,5 +633,44 @@
 
   .tier-group__semantic {
     font-size: 0.68rem;
+  }
+
+  .tier-table.pt-table--research {
+    min-width: 44rem;
+  }
+}
+
+@container tiers (max-width: 22rem) {
+  .tiers-page-header .depth-chart-page-header__top {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Viewport fallback when container queries are unavailable */
+@supports not (container-type: inline-size) {
+  @media (max-width: 900px) {
+    .tiers-page-header .depth-chart-page-header__top {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 0.45rem;
+      row-gap: 0.28rem;
+      align-items: end;
+    }
+
+    .tiers-page-header .depth-chart-page-header__intro {
+      grid-column: 1 / -1;
+    }
+
+    .tiers-page-header .depth-chart-page-header__intro p {
+      display: none;
+    }
+
+    .tiers-page-header .depth-chart-page-header__controls {
+      display: contents;
+    }
+
+    .tiers-view.depth-chart-wrapper .tier-summary-columns--header {
+      display: none;
+    }
   }
 }

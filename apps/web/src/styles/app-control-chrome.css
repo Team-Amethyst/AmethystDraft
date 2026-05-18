@@ -205,7 +205,8 @@
   opacity: 0.85;
 }
 
-.app-select-root--toolbar .app-select-menu {
+.app-select-root--toolbar > .app-select-menu,
+.app-select-portal-host--toolbar > .app-select-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -233,8 +234,20 @@
   backdrop-filter: blur(14px);
 }
 
+.app-select-portal-host--toolbar > .app-select-menu {
+  position: static;
+  top: auto;
+  right: auto;
+  left: auto;
+  z-index: auto;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+}
+
 /* Team makeup — compact list; typical leagues fit without scrolling */
-.cc-team-makeup-head .app-select-root--toolbar .app-select-menu {
+.cc-team-makeup-head .app-select-root--toolbar > .app-select-menu,
+.app-select-portal-host--cc-team-picker > .app-select-menu {
   top: calc(100% + 3px);
   padding: 0.14rem;
   gap: 0.03rem;
@@ -248,21 +261,25 @@
   scrollbar-color: color-mix(in srgb, var(--app-accent) 32%, transparent) transparent;
 }
 
-.cc-team-makeup-head .app-select-root--toolbar .app-select-menu > li {
+.cc-team-makeup-head .app-select-root--toolbar > .app-select-menu > li,
+.app-select-portal-host--cc-team-picker > .app-select-menu > li {
   margin: 0;
   padding: 0;
 }
 
-.cc-team-makeup-head .app-select-root--toolbar .app-select-menu::-webkit-scrollbar {
+.cc-team-makeup-head .app-select-root--toolbar > .app-select-menu::-webkit-scrollbar,
+.app-select-portal-host--cc-team-picker > .app-select-menu::-webkit-scrollbar {
   width: 6px;
 }
 
-.cc-team-makeup-head .app-select-root--toolbar .app-select-menu::-webkit-scrollbar-thumb {
+.cc-team-makeup-head .app-select-root--toolbar > .app-select-menu::-webkit-scrollbar-thumb,
+.app-select-portal-host--cc-team-picker > .app-select-menu::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: color-mix(in srgb, var(--app-accent) 36%, transparent);
 }
 
-.cc-team-makeup-head .app-select-root--toolbar .app-select-option {
+.cc-team-makeup-head .app-select-root--toolbar > .app-select-menu .app-select-option,
+.app-select-portal-host--cc-team-picker > .app-select-menu .app-select-option {
   display: flex;
   align-items: center;
   width: 100%;
@@ -275,12 +292,14 @@
   font-weight: 500;
 }
 
-.app-select-root--toolbar .app-select-menu > li {
+.app-select-root--toolbar > .app-select-menu > li,
+.app-select-portal-host--toolbar > .app-select-menu > li {
   width: 100%;
   min-width: 0;
 }
 
-.app-select-root--toolbar .app-select-option {
+.app-select-root--toolbar > .app-select-menu .app-select-option,
+.app-select-portal-host--toolbar > .app-select-menu .app-select-option {
   display: flex;
   align-items: center;
   width: 100%;
@@ -300,18 +319,21 @@
   font-size: var(--app-control-trigger-font-size-dense);
 }
 
-.app-select-root--toolbar .app-select-option:hover:not(:disabled) {
+.app-select-root--toolbar > .app-select-menu .app-select-option:hover:not(:disabled),
+.app-select-portal-host--toolbar > .app-select-menu .app-select-option:hover:not(:disabled) {
   background: var(--app-control-option-hover-bg);
   color: var(--app-control-option-hover-fg);
 }
 
-.app-select-root--toolbar .app-select-option.is-selected {
+.app-select-root--toolbar > .app-select-menu .app-select-option.is-selected,
+.app-select-portal-host--toolbar > .app-select-menu .app-select-option.is-selected {
   background: var(--app-control-option-selected-bg);
   color: var(--app-control-option-selected-fg);
   font-weight: 600;
 }
 
-.app-select-root--toolbar .app-select-option:focus-visible:not(:disabled) {
+.app-select-root--toolbar > .app-select-menu .app-select-option:focus-visible:not(:disabled),
+.app-select-portal-host--toolbar > .app-select-menu .app-select-option:focus-visible:not(:disabled) {
   outline: none;
   box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
 }

@@ -1,4 +1,5 @@
 import type { Player } from "../../types/player";
+import { AppSelect, type AppSelectOption } from "../AppSelect";
 import { RosterSlotPicker } from "../RosterSlotPicker";
 
 interface AuctionCenterLogResultBarProps {
@@ -32,20 +33,25 @@ export function AuctionCenterLogResultBar({
   hasBidSignal,
   onLog,
 }: AuctionCenterLogResultBarProps) {
+  const wonByOptions: AppSelectOption[] = teamNames.map((name) => ({
+    value: name,
+    label: name,
+  }));
+
   return (
     <div className="pac-log-action-bar" role="group" aria-label="Log result">
       <div className="pac-log-action-label">LOG RESULT</div>
       <div className="log-result-grid log-result-grid--inline command-center-log-row">
         <div className="log-field">
-          <select
-            className="unstyled-select log-select"
+          <AppSelect
+            className="pac-log-select"
+            compact
+            block
             value={wonBy}
-            onChange={(e) => onWonByChange(e.target.value)}
-          >
-            {teamNames.map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
+            onChange={onWonByChange}
+            options={wonByOptions}
+            aria-label="Won by team"
+          />
         </div>
         <div className="log-field">
           <div className="log-price-input-wrap">

@@ -1,4 +1,5 @@
-import { useMemo, type RefObject } from "react";
+import { useMemo, useRef, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import type { StatBasis } from "@repo/player-stat-basis";
 import {
   statBasisAllValues,
@@ -10,6 +11,7 @@ import {
   positionFilterAfterStatViewChange,
   positionFilterOptionsForStatView,
 } from "../domain/playerTablePositions";
+import { useAnchoredOverlayPosition } from "../hooks/useAnchoredOverlayPosition";
 import { AppSelect, type AppSelectOption } from "./AppSelect";
 
 export type PlayerTableControlsProps = {
@@ -30,6 +32,7 @@ export type PlayerTableControlsProps = {
   tagDropdownOpen: boolean;
   onTagDropdownToggle: () => void;
   tagDropdownRef: RefObject<HTMLDivElement | null>;
+  tagDropdownMenuRef: RefObject<HTMLDivElement | null>;
   onToggleTag: (tag: string) => void;
   onClearTags: () => void;
   onResetFilters: () => void;
@@ -79,6 +82,7 @@ export function PlayerTableControls({
   tagDropdownOpen,
   onTagDropdownToggle,
   tagDropdownRef,
+  tagDropdownMenuRef,
   onToggleTag,
   onClearTags,
   onResetFilters,
@@ -87,6 +91,11 @@ export function PlayerTableControls({
   researchModelColumns,
   onResearchModelColumnsToggle,
 }: PlayerTableControlsProps) {
+  const tagTriggerRef = useRef<HTMLButtonElement>(null);
+  const tagMenuStyle = useAnchoredOverlayPosition(tagDropdownOpen, tagTriggerRef, {
+    maxWidth: 288,
+  });
+
   const positionOptions = useMemo<AppSelectOption[]>(() => {
     const rows = positionFilterOptionsForStatView(statView).map((p) => ({
       value: p,
@@ -190,6 +199,7 @@ export function PlayerTableControls({
         )}
         <div className="pt-tag-wrap" ref={tagDropdownRef}>
           <button
+            ref={tagTriggerRef}
             type="button"
             className={"pt-toggle" + (selectedTags.size > 0 ? " active" : "")}
             onClick={onTagDropdownToggle}
@@ -197,9 +207,14 @@ export function PlayerTableControls({
             <Tag size={13} />
             Tags{selectedTags.size > 0 ? ` · ${selectedTags.size}` : ""}
           </button>
-          {tagDropdownOpen && (
-            <div className="pt-tag-dropdown">
-              {PLAYER_TABLE_FILTER_TAGS.map((tag) => (
+          {tagDropdownOpen
+            ? createPortal(
+                <div
+                  ref={tagDropdownMenuRef}
+                  className="pt-control-theme pt-tag-dropdown pt-tag-dropdown--portal"
+                  style={tagMenuStyle}
+                >
+                  {PLAYER_TABLE_FILTER_TAGS.map((tag) => (
                 <label key={tag} className="pt-tag-option">
                   <input
                     type="checkbox"
@@ -214,8 +229,10 @@ export function PlayerTableControls({
                   Clear
                 </button>
               )}
-            </div>
-          )}
+                </div>,
+                document.body,
+              )
+            : null}
         </div>
         </div>
 

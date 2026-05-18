@@ -10,6 +10,7 @@
  *   and interaction. No budget or position logic lives here.
  */
 
+import { useMemo } from "react";
 import type { WatchlistPlayer } from "../../api/watchlist";
 import { watchlistPrimaryPositionToken } from "../../domain/watchlistDisplayPosition";
 import {
@@ -19,11 +20,18 @@ import {
   type ValuationSortField,
 } from "../../utils/valuation";
 import type { BoardValuationUiPhase } from "../../domain/boardValuationFetchPhase";
+import { AppSelect, type AppSelectOption } from "../AppSelect";
 import { WatchlistTableRow } from "./WatchlistTableRow";
 import "./WatchlistTable.css";
 
 type ViewFilter = "all" | "hitters" | "pitchers";
 type Priority = "High" | "Medium" | "Low";
+
+const VIEW_FILTER_OPTIONS: AppSelectOption[] = [
+  { value: "all", label: "All" },
+  { value: "hitters", label: "Hitters" },
+  { value: "pitchers", label: "Pitchers" },
+];
 
 interface WatchlistTableProps {
   watchlist: WatchlistPlayer[];
@@ -72,6 +80,22 @@ export default function WatchlistTable({
   valuationBoardError = null,
   draftDisplaySlotKeys,
 }: WatchlistTableProps) {
+  const valuationSortOptions = useMemo<AppSelectOption[]>(
+    () =>
+      (
+        [
+          "auction_value",
+          "team_value",
+          "recommended_bid",
+          "baseline_value",
+        ] as const
+      ).map((field) => ({
+        value: field,
+        label: valuationSortLabel(field),
+      })),
+    [],
+  );
+
   return (
     <section className="mydraft-right panel-card">
       <div className="watchlist-head">
@@ -95,40 +119,26 @@ export default function WatchlistTable({
 
         <div className="watchlist-controls">
           <span>View</span>
-          <select
-            className="app-select app-select--compact md-select md-select--compact"
+          <AppSelect
+            className="md-select md-select--compact"
+            compact
             value={viewFilter}
-            onChange={(e) => onViewFilterChange(e.target.value as ViewFilter)}
-          >
-            <option value="all">All</option>
-            <option value="hitters">Hitters</option>
-            <option value="pitchers">Pitchers</option>
-          </select>
+            onChange={(v) => onViewFilterChange(v as ViewFilter)}
+            options={VIEW_FILTER_OPTIONS}
+            aria-label="Watchlist view"
+          />
           <span>Sort by</span>
-          <select
-            className="app-select app-select--compact md-select md-select--compact"
+          <AppSelect
+            className="md-select md-select--compact"
+            compact
             value={valuationSortField}
-            onChange={(e) =>
-              onValuationSortFieldChange(e.target.value as ValuationSortField)
+            onChange={(v) =>
+              onValuationSortFieldChange(v as ValuationSortField)
             }
             title="Sort watchlist by valuation signal"
-          >
-            <option value="auction_value">
-              {valuationSortLabel("auction_value")}
-            </option>
-            <option value="team_value">
-              {valuationSortLabel("team_value")}
-            </option>
-            <option value="recommended_bid">
-              {valuationSortLabel("recommended_bid")}
-            </option>
-            <option value="auction_value">
-              {valuationSortLabel("auction_value")}
-            </option>
-            <option value="baseline_value">
-              {valuationSortLabel("baseline_value")}
-            </option>
-          </select>
+            aria-label="Sort watchlist by valuation"
+            options={valuationSortOptions}
+          />
         </div>
       </div>
 

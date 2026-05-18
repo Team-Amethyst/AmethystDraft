@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { Search } from "lucide-react";
 import type { MlbTeamOption } from "../../data/mlbTeams";
+import {
+  DEPTH_CHART_DETAILS_NOTE,
+  DEPTH_CHART_PAGE_SUBTITLE,
+} from "../../domain/depthChartPageCopy";
 import type { DepthChartMatchSummary } from "../../domain/depthChartRowMatch";
 import { formatDepthChartHeaderUpdatedLabel } from "../../domain/depthChartRowMatch";
 import { ResearchViewSelectField } from "./ResearchViewSelectField";
@@ -61,8 +65,8 @@ export function ResearchDepthChartToolbar({
     <header className="depth-chart-page-header cc-surface-inset">
       <div className="depth-chart-page-header__top">
         <div className="depth-chart-page-header__intro">
-          <h2>Depth Charts</h2>
-          <p>Daily active-roster depth with starter / backup / reserve rankings.</p>
+          <h2 title={DEPTH_CHART_DETAILS_NOTE}>Depth Charts</h2>
+          <p>{DEPTH_CHART_PAGE_SUBTITLE}</p>
         </div>
         <div className="depth-chart-page-header__controls">
           <ResearchViewSelectField

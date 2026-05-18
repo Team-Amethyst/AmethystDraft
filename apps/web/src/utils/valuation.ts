@@ -71,9 +71,28 @@ export const RESEARCH_TABLE_TOOLTIP_MAX_BID =
 export const RESEARCH_TABLE_TOOLTIP_TEAM_VALUE =
   "Your team value: what this player is worth to your roster given needs, inflation, and remaining budget—often differs from auction value.";
 
-/** Bid Edge (Team Value − Recommended bid). */
+/** Bid Edge (Team Value − shown suggested bid). Research modal + shared copy. */
 export const BID_EDGE_TOOLTIP =
-  "Bid edge = your team value minus suggested bid. Positive means room if you pay the suggested offer; zero means the bid uses your full team value.";
+  "Your team value minus the suggested bid shown.";
+
+/** Command Center bid-edge label info tooltip. */
+export const COMMAND_CENTER_BID_EDGE_TOOLTIP = BID_EDGE_TOOLTIP;
+
+/** Command Center auction value label info tooltip. */
+export const COMMAND_CENTER_TOOLTIP_AUCTION_VALUE =
+  "League-wide fair market auction value.";
+
+/** Command Center suggested bid label info tooltip (uncapped base). */
+export const COMMAND_CENTER_TOOLTIP_SUGGESTED_BID =
+  "Recommended action price after budget, max bid, and bid-step rounding.";
+
+/** Command Center team value label info tooltip. */
+export const COMMAND_CENTER_TOOLTIP_TEAM_VALUE =
+  "Estimated value to your roster based on fit, scarcity, and category needs.";
+
+/** Plain-English roster-fit line in Command Center “Why this bid?” */
+export const COMMAND_CENTER_WHY_ROSTER_FIT_LINE =
+  "Team value can be higher than auction value when this player fits your roster better than the average team.";
 
 /** @deprecated Use {@link BID_EDGE_TOOLTIP}. */
 export const RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP = BID_EDGE_TOOLTIP;
@@ -902,7 +921,7 @@ export function recommendedBidTileTooltip(params: {
   displayBid: number | null;
   uncappedBid: number | null;
 }): string {
-  const base = valuationTooltip("recommended_bid");
+  const base = COMMAND_CENTER_TOOLTIP_SUGGESTED_BID;
   if (!params.budgetLimited) return base;
   const display = params.displayBid;
   const uncapped = params.uncappedBid;

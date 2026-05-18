@@ -551,9 +551,14 @@ export default function PlayerDetailModal({
                       <h2 className="pdm-title pdm-title--rail">
                         {gluePlayerNameSuffixForDisplay(player.name)}
                       </h2>
+                    </div>
+                    <div className="pdm-rail-team-row">
+                      {player.team ? (
+                        <span className="pdm-meta-team-abbr">{player.team}</span>
+                      ) : null}
                       {positionPrimaryTags.length > 0 ? (
                         <span
-                          className="pdm-rail-name-pos"
+                          className="pdm-rail-team-pos"
                           title="Primary positions"
                           aria-label="Primary positions"
                         >
@@ -562,9 +567,6 @@ export default function PlayerDetailModal({
                           ))}
                         </span>
                       ) : null}
-                    </div>
-                    <div className="pdm-rail-team-row">
-                      <span className="pdm-meta-team-abbr">{player.team}</span>
                     </div>
                     {positionDraftableSlots.length > 0 ? (
                       <div

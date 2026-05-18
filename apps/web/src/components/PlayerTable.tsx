@@ -251,6 +251,7 @@ export default function PlayerTable({
   );
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const tagDropdownMenuRef = useRef<HTMLDivElement>(null);
   const isResearchModelControlled =
     columnLayout === "research" &&
     typeof researchModelColumnsVisibleProp === "boolean" &&
@@ -345,7 +346,8 @@ export default function PlayerTable({
     function onClickOutside(e: MouseEvent) {
       if (
         tagDropdownRef.current &&
-        !tagDropdownRef.current.contains(e.target as Node)
+        !tagDropdownRef.current.contains(e.target as Node) &&
+        !tagDropdownMenuRef.current?.contains(e.target as Node)
       ) {
         setTagDropdownOpen(false);
       }
@@ -572,6 +574,7 @@ export default function PlayerTable({
         tagDropdownOpen={tagDropdownOpen}
         onTagDropdownToggle={() => setTagDropdownOpen((v) => !v)}
         tagDropdownRef={tagDropdownRef}
+        tagDropdownMenuRef={tagDropdownMenuRef}
         onToggleTag={toggleTag}
         onClearTags={() => setSelectedTags(new Set())}
         onResetFilters={() => {

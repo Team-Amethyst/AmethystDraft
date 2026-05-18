@@ -18,6 +18,13 @@
   padding-bottom: var(--cc-space-2);
 }
 
+.bdc-why-roster-fit {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--cc-value-muted) 88%, var(--cc-heading-color) 12%);
+}
+
 .bid-decision-card .bdc-decision-callout {
   display: flex;
   flex-direction: column;
@@ -167,6 +174,10 @@
 
 .bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile {
   width: auto;
+}
+
+.bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile {
+  cursor: help;
 }
 
 .bid-decision-card .bdc-metric-grid--ladder4 .bdc-metric-tile-label {
@@ -1135,25 +1146,183 @@ textarea.pac-notes.pac-notes--always:focus {
 }
 
 .pac-log-action-bar {
-  --pac-log-control-height: 2.25rem;
+  --pac-log-control-height: 2rem;
+  --pac-log-control-pad-x: 0.45rem;
+  --pac-log-control-chevron-gap: 0.85rem;
   margin-top: 0.15rem;
   padding-top: 0.35rem;
   border-top: 1px solid var(--app-accent-hairline);
 }
 
-.pac-log-action-bar .log-select,
+.pac-log-action-bar .app-select-root.pac-log-select,
 .pac-log-action-bar .log-price-input-wrap,
 .pac-log-action-bar .rsp--cc .rsp-trigger,
 .pac-log-action-bar .log-result-btn--inline {
   min-height: var(--pac-log-control-height);
+  max-height: var(--pac-log-control-height);
   box-sizing: border-box;
 }
 
-.pac-log-action-bar .log-result-grid--inline .log-field > .log-select,
+/* Unified log-result field chrome — team, price, roster slot */
+.pac-log-action-bar .app-select-root.pac-log-select .app-select-trigger,
+.pac-log-action-bar .rsp--cc .rsp-trigger {
+  position: relative;
+  width: 100%;
+  min-height: var(--pac-log-control-height);
+  height: var(--pac-log-control-height);
+  max-height: var(--pac-log-control-height);
+  padding: 0
+    calc(var(--pac-log-control-pad-x) + var(--pac-log-control-chevron-gap))
+    0 var(--pac-log-control-pad-x);
+  border-radius: var(--cc-card-radius, 8px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c4b5d4;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: normal;
+  box-shadow: none;
+}
+
+.pac-log-action-bar .app-select-root.pac-log-select .app-select-trigger:hover,
+.pac-log-action-bar .rsp--cc .rsp-trigger:hover:not(:disabled) {
+  border-color: rgba(139, 92, 246, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pac-log-action-bar .app-select-root.log-select:has(.app-select-trigger[aria-expanded="true"])
+  .app-select-trigger,
+.pac-log-action-bar .rsp--cc.rsp--open .rsp-trigger {
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8e0f5;
+}
+
+.pac-log-action-bar .app-select-root.pac-log-select .app-select-trigger-chevron,
+.pac-log-action-bar .rsp--cc .rsp-chevron {
+  position: absolute;
+  right: var(--pac-log-control-pad-x);
+  top: 50%;
+  flex-shrink: 0;
+  margin: 0;
+  color: #8b6bb8;
+  transform: translateY(-50%);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.pac-log-action-bar .app-select-root.pac-log-select .app-select-trigger-chevron.is-open,
+.pac-log-action-bar .rsp--cc.rsp--open .rsp-chevron {
+  transform: translateY(-50%) rotate(180deg);
+  color: #a78bfa;
+}
+
+.pac-log-action-bar .log-price-input-wrap {
+  min-height: var(--pac-log-control-height);
+  height: var(--pac-log-control-height);
+  border-radius: var(--cc-card-radius, 8px);
+}
+
+.pac-log-action-bar .log-result-grid--inline .log-field > .app-select-root.pac-log-select,
 .pac-log-action-bar .log-result-grid--inline .log-field > .log-price-input-wrap,
 .pac-log-action-bar .log-result-grid--inline .log-field > .rsp {
   flex: 1 1 auto;
   min-height: var(--pac-log-control-height);
+}
+
+/* Log result — one trigger chrome; portaled menus share one panel style */
+.pac-log-action-bar .app-select-root.pac-log-select {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.app-select-portal-host--log-result,
+.rsp-portal-host--pac-log {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.app-select-portal-host--log-result > .app-select-menu.pac-log-dropdown-menu,
+.rsp-portal-host--pac-log > .rsp-panel.pac-log-dropdown-menu {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  z-index: auto;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.12rem;
+  gap: 0;
+  list-style: none;
+  box-sizing: border-box;
+  background: #161026;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: var(--cc-card-radius, 8px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  backdrop-filter: none;
+  max-height: min(
+    calc(var(--pac-log-option-count, 10) * 1.28rem + 0.24rem),
+    calc(100vh - 8rem)
+  );
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-accent) 32%, transparent) transparent;
+}
+
+.app-select-portal-host--log-result > .app-select-menu.pac-log-dropdown-menu .app-select-option,
+.rsp-portal-host--pac-log > .rsp-panel.pac-log-dropdown-menu .rsp-option {
+  min-height: 0;
+  padding: 0.2rem 0.44rem;
+  font-size: 0.74rem;
+  line-height: 1.15;
+}
+
+.app-select-portal-host--log-result > .app-select-menu.pac-log-dropdown-menu .app-select-option {
+  color: #d4c8e8;
+  font-family: "DM Sans", sans-serif;
+  border-radius: 5px;
+}
+
+.app-select-portal-host--log-result
+  > .app-select-menu.pac-log-dropdown-menu
+  .app-select-option:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.18);
+  color: #e8dff8;
+}
+
+.app-select-portal-host--log-result
+  > .app-select-menu.pac-log-dropdown-menu
+  .app-select-option.is-selected {
+  background: rgba(139, 92, 246, 0.22);
+  color: #e8dff8;
+  font-weight: 600;
+}
+
+.rsp-portal-host--pac-log > .rsp-panel.pac-log-dropdown-menu .rsp-option--eligible {
+  color: #e8dff8;
+}
+
+.rsp-portal-host--pac-log > .rsp-panel.pac-log-dropdown-menu .rsp-option--ineligible {
+  color: rgba(180, 165, 210, 0.45);
+}
+
+.rsp-portal-host--pac-log > .rsp-panel.pac-log-dropdown-menu .rsp-option:hover {
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.rsp-portal-host--pac-log > .rsp-panel.pac-log-dropdown-menu .rsp-option[aria-selected="true"] {
+  background: rgba(139, 92, 246, 0.22);
 }
 
 .pac-log-action-label {

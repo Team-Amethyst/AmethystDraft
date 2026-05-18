@@ -47,6 +47,13 @@ const devOnlyRoutes = import.meta.env.DEV
             Component: m.default,
           })),
       },
+      {
+        path: "/dev/tiers-display-qa",
+        lazy: () =>
+          import("./pages/dev/TiersDisplayQaMockPage").then((m) => ({
+            Component: m.default,
+          })),
+      },
     ]
   : [];
 

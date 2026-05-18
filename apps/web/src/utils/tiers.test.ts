@@ -10,6 +10,8 @@ import {
   tierPlayerDisplayDollars,
   formatCliffToNextTierLabel,
   formatTierBandDisplay,
+  formatTierBandRangeTooltip,
+  formatTierRawValueRange,
   formatTierValueRange,
   groupPlayersByTier,
   isDeemphasizedTier,
@@ -161,6 +163,28 @@ describe("calculateTierStats", () => {
   });
 });
 
+describe("formatTierRawValueRange", () => {
+  it("formats raw range for tooltip and expanded detail", () => {
+    const players = [
+      player({ id: "p1", auction_tier: 1, auction_value: 17.38 }),
+      player({ id: "p2", auction_tier: 1, auction_value: 15.24 }),
+    ];
+    const stat = calculateTierStats(groupPlayersByTier(players), new Set())[0]!;
+    expect(formatTierRawValueRange(stat)).toBe("$15.24–$17.38");
+    expect(formatTierBandRangeTooltip(stat)).toBe(
+      "Displayed dollars are rounded. Tiers and cliffs use raw auction values.",
+    );
+  });
+
+  it("returns null for min-bid shelf tiers", () => {
+    const players = Array.from({ length: 6 }, (_, i) =>
+      player({ id: `p${i}`, auction_tier: 5, auction_value: 1 }),
+    );
+    const stat = calculateTierStats(groupPlayersByTier(players), new Set())[0]!;
+    expect(formatTierRawValueRange(stat)).toBeNull();
+  });
+});
+
 describe("formatCliffToNextTierLabel", () => {
   it("uses drop after tier copy for meaningful cliffs", () => {
     expect(
@@ -265,7 +289,7 @@ describe("calculateTierStats positionCounts", () => {
 });
 
 describe("buildTierViewForPosition", () => {
-  it("recomputes tier stats when position filter is applied", () => {
+  it("recomputes display tier stats when position filter is applied", () => {
     const players = [
       player({ id: "p1", position: "OF", auction_tier: 1, auction_value: 20 }),
       player({ id: "p2", position: "P", auction_tier: 1, auction_value: 18 }),
@@ -273,8 +297,10 @@ describe("buildTierViewForPosition", () => {
     ];
     const ofStats = buildTierViewForPosition(players, new Set(), "OF");
     expect(ofStats).toHaveLength(2);
+    expect(ofStats[0]!.tier).toBe(2);
     expect(ofStats[0].players.every((p) => p.position === "OF")).toBe(true);
     expect(ofStats[0].players).toHaveLength(1);
+    expect(ofStats[1]!.tier).toBe(4);
   });
 });
 
@@ -327,6 +353,21 @@ describe("partitionPlayersForTierView", () => {
     );
     expect(tiered.map((p) => p.id)).toEqual(["sold"]);
     expect(outsideModel.map((p) => p.id)).toEqual(["out"]);
+  });
+
+  it("routes unvalued catalog-tier-only players to outside model, not T1–T5", () => {
+    const players = [
+      player({
+        id: "cat",
+        catalog_tier: 3,
+        valuation_eligible: false,
+        auction_value: undefined as unknown as number,
+      }),
+      player({ id: "val", auction_tier: 2, auction_value: 12 }),
+    ];
+    const { tiered, outsideModel } = partitionPlayersForTierView(players, new Set());
+    expect(tiered.map((p) => p.id)).toEqual(["val"]);
+    expect(outsideModel.map((p) => p.id)).toEqual(["cat"]);
   });
 });
 
@@ -419,7 +460,7 @@ describe("buildFullTierView", () => {
 describe("auditTierInputs", () => {
   it("returns diagnosis when lower tiers are min-bid shelves", () => {
     const players = [
-      player({ id: "e1", auction_tier: 1, auction_value: 17 }),
+      player({ id: "e1", auction_tier: 1, auction_value: 27 }),
       ...Array.from({ length: 6 }, (_, i) =>
         player({
           id: `d${i}`,

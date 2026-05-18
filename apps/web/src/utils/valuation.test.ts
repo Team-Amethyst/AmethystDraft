@@ -24,6 +24,10 @@ import {
   mergePlayerWithValuation,
   normalizeValuationPlayerId,
   BID_EDGE_TOOLTIP,
+  COMMAND_CENTER_TOOLTIP_AUCTION_VALUE,
+  COMMAND_CENTER_TOOLTIP_SUGGESTED_BID,
+  COMMAND_CENTER_TOOLTIP_TEAM_VALUE,
+  COMMAND_CENTER_WHY_ROSTER_FIT_LINE,
   REPLACEMENT_COMPARISON_SLOT_TOOLTIP,
   bidEdgeDisplayTone,
   playerBidEdgeDollars,
@@ -243,8 +247,8 @@ describe("valuation helpers", () => {
       );
     });
 
-    it("Bid Edge tooltip explains team value − suggested bid", () => {
-      expect(BID_EDGE_TOOLTIP).toContain("your team value minus suggested bid");
+    it("Bid Edge tooltip explains team value minus shown suggested bid", () => {
+      expect(BID_EDGE_TOOLTIP).toContain("team value minus the suggested bid");
       expect(RESEARCH_TABLE_EDGE_SURPLUS_VS_MAX_TOOLTIP).toBe(BID_EDGE_TOOLTIP);
     });
 
@@ -794,15 +798,39 @@ describe("valuation helpers", () => {
 
   it("Command Center / Player Detail ladder: Recommended bid label, Bid Edge delta, and tooltips", () => {
     expect(valuationSortLabel("recommended_bid")).toBe("Suggested bid");
-    expect(BID_EDGE_TOOLTIP).toContain("your team value minus suggested bid");
+    expect(BID_EDGE_TOOLTIP).toContain("team value minus the suggested bid");
     expect(formatMaybeDelta(playerValuationEdgeOrDiff({ team_value: 23, recommended_bid: 44 }))).toBe(
       "-21",
+    );
+  });
+
+  it("Command Center bid explanation copy constants", () => {
+    expect(COMMAND_CENTER_TOOLTIP_AUCTION_VALUE).toBe(
+      "League-wide fair market auction value.",
+    );
+    expect(COMMAND_CENTER_TOOLTIP_SUGGESTED_BID).toContain(
+      "Recommended action price",
+    );
+    expect(COMMAND_CENTER_TOOLTIP_SUGGESTED_BID).toContain("bid-step rounding");
+    expect(COMMAND_CENTER_TOOLTIP_TEAM_VALUE).toContain("fit, scarcity");
+    expect(BID_EDGE_TOOLTIP).toBe(
+      "Your team value minus the suggested bid shown.",
+    );
+    expect(COMMAND_CENTER_WHY_ROSTER_FIT_LINE).toContain(
+      "fits your roster better than the average team",
     );
   });
 
   it("recommendedBidTileLabel and tooltip reflect wallet cap state", () => {
     expect(recommendedBidTileLabel(false)).toBe("Suggested bid");
     expect(recommendedBidTileLabel(true)).toBe(RECOMMENDED_BID_CAPPED_LABEL);
+    expect(
+      recommendedBidTileTooltip({
+        budgetLimited: false,
+        displayBid: 18,
+        uncappedBid: 35,
+      }),
+    ).toBe(COMMAND_CENTER_TOOLTIP_SUGGESTED_BID);
     expect(
       recommendedBidTileTooltip({
         budgetLimited: true,
@@ -824,9 +852,9 @@ describe("valuation helpers", () => {
         uncappedBid: 35,
       }),
     ).toContain("not the same as engine Max bid");
-    expect(recommendedBidTileTooltip({ budgetLimited: false, displayBid: 8, uncappedBid: 35 })).toContain(
-      "Suggested bid",
-    );
+    expect(
+      recommendedBidTileTooltip({ budgetLimited: false, displayBid: 8, uncappedBid: 35 }),
+    ).toBe(COMMAND_CENTER_TOOLTIP_SUGGESTED_BID);
   });
 
   it("actionable log bid default uses recommended_bid (capped), not auction_value", () => {

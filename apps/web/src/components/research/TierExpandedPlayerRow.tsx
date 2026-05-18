@@ -40,9 +40,12 @@ import {
   researchTableTextCell,
   type ResearchTableStatView,
 } from "../../domain/researchPlayerTableLayout";
+import { shouldShowEngineTierMetadata } from "../../domain/displayTiers";
 
 export type TierExpandedPlayerRowProps = {
   player: Player;
+  /** Display tier section this row is rendered under (value-band T1–T5). */
+  displayTier?: string | number;
   listRank: number;
   statBasis?: StatBasis;
   statView?: ResearchTableStatView;
@@ -69,6 +72,7 @@ export type TierExpandedPlayerRowProps = {
 
 export function TierExpandedPlayerRow({
   player,
+  displayTier,
   listRank,
   statBasis = "projections",
   draftDisplaySlotKeys,
@@ -149,6 +153,10 @@ export function TierExpandedPlayerRow({
     isCustom: isCustomPlayer,
     draftedTeamName: draftedDisplay ? undefined : draftedTeamName,
     draftedContractLabel: draftedDisplay ? undefined : draftedContractLabel,
+    engineAuctionTier:
+      displayTier != null && shouldShowEngineTierMetadata(player, displayTier)
+        ? player.auction_tier ?? player.catalog_tier
+        : undefined,
   });
 
   const positionParts = researchTablePrimaryPositionParts(

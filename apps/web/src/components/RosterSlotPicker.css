@@ -92,6 +92,21 @@
   color: #a78bfa;
 }
 
+.rsp-portal-host {
+  z-index: 3000;
+}
+
+.rsp-portal-host > .rsp-panel {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  z-index: auto;
+}
+
 .rsp-panel {
   position: absolute;
   z-index: 50;
@@ -101,8 +116,9 @@
   margin: 0;
   padding: 0.28rem 0;
   list-style: none;
-  max-height: 220px;
+  max-height: min(220px, 50vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: var(--cc-card-radius, 8px);
   border: 1px solid rgba(139, 92, 246, 0.35);
   background: #161026;

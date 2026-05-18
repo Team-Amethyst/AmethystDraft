@@ -139,7 +139,7 @@
   min-height: 0;
 }
 
-.log-result-grid--inline .log-field .log-select,
+.log-result-grid--inline .log-field .app-select-root.pac-log-select,
 .log-result-grid--inline .log-field .log-price-input-wrap,
 .log-result-grid--inline .log-field .rsp {
   width: 100%;
@@ -152,7 +152,7 @@
 
 @media (max-width: 1280px) {
   .pac-log-action-bar {
-    --pac-log-control-height: 2.15rem;
+    --pac-log-control-height: 1.95rem;
   }
 
   .log-result-grid--inline {
@@ -202,12 +202,11 @@
     min-height: 2.2rem;
   }
 
-  .log-result-grid--inline .log-field:nth-child(1) .log-select {
+  .log-result-grid--inline .log-field:nth-child(1) .app-select-root.pac-log-select {
     font-size: 0.8rem;
   }
 
   .log-result-grid--inline .log-field:nth-child(2) .log-price-input,
-  .log-result-grid--inline .log-field:nth-child(3) .log-select,
   .log-result-grid--inline .log-field:nth-child(3) .rsp-trigger {
     font-size: 0.72rem;
   }
@@ -215,7 +214,7 @@
 
 @media (max-width: 860px) {
   .pac-log-action-bar {
-    --pac-log-control-height: 2.1rem;
+    --pac-log-control-height: 1.9rem;
   }
 
   .log-result-grid--inline {
@@ -252,12 +251,11 @@
     min-height: 2.1rem;
   }
 
-  .log-result-grid--inline .log-field:nth-child(1) .log-select {
+  .log-result-grid--inline .log-field:nth-child(1) .app-select-root.pac-log-select {
     font-size: 0.78rem;
   }
 
   .log-result-grid--inline .log-field:nth-child(2) .log-price-input,
-  .log-result-grid--inline .log-field:nth-child(3) .log-select,
   .log-result-grid--inline .log-field:nth-child(3) .rsp-trigger {
     font-size: 0.7rem;
   }

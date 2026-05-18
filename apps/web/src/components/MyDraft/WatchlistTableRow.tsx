@@ -1,5 +1,6 @@
 import { Minus, Plus, Star, X } from "lucide-react";
 import type { WatchlistPlayer } from "../../api/watchlist";
+import { AppSelect, type AppSelectOption } from "../AppSelect";
 import PosBadge from "../PosBadge";
 import {
   playerDisplayPositionBadges,
@@ -13,6 +14,12 @@ import {
 } from "../../utils/valuation";
 
 type Priority = "High" | "Medium" | "Low";
+
+const PRIORITY_OPTIONS: AppSelectOption[] = [
+  { value: "High", label: "High" },
+  { value: "Medium", label: "Medium" },
+  { value: "Low", label: "Low" },
+];
 
 export interface WatchlistTableRowModel {
   player: WatchlistPlayer;
@@ -167,17 +174,14 @@ export function WatchlistTableRow({
       </td>
 
       <td onClick={(e) => e.stopPropagation()}>
-        <select
-          className={`app-select app-select--compact md-select md-select--priority priority-select ${priority.toLowerCase()}`}
+        <AppSelect
+          className={`md-select md-select--priority priority-select priority-select--${priority.toLowerCase()}`}
+          compact
           value={priority}
-          onChange={(e) =>
-            onPriorityChange(player.id, e.target.value as Priority)
-          }
-        >
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
+          onChange={(v) => onPriorityChange(player.id, v as Priority)}
+          options={PRIORITY_OPTIONS}
+          aria-label="Watchlist priority"
+        />
       </td>
 
       <td className="td-note" onClick={(e) => e.stopPropagation()}>

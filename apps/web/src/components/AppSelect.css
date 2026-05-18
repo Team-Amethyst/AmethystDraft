@@ -67,7 +67,13 @@
   font-size: var(--app-control-trigger-font-size-dense);
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-menu {
+/* ── Open menu (inline under root OR portaled to body) ── */
+.app-select-portal-host {
+  z-index: 3000;
+}
+
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu,
+.app-select-portal-host > .app-select-menu {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -97,6 +103,17 @@
   scrollbar-color: color-mix(in srgb, var(--app-accent) 28%, transparent) transparent;
 }
 
+.app-select-portal-host > .app-select-menu {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  z-index: auto;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+}
+
 .app-select-root--block .app-select-menu {
   width: 100%;
   max-width: 100%;
@@ -111,25 +128,28 @@
   min-width: 0;
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-menu::-webkit-scrollbar {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu::-webkit-scrollbar,
+.app-select-portal-host > .app-select-menu::-webkit-scrollbar {
   width: 8px;
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-menu::-webkit-scrollbar-thumb {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu::-webkit-scrollbar-thumb,
+.app-select-portal-host > .app-select-menu::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: color-mix(in srgb, var(--app-accent) 38%, transparent);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
-.app-select-root:not(.app-select-root--toolbar)
-  .app-select-menu::-webkit-scrollbar-thumb:hover {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu::-webkit-scrollbar-thumb:hover,
+.app-select-portal-host > .app-select-menu::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--app-accent) 52%, transparent);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-option {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu .app-select-option,
+.app-select-portal-host > .app-select-menu .app-select-option {
   display: flex;
   align-items: center;
   width: 100%;
@@ -152,7 +172,8 @@
     box-shadow 0.14s ease;
 }
 
-.app-select-root--compact:not(.app-select-root--toolbar) .app-select-option {
+.app-select-root--compact:not(.app-select-root--toolbar) > .app-select-menu .app-select-option,
+.app-select-portal-host > .app-select-menu--compact .app-select-option {
   min-height: 0;
   padding: 0.24rem 0.38rem;
   font-size: var(--app-control-trigger-font-size-dense);
@@ -160,30 +181,33 @@
   white-space: normal;
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-option:hover:not(:disabled) {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu .app-select-option:hover:not(:disabled),
+.app-select-portal-host > .app-select-menu .app-select-option:hover:not(:disabled) {
   background: var(--app-control-option-hover-bg);
   color: var(--app-control-option-hover-fg);
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-option.is-selected {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu .app-select-option.is-selected,
+.app-select-portal-host > .app-select-menu .app-select-option.is-selected {
   background: var(--app-control-option-selected-bg);
   color: var(--app-control-option-selected-fg);
   font-weight: 600;
 }
 
-.app-select-root:not(.app-select-root--toolbar)
-  .app-select-option:focus-visible:not(:disabled) {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu .app-select-option:focus-visible:not(:disabled),
+.app-select-portal-host > .app-select-menu .app-select-option:focus-visible:not(:disabled) {
   outline: none;
   box-shadow: 0 0 0 2px var(--app-control-trigger-focus-ring);
 }
 
-.app-select-root:not(.app-select-root--toolbar)
-  .app-select-option.is-selected:focus-visible:not(:disabled) {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu .app-select-option.is-selected:focus-visible:not(:disabled),
+.app-select-portal-host > .app-select-menu .app-select-option.is-selected:focus-visible:not(:disabled) {
   background: var(--app-control-option-selected-bg);
   color: var(--app-control-option-selected-fg);
 }
 
-.app-select-root:not(.app-select-root--toolbar) .app-select-option:disabled {
+.app-select-root:not(.app-select-root--toolbar) > .app-select-menu .app-select-option:disabled,
+.app-select-portal-host > .app-select-menu .app-select-option:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -191,6 +215,86 @@
 .app-select-root:not(.app-select-root--toolbar) .app-select-trigger:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Research Players filter track — portaled menus carry this modifier + pt-control-theme host */
+.app-select-portal-host.pt-control-theme > .app-select-menu--pt-filter {
+  padding: var(--pt-control-menu-padding, 0.28rem);
+  gap: var(--pt-control-menu-gap, 0.04rem);
+  border-radius: var(--pt-control-menu-shell-radius, 8px);
+  border-color: var(--pt-control-menu-border);
+  background: var(--pt-control-menu-bg);
+  box-shadow: var(--pt-control-menu-shadow);
+}
+
+.app-select-portal-host.pt-control-theme > .app-select-menu--pt-filter .app-select-option {
+  min-height: var(--pt-control-menu-option-min-h, 1.55rem);
+  padding: var(--pt-control-menu-option-pad, 0.26rem 0.44rem);
+  font-family: DM Sans, sans-serif;
+  font-size: var(--pt-control-menu-font, 0.76rem);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.app-select-portal-host.pt-control-theme
+  > .app-select-menu--pt-filter
+  .app-select-option:hover:not(:disabled) {
+  background: var(--pt-control-row-hover);
+  color: var(--pt-control-text);
+}
+
+.app-select-portal-host.pt-control-theme
+  > .app-select-menu--pt-filter
+  .app-select-option.is-selected {
+  background: var(--pt-control-row-selected);
+  color: #ddd6fe;
+  font-weight: 600;
+}
+
+/* My Draft — watchlist toolbar + priority */
+.app-select-root.md-select {
+  min-width: 0;
+}
+
+.app-select-root.md-select .app-select-trigger {
+  min-height: 1.55rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-select-root.md-select--priority .app-select-trigger {
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-width: 78px;
+}
+
+.app-select-root.priority-select--high .app-select-trigger {
+  color: #f8d046;
+  border-color: rgba(248, 208, 70, 0.3);
+}
+
+.app-select-root.priority-select--medium .app-select-trigger {
+  color: #90b3ff;
+  border-color: rgba(144, 179, 255, 0.3);
+}
+
+.app-select-root.priority-select--low .app-select-trigger {
+  color: #8e7caf;
+  border-color: rgba(142, 124, 175, 0.3);
+}
+
+.app-select-portal-host--my-draft > .app-select-menu--my-draft .app-select-option {
+  font-size: 0.64rem;
+}
+
+.app-select-portal-host--my-draft
+  > .app-select-menu--my-draft.app-select-menu--compact
+  .app-select-option {
+  font-size: 0.64rem;
+  padding: 0.22rem 0.38rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -52,20 +52,22 @@ describe("TiersView", () => {
     );
 
     expect(screen.getByText("Auction tiers")).toBeTruthy();
-    expect(screen.getByText(/Model-generated auction tiers/i)).toBeTruthy();
-    expect(screen.getByText("Tier 1")).toBeTruthy();
-    expect(screen.getByText(/Elite targets/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Value bands from the current Engine auction board/i),
+    ).toBeTruthy();
     expect(screen.getByText("Tier 2")).toBeTruthy();
+    expect(screen.getByText(/Strong starters/i)).toBeTruthy();
+    expect(screen.getByText("Tier 4")).toBeTruthy();
+    expect(screen.getByText(/Depth values/i)).toBeTruthy();
     expect(screen.queryByText(/Leaders/i)).toBeNull();
-    expect(screen.queryByText(/Starter targets/i)).toBeNull();
   });
 
   it("shows value range, avg, and cliff in collapsed tier summary", () => {
     render(
       <TiersView
         players={[
-          player({ id: "p1", auction_tier: 1, auction_value: 17 }),
-          player({ id: "p2", auction_tier: 1, auction_value: 15 }),
+          player({ id: "p1", auction_tier: 1, auction_value: 17.38 }),
+          player({ id: "p2", auction_tier: 1, auction_value: 15.24 }),
           player({ id: "p3", auction_tier: 2, auction_value: 9 }),
         ]}
         draftedIds={new Set()}
@@ -76,7 +78,11 @@ describe("TiersView", () => {
       />,
     );
 
-    expect(screen.getByText(/\$15–\$17/)).toBeTruthy();
+    const rangeEl = document.querySelector(".tier-group__range");
+    expect(rangeEl?.textContent).toMatch(/\$15–\$17/);
+    expect(rangeEl?.getAttribute("title")).toMatch(
+      /Displayed dollars are rounded\. Tiers and cliffs use raw auction values\./,
+    );
     expect(screen.getByText(/drop after tier/i)).toBeTruthy();
   });
 
@@ -103,7 +109,7 @@ describe("TiersView", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /expand tier 1/i }));
+    await user.click(screen.getByRole("button", { name: /expand tier 2/i }));
 
     const table = document.querySelector(".tier-table")!;
     expect(within(table).getByText("Market ADP")).toBeTruthy();
@@ -120,6 +126,53 @@ describe("TiersView", () => {
     expect(onPlayerClick).toHaveBeenCalledWith(
       expect.objectContaining({ id: "p1", name: "Julio Rodríguez" }),
     );
+  });
+
+  it("shows depleted tier when 0 available", () => {
+    render(
+      <TiersView
+        players={Array.from({ length: 3 }, (_, i) =>
+          player({
+            id: `d${i}`,
+            auction_tier: 1,
+            auction_value: 27 - i,
+          }),
+        )}
+        draftedIds={new Set(["d0", "d1", "d2"])}
+        onPlayerClick={noop}
+        isInWatchlist={() => false}
+        addToWatchlist={noop}
+        removeFromWatchlist={noop}
+      />,
+    );
+
+    expect(screen.getByText(/Depleted · 3 drafted/)).toBeTruthy();
+    expect(screen.queryByText(/players ·/)).toBeNull();
+    const depletedSection = document.querySelector(".tier-group--depleted");
+    expect(depletedSection).toBeTruthy();
+    expect(within(depletedSection as HTMLElement).getAllByText("—").length).toBeGreaterThanOrEqual(
+      2,
+    );
+  });
+
+  it("shows available count before drafted without total in primary line", () => {
+    render(
+      <TiersView
+        players={[
+          player({ id: "a", auction_tier: 2, auction_value: 18 }),
+          player({ id: "b", auction_tier: 2, auction_value: 16 }),
+          player({ id: "c", auction_tier: 2, auction_value: 15 }),
+        ]}
+        draftedIds={new Set(["c"])}
+        onPlayerClick={noop}
+        isInWatchlist={() => false}
+        addToWatchlist={noop}
+        removeFromWatchlist={noop}
+      />,
+    );
+
+    expect(screen.getByText("2 left · 1 drafted")).toBeTruthy();
+    expect(screen.queryByText(/3 players ·/)).toBeNull();
   });
 
   it("marks drafted players and excludes them from left count", async () => {
@@ -146,11 +199,10 @@ describe("TiersView", () => {
       />,
     );
 
-    expect(screen.getByText(/1 left/)).toBeTruthy();
-    expect(screen.getByText(/1 drafted/)).toBeTruthy();
+    expect(screen.getByText(/1 left · 1 drafted/)).toBeTruthy();
     expect(screen.queryByText(/No auction value/i)).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: /expand tier 1/i }));
+    await user.click(screen.getByRole("button", { name: /expand tier 2/i }));
 
     expect(screen.getByText("Active")).toBeTruthy();
     expect(screen.getByText("Drafted from this tier")).toBeTruthy();
@@ -173,7 +225,7 @@ describe("TiersView", () => {
               position: "OF",
               positions: ["OF"],
               auction_tier: 1,
-              auction_value: 10,
+              auction_value: 11,
             }),
           ),
           player({
@@ -210,11 +262,35 @@ describe("TiersView", () => {
     ).toBe(false);
   });
 
+  it("shows Engine tier chip when Engine tier differs from display tier", async () => {
+    const user = userEvent.setup();
+    render(
+      <TiersView
+        players={[
+          player({
+            id: "mis",
+            name: "Mismatch",
+            auction_tier: 1,
+            auction_value: 4,
+          }),
+        ]}
+        draftedIds={new Set()}
+        onPlayerClick={noop}
+        isInWatchlist={() => false}
+        addToWatchlist={noop}
+        removeFromWatchlist={noop}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /expand tier 5/i }));
+    expect(screen.getByText("Engine T1")).toBeTruthy();
+  });
+
   it("de-emphasizes min-bid replacement tier", () => {
     const { container } = render(
       <TiersView
         players={[
-          player({ id: "e1", auction_tier: 1, auction_value: 17 }),
+          player({ id: "e1", auction_tier: 1, auction_value: 27 }),
           ...Array.from({ length: 6 }, (_, i) =>
             player({
               id: `r${i}`,
@@ -233,6 +309,7 @@ describe("TiersView", () => {
 
     const muted = container.querySelector(".tier-group--muted");
     expect(muted).toBeTruthy();
+    expect(within(muted as HTMLElement).getByText("Min-bid / reserve")).toBeTruthy();
     expect(
       within(muted as HTMLElement).getByText("Replacement pool"),
     ).toBeTruthy();

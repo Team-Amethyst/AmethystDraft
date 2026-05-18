@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { ResearchDepthChartToolbar } from "./ResearchDepthChartToolbar";
+import {
+  DEPTH_CHART_DETAILS_NOTE,
+  DEPTH_CHART_PAGE_SUBTITLE,
+} from "../../domain/depthChartPageCopy";
 import type { DepthChartMatchSummary } from "../../domain/depthChartRowMatch";
 import { MLB_TEAMS } from "../../data/mlbTeams";
 
@@ -45,14 +49,12 @@ describe("ResearchDepthChartToolbar", () => {
     );
   });
 
-  it("renders title and subtitle", () => {
+  it("renders title with hover details and fantasy-oriented subtitle", () => {
     render(<ResearchDepthChartToolbar {...defaultProps} />);
-    expect(screen.getByRole("heading", { name: "Depth Charts" })).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Daily active-roster depth with starter / backup / reserve rankings.",
-      ),
-    ).toBeTruthy();
+    const heading = screen.getByRole("heading", { name: "Depth Charts" });
+    expect(heading.getAttribute("title")).toBe(DEPTH_CHART_DETAILS_NOTE);
+    expect(screen.getByText(DEPTH_CHART_PAGE_SUBTITLE)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /how this depth chart/i })).toBeNull();
   });
 
   it("renders team selector and refresh in the header", () => {
@@ -116,7 +118,7 @@ describe("ResearchDepthChartToolbar", () => {
     );
   });
 
-  it("does not render Details toggle", () => {
+  it("does not render an expanded details panel", () => {
     render(<ResearchDepthChartToolbar {...defaultProps} />);
     expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
     expect(

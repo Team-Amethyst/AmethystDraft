@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import { useAnchoredOverlayPosition } from "../hooks/useAnchoredOverlayPosition";
 import "./RosterSlotPicker.css";
 
 export type RosterSlotPickerVariant = "command-center" | "modal";
@@ -23,11 +25,15 @@ function useDismissOnOutsideAndEscape(
   open: boolean,
   setOpen: (v: boolean) => void,
   rootRef: React.RefObject<HTMLElement | null>,
+  portalRef: React.RefObject<HTMLElement | null>,
 ) {
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (portalRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -38,7 +44,7 @@ function useDismissOnOutsideAndEscape(
       document.removeEventListener("mousedown", onDoc);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, rootRef, setOpen]);
+  }, [open, rootRef, portalRef, setOpen]);
 }
 
 export function RosterSlotPicker({
@@ -54,6 +60,8 @@ export function RosterSlotPicker({
 }: RosterSlotPickerProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const eligibleSet = useMemo(
     () => new Set(eligibleSlots),
     [eligibleSlots],
@@ -65,7 +73,15 @@ export function RosterSlotPicker({
     return [...eligibleOrdered, ...ineligibleOrdered];
   }, [orderedSlots, eligibleSet]);
 
-  useDismissOnOutsideAndEscape(open, setOpen, rootRef);
+  const panelStyle = useAnchoredOverlayPosition(open, triggerRef, {
+    floatingRef: portalRef,
+    maxWidth: 280,
+    estimatedItemCount: displayRows.length,
+    estimatedItemHeight: 20.48,
+    estimatedPadding: 6,
+  });
+
+  useDismissOnOutsideAndEscape(open, setOpen, rootRef, portalRef);
 
   const isEmpty = orderedSlots.length === 0;
   const showValue = Boolean(value && orderedSlots.includes(value));
@@ -84,9 +100,43 @@ export function RosterSlotPicker({
     (open ? " rsp--open" : "") +
     (disabled ? " rsp--disabled" : "");
 
+  const isLogResult = variant === "command-center";
+  const panelClassName =
+    "rsp-panel pac-log-dropdown-menu" +
+    (variant === "modal" ? " rsp-panel--modal" : " rsp-panel--cc");
+
+  const panel = (
+    <ul className={panelClassName} role="listbox">
+      {displayRows.map((slot) => {
+        const eligible = eligibleSet.has(slot);
+        return (
+          <li key={slot} role="presentation">
+            <button
+              type="button"
+              role="option"
+              aria-selected={value === slot}
+              className={
+                "rsp-option" +
+                (eligible ? " rsp-option--eligible" : " rsp-option--ineligible")
+              }
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(slot);
+                setOpen(false);
+              }}
+            >
+              <span className="rsp-option-label">{slot}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <div className={rootClass} ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         className="rsp-trigger"
@@ -102,33 +152,23 @@ export function RosterSlotPicker({
         <span className="rsp-trigger-value">{triggerLabel}</span>
         <ChevronDown className="rsp-chevron" size={14} strokeWidth={2.25} aria-hidden />
       </button>
-      {open && !isEmpty && (
-        <ul className="rsp-panel" role="listbox">
-          {displayRows.map((slot) => {
-            const eligible = eligibleSet.has(slot);
-            return (
-              <li key={slot} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={value === slot}
-                  className={
-                    "rsp-option" +
-                    (eligible ? " rsp-option--eligible" : " rsp-option--ineligible")
-                  }
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onChange(slot);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="rsp-option-label">{slot}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {open && !isEmpty
+        ? createPortal(
+            <div
+              ref={portalRef}
+              className={
+                "rsp-portal-host" + (isLogResult ? " rsp-portal-host--pac-log" : "")
+              }
+              style={{
+                ...panelStyle,
+                ["--pac-log-option-count" as string]: displayRows.length,
+              }}
+            >
+              {panel}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

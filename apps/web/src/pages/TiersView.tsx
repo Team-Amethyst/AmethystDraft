@@ -11,17 +11,24 @@ import {
   buildFullTierView,
   formatCliffToNextTierLabel,
   formatCurrency,
+  formatTierBandRangeTooltip,
+  formatTierAvailabilitySummary,
   formatTierBandDisplay,
   isDeemphasizedTier,
+  isTierDepleted,
   sortPlayersInTierWithDraftedDisplay,
   type TierSortField,
   type TierStats,
 } from "../utils/tiers";
 import { poolHasAuctionTier, poolHasMarketAdp } from "../domain/playerRankTier";
 import {
-  auctionTierSemanticLabel,
+  DISPLAY_TIER_TOOLTIP,
+  displayTierSemanticLabel,
+  formatDisplayTierBandDisplay,
+  type DisplayTierNumber,
+} from "../domain/displayTiers";
+import {
   AUCTION_RANK_TOOLTIP,
-  AUCTION_TIER_TOOLTIP,
   MARKET_ADP_COLUMN_TOOLTIP,
   MODEL_TIER_FALLBACK_TOOLTIP,
   TIERS_ROUNDING_TOOLTIP,
@@ -78,7 +85,7 @@ function TierSummaryColumnHeader({ showMix }: { showMix: boolean }) {
     >
       <div className="tier-summary-columns__lead" />
       <div className="tier-summary-columns__metrics">
-        <span className="tier-summary-columns__metric-label">Pool</span>
+        <span className="tier-summary-columns__metric-label">Available</span>
         <span className="tier-summary-columns__metric-label">Value</span>
         <span className="tier-summary-columns__metric-label">Avg</span>
         <span className="tier-summary-columns__metric-label">Cliff</span>
@@ -166,20 +173,31 @@ function renderTierSection(
   const tierKey = String(tierStat.tier);
   const tierNum = tierBadgeNumber(tierStat.tier);
   const semantic =
-    args.semanticOverride ??
-    auctionTierSemanticLabel(tierStat.tier, args.poolUsesAuctionTier);
-  const bandDisplay = formatTierBandDisplay(tierStat);
+    args.semanticOverride ?? displayTierSemanticLabel(tierStat.tier);
+  const depleted = isTierDepleted(tierStat);
+  const availability = formatTierAvailabilitySummary(tierStat);
+  const bandDisplay =
+    !depleted && tierNum != null && tierNum >= 1 && tierNum <= 5
+      ? formatDisplayTierBandDisplay(tierNum as DisplayTierNumber, tierStat)
+      : depleted
+        ? { rangeLabel: "—", shelfNote: null }
+        : formatTierBandDisplay(tierStat);
+  const rangeTooltip = depleted
+    ? availability.title ?? "No players available in this tier."
+    : formatTierBandRangeTooltip(tierStat);
   const avgDisplay =
-    tierStat.valuedPlayerCount > 0
+    !depleted && tierStat.valuedPlayerCount > 0
       ? formatCurrency(Math.round(tierStat.averageValueRaw))
       : "—";
-  const cliffLabel = formatCliffToNextTierLabel({
-    cliffRaw: tierStat.cliffToNextTierRaw,
-    isMinBidStyleTier: tierStat.isMinBidStyleTier,
-    isFlatValueBand: tierStat.isFlatValueBand,
-    hasNextTier: tierIndex < totalTiers - 1,
-    tierNumber: tierStat.tier,
-  });
+  const cliffLabel = depleted
+    ? "—"
+    : formatCliffToNextTierLabel({
+        cliffRaw: tierStat.cliffToNextTierRaw,
+        isMinBidStyleTier: tierStat.isMinBidStyleTier,
+        isFlatValueBand: tierStat.isFlatValueBand,
+        hasNextTier: tierIndex < totalTiers - 1,
+        tierNumber: tierStat.tier,
+      });
   const deemphasized = args.deemphasized ?? isDeemphasizedTier(tierStat);
   const isExpanded = args.expanded[tierKey] ?? false;
   const sortedAvailable = sortPlayersInTierWithDraftedDisplay(
@@ -203,7 +221,8 @@ function renderTierSection(
       className={
         "tier-group pt-container" +
         (args.sectionClassName ? ` ${args.sectionClassName}` : "") +
-        (deemphasized ? " tier-group--muted" : "")
+        (deemphasized ? " tier-group--muted" : "") +
+        (depleted ? " tier-group--depleted" : "")
       }
     >
       <button
@@ -243,24 +262,28 @@ function renderTierSection(
             className="tier-summary-columns__metrics tier-group__summary-metrics"
             aria-label="Tier summary"
           >
-            <li className="tier-group__metric tier-group__metric--pool">
-              <span className="sr-only">Pool</span>
-              <span className="tier-group__metric-value">
-                {tierStat.players.length} players ·{" "}
-                <strong>{tierStat.availableCount} left</strong>
-                {tierStat.draftedCount > 0 ? (
-                  <span className="tier-group__drafted-note">
-                    {" "}
-                    · {tierStat.draftedCount} drafted
-                  </span>
-                ) : null}
+            <li className="tier-group__metric tier-group__metric--available">
+              <span className="sr-only">Available</span>
+              <span
+                className={
+                  "tier-group__metric-value tier-group__availability" +
+                  (depleted ? " tier-group__availability--depleted" : "")
+                }
+                title={availability.title}
+              >
+                {availability.primary}
               </span>
             </li>
-            <li className="tier-group__metric tier-group__metric--value">
+            <li
+              className={
+                "tier-group__metric tier-group__metric--value" +
+                (depleted ? " tier-group__metric--inactive" : "")
+              }
+            >
               <span className="sr-only">Value</span>
               <span
                 className="tier-group__metric-value tier-group__range"
-                title={TIERS_ROUNDING_TOOLTIP}
+                title={rangeTooltip}
               >
                 {bandDisplay.rangeLabel}
                 {bandDisplay.shelfNote ? (
@@ -271,25 +294,38 @@ function renderTierSection(
                 ) : null}
               </span>
             </li>
-            <li className="tier-group__metric tier-group__metric--avg">
+            <li
+              className={
+                "tier-group__metric tier-group__metric--avg" +
+                (depleted ? " tier-group__metric--inactive" : "")
+              }
+            >
               <span className="sr-only">Avg</span>
               <span className="tier-group__metric-value">{avgDisplay}</span>
             </li>
-            <li className="tier-group__metric tier-group__metric--cliff">
+            <li
+              className={
+                "tier-group__metric tier-group__metric--cliff" +
+                (depleted ? " tier-group__metric--inactive" : "")
+              }
+            >
               <span className="sr-only">Cliff</span>
               <span
                 className={
                   "tier-group__metric-value tier-group__cliff" +
-                  (tierStat.cliffToNextTierRaw != null &&
-                  tierStat.cliffToNextTierRaw >= 3
-                    ? " tier-group__cliff--strong"
-                    : "") +
+                  (depleted
+                    ? " tier-group__cliff--muted"
+                    : tierStat.cliffToNextTierRaw != null &&
+                        tierStat.cliffToNextTierRaw >= 3
+                      ? " tier-group__cliff--strong"
+                      : "") +
+                  (!depleted &&
                   (cliffLabel === "No meaningful drop" ||
-                  cliffLabel === "Replacement pool"
+                    cliffLabel === "Replacement pool")
                     ? " tier-group__cliff--muted"
                     : "")
                 }
-                title={cliffLabel}
+                title={depleted ? undefined : cliffLabel}
               >
                 {cliffLabel}
               </span>
@@ -378,6 +414,7 @@ function renderTierSection(
                 <TierExpandedPlayerRow
                   key={player.id}
                   player={player}
+                  displayTier={tierStat.tier}
                   listRank={index + 1}
                   statBasis={args.statBasis}
                   draftDisplaySlotKeys={args.draftDisplaySlotKeys}
@@ -420,6 +457,7 @@ function renderTierSection(
                   <TierExpandedPlayerRow
                     key={`drafted-${player.id}`}
                     player={player}
+                    displayTier={tierStat.tier}
                     listRank={index + 1}
                     statBasis={args.statBasis}
                     draftDisplaySlotKeys={args.draftDisplaySlotKeys}
@@ -509,13 +547,20 @@ export default function TiersView({
 
   const { tiers: tierStats, outsideModel } = useMemo(
     () =>
-      buildFullTierView(
-        players,
+      buildFullTierView(players, draftedIds, positionFilter, {
         draftedIds,
-        positionFilter,
-        draftDisplaySlotKeys,
-      ),
-    [players, draftedIds, positionFilter, draftDisplaySlotKeys],
+        draftedPriceByPlayerId,
+        draftedContractByPlayerId,
+        rosterSlotKeys: draftDisplaySlotKeys,
+      }),
+    [
+      players,
+      draftedIds,
+      positionFilter,
+      draftDisplaySlotKeys,
+      draftedPriceByPlayerId,
+      draftedContractByPlayerId,
+    ],
   );
 
   const sortDisplayOptions = useMemo(
@@ -570,7 +615,7 @@ export default function TiersView({
   }, [showMarketAdp]);
 
   const tierBadgeTitle = poolUsesAuctionTier
-    ? AUCTION_TIER_TOOLTIP
+    ? DISPLAY_TIER_TOOLTIP
     : MODEL_TIER_FALLBACK_TOOLTIP;
 
   const sectionArgs = {
@@ -621,7 +666,15 @@ export default function TiersView({
               Auction tiers
             </h2>
             <p>
-              Model-generated auction tiers for this league. {TIERS_ROUNDING_TOOLTIP}
+              Value bands from the current Engine auction board. Engine tier is
+              shown when it differs. {TIERS_ROUNDING_TOOLTIP}
+              {positionFilter !== "all" ? (
+                <>
+                  {" "}
+                  Filtered within these tiers — counts and cliffs are for the{" "}
+                  {positionFilter} subset only.
+                </>
+              ) : null}
             </p>
           </div>
 
@@ -678,7 +731,7 @@ export default function TiersView({
                 ...sectionArgs,
                 deemphasized: true,
                 sectionClassName: "tier-group--outside-model",
-                summaryTitle: "Not in valuation model",
+                summaryTitle: "Outside valuation model",
                 semanticOverride: null,
               },
             )

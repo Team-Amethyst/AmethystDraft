@@ -1,8 +1,14 @@
 import type { Player } from "../types/player";
 import { catalogPlayerIdInStringSet } from "../domain/catalogPlayerKeys";
+import {
+  groupPlayersByDisplayTier,
+  type DisplayTierGroupingOptions,
+  type DisplayTierGroup,
+} from "../domain/displayTiers";
 import { displayAuctionTier } from "../domain/playerRankTier";
 import { countResearchTablePositionParts } from "./eligibility";
 import { researchTableAuctionDollars } from "../domain/researchDraftedDisplay";
+import { formatAuctionValueRaw } from "../domain/researchAuctionValueDisplay";
 import { leagueWideAuctionDollars, formatCurrencyWhole } from "./valuation";
 
 export type TierGroup = { tier: string | number; players: Player[] };
@@ -113,6 +119,30 @@ export type TierBandDisplay = {
   shelfNote: string | null;
 };
 
+/** Raw min–max for available valued players in a tier (null for empty / min-bid shelf). */
+export function formatTierRawValueRange(
+  stat: Pick<
+    TierStats,
+    "minValueRaw" | "maxValueRaw" | "valuedPlayerCount" | "maxValueDisplay"
+  >,
+): string | null {
+  if (stat.valuedPlayerCount === 0) return null;
+  if (stat.maxValueDisplay < MEANINGFUL_BAND_FLOOR_RAW) return null;
+  const { minValueRaw: min, maxValueRaw: max } = stat;
+  if (min === max) return formatAuctionValueRaw(min);
+  return `${formatAuctionValueRaw(min)}–${formatAuctionValueRaw(max)}`;
+}
+
+/** Collapsed tier value column hover: rounding note only (no raw band). */
+export function formatTierBandRangeTooltip(
+  _stat: Pick<
+    TierStats,
+    "minValueRaw" | "maxValueRaw" | "valuedPlayerCount" | "maxValueDisplay"
+  >,
+): string {
+  return "Displayed dollars are rounded. Tiers and cliffs use raw auction values.";
+}
+
 export function formatTierBandDisplay(
   stat: Pick<
     TierStats,
@@ -151,7 +181,8 @@ export function formatTierBandDisplay(
   };
 }
 
-export function groupPlayersByTier(players: Player[]): TierGroup[] {
+/** Engine auction_tier buckets (audit / metadata). */
+export function groupPlayersByEngineTier(players: Player[]): TierGroup[] {
   const map = new Map<string | number, Player[]>();
 
   for (const p of players) {
@@ -171,6 +202,9 @@ export function groupPlayersByTier(players: Player[]): TierGroup[] {
 
   return entries.map(([tier, arr]) => ({ tier, players: arr }));
 }
+
+/** @deprecated Prefer {@link groupPlayersByEngineTier} for Engine buckets. */
+export const groupPlayersByTier = groupPlayersByEngineTier;
 
 export function topPlayerNamesByAuctionValue(
   players: Player[],
@@ -287,11 +321,6 @@ export function partitionPlayersForTierView(
       tiered.push(p);
       continue;
     }
-    const tier = displayAuctionTier(p) ?? p.catalog_tier;
-    if (isNumericAuctionTier(tier ?? NaN)) {
-      tiered.push(p);
-      continue;
-    }
     outsideModel.push(p);
   }
 
@@ -303,12 +332,52 @@ export type FullTierView = {
   outsideModel: TierStats | null;
 };
 
+export type BuildFullTierViewOptions = DisplayTierGroupingOptions & {
+  rosterSlotKeys?: readonly string[] | null;
+};
+
+function isBuildFullTierViewOptions(
+  options: BuildFullTierViewOptions | readonly string[] | null | undefined,
+): options is BuildFullTierViewOptions {
+  return options != null && !Array.isArray(options);
+}
+
+function resolveBuildFullTierViewOptions(
+  draftedIds: ReadonlySet<string>,
+  options?: BuildFullTierViewOptions | readonly string[] | null,
+): {
+  rosterSlotKeys: readonly string[] | null | undefined;
+  grouping: DisplayTierGroupingOptions;
+} {
+  if (options == null) {
+    return { rosterSlotKeys: undefined, grouping: { draftedIds } };
+  }
+  if (Array.isArray(options)) {
+    return { rosterSlotKeys: options, grouping: { draftedIds } };
+  }
+  if (isBuildFullTierViewOptions(options)) {
+    return {
+      rosterSlotKeys: options.rosterSlotKeys,
+      grouping: {
+        draftedIds,
+        draftedPriceByPlayerId: options.draftedPriceByPlayerId,
+        draftedContractByPlayerId: options.draftedContractByPlayerId,
+      },
+    };
+  }
+  return { rosterSlotKeys: undefined, grouping: { draftedIds } };
+}
+
 export function buildFullTierView(
   players: Player[],
   draftedIds: ReadonlySet<string>,
   positionFilter: string,
-  rosterSlotKeys?: readonly string[] | null,
+  options?: BuildFullTierViewOptions | readonly string[] | null,
 ): FullTierView {
+  const { rosterSlotKeys, grouping } = resolveBuildFullTierViewOptions(
+    draftedIds,
+    options,
+  );
   const filtered =
     positionFilter === "all"
       ? players
@@ -319,8 +388,9 @@ export function buildFullTierView(
     draftedIds,
   );
 
-  const tierGroups = groupPlayersByTier(tiered).filter((g) =>
-    isNumericAuctionTier(g.tier),
+  const tierGroups: DisplayTierGroup[] = groupPlayersByDisplayTier(
+    tiered,
+    grouping,
   );
   const tiers = calculateTierStats(tierGroups, draftedIds, rosterSlotKeys);
 
@@ -337,8 +407,48 @@ export function buildFullTierView(
   return { tiers, outsideModel };
 }
 
+export function isTierDepleted(
+  stat: Pick<TierStats, "availableCount">,
+): boolean {
+  return stat.availableCount === 0;
+}
+
+export type TierAvailabilitySummary = {
+  primary: string;
+  /** Total players in tier (available + drafted). */
+  title?: string;
+};
+
+export function formatTierAvailabilitySummary(
+  stat: Pick<TierStats, "availableCount" | "draftedCount" | "players">,
+): TierAvailabilitySummary {
+  const total = stat.players.length;
+  const title = total > 0 ? `${total} players in tier` : undefined;
+
+  if (isTierDepleted(stat)) {
+    return {
+      primary:
+        stat.draftedCount > 0
+          ? `Depleted · ${stat.draftedCount} drafted`
+          : "Depleted",
+      title,
+    };
+  }
+
+  let primary = `${stat.availableCount} left`;
+  if (stat.draftedCount > 0) {
+    primary += ` · ${stat.draftedCount} drafted`;
+  }
+  return { primary, title };
+}
+
 export function isDeemphasizedTier(stat: TierStats): boolean {
-  return stat.isMinBidStyleTier || (stat.isFlatValueBand && stat.tier !== 1);
+  return (
+    isTierDepleted(stat) ||
+    stat.isMinBidStyleTier ||
+    (stat.isFlatValueBand && stat.tier !== 1) ||
+    stat.tier === 5
+  );
 }
 
 export function calculateTierStats(
@@ -535,7 +645,7 @@ export function auditTierInputs(
   }>;
   diagnosis: string;
 } {
-  const groups = groupPlayersByTier(players);
+  const groups = groupPlayersByDisplayTier(players, { draftedIds });
   const stats = calculateTierStats(groups, draftedIds, rosterSlotKeys);
 
   const tierSummaries = stats.map((s) => ({
@@ -606,14 +716,9 @@ export function buildTierViewForPosition(
   players: Player[],
   draftedIds: ReadonlySet<string>,
   positionFilter: string,
-  rosterSlotKeys?: readonly string[] | null,
+  options?: BuildFullTierViewOptions | readonly string[] | null,
 ): TierStats[] {
-  return buildFullTierView(
-    players,
-    draftedIds,
-    positionFilter,
-    rosterSlotKeys,
-  ).tiers;
+  return buildFullTierView(players, draftedIds, positionFilter, options).tiers;
 }
 
 export function sortPlayersInTierWithDraftedDisplay(

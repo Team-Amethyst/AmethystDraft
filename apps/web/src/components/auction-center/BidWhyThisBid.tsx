@@ -20,7 +20,10 @@ import {
   valuationExplainHasBidContextTable,
 } from "../../domain/auctionCenterValuation";
 import { buildBidDecisionPlainSummary } from "../../domain/bidDecisionPlainSummary";
-import { leagueWideAuctionDollars } from "../../utils/valuation";
+import {
+  COMMAND_CENTER_WHY_ROSTER_FIT_LINE,
+  leagueWideAuctionDollars,
+} from "../../utils/valuation";
 import {
   formatSignedWhole,
   summarizeDriverReason,
@@ -257,6 +260,7 @@ export function BidWhyThisBid({
         </span>
       </summary>
       <div className="bdc-why-bid__body">
+        <p className="bdc-why-roster-fit">{COMMAND_CENTER_WHY_ROSTER_FIT_LINE}</p>
         {plainSummary ? (
           <section className="bdc-why-plain" aria-label="Bid summary">
             <p className="bdc-why-plain__headline">{plainSummary.headline}</p>

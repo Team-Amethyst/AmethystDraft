@@ -11,6 +11,7 @@ export function AuctionMetricTile({
   value: ReactNode;
   delta?: ReactNode;
   variant?: "default" | "primary" | "reference";
+  /** Whole-tile hover tooltip. */
   title?: string;
 }) {
   return (
@@ -23,7 +24,7 @@ export function AuctionMetricTile({
             ? " bdc-metric-tile--reference"
             : "")
       }
-      title={title}
+      title={title?.trim() || undefined}
     >
       <span className="bdc-metric-tile-label">{label}</span>
       <div className="bdc-metric-tile-value">{value}</div>

@@ -5,10 +5,12 @@ import type { Player } from "../../types/player";
 import {
   formatDollar,
   formatSignedDollarWhole,
-  BID_EDGE_TOOLTIP,
+  COMMAND_CENTER_BID_EDGE_TOOLTIP,
+  COMMAND_CENTER_TOOLTIP_AUCTION_VALUE,
+  COMMAND_CENTER_TOOLTIP_SUGGESTED_BID,
+  COMMAND_CENTER_TOOLTIP_TEAM_VALUE,
   leagueWideAuctionDollars,
   valuationSortLabel,
-  valuationTooltip,
   recommendedBidTileLabel,
   recommendedBidTileTooltip,
   commandCenterBidDecision,
@@ -179,7 +181,7 @@ export function BidDecisionCard({
             >
               <AuctionMetricTile
                 label={valuationSortLabel("auction_value")}
-                title={valuationTooltip("auction_value")}
+                title={COMMAND_CENTER_TOOLTIP_AUCTION_VALUE}
                 value={
                   <span className="bdc-focus-value">
                     {shouldShowBidLadderCellSpinner(
@@ -197,7 +199,11 @@ export function BidDecisionCard({
               <AuctionMetricTile
                 variant="primary"
                 label={recommendedBidLabel}
-                title={recommendedBidTitle}
+                title={
+                  budgetLimited
+                    ? recommendedBidTitle
+                    : COMMAND_CENTER_TOOLTIP_SUGGESTED_BID
+                }
                 value={
                   maxBidHasValue ? (
                     <span className="bdc-focus-value">{recommendedBidDisplay}</span>
@@ -216,7 +222,7 @@ export function BidDecisionCard({
               />
               <AuctionMetricTile
                 label={valuationSortLabel("team_value")}
-                title={valuationTooltip("team_value")}
+                title={COMMAND_CENTER_TOOLTIP_TEAM_VALUE}
                 value={
                   <span className="bdc-focus-value">
                     {shouldShowBidLadderCellSpinner(
@@ -233,7 +239,7 @@ export function BidDecisionCard({
               />
               <AuctionMetricTile
                 label="Bid edge"
-                title={BID_EDGE_TOOLTIP}
+                title={COMMAND_CENTER_BID_EDGE_TOOLTIP}
                 value={
                   <span
                     className={

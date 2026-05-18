@@ -476,44 +476,6 @@
   box-shadow: 0 0 0 2px var(--pt-control-focus-ring);
 }
 
-.pt-filter-group .pt-filter-field.app-select-root .app-select-menu {
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  padding: 0.2rem;
-  gap: 0.04rem;
-  max-height: none;
-  overflow: visible;
-  border-radius: var(--pt-control-menu-shell-radius);
-  border-color: var(--pt-control-menu-border);
-  background: var(--pt-control-menu-bg);
-  box-shadow: var(--pt-control-menu-shadow);
-}
-
-.pt-filter-group .pt-filter-field.app-select-root .app-select-option {
-  width: 100%;
-  min-height: var(--pt-control-menu-option-min-h);
-  padding: var(--pt-control-menu-option-pad);
-  border-radius: 5px;
-  font-family: DM Sans, sans-serif;
-  font-size: var(--pt-control-menu-font);
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.pt-filter-group
-  .pt-filter-field.app-select-root
-  .app-select-option:hover:not(:disabled) {
-  background: var(--pt-control-row-hover);
-  color: var(--pt-control-text);
-}
-
-.pt-filter-group .pt-filter-field.app-select-root .app-select-option.is-selected {
-  background: var(--pt-control-row-selected);
-  color: #ddd6fe;
-  font-weight: 600;
-}
-
 .pt-filter-select.pt-tags-trigger {
   display: inline-flex;
   align-items: center;
@@ -1437,6 +1399,13 @@
 }
 
 /* ── Tag filter dropdown (matches filter AppSelect open menu) ── */
+.pt-tag-dropdown--portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+}
+
 .pt-tag-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -1617,6 +1586,12 @@
   flex-wrap: nowrap;
   /* Hidden badge scrolling defeats +x collapse — clip here; overflow labels handle the rest */
   overflow-x: hidden;
+}
+
+.tag.tag--engine-tier {
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .tag {
