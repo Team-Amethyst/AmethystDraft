@@ -181,6 +181,9 @@ const MLB_TEAMS = [
 const HITTER_STAT_KEYS = ["R", "HR", "RBI", "SB", "AVG"];
 const PITCHER_STAT_KEYS = ["W", "K", "ERA", "WHIP", "SV"];
 
+const INITIAL_PLAYER_RENDER_COUNT = 30;
+const PLAYER_RENDER_INCREMENT = 30;
+
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -310,7 +313,9 @@ function getAuctionValue(player: Player, row?: ValuationResult): number {
 function getAuctionRank(player: Player, row?: ValuationResult): number | null {
   return (
     valuationNumber(row, "auction_rank") ??
-    playerNumber(player, "auction_rank")
+    playerNumber(player, "auction_rank") ??
+    playerNumber(player, "catalog_rank") ??
+    playerNumber(player, "adp")
   );
 }
 
@@ -325,7 +330,8 @@ function getModelRank(player: Player, row?: ValuationResult): number | null {
 function getMarketAdp(player: Player, row?: ValuationResult): number | null {
   return (
     valuationNumber(row, "market_adp") ??
-    playerNumber(player, "market_adp")
+    playerNumber(player, "market_adp") ??
+    playerNumber(player, "adp")
   );
 }
 
@@ -953,6 +959,8 @@ function PlayerResearchCard({
   const injury = player.injuryStatus?.trim();
   const imageUrl = getPlayerImageUrl(player);
   const cardTags = getPlayerTags(player, statBasis);
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const trimmedNote = note.trim();
 
   return (
     <AppCard backgroundColor="#151021" borderColor="#31224f">
@@ -1098,7 +1106,7 @@ function PlayerResearchCard({
           />
         </View>
 
-        {showEngineValues && engineRow ? (
+        {showEngineValues ? (
           <View
             style={{
               flexDirection: "row",
@@ -1157,36 +1165,71 @@ function PlayerResearchCard({
             paddingTop: 10,
           }}
         >
-          <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "900", marginBottom: 6 }}>
-            Notes
-          </Text>
-          <TextInput
-            value={note}
-            onChangeText={onChangeNote}
-            placeholder="Add note..."
-            placeholderTextColor="#6b5f80"
-            multiline
+          <View
             style={{
-              minHeight: 42,
-              borderWidth: 1,
-              borderColor: "#3f335c",
-              borderRadius: 10,
-              paddingHorizontal: 10,
-              paddingVertical: 8,
-              color: "#f9fafb",
-              backgroundColor: "#0b0712",
-              textAlignVertical: "top",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: noteEditorOpen ? 6 : 0,
             }}
-          />
-          {note.trim().length > 0 ? (
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "900", marginBottom: 3 }}>
+                Notes
+              </Text>
+              <Text numberOfLines={1} style={{ color: "#d1d5db", fontSize: 12 }}>
+                {trimmedNote.length > 0 ? trimmedNote : "No note"}
+              </Text>
+            </View>
+
             <TouchableOpacity
-              onPress={() => onChangeNote("")}
-              style={{ alignSelf: "flex-start", marginTop: 6 }}
+              onPress={() => setNoteEditorOpen((value) => !value)}
+              style={{
+                borderWidth: 1,
+                borderColor: "#4c3575",
+                borderRadius: 999,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                backgroundColor: "#1b1428",
+              }}
             >
               <Text style={{ color: "#c4b5fd", fontSize: 12, fontWeight: "900" }}>
-                Clear note
+                {noteEditorOpen ? "Done" : trimmedNote.length > 0 ? "Edit" : "Add"}
               </Text>
             </TouchableOpacity>
+          </View>
+
+          {noteEditorOpen ? (
+            <>
+              <TextInput
+                value={note}
+                onChangeText={onChangeNote}
+                placeholder="Add note..."
+                placeholderTextColor="#6b5f80"
+                multiline
+                style={{
+                  minHeight: 42,
+                  borderWidth: 1,
+                  borderColor: "#3f335c",
+                  borderRadius: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  color: "#f9fafb",
+                  backgroundColor: "#0b0712",
+                  textAlignVertical: "top",
+                }}
+              />
+              {trimmedNote.length > 0 ? (
+                <TouchableOpacity
+                  onPress={() => onChangeNote("")}
+                  style={{ alignSelf: "flex-start", marginTop: 6 }}
+                >
+                  <Text style={{ color: "#c4b5fd", fontSize: 12, fontWeight: "900" }}>
+                    Clear note
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
           ) : null}
         </View>
 
@@ -1308,6 +1351,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [activePanel, setActivePanel] = useState<ControlPanel>(null);
   const [selectedTags, setSelectedTags] = useState<TagFilter[]>([]);
   const [showEngineValues, setShowEngineValues] = useState(false);
+  const [visiblePlayerCount, setVisiblePlayerCount] = useState(INITIAL_PLAYER_RENDER_COUNT);
 
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [editingCustomPlayerId, setEditingCustomPlayerId] = useState<string | null>(null);
@@ -1439,8 +1483,6 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
         setValuationsByPlayerId(merged);
 
-        console.log("VALUATION SAMPLE", response.valuations.slice(0, 3));
-        console.log("PLAYER SAMPLE", players.slice(0, 3));
       })
       .catch(() => {
         if (!cancelled) {
@@ -1569,6 +1611,27 @@ export default function ResearchScreen({ route, navigation }: Props) {
     statBasis,
     showEngineValues,
   ]);
+
+  useEffect(() => {
+    setVisiblePlayerCount(INITIAL_PLAYER_RENDER_COUNT);
+  }, [
+    search,
+    positionFilter,
+    availabilityFilter,
+    injuryFilter,
+    statViewFilter,
+    starredOnly,
+    statBasis,
+    sortBy,
+    sortDirection,
+    selectedTags,
+    showEngineValues,
+    selectedView,
+  ]);
+
+  const visibleSortedPlayers = useMemo(() => {
+    return sortedFilteredPlayers.slice(0, visiblePlayerCount);
+  }, [sortedFilteredPlayers, visiblePlayerCount]);
 
   const tierBuckets = useMemo(() => {
     const grouped = new Map<number, Player[]>();
@@ -2202,31 +2265,66 @@ export default function ResearchScreen({ route, navigation }: Props) {
                 {sortedFilteredPlayers.length === 0 ? (
                   <EmptyState label="No players found." />
                 ) : (
-                  sortedFilteredPlayers.map((item, index) => {
-                    const watched = isInWatchlist(leagueId, item.id);
-                    const engineRow = valuationsByPlayerId.get(item.id);
-                    const custom = isCustomPlayer(item.id);
+                  <>
+                    {visibleSortedPlayers.map((item, index) => {
+                      const watched = isInWatchlist(leagueId, item.id);
+                      const engineRow = valuationsByPlayerId.get(item.id);
+                      const custom = isCustomPlayer(item.id);
 
-                    return (
-                      <PlayerResearchCard
-                        key={item.id}
-                        player={item}
-                        engineRow={engineRow}
-                        watched={watched}
-                        custom={custom}
-                        rankNumber={index + 1}
-                        statBasis={statBasis}
-                        statViewFilter={statViewFilter}
-                        note={getNote(leagueId, item.id)}
-                        onChangeNote={(note) => setNote(leagueId, item.id, note)}
-                        showEngineValues={showEngineValues}
-                        onOpen={() => handleOpenPlayer(item)}
-                        onToggleWatchlist={() => void handleToggleWatchlist(item)}
-                        onEditCustom={() => startEditingCustomPlayer(item)}
-                        onRemoveCustom={() => void removeCustomPlayer(item.id)}
-                      />
-                    );
-                  })
+                      return (
+                        <PlayerResearchCard
+                          key={item.id}
+                          player={item}
+                          engineRow={engineRow}
+                          watched={watched}
+                          custom={custom}
+                          rankNumber={index + 1}
+                          statBasis={statBasis}
+                          statViewFilter={statViewFilter}
+                          note={getNote(leagueId, item.id)}
+                          onChangeNote={(note) => setNote(leagueId, item.id, note)}
+                          showEngineValues={showEngineValues}
+                          onOpen={() => handleOpenPlayer(item)}
+                          onToggleWatchlist={() => void handleToggleWatchlist(item)}
+                          onEditCustom={() => startEditingCustomPlayer(item)}
+                          onRemoveCustom={() => void removeCustomPlayer(item.id)}
+                        />
+                      );
+                    })}
+
+                    {visibleSortedPlayers.length < sortedFilteredPlayers.length ? (
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() =>
+                          setVisiblePlayerCount((count) =>
+                            Math.min(
+                              count + PLAYER_RENDER_INCREMENT,
+                              sortedFilteredPlayers.length,
+                            ),
+                          )
+                        }
+                        style={{
+                          borderWidth: 1,
+                          borderColor: "#4c3575",
+                          borderRadius: 14,
+                          paddingVertical: 12,
+                          alignItems: "center",
+                          backgroundColor: "#151021",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <Text style={{ color: "#f9fafb", fontWeight: "900" }}>
+                          Load {Math.min(
+                            PLAYER_RENDER_INCREMENT,
+                            sortedFilteredPlayers.length - visibleSortedPlayers.length,
+                          )} more players
+                        </Text>
+                        <Text style={{ color: "#a1a1aa", fontSize: 12, marginTop: 3 }}>
+                          Showing {visibleSortedPlayers.length} of {sortedFilteredPlayers.length}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </>
                 )}
               </>
             ) : (
