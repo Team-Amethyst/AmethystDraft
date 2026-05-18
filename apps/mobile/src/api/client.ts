@@ -9,6 +9,7 @@ const DEFAULT_API_BASE = "http://localhost:3001";
 const API_BASE = (
   process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE
 ).replace(/\/$/, "");
+console.log("MOBILE API BASE:", API_BASE);
 
 type ValidationErr = { field?: string; message?: string };
 

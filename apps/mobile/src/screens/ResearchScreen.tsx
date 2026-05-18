@@ -60,13 +60,19 @@ type ResearchSort =
   | "auction_value"
   | "auction_rank"
   | "market_adp"
-  | "name"
-  | "tier"
   | "r_w"
   | "hr_k"
   | "rbi_era"
   | "sb_whip"
-  | "avg_sv";
+  | "avg_sv"
+  | "obp_ip"
+  | "slg_hld"
+  | "tb_cg"
+  | "h"
+  | "bb"
+  | "k"
+  | "model_tier"
+  | "model_rank";
 
 type PositionFilter =
   | "ALL"
@@ -116,18 +122,70 @@ function positionFiltersForStatView(statViewFilter: StatViewFilter): PositionFil
   return ALL_POSITION_FILTERS;
 }
 
-const SORT_OPTIONS: { label: string; value: ResearchSort }[] = [
-  { label: "Auction $", value: "auction_value" },
-  { label: "Auction Rank", value: "auction_rank" },
+type SortOption = { label: string; value: ResearchSort };
+
+type StatSortOption = SortOption & {
+  hitting?: string;
+  pitching?: string;
+};
+
+const CORE_SORT_OPTIONS: SortOption[] = [
   { label: "Market ADP", value: "market_adp" },
-  { label: "Name", value: "name" },
-  { label: "Tier", value: "tier" },
-  { label: "R / W", value: "r_w" },
-  { label: "HR / K", value: "hr_k" },
-  { label: "RBI / ERA", value: "rbi_era" },
-  { label: "SB / WHIP", value: "sb_whip" },
-  { label: "AVG / SV", value: "avg_sv" },
+  { label: "Auction Rank", value: "auction_rank" },
+  { label: "Auction Value", value: "auction_value" },
 ];
+
+const STAT_SORT_OPTIONS: StatSortOption[] = [
+  { label: "R / W", value: "r_w", hitting: "R", pitching: "W" },
+  { label: "HR / K", value: "hr_k", hitting: "HR", pitching: "K" },
+  { label: "RBI / ERA", value: "rbi_era", hitting: "RBI", pitching: "ERA" },
+  { label: "SB / WHIP", value: "sb_whip", hitting: "SB", pitching: "WHIP" },
+  { label: "AVG / SV", value: "avg_sv", hitting: "AVG", pitching: "SV" },
+  { label: "OBP / IP", value: "obp_ip", hitting: "OBP", pitching: "IP" },
+  { label: "SLG / HLD", value: "slg_hld", hitting: "SLG", pitching: "HLD" },
+  { label: "TB / CG", value: "tb_cg", hitting: "TB", pitching: "CG" },
+  { label: "H", value: "h", hitting: "H" },
+  { label: "BB", value: "bb", hitting: "BB" },
+  { label: "K", value: "k", hitting: "K", pitching: "K" },
+];
+
+const MODEL_SORT_OPTIONS: SortOption[] = [
+  { label: "Model Tier", value: "model_tier" },
+  { label: "Model Rank", value: "model_rank" },
+];
+
+function statSortOptionIsAvailable(
+  option: StatSortOption,
+  researchStatKeys: ResearchStatKeys,
+): boolean {
+  if (option.hitting && researchStatKeys.hitting.includes(option.hitting)) {
+    return true;
+  }
+
+  if (option.pitching && researchStatKeys.pitching.includes(option.pitching)) {
+    return true;
+  }
+
+  return false;
+}
+
+function sortOptionsForResearchStats(
+  researchStatKeys: ResearchStatKeys,
+  showEngineValues: boolean,
+): SortOption[] {
+  const baseOptions = [
+    ...CORE_SORT_OPTIONS,
+    ...STAT_SORT_OPTIONS.filter((option) =>
+      statSortOptionIsAvailable(option, researchStatKeys),
+    ),
+  ];
+
+  if (showEngineValues) {
+    return [...MODEL_SORT_OPTIONS, ...baseOptions];
+  }
+
+  return baseOptions;
+}
 
 const TAG_OPTIONS: TagFilter[] = ["HR+", "SB+", "AVG+", "R+", "RBI+", "K+", "W+", "SV+"];
 
@@ -181,6 +239,36 @@ const MLB_TEAMS = [
 const HITTER_STAT_KEYS = ["R", "HR", "RBI", "SB", "AVG"];
 const PITCHER_STAT_KEYS = ["W", "K", "ERA", "WHIP", "SV"];
 
+const SUPPORTED_HITTER_STAT_KEYS = [
+  "R",
+  "HR",
+  "RBI",
+  "SB",
+  "AVG",
+  "OBP",
+  "SLG",
+  "TB",
+  "H",
+  "BB",
+  "K",
+];
+
+const SUPPORTED_PITCHER_STAT_KEYS = [
+  "W",
+  "K",
+  "ERA",
+  "WHIP",
+  "SV",
+  "IP",
+  "HLD",
+  "CG",
+];
+
+type ResearchStatKeys = {
+  hitting: string[];
+  pitching: string[];
+};
+
 const INITIAL_PLAYER_RENDER_COUNT = 30;
 const PLAYER_RENDER_INCREMENT = 30;
 
@@ -198,6 +286,129 @@ function finiteNumber(value: unknown): number | null {
   }
 
   return null;
+}
+
+function normalizeStatKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().toUpperCase();
+
+  if (!normalized) return null;
+  if (normalized === "RUNS") return "R";
+  if (normalized === "HOME_RUNS" || normalized === "HOMERUNS" || normalized === "HOME RUNS") return "HR";
+  if (normalized === "STOLEN_BASES" || normalized === "STOLEN BASES") return "SB";
+  if (normalized === "BATTING_AVERAGE" || normalized === "BATTING AVERAGE") return "AVG";
+  if (normalized === "TOTAL_BASES" || normalized === "TOTAL BASES") return "TB";
+  if (normalized === "WINS") return "W";
+  if (normalized === "STRIKEOUTS" || normalized === "SO") return "K";
+  if (normalized === "SAVES") return "SV";
+  if (normalized === "HOLDS") return "HLD";
+  if (normalized === "INNINGS_PITCHED" || normalized === "INNINGS PITCHED") return "IP";
+  if (normalized === "COMPLETE_GAMES" || normalized === "COMPLETE GAMES") return "CG";
+
+  return normalized;
+}
+
+function uniqueSupportedStats(values: unknown[], supported: string[], fallback: string[]): string[] {
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeStatKey(value);
+
+    if (normalized && supported.includes(normalized) && !result.includes(normalized)) {
+      result.push(normalized);
+    }
+  }
+
+  return result.length > 0 ? result : fallback;
+}
+
+function arrayFromUnknown(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (Array.isArray(record.categories)) return record.categories;
+    if (Array.isArray(record.stats)) return record.stats;
+    if (Array.isArray(record.selected)) return record.selected;
+  }
+
+  return [];
+}
+
+function extractScoringSide(
+  scoringCategories: unknown,
+  side: "hitting" | "pitching",
+): unknown[] {
+  if (!scoringCategories) return [];
+
+  if (Array.isArray(scoringCategories)) {
+    return scoringCategories;
+  }
+
+  if (typeof scoringCategories !== "object") return [];
+
+  const record = scoringCategories as Record<string, unknown>;
+
+  if (side === "hitting") {
+    return [
+      ...arrayFromUnknown(record.hitting),
+      ...arrayFromUnknown(record.batting),
+      ...arrayFromUnknown(record.hitters),
+      ...arrayFromUnknown(record.offense),
+    ];
+  }
+
+  return [
+    ...arrayFromUnknown(record.pitching),
+    ...arrayFromUnknown(record.pitchers),
+  ];
+}
+
+function getLeagueResearchStatKeys(league: unknown): ResearchStatKeys {
+  const record = league as { scoringCategories?: unknown } | null | undefined;
+  const scoringCategories = record?.scoringCategories;
+
+  if (Array.isArray(scoringCategories)) {
+    const normalized = scoringCategories
+      .map(normalizeStatKey)
+      .filter((value): value is string => Boolean(value));
+
+    const hitting = uniqueSupportedStats(
+      normalized.filter((value) => SUPPORTED_HITTER_STAT_KEYS.includes(value)),
+      SUPPORTED_HITTER_STAT_KEYS,
+      HITTER_STAT_KEYS,
+    );
+
+    const pitching = uniqueSupportedStats(
+      normalized.filter((value) => SUPPORTED_PITCHER_STAT_KEYS.includes(value)),
+      SUPPORTED_PITCHER_STAT_KEYS,
+      PITCHER_STAT_KEYS,
+    );
+
+    return { hitting, pitching };
+  }
+
+  return {
+    hitting: uniqueSupportedStats(
+      extractScoringSide(scoringCategories, "hitting"),
+      SUPPORTED_HITTER_STAT_KEYS,
+      HITTER_STAT_KEYS,
+    ),
+    pitching: uniqueSupportedStats(
+      extractScoringSide(scoringCategories, "pitching"),
+      SUPPORTED_PITCHER_STAT_KEYS,
+      PITCHER_STAT_KEYS,
+    ),
+  };
+}
+
+function statDigits(key: string): number {
+  if (["AVG", "OBP", "SLG"].includes(key)) return 3;
+  if (["ERA", "WHIP"].includes(key)) return 2;
+  if (key === "IP") return 1;
+  return 0;
 }
 
 function valuationNumber(row: ValuationResult | undefined, key: string): number | null {
@@ -454,9 +665,13 @@ function getNestedStat(player: Player, key: string, statBasis: StatBasis): numbe
     };
   };
 
-  const hittingKey = HITTER_STAT_KEYS.includes(key);
-  const pitchingKey = PITCHER_STAT_KEYS.includes(key);
-  const side = hittingKey ? "batting" : pitchingKey ? "pitching" : isPitcher(player) ? "pitching" : "batting";
+  const normalizedKey = normalizeStatKey(key) ?? key.toUpperCase();
+  const hittingKey = SUPPORTED_HITTER_STAT_KEYS.includes(normalizedKey);
+  const pitchingKey = SUPPORTED_PITCHER_STAT_KEYS.includes(normalizedKey);
+  const side =
+    pitchingKey && (!hittingKey || isPitcher(player) || !hasHittingProfile(player))
+      ? "pitching"
+      : "batting";
 
   const source =
     statBasis === "projections"
@@ -476,14 +691,22 @@ function getNestedStat(player: Player, key: string, statBasis: StatBasis): numbe
     RBI: ["RBI", "rbi"],
     SB: ["SB", "sb", "stolenBases"],
     AVG: ["AVG", "avg"],
+    OBP: ["OBP", "obp"],
+    SLG: ["SLG", "slg"],
+    TB: ["TB", "tb", "totalBases"],
+    H: ["H", "h", "hits"],
+    BB: ["BB", "bb", "walks", "baseOnBalls"],
     W: ["W", "w", "wins"],
     K: ["K", "k", "so", "strikeouts"],
     ERA: ["ERA", "era"],
     WHIP: ["WHIP", "whip"],
     SV: ["SV", "sv", "saves"],
+    IP: ["IP", "ip", "inningsPitched"],
+    HLD: ["HLD", "hld", "holds"],
+    CG: ["CG", "cg", "completeGames"],
   };
 
-  const keys = aliases[key] ?? [key];
+  const keys = aliases[normalizedKey] ?? [normalizedKey, key];
 
   for (const candidate of keys) {
     const value = finiteNumber(source[candidate]);
@@ -509,23 +732,29 @@ function getStatValue(
   }
 
   const parsed = parseStatSummary(statSummary);
-  return parsed[key] ?? null;
+  const normalizedKey = normalizeStatKey(key) ?? key.toUpperCase();
+
+  return parsed[normalizedKey] ?? parsed[key] ?? null;
 }
 
-function statKeysForPlayer(player: Player, statViewFilter: StatViewFilter): string[] {
+function statKeysForPlayer(
+  player: Player,
+  statViewFilter: StatViewFilter,
+  researchStatKeys: ResearchStatKeys,
+): string[] {
   if (statViewFilter === "hitting") {
-    return HITTER_STAT_KEYS;
+    return researchStatKeys.hitting;
   }
 
   if (statViewFilter === "pitching") {
-    return PITCHER_STAT_KEYS;
+    return researchStatKeys.pitching;
   }
 
   if (hasHittingProfile(player)) {
-    return HITTER_STAT_KEYS;
+    return researchStatKeys.hitting;
   }
 
-  return isPitcher(player) ? PITCHER_STAT_KEYS : HITTER_STAT_KEYS;
+  return isPitcher(player) ? researchStatKeys.pitching : researchStatKeys.hitting;
 }
 
 function statSortKey(sortBy: ResearchSort, pitcher: boolean): string | null {
@@ -534,6 +763,12 @@ function statSortKey(sortBy: ResearchSort, pitcher: boolean): string | null {
   if (sortBy === "rbi_era") return pitcher ? "ERA" : "RBI";
   if (sortBy === "sb_whip") return pitcher ? "WHIP" : "SB";
   if (sortBy === "avg_sv") return pitcher ? "SV" : "AVG";
+  if (sortBy === "obp_ip") return pitcher ? "IP" : "OBP";
+  if (sortBy === "slg_hld") return pitcher ? "HLD" : "SLG";
+  if (sortBy === "tb_cg") return pitcher ? "CG" : "TB";
+  if (sortBy === "h") return "H";
+  if (sortBy === "bb") return "BB";
+  if (sortBy === "k") return "K";
   return null;
 }
 
@@ -566,11 +801,6 @@ function comparePlayers(
   statBasis: StatBasis,
   showEngineValues: boolean,
 ): number {
-  if (sortBy === "name") {
-    const result = a.name.localeCompare(b.name);
-    return direction === "asc" ? result : -result;
-  }
-
   if (sortBy === "auction_value") {
     return sortMissingLast(
       getAuctionValue(a, rowA),
@@ -595,10 +825,18 @@ function comparePlayers(
     );
   }
 
-  if (sortBy === "tier") {
+  if (sortBy === "model_tier") {
     return sortMissingLast(
-      getDisplayTier(a, rowA, showEngineValues),
-      getDisplayTier(b, rowB, showEngineValues),
+      getModelTier(a, rowA),
+      getModelTier(b, rowB),
+      direction,
+    );
+  }
+
+  if (sortBy === "model_rank") {
+    return sortMissingLast(
+      getModelRank(a, rowA),
+      getModelRank(b, rowB),
       direction,
     );
   }
@@ -884,13 +1122,15 @@ function StatGrid({
   statBasis,
   statSummary,
   statViewFilter,
+  researchStatKeys,
 }: {
   player: Player;
   statBasis: StatBasis;
   statSummary: string;
   statViewFilter: StatViewFilter;
+  researchStatKeys: ResearchStatKeys;
 }) {
-  const keys = statKeysForPlayer(player, statViewFilter);
+  const keys = statKeysForPlayer(player, statViewFilter, researchStatKeys);
 
   return (
     <View
@@ -905,7 +1145,7 @@ function StatGrid({
     >
       {keys.map((key) => {
         const value = getStatValue(player, key, statBasis, statSummary);
-        const digits = key === "AVG" ? 3 : key === "ERA" || key === "WHIP" ? 2 : 0;
+        const digits = statDigits(key);
 
         return (
           <MetricCell
@@ -927,6 +1167,7 @@ function PlayerResearchCard({
   rankNumber,
   statBasis,
   statViewFilter,
+  researchStatKeys,
   note,
   onChangeNote,
   onOpen,
@@ -942,6 +1183,7 @@ function PlayerResearchCard({
   rankNumber?: number;
   statBasis: StatBasis;
   statViewFilter: StatViewFilter;
+  researchStatKeys: ResearchStatKeys;
   note: string;
   onChangeNote: (note: string) => void;
   showEngineValues: boolean;
@@ -1119,7 +1361,7 @@ function PlayerResearchCard({
           >
             <View style={{ width: "50%", paddingRight: 8, marginBottom: 10 }}>
               <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "800" }}>
-                Auction Tier
+                Model Tier
               </Text>
               <View style={{ marginTop: 4 }}>
                 <TierPill tier={displayTier} />
@@ -1149,6 +1391,7 @@ function PlayerResearchCard({
           statBasis={statBasis}
           statSummary={statSummary}
           statViewFilter={statViewFilter}
+          researchStatKeys={researchStatKeys}
         />
 
         {statSummary ? (
@@ -1267,6 +1510,11 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const league = allLeagues.find((item) => item.id === leagueId);
   const watchlist = getWatchlistForLeague(leagueId);
 
+  const researchStatKeys = useMemo(
+    () => getLeagueResearchStatKeys(league),
+    [league?.scoringCategories],
+  );
+
   const [rosterForValuation, setRosterForValuation] = useState<RosterEntry[]>([]);
   const [selectedModalPlayer, setSelectedModalPlayer] = useState<Player | null>(null);
 
@@ -1316,7 +1564,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [players, setPlayers] = useState<Player[]>(
     () =>
       getPlayersCached(
-        "adp",
+        "catalog_rank",
         league?.posEligibilityThreshold,
         league?.playerPool,
       ) ?? [],
@@ -1325,7 +1573,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [loadingPlayers, setLoadingPlayers] = useState(
     () =>
       getPlayersCached(
-        "adp",
+        "catalog_rank",
         league?.posEligibilityThreshold,
         league?.playerPool,
       ) === null,
@@ -1352,6 +1600,11 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [selectedTags, setSelectedTags] = useState<TagFilter[]>([]);
   const [showEngineValues, setShowEngineValues] = useState(false);
   const [visiblePlayerCount, setVisiblePlayerCount] = useState(INITIAL_PLAYER_RENDER_COUNT);
+
+  const sortOptions = useMemo(
+    () => sortOptionsForResearchStats(researchStatKeys, showEngineValues),
+    [researchStatKeys, showEngineValues],
+  );
 
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [editingCustomPlayerId, setEditingCustomPlayerId] = useState<string | null>(null);
@@ -1381,6 +1634,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
       setPositionFilter(availablePositionFilters[0] ?? "ALL");
     }
   }, [availablePositionFilters, positionFilter]);
+
+  useEffect(() => {
+    if (!sortOptions.some((option) => option.value === sortBy)) {
+      setSortBy("auction_value");
+      setSortDirection("desc");
+    }
+  }, [sortOptions, sortBy]);
 
   useEffect(() => {
     void loadWatchlist(leagueId);
@@ -1417,7 +1677,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
     async function loadPlayers() {
       const cached = getPlayersCached(
-        "adp",
+        "catalog_rank",
         league?.posEligibilityThreshold,
         league?.playerPool,
       );
@@ -1430,7 +1690,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
       try {
         const data = await getPlayers(
-          "adp",
+          "catalog_rank",
           league?.posEligibilityThreshold,
           league?.playerPool,
         );
@@ -1727,8 +1987,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     if (
       value === "auction_rank" ||
       value === "market_adp" ||
-      value === "tier" ||
-      value === "name"
+      value === "model_rank"
     ) {
       setSortDirection("asc");
     } else {
@@ -1764,7 +2023,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     }
 
     const refreshed = await getPlayers(
-      "adp",
+      "catalog_rank",
       league?.posEligibilityThreshold,
       league?.playerPool,
     );
@@ -1975,7 +2234,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                 />
                 <ControlButton
                   label="SORT"
-                  value={`${SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? "Auction $"} ${
+                  value={`${sortOptions.find((option) => option.value === sortBy)?.label ?? "Auction Value"} ${
                     sortDirection === "asc" ? "↑" : "↓"
                   }`}
                   active={activePanel === "sort"}
@@ -2122,7 +2381,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                   Sort By {sortDirection === "asc" ? "↑" : "↓"}
                 </Text>
                 <FilterRow>
-                  {SORT_OPTIONS.map((option) => (
+                  {sortOptions.map((option) => (
                     <FilterPill
                       key={option.value}
                       label={
@@ -2281,6 +2540,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                           rankNumber={index + 1}
                           statBasis={statBasis}
                           statViewFilter={statViewFilter}
+                          researchStatKeys={researchStatKeys}
                           note={getNote(leagueId, item.id)}
                           onChangeNote={(note) => setNote(leagueId, item.id, note)}
                           showEngineValues={showEngineValues}
@@ -2367,6 +2627,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                             custom={custom}
                             statBasis={statBasis}
                             statViewFilter={statViewFilter}
+                            researchStatKeys={researchStatKeys}
                             note={getNote(leagueId, player.id)}
                             onChangeNote={(note) => setNote(leagueId, player.id, note)}
                             showEngineValues={showEngineValues}
