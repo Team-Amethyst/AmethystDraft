@@ -12,12 +12,14 @@ import PosBadge from "../components/PosBadge";
 import { usePageTitle } from "../hooks/usePageTitle";
 import {
   buildProjectedStandings,
-  LOWER_IS_BETTER_CATS,
+  compareProjectedStandingsRows,
+  computeRanks,
+  computeTeamRotoSummaries,
   formatStatCell,
   isStatCellEmpty,
   rankColor,
-  computeRanks,
   normalizeCatName,
+  ROTO_POINTS_SORT_KEY,
 } from "./commandCenterUtils";
 import {
   resolvedLeagueTeamNames,
@@ -127,7 +129,7 @@ export default function LeagueOverview() {
   const [entries, setEntries] = useState<RosterEntry[]>([]);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [loadingRoster, setLoadingRoster] = useState(true);
-  const [sortCat, setSortCat] = useState<string>("HR");
+  const [sortCat, setSortCat] = useState<string>(ROTO_POINTS_SORT_KEY);
   const [sortAsc, setSortAsc] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
@@ -232,15 +234,16 @@ export default function LeagueOverview() {
     [standings, allCatNames],
   );
 
+  const rotoSummaries = useMemo(
+    () => computeTeamRotoSummaries(teamNames, scoringCats, rankMaps),
+    [teamNames, scoringCats, rankMaps],
+  );
+
   const sortedStandings = useMemo(() => {
-    return [...standings].sort((a, b) => {
-      const diff = (a.stats[sortCat] ?? 0) - (b.stats[sortCat] ?? 0);
-      const ranked = LOWER_IS_BETTER_CATS.has(sortCat.toUpperCase())
-        ? diff
-        : -diff;
-      return sortAsc ? -ranked : ranked;
-    });
-  }, [standings, sortCat, sortAsc]);
+    return [...standings].sort((a, b) =>
+      compareProjectedStandingsRows(a, b, sortCat, sortAsc, rotoSummaries),
+    );
+  }, [standings, sortCat, sortAsc, rotoSummaries]);
 
   const toggleSort = (cat: string) => {
     if (cat === sortCat) setSortAsc((v) => !v);
@@ -359,6 +362,23 @@ export default function LeagueOverview() {
               <thead>
                 <tr>
                   <th className="lo-th-team">TEAM</th>
+                  <th
+                    className={
+                      "lo-th-stat lo-th-stat--pts" +
+                      (sortCat === ROTO_POINTS_SORT_KEY ? " lo-th-active" : "")
+                    }
+                    onClick={() => toggleSort(ROTO_POINTS_SORT_KEY)}
+                    title="Total projected roto points"
+                  >
+                    Pts
+                    {sortCat === ROTO_POINTS_SORT_KEY ? (
+                      sortAsc ? (
+                        <ChevronUp size={10} />
+                      ) : (
+                        <ChevronDown size={10} />
+                      )
+                    ) : null}
+                  </th>
                   {allCatNames.map((cat) => (
                     <th
                       key={cat}
@@ -386,6 +406,9 @@ export default function LeagueOverview() {
                     className={idx % 2 === 0 ? "lo-tr-even" : ""}
                   >
                     <td className="lo-td-team">{row.teamName}</td>
+                    <td className="lo-td-stat lo-td-stat--pts">
+                      {rotoSummaries.get(row.teamName)?.totalPoints ?? 0}
+                    </td>
                     {allCatNames.map((cat) => {
                       const rank = rankMaps[cat]?.get(row.teamName) ?? 1;
                       const val = row.stats[cat] ?? 0;

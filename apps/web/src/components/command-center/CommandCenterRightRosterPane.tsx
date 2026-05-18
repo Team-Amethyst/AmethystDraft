@@ -2,7 +2,10 @@ import { CommandCenterRightLiquidityTable } from "./CommandCenterRightLiquidityT
 import { CommandCenterRightStandingsTable } from "./CommandCenterRightStandingsTable";
 import type { League } from "../../contexts/LeagueContext";
 import type { RosterEntry } from "../../api/roster";
-import type { TeamSummary } from "../../pages/commandCenterUtils";
+import type {
+  TeamRotoSummary,
+  TeamSummary,
+} from "../../pages/commandCenterUtils";
 
 type LiqCol = "name" | "remaining" | "open" | "maxBid" | "ppSpot";
 type ScoringCategory = { name: string; type: "batting" | "pitching" };
@@ -21,6 +24,7 @@ export function CommandCenterRightRosterPane({
   scoringCats,
   sortedProjStandings,
   rankMaps,
+  rotoSummaries,
   sortCat,
   sortAsc,
   onToggleStandingsSort,
@@ -37,6 +41,7 @@ export function CommandCenterRightRosterPane({
   scoringCats: ScoringCategory[];
   sortedProjStandings: ProjectedStandingRow[];
   rankMaps: Record<string, Map<string, number>>;
+  rotoSummaries: Map<string, TeamRotoSummary>;
   sortCat: string;
   sortAsc: boolean;
   onToggleStandingsSort: (cat: string) => void;
@@ -86,6 +91,7 @@ export function CommandCenterRightRosterPane({
           scoringCats={scoringCats}
           sortedProjStandings={sortedProjStandings}
           rankMaps={rankMaps}
+          rotoSummaries={rotoSummaries}
           sortCat={sortCat}
           sortAsc={sortAsc}
           onToggleStandingsSort={onToggleStandingsSort}

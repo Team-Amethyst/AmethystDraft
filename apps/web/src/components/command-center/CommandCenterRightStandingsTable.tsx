@@ -1,5 +1,11 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { formatStatCell, isStatCellEmpty, rankColor } from "../../pages/commandCenterUtils";
+import {
+  formatStatCell,
+  isStatCellEmpty,
+  rankColor,
+  ROTO_POINTS_SORT_KEY,
+  type TeamRotoSummary,
+} from "../../pages/commandCenterUtils";
 
 type ProjectedStandingRow = {
   teamName: string;
@@ -15,6 +21,7 @@ export function CommandCenterRightStandingsTable({
   scoringCats,
   sortedProjStandings,
   rankMaps,
+  rotoSummaries,
   sortCat,
   sortAsc,
   onToggleStandingsSort,
@@ -23,6 +30,7 @@ export function CommandCenterRightStandingsTable({
   scoringCats: ScoringCategory[];
   sortedProjStandings: ProjectedStandingRow[];
   rankMaps: Record<string, Map<string, number>>;
+  rotoSummaries: Map<string, TeamRotoSummary>;
   sortCat: string;
   sortAsc: boolean;
   onToggleStandingsSort: (cat: string) => void;
@@ -66,6 +74,27 @@ export function CommandCenterRightStandingsTable({
             <table className="lo-standings-table lo-standings-table--stats-only cc-roster-data-table">
               <thead>
                 <tr>
+                  <th
+                    className={
+                      "lo-th-stat" +
+                      (sortCat === ROTO_POINTS_SORT_KEY ? " lo-th-active" : "")
+                    }
+                    onClick={() => onToggleStandingsSort(ROTO_POINTS_SORT_KEY)}
+                    title="Total projected roto points (sum of category points)"
+                  >
+                    Pts
+                    {sortCat === ROTO_POINTS_SORT_KEY ? (
+                      sortAsc ? (
+                        <ChevronUp size={10} className="lo-th-sort-chevron" aria-hidden />
+                      ) : (
+                        <ChevronDown
+                          size={10}
+                          className="lo-th-sort-chevron"
+                          aria-hidden
+                        />
+                      )
+                    ) : null}
+                  </th>
                   {scoringCats.map((c) => (
                     <th
                       key={c.name}
@@ -99,6 +128,9 @@ export function CommandCenterRightStandingsTable({
                       .filter(Boolean)
                       .join(" ")}
                   >
+                    <td className="lo-td-stat lo-td-stat--pts">
+                      {rotoSummaries.get(row.teamName)?.totalPoints ?? 0}
+                    </td>
                     {scoringCats.map((c) => {
                       const rank = rankMaps[c.name]?.get(row.teamName) ?? 1;
                       const val = row.stats[c.name] ?? 0;

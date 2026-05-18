@@ -14,6 +14,7 @@ import {
   getProjStat,
   type ProjectedStandingsRow,
   rotoCategoryAggregation,
+  rotoPointsForRank,
   teamBattingRatePaceForCategory,
   teamPitchingRatePaceForCategory,
 } from "./standings";
@@ -142,11 +143,6 @@ export function rotoPointsDeltaForTeamInCategory(
   const ptsB = rotoPointsForRank(rb, numTeams);
   const ptsA = rotoPointsForRank(ra, numTeams);
   return ptsA - ptsB;
-}
-
-function rotoPointsForRank(rank: number, numTeams: number): number {
-  if (!Number.isFinite(rank) || rank < 1) return 1;
-  return Math.max(1, numTeams - rank + 1);
 }
 
 function syntheticHypotheticalEntry(

@@ -6,6 +6,7 @@ import {
   buildProjectedStandings,
   buildPlayerMapForStandings,
   computeRanks,
+  computeTeamRotoSummaries,
   normalizeCatName,
 } from "./commandCenterUtils";
 
@@ -65,5 +66,15 @@ export function useProjectedStandings({
     [projectedStandings, scoringCats],
   );
 
-  return { scoringCats, projectedStandings, rankMaps };
+  const rotoSummaries = useMemo(
+    () =>
+      computeTeamRotoSummaries(
+        projectedStandings.map((r) => r.teamName),
+        scoringCats,
+        rankMaps,
+      ),
+    [projectedStandings, scoringCats, rankMaps],
+  );
+
+  return { scoringCats, projectedStandings, rankMaps, rotoSummaries };
 }

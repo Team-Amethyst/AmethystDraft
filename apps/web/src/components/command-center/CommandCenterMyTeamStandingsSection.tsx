@@ -2,7 +2,12 @@ import { useMemo, useState } from "react";
 import type { League } from "../../contexts/LeagueContext";
 import type { Player } from "../../types/player";
 import type { RosterEntry } from "../../api/roster";
-import { formatStatCell, isStatCellEmpty, rankColor } from "../../pages/commandCenterUtils";
+import {
+  formatStatCell,
+  formatTeamRotoSummaryLine,
+  isStatCellEmpty,
+  rankColor,
+} from "../../pages/commandCenterUtils";
 import { useProjectedStandings } from "../../pages/useProjectedStandings";
 import { resolvedLeagueTeamNames } from "../../utils/team";
 
@@ -28,17 +33,23 @@ export function CommandCenterMyTeamStandingsSection({
     "hitting",
   );
 
-  const { scoringCats, projectedStandings, rankMaps } = useProjectedStandings({
-    leagueTeamNames: league ? resolvedLeagueTeamNames(league) : undefined,
-    leagueScoringCategories: league?.scoringCategories,
-    fallbackScoringCategories,
-    rosterEntries,
-    allPlayers,
-  });
+  const { scoringCats, projectedStandings, rankMaps, rotoSummaries } =
+    useProjectedStandings({
+      leagueTeamNames: league ? resolvedLeagueTeamNames(league) : undefined,
+      leagueScoringCategories: league?.scoringCategories,
+      fallbackScoringCategories,
+      rosterEntries,
+      allPlayers,
+    });
 
   const myRow = useMemo(
     () => projectedStandings.find((r) => r.teamName === myTeamName),
     [projectedStandings, myTeamName],
+  );
+
+  const myRotoSummary = useMemo(
+    () => (myTeamName ? rotoSummaries.get(myTeamName) : undefined),
+    [rotoSummaries, myTeamName],
   );
 
   const nTeams = projectedStandings.length;
@@ -98,14 +109,24 @@ export function CommandCenterMyTeamStandingsSection({
           Could not match your team to projected standings (check team name and
           roster picks).
         </p>
-      ) : catsForSide.length === 0 ? (
+      ) : (
+        <>
+          {myRotoSummary && nTeams > 0 ? (
+            <p
+              className="cc-my-standings-summary"
+              title="Total projected roto points across all scoring categories"
+            >
+              {formatTeamRotoSummaryLine(myRotoSummary, nTeams)}
+            </p>
+          ) : null}
+          {catsForSide.length === 0 ? (
         <p className="cc-my-standings-empty dim">
           {`No ${
             standingsSide === "hitting" ? "hitting" : "pitching"
           } categories in this league's scoring.`}
-        </p>
-      ) : (
-        <div className="cc-my-standings-grid">
+            </p>
+          ) : (
+            <div className="cc-my-standings-grid">
           {catsForSide.map((c) => {
             const val = myRow.stats[c.name] ?? 0;
             const rank =
@@ -130,7 +151,9 @@ export function CommandCenterMyTeamStandingsSection({
               </div>
             );
           })}
-        </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

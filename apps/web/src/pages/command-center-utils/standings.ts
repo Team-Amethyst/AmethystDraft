@@ -228,3 +228,106 @@ export function computeRanks(
   sorted.forEach((r, i) => ranks.set(r.teamName, i + 1));
   return ranks;
 }
+
+/** Sort key for standings tables (Overview + Command Center right rail). */
+export const ROTO_POINTS_SORT_KEY = "__roto_pts__";
+
+/** Standard roto: `numTeams - rank + 1` (same as category impact). */
+export function rotoPointsForRank(rank: number, numTeams: number): number {
+  if (!Number.isFinite(rank) || rank < 1) return 1;
+  return Math.max(1, numTeams - rank + 1);
+}
+
+export type TeamRotoSummary = {
+  totalPoints: number;
+  overallRank: number;
+};
+
+export function totalRotoPointsForTeam(
+  teamName: string,
+  scoringCategories: readonly { name: string }[],
+  rankMaps: Record<string, Map<string, number>>,
+  numTeams: number,
+): number {
+  let total = 0;
+  for (const cat of scoringCategories) {
+    const rank = rankMaps[cat.name]?.get(teamName);
+    if (rank != null) total += rotoPointsForRank(rank, numTeams);
+  }
+  return total;
+}
+
+/** Sum of category roto points + overall place (1 = most points). */
+export function computeTeamRotoSummaries(
+  teamNames: readonly string[],
+  scoringCategories: readonly { name: string }[],
+  rankMaps: Record<string, Map<string, number>>,
+): Map<string, TeamRotoSummary> {
+  const numTeams = Math.max(teamNames.length, 1);
+  const pointsByTeam = new Map<string, number>();
+  for (const name of teamNames) {
+    pointsByTeam.set(
+      name,
+      totalRotoPointsForTeam(name, scoringCategories, rankMaps, numTeams),
+    );
+  }
+  const sorted = [...teamNames].sort(
+    (a, b) => (pointsByTeam.get(b) ?? 0) - (pointsByTeam.get(a) ?? 0),
+  );
+  const out = new Map<string, TeamRotoSummary>();
+  sorted.forEach((name, i) => {
+    out.set(name, {
+      totalPoints: pointsByTeam.get(name) ?? 0,
+      overallRank: i + 1,
+    });
+  });
+  return out;
+}
+
+function ordinalSuffix(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return "th";
+  switch (n % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+export function formatOverallStandingsPlace(rank: number, total: number): string {
+  return `${rank}${ordinalSuffix(rank)} / ${total}`;
+}
+
+/** Compact sidebar copy, e.g. `60 pts · 1st / 12`. */
+export function formatTeamRotoSummaryLine(
+  summary: TeamRotoSummary,
+  numTeams: number,
+): string {
+  return `${summary.totalPoints} pts · ${formatOverallStandingsPlace(summary.overallRank, numTeams)}`;
+}
+
+export function compareProjectedStandingsRows(
+  a: ProjectedStandingsRow,
+  b: ProjectedStandingsRow,
+  sortKey: string,
+  sortAsc: boolean,
+  rotoSummaries: Map<string, TeamRotoSummary>,
+): number {
+  if (sortKey === ROTO_POINTS_SORT_KEY) {
+    const diff =
+      (rotoSummaries.get(b.teamName)?.totalPoints ?? 0) -
+      (rotoSummaries.get(a.teamName)?.totalPoints ?? 0);
+    return sortAsc ? -diff : diff;
+  }
+  const diff = (a.stats[sortKey] ?? 0) - (b.stats[sortKey] ?? 0);
+  const isLower = LOWER_IS_BETTER_CATS.has(
+    normalizeCatName(sortKey).trim().toUpperCase(),
+  );
+  const ranked = isLower ? diff : -diff;
+  return sortAsc ? -ranked : ranked;
+}

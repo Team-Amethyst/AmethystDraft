@@ -19,7 +19,10 @@ import {
   leagueWideAuctionSlotsRemaining,
   rosterSlotsPerTeam,
 } from "../../pages/command-center-utils/roster";
-import { LOWER_IS_BETTER_CATS } from "../../pages/commandCenterUtils";
+import {
+  compareProjectedStandingsRows,
+  ROTO_POINTS_SORT_KEY,
+} from "../../pages/commandCenterUtils";
 import { buildMarketPressureViewModel } from "../../pages/commandCenterMarket";
 import { useProjectedStandings } from "../../pages/useProjectedStandings";
 import { resolvedLeagueTeamNames } from "../../utils/team";
@@ -108,23 +111,22 @@ export function CommandCenterRightPanel({
     [league, myTeamEntriesForWallet],
   );
 
-  const { scoringCats, projectedStandings, rankMaps } = useProjectedStandings({
-    leagueTeamNames: league ? resolvedLeagueTeamNames(league) : undefined,
-    leagueScoringCategories: league?.scoringCategories,
-    fallbackScoringCategories,
-    rosterEntries,
-    allPlayers,
-  });
+  const { scoringCats, projectedStandings, rankMaps, rotoSummaries } =
+    useProjectedStandings({
+      leagueTeamNames: league ? resolvedLeagueTeamNames(league) : undefined,
+      leagueScoringCategories: league?.scoringCategories,
+      fallbackScoringCategories,
+      rosterEntries,
+      allPlayers,
+    });
 
-  const [sortCat, setSortCat] = useState<string>("HR");
+  const [sortCat, setSortCat] = useState<string>(ROTO_POINTS_SORT_KEY);
   const [sortAsc, setSortAsc] = useState(false);
   const sortedProjStandings = useMemo(() => {
-    return [...projectedStandings].sort((a, b) => {
-      const diff = (a.stats[sortCat] ?? 0) - (b.stats[sortCat] ?? 0);
-      const ranked = LOWER_IS_BETTER_CATS.has(sortCat.toUpperCase()) ? diff : -diff;
-      return sortAsc ? -ranked : ranked;
-    });
-  }, [projectedStandings, sortCat, sortAsc]);
+    return [...projectedStandings].sort((a, b) =>
+      compareProjectedStandingsRows(a, b, sortCat, sortAsc, rotoSummaries),
+    );
+  }, [projectedStandings, sortCat, sortAsc, rotoSummaries]);
   const toggleStandingsSort = (cat: string) => {
     if (cat === sortCat) setSortAsc((v) => !v);
     else {
@@ -218,6 +220,7 @@ export function CommandCenterRightPanel({
         scoringCats={scoringCats}
         sortedProjStandings={sortedProjStandings}
         rankMaps={rankMaps}
+        rotoSummaries={rotoSummaries}
         sortCat={sortCat}
         sortAsc={sortAsc}
         onToggleStandingsSort={toggleStandingsSort}
