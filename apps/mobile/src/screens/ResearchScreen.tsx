@@ -29,6 +29,7 @@ import AppChip from "../components/ui/AppChip";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
@@ -69,28 +70,51 @@ type ResearchSort =
 
 type PositionFilter =
   | "ALL"
-  | "C"
+  | "OF"
+  | "SS"
   | "1B"
   | "2B"
-  | "SS"
   | "3B"
-  | "OF"
-  | "SP"
-  | "RP"
-  | "UTIL";
+  | "C"
+  | "DH"
+  | "P";
 
-const POSITION_FILTERS: PositionFilter[] = [
+const ALL_POSITION_FILTERS: PositionFilter[] = [
   "ALL",
-  "C",
+  "OF",
+  "SS",
   "1B",
   "2B",
-  "SS",
   "3B",
-  "OF",
-  "SP",
-  "RP",
-  "UTIL",
+  "C",
+  "DH",
+  "P",
 ];
+
+const HITTER_POSITION_FILTERS: PositionFilter[] = [
+  "ALL",
+  "OF",
+  "SS",
+  "1B",
+  "2B",
+  "3B",
+  "C",
+  "DH",
+];
+
+const PITCHER_POSITION_FILTERS: PositionFilter[] = ["P"];
+
+function positionFiltersForStatView(statViewFilter: StatViewFilter): PositionFilter[] {
+  if (statViewFilter === "hitting") {
+    return HITTER_POSITION_FILTERS;
+  }
+
+  if (statViewFilter === "pitching") {
+    return PITCHER_POSITION_FILTERS;
+  }
+
+  return ALL_POSITION_FILTERS;
+}
 
 const SORT_OPTIONS: { label: string; value: ResearchSort }[] = [
   { label: "Auction $", value: "auction_value" },
@@ -185,27 +209,53 @@ function playerNumber(player: Player, key: string): number | null {
   return finiteNumber(record[key]);
 }
 
+function normalizeSearchText(value: string | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function playerMatchesValuationRow(player: Player, row: ValuationResult): boolean {
+  const rowPlayerId = String(row.player_id);
+  const playerRecord = player as unknown as Record<string, unknown>;
+
+  if (player.id === rowPlayerId) {
+    return true;
+  }
+
+  const mlbId =
+    finiteNumber(playerRecord.mlbId) ??
+    finiteNumber(playerRecord.mlb_id) ??
+    finiteNumber(playerRecord.playerId);
+
+  if (mlbId !== null && String(Math.round(mlbId)) === rowPlayerId) {
+    return true;
+  }
+
+  const sameName =
+    normalizeSearchText(player.name) === normalizeSearchText(row.name);
+  const sameTeam =
+    !row.team || normalizeSearchText(player.team) === normalizeSearchText(row.team);
+
+  return sameName && sameTeam;
+}
+
 function positionMatches(player: Player, filter: PositionFilter): boolean {
   if (filter === "ALL") return true;
 
-  const direct = player.position
-    .split("/")
-    .map((p) => p.trim().toUpperCase())
-    .includes(filter);
-
-  const multi = (player.positions ?? [])
-    .map((p) => p.toUpperCase())
-    .includes(filter);
-
-  if (direct || multi) return true;
-
-  if (filter === "OF") {
-    return ["LF", "CF", "RF"].some((p) =>
-      player.position.toUpperCase().includes(p),
-    );
+  if (filter === "P") {
+    return isPitcher(player);
   }
 
-  return false;
+  const normalizedPositions = [player.position, ...(player.positions ?? [])]
+    .join("/")
+    .split("/")
+    .map((p) => p.trim().toUpperCase())
+    .filter(Boolean);
+
+  if (filter === "OF") {
+    return ["OF", "LF", "CF", "RF"].some((p) => normalizedPositions.includes(p));
+  }
+
+  return normalizedPositions.includes(filter);
 }
 
 function isPitcher(player: Player): boolean {
@@ -220,19 +270,38 @@ function isPitcher(player: Player): boolean {
   );
 }
 
+function hasHittingProfile(player: Player): boolean {
+  const positions = [player.position, ...(player.positions ?? [])]
+    .join("/")
+    .toUpperCase();
+
+  const data = player as unknown as {
+    stats?: { batting?: Record<string, unknown> };
+    projection?: { batting?: Record<string, unknown> };
+    projections?: { batting?: Record<string, unknown> };
+    stats3yr?: { batting?: Record<string, unknown> };
+  };
+
+  return (
+    positions.includes("DH") ||
+    positions.includes("UTIL") ||
+    ["C", "1B", "2B", "SS", "3B", "OF", "LF", "CF", "RF"].some((pos) =>
+      positions.includes(pos),
+    ) ||
+    Boolean(data.stats?.batting || data.projection?.batting || data.projections?.batting || data.stats3yr?.batting)
+  );
+}
+
 function playerHasInjury(player: Player): boolean {
   return Boolean(player.injuryStatus && player.injuryStatus.trim());
 }
 
 function getAuctionValue(player: Player, row?: ValuationResult): number {
   return (
-    valuationNumber(row, "adjusted_value") ??
-    valuationNumber(row, "team_adjusted_value") ??
-    valuationNumber(row, "recommended_bid") ??
+    valuationNumber(row, "auction_value") ??
+    playerNumber(player, "auction_value") ??
     valuationNumber(row, "baseline_value") ??
-    playerNumber(player, "adjusted_value") ??
-    playerNumber(player, "team_adjusted_value") ??
-    playerNumber(player, "recommended_bid") ??
+    playerNumber(player, "value") ??
     player.value ??
     0
   );
@@ -241,24 +310,84 @@ function getAuctionValue(player: Player, row?: ValuationResult): number {
 function getAuctionRank(player: Player, row?: ValuationResult): number | null {
   return (
     valuationNumber(row, "auction_rank") ??
-    valuationNumber(row, "rank") ??
-    valuationNumber(row, "model_rank") ??
-    playerNumber(player, "auction_rank") ??
-    playerNumber(player, "catalog_rank") ??
-    playerNumber(player, "adp")
+    playerNumber(player, "auction_rank")
   );
 }
 
-function getMarketAdp(player: Player): number | null {
+function getModelRank(player: Player, row?: ValuationResult): number | null {
   return (
-    playerNumber(player, "market_adp") ??
+    valuationNumber(row, "catalog_rank") ??
     playerNumber(player, "catalog_rank") ??
     playerNumber(player, "adp")
   );
 }
 
-function getTier(player: Player, row?: ValuationResult): number {
-  return valuationNumber(row, "tier") ?? player.tier ?? 99;
+function getMarketAdp(player: Player, row?: ValuationResult): number | null {
+  return (
+    valuationNumber(row, "market_adp") ??
+    playerNumber(player, "market_adp")
+  );
+}
+
+function getAuctionTier(player: Player, row?: ValuationResult): number {
+  return (
+    valuationNumber(row, "auction_tier") ??
+    valuationNumber(row, "tier") ??
+    playerNumber(player, "auction_tier") ??
+    playerNumber(player, "catalog_tier") ??
+    player.tier ??
+    99
+  );
+}
+
+function getModelTier(player: Player, row?: ValuationResult): number {
+  return (
+    valuationNumber(row, "catalog_tier") ??
+    playerNumber(player, "catalog_tier") ??
+    player.tier ??
+    99
+  );
+}
+
+function getDisplayTier(
+  player: Player,
+  row: ValuationResult | undefined,
+  showEngineValues: boolean,
+): number {
+  if (showEngineValues) {
+    return getAuctionTier(player, row);
+  }
+
+  return getModelTier(player, row);
+}
+
+
+function displayPosition(player: Player): string {
+  const positions = player.positions?.length
+    ? player.positions.join("/")
+    : player.position;
+
+  return positions || "—";
+}
+
+function tierColor(tier: number): { backgroundColor: string; borderColor: string; color: string } {
+  if (tier === 1) {
+    return { backgroundColor: "#a855f7", borderColor: "#c084fc", color: "#ffffff" };
+  }
+
+  if (tier === 2) {
+    return { backgroundColor: "#2563eb", borderColor: "#60a5fa", color: "#ffffff" };
+  }
+
+  if (tier === 3) {
+    return { backgroundColor: "#16a34a", borderColor: "#4ade80", color: "#ffffff" };
+  }
+
+  if (tier === 4) {
+    return { backgroundColor: "#ca8a04", borderColor: "#facc15", color: "#111827" };
+  }
+
+  return { backgroundColor: "#374151", borderColor: "#9ca3af", color: "#ffffff" };
 }
 
 function formatMoney(value: number | null): string {
@@ -319,8 +448,9 @@ function getNestedStat(player: Player, key: string, statBasis: StatBasis): numbe
     };
   };
 
-  const pitcher = isPitcher(player);
-  const side = pitcher ? "pitching" : "batting";
+  const hittingKey = HITTER_STAT_KEYS.includes(key);
+  const pitchingKey = PITCHER_STAT_KEYS.includes(key);
+  const side = hittingKey ? "batting" : pitchingKey ? "pitching" : isPitcher(player) ? "pitching" : "batting";
 
   const source =
     statBasis === "projections"
@@ -376,7 +506,19 @@ function getStatValue(
   return parsed[key] ?? null;
 }
 
-function statKeysForPlayer(player: Player): string[] {
+function statKeysForPlayer(player: Player, statViewFilter: StatViewFilter): string[] {
+  if (statViewFilter === "hitting") {
+    return HITTER_STAT_KEYS;
+  }
+
+  if (statViewFilter === "pitching") {
+    return PITCHER_STAT_KEYS;
+  }
+
+  if (hasHittingProfile(player)) {
+    return HITTER_STAT_KEYS;
+  }
+
   return isPitcher(player) ? PITCHER_STAT_KEYS : HITTER_STAT_KEYS;
 }
 
@@ -416,6 +558,7 @@ function comparePlayers(
   sortBy: ResearchSort,
   direction: SortDirection,
   statBasis: StatBasis,
+  showEngineValues: boolean,
 ): number {
   if (sortBy === "name") {
     const result = a.name.localeCompare(b.name);
@@ -440,16 +583,16 @@ function comparePlayers(
 
   if (sortBy === "market_adp") {
     return sortMissingLast(
-      getMarketAdp(a),
-      getMarketAdp(b),
+      getMarketAdp(a, rowA),
+      getMarketAdp(b, rowB),
       direction,
     );
   }
 
   if (sortBy === "tier") {
     return sortMissingLast(
-      getTier(a, rowA),
-      getTier(b, rowB),
+      getDisplayTier(a, rowA, showEngineValues),
+      getDisplayTier(b, rowB, showEngineValues),
       direction,
     );
   }
@@ -528,9 +671,6 @@ function getPlayerTags(player: Player, statBasis: StatBasis): TagFilter[] {
   return TAG_OPTIONS.filter((tag) => playerMatchesTag(player, tag, statBasis));
 }
 
-function engineMetric(row: ValuationResult | undefined, key: string): number | null {
-  return valuationNumber(row, key);
-}
 
 function FilterRow({ children }: { children: ReactNode }) {
   return (
@@ -669,16 +809,82 @@ function MetricCell({
   );
 }
 
+
+function TierPill({ tier }: { tier: number }) {
+  const palette = tierColor(tier);
+
+  return (
+    <View
+      style={{
+        alignSelf: "flex-start",
+        minWidth: 28,
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: palette.borderColor,
+        backgroundColor: palette.backgroundColor,
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ color: palette.color, fontSize: 13, fontWeight: "900" }}>
+        {Math.round(tier)}
+      </Text>
+    </View>
+  );
+}
+
+function StarIconButton({
+  starred,
+  onPress,
+}: {
+  starred: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={starred ? "Remove from Starred" : "Add to Starred"}
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        borderWidth: 1,
+        borderColor: starred ? "#facc15" : "#4c3575",
+        backgroundColor: starred ? "#3a2c13" : "#151021",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text
+        style={{
+          color: starred ? "#facc15" : "#8b7aa8",
+          fontSize: 24,
+          fontWeight: "900",
+          lineHeight: 28,
+        }}
+      >
+        {starred ? "★" : "☆"}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+
 function StatGrid({
   player,
   statBasis,
   statSummary,
+  statViewFilter,
 }: {
   player: Player;
   statBasis: StatBasis;
   statSummary: string;
+  statViewFilter: StatViewFilter;
 }) {
-  const keys = statKeysForPlayer(player);
+  const keys = statKeysForPlayer(player, statViewFilter);
 
   return (
     <View
@@ -712,7 +918,11 @@ function PlayerResearchCard({
   engineRow,
   watched,
   custom,
+  rankNumber,
   statBasis,
+  statViewFilter,
+  note,
+  onChangeNote,
   onOpen,
   onToggleWatchlist,
   showEngineValues,
@@ -723,7 +933,11 @@ function PlayerResearchCard({
   engineRow?: ValuationResult;
   watched: boolean;
   custom: boolean;
+  rankNumber?: number;
   statBasis: StatBasis;
+  statViewFilter: StatViewFilter;
+  note: string;
+  onChangeNote: (note: string) => void;
   showEngineValues: boolean;
   onOpen: () => void;
   onToggleWatchlist: () => void;
@@ -731,17 +945,14 @@ function PlayerResearchCard({
   onRemoveCustom: () => void;
 }) {
   const displayValue = getAuctionValue(player, engineRow);
-  const displayTier = getTier(player, engineRow);
+  const displayTier = getDisplayTier(player, engineRow, showEngineValues);
   const auctionRank = getAuctionRank(player, engineRow);
-  const marketAdp = getMarketAdp(player);
+  const modelRank = getModelRank(player, engineRow);
+  const marketAdp = getMarketAdp(player, engineRow);
   const statSummary = formatResearchStatSummaryLine(player, statBasis) ?? "";
   const injury = player.injuryStatus?.trim();
   const imageUrl = getPlayerImageUrl(player);
   const cardTags = getPlayerTags(player, statBasis);
-  const recommendedBid = engineMetric(engineRow, "recommended_bid");
-  const teamValue = engineMetric(engineRow, "team_adjusted_value");
-  const baselineValue = engineMetric(engineRow, "baseline_value");
-  const edge = engineMetric(engineRow, "edge");
 
   return (
     <AppCard backgroundColor="#151021" borderColor="#31224f">
@@ -804,13 +1015,12 @@ function PlayerResearchCard({
                 marginBottom: 3,
               }}
             >
-              {player.name}
+              {rankNumber ? `#${rankNumber} ` : ""}{player.name}
               {custom ? " • Custom" : ""}
             </Text>
 
             <Text style={{ color: "#c4b5fd", fontWeight: "800" }}>
-              {player.team || "FA"} • {player.position}
-              {player.positions?.length ? ` • ${player.positions.join("/")}` : ""}
+              Team: {player.team || "FA"} • Pos: {displayPosition(player)}
             </Text>
 
             {cardTags.length > 0 ? (
@@ -842,12 +1052,7 @@ function PlayerResearchCard({
         </TouchableOpacity>
 
         <View style={{ alignItems: "flex-end" }}>
-          <AppChip
-            label={watched ? "Saved" : "Save"}
-            selected={watched}
-            onPress={onToggleWatchlist}
-            style={{ marginBottom: custom ? 8 : 0 }}
-          />
+          <StarIconButton starred={watched} onPress={onToggleWatchlist} />
 
           {custom ? (
             <>
@@ -855,7 +1060,7 @@ function PlayerResearchCard({
                 label="Edit"
                 tone="info"
                 onPress={onEditCustom}
-                style={{ marginBottom: 8 }}
+                style={{ marginTop: 8, marginBottom: 8 }}
               />
 
               <AppChip
@@ -868,24 +1073,28 @@ function PlayerResearchCard({
         </View>
       </View>
 
-      <TouchableOpacity onPress={onOpen} activeOpacity={0.85}>
+      <View>
         <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 14 }}>
           <MetricCell
-            label="Auction Value"
-            value={formatMoney(displayValue)}
-            highlight
+            label="Team"
+            value={player.team || "FA"}
           />
           <MetricCell
-            label="Auction Rank"
-            value={auctionRank === null ? "—" : `#${Math.round(auctionRank)}`}
+            label="Pos"
+            value={displayPosition(player)}
           />
           <MetricCell
             label="Market ADP"
             value={formatNumber(marketAdp, 2)}
           />
           <MetricCell
-            label={engineRow ? "Engine Tier" : "Tier"}
-            value={`Tier ${displayTier}`}
+            label="Auction Rank"
+            value={auctionRank === null ? "—" : `#${Math.round(auctionRank)}`}
+          />
+          <MetricCell
+            label="Auction Value"
+            value={formatMoney(displayValue)}
+            highlight
           />
         </View>
 
@@ -900,21 +1109,17 @@ function PlayerResearchCard({
               marginTop: 2,
             }}
           >
+            <View style={{ width: "50%", paddingRight: 8, marginBottom: 10 }}>
+              <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "800" }}>
+                Auction Tier
+              </Text>
+              <View style={{ marginTop: 4 }}>
+                <TierPill tier={displayTier} />
+              </View>
+            </View>
             <MetricCell
-              label="Recommended Bid"
-              value={formatMoney(recommendedBid)}
-            />
-            <MetricCell
-              label="Team Value"
-              value={formatMoney(teamValue)}
-            />
-            <MetricCell
-              label="Baseline Value"
-              value={formatMoney(baselineValue)}
-            />
-            <MetricCell
-              label="Edge"
-              value={edge === null ? "—" : formatMoney(edge)}
+              label="Model Rank"
+              value={modelRank === null ? "—" : `#${Math.round(modelRank)}`}
             />
           </View>
         ) : null}
@@ -935,6 +1140,7 @@ function PlayerResearchCard({
           player={player}
           statBasis={statBasis}
           statSummary={statSummary}
+          statViewFilter={statViewFilter}
         />
 
         {statSummary ? (
@@ -943,12 +1149,53 @@ function PlayerResearchCard({
           </Text>
         ) : null}
 
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: "#33294a",
+            marginTop: 10,
+            paddingTop: 10,
+          }}
+        >
+          <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "900", marginBottom: 6 }}>
+            Notes
+          </Text>
+          <TextInput
+            value={note}
+            onChangeText={onChangeNote}
+            placeholder="Add note..."
+            placeholderTextColor="#6b5f80"
+            multiline
+            style={{
+              minHeight: 42,
+              borderWidth: 1,
+              borderColor: "#3f335c",
+              borderRadius: 10,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              color: "#f9fafb",
+              backgroundColor: "#0b0712",
+              textAlignVertical: "top",
+            }}
+          />
+          {note.trim().length > 0 ? (
+            <TouchableOpacity
+              onPress={() => onChangeNote("")}
+              style={{ alignSelf: "flex-start", marginTop: 6 }}
+            >
+              <Text style={{ color: "#c4b5fd", fontSize: 12, fontWeight: "900" }}>
+                Clear note
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
         {!!player.outlook && (
           <Text numberOfLines={2} style={{ color: "#a1a1aa", marginTop: 6 }}>
             {player.outlook}
           </Text>
         )}
-      </TouchableOpacity>
+      </View>
     </AppCard>
   );
 }
@@ -972,6 +1219,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     removeCustomPlayer,
     isCustomPlayer,
   } = useCustomPlayers();
+  const { getNote, loadNotes, setNote } = usePlayerNotes();
 
   const league = allLeagues.find((item) => item.id === leagueId);
   const watchlist = getWatchlistForLeague(leagueId);
@@ -1079,9 +1327,24 @@ export default function ResearchScreen({ route, navigation }: Props) {
   );
   const [depthChartError, setDepthChartError] = useState("");
 
+  const availablePositionFilters = useMemo(
+    () => positionFiltersForStatView(statViewFilter),
+    [statViewFilter],
+  );
+
+  useEffect(() => {
+    if (!availablePositionFilters.includes(positionFilter)) {
+      setPositionFilter(availablePositionFilters[0] ?? "ALL");
+    }
+  }, [availablePositionFilters, positionFilter]);
+
   useEffect(() => {
     void loadWatchlist(leagueId);
   }, [leagueId, loadWatchlist]);
+
+  useEffect(() => {
+    void loadNotes(leagueId);
+  }, [leagueId, loadNotes]);
 
   useEffect(() => {
     async function loadBasis() {
@@ -1162,10 +1425,22 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
         for (const row of response.valuations) {
           if (customPlayerIdSet.has(row.player_id)) continue;
+
           merged.set(row.player_id, row);
+
+          const matchedPlayer = players.find((player) =>
+            playerMatchesValuationRow(player, row),
+          );
+
+          if (matchedPlayer) {
+            merged.set(matchedPlayer.id, row);
+          }
         }
 
         setValuationsByPlayerId(merged);
+
+        console.log("VALUATION SAMPLE", response.valuations.slice(0, 3));
+        console.log("PLAYER SAMPLE", players.slice(0, 3));
       })
       .catch(() => {
         if (!cancelled) {
@@ -1179,7 +1454,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
   }, [
     token,
     leagueId,
-    players.length,
+    players,
     customPlayerIdsKey,
     leagueValuationKey,
     rosterValuationKey,
@@ -1246,7 +1521,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
       if (injuryFilter === "healthy" && injured) return false;
       if (injuryFilter === "injured" && !injured) return false;
 
-      if (statViewFilter === "hitting" && pitcher) return false;
+      if (statViewFilter === "hitting" && !hasHittingProfile(player)) return false;
       if (statViewFilter === "pitching" && !pitcher) return false;
 
       if (
@@ -1283,6 +1558,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
         sortBy,
         sortDirection,
         statBasis,
+        showEngineValues,
       ),
     );
   }, [
@@ -1291,6 +1567,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     sortBy,
     sortDirection,
     statBasis,
+    showEngineValues,
   ]);
 
   const tierBuckets = useMemo(() => {
@@ -1298,7 +1575,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
     for (const player of filteredPlayers) {
       const engineRow = valuationsByPlayerId.get(player.id);
-      const tier = getTier(player, engineRow);
+      const tier = getDisplayTier(player, engineRow, showEngineValues);
 
       if (!grouped.has(tier)) {
         grouped.set(tier, []);
@@ -1312,7 +1589,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     return sortedTiers.map((tier) => ({
       tier,
       players: (grouped.get(tier) ?? []).sort((a, b) =>
-        comparePlayers(
+       comparePlayers(
           a,
           b,
           valuationsByPlayerId.get(a.id),
@@ -1320,7 +1597,8 @@ export default function ResearchScreen({ route, navigation }: Props) {
           sortBy,
           sortDirection,
           statBasis,
-        ),
+          showEngineValues,
+        )
       ),
     }));
   }, [
@@ -1329,6 +1607,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     sortBy,
     sortDirection,
     statBasis,
+    showEngineValues,
   ]);
 
   const depthTotalSlots = DEPTH_POSITIONS.length * 3;
@@ -1487,7 +1766,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
       }
     } catch (err) {
       Alert.alert(
-        "Watchlist error",
+        "Starred error",
         err instanceof Error ? err.message : "Something went wrong",
       );
     }
@@ -1557,7 +1836,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     : 0;
 
   const selectedDisplayTier = selectedModalPlayer
-    ? getTier(selectedModalPlayer, selectedEngineRow)
+    ? getDisplayTier(selectedModalPlayer, selectedEngineRow, showEngineValues)
     : 0;
 
   const selectedStatSummary = selectedModalPlayer
@@ -1595,7 +1874,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
           <View style={{ flex: 1 }}>
             <AppChip
-              label="Depth"
+              label="Depth Charts"
               selected={selectedView === "depth-charts"}
               fullWidth
               onPress={() => setSelectedView("depth-charts")}
@@ -1608,7 +1887,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="Search player, team, or position"
+              placeholder="Search players by name..."
               placeholderTextColor="#71717a"
               style={{
                 borderWidth: 1,
@@ -1641,39 +1920,53 @@ export default function ResearchScreen({ route, navigation }: Props) {
                 />
               </View>
 
-              <View style={{ flexDirection: "row" }}>
+              <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                <ControlButton
+                  label="STARRED"
+                  value={starredOnly ? "Only Starred" : "All Players"}
+                  active={starredOnly}
+                  onPress={() => setStarredOnly((value) => !value)}
+                />
                 <ControlButton
                   label="TAGS"
                   value={selectedTags.length === 0 ? "Any" : selectedTags.join(", ")}
                   active={activePanel === "tags"}
                   onPress={() => togglePanel("tags")}
                 />
+              </View>
+
+              <View style={{ flexDirection: "row" }}>
                 <ControlButton
-                  label="ENGINE"
-                  value={showEngineValues ? "Values On" : "Values Off"}
+                  label="MODEL RANK & TIERS"
+                  value={showEngineValues ? "On" : "Off"}
                   active={showEngineValues}
                   onPress={() => setShowEngineValues((value) => !value)}
                 />
               </View>
             </View>
 
-            <FilterRow>
-              <FilterPill
-                label="PROJ"
-                selected={statBasis === "projections"}
-                onPress={() => setStatBasis("projections")}
-              />
-              <FilterPill
-                label="1Y"
-                selected={statBasis === "last-year"}
-                onPress={() => setStatBasis("last-year")}
-              />
-              <FilterPill
-                label="3Y"
-                selected={statBasis === "3-year-avg"}
-                onPress={() => setStatBasis("3-year-avg")}
-              />
-            </FilterRow>
+            <View style={{ marginBottom: 2 }}>
+              <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "900", marginBottom: 6 }}>
+                STATS
+              </Text>
+              <FilterRow>
+                <FilterPill
+                  label="PROJ"
+                  selected={statBasis === "projections"}
+                  onPress={() => setStatBasis("projections")}
+                />
+                <FilterPill
+                  label="1Y"
+                  selected={statBasis === "last-year"}
+                  onPress={() => setStatBasis("last-year")}
+                />
+                <FilterPill
+                  label="3Y"
+                  selected={statBasis === "3-year-avg"}
+                  onPress={() => setStatBasis("3-year-avg")}
+                />
+              </FilterRow>
+            </View>
 
             {activePanel === "filters" ? (
               <AppCard backgroundColor="#151021" borderColor="#31224f">
@@ -1700,19 +1993,14 @@ export default function ResearchScreen({ route, navigation }: Props) {
                     selected={availabilityFilter === "drafted"}
                     onPress={() => setAvailabilityFilter("drafted")}
                   />
-                  <FilterPill
-                    label={starredOnly ? "Saved Only" : "Saved"}
-                    selected={starredOnly}
-                    onPress={() => setStarredOnly((value) => !value)}
-                  />
                 </FilterRow>
 
                 <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
-                  Type and Health
+                  Hitters/Pitchers
                 </Text>
                 <FilterRow>
                   <FilterPill
-                    label="All Stats"
+                    label="All"
                     selected={statViewFilter === "all"}
                     onPress={() => setStatViewFilter("all")}
                   />
@@ -1726,6 +2014,31 @@ export default function ResearchScreen({ route, navigation }: Props) {
                     selected={statViewFilter === "pitching"}
                     onPress={() => setStatViewFilter("pitching")}
                   />
+                </FilterRow>
+
+                <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
+                  Position
+                </Text>
+                <FilterRow>
+                  {availablePositionFilters.map((filter) => (
+                    <FilterPill
+                      key={filter}
+                      label={filter}
+                      selected={positionFilter === filter}
+                      onPress={() => setPositionFilter(filter)}
+                    />
+                  ))}
+                </FilterRow>
+
+                <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
+                  Health
+                </Text>
+                <FilterRow>
+                  <FilterPill
+                    label="All"
+                    selected={injuryFilter === "all"}
+                    onPress={() => setInjuryFilter("all")}
+                  />
                   <FilterPill
                     label="Healthy"
                     selected={injuryFilter === "healthy"}
@@ -1736,20 +2049,6 @@ export default function ResearchScreen({ route, navigation }: Props) {
                     selected={injuryFilter === "injured"}
                     onPress={() => setInjuryFilter("injured")}
                   />
-                </FilterRow>
-
-                <Text style={{ color: "#a1a1aa", fontSize: 12, fontWeight: "900", marginBottom: 6 }}>
-                  Position
-                </Text>
-                <FilterRow>
-                  {POSITION_FILTERS.map((filter) => (
-                    <FilterPill
-                      key={filter}
-                      label={filter}
-                      selected={positionFilter === filter}
-                      onPress={() => setPositionFilter(filter)}
-                    />
-                  ))}
                 </FilterRow>
               </AppCard>
             ) : null}
@@ -1897,13 +2196,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
             ) : selectedView === "player-database" ? (
               <>
                 <Text style={{ marginBottom: 12, color: "#a1a1aa", fontWeight: "800" }}>
-                  Showing {sortedFilteredPlayers.length} players • Watchlist {watchlist.length}
+                  Showing {sortedFilteredPlayers.length} players • Starred {watchlist.length}
                 </Text>
 
                 {sortedFilteredPlayers.length === 0 ? (
                   <EmptyState label="No players found." />
                 ) : (
-                  sortedFilteredPlayers.map((item) => {
+                  sortedFilteredPlayers.map((item, index) => {
                     const watched = isInWatchlist(leagueId, item.id);
                     const engineRow = valuationsByPlayerId.get(item.id);
                     const custom = isCustomPlayer(item.id);
@@ -1915,7 +2214,11 @@ export default function ResearchScreen({ route, navigation }: Props) {
                         engineRow={engineRow}
                         watched={watched}
                         custom={custom}
+                        rankNumber={index + 1}
                         statBasis={statBasis}
+                        statViewFilter={statViewFilter}
+                        note={getNote(leagueId, item.id)}
+                        onChangeNote={(note) => setNote(leagueId, item.id, note)}
                         showEngineValues={showEngineValues}
                         onOpen={() => handleOpenPlayer(item)}
                         onToggleWatchlist={() => void handleToggleWatchlist(item)}
@@ -1965,6 +2268,9 @@ export default function ResearchScreen({ route, navigation }: Props) {
                             watched={watched}
                             custom={custom}
                             statBasis={statBasis}
+                            statViewFilter={statViewFilter}
+                            note={getNote(leagueId, player.id)}
+                            onChangeNote={(note) => setNote(leagueId, player.id, note)}
                             showEngineValues={showEngineValues}
                             onOpen={() => handleOpenPlayer(player)}
                             onToggleWatchlist={() => void handleToggleWatchlist(player)}
@@ -2119,7 +2425,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
                             <View style={{ marginTop: 8 }}>
                               <AppChip
-                                label={isSaved ? "Saved" : "Save"}
+                                label={isSaved ? "Starred" : "Star"}
                                 selected={isSaved}
                                 onPress={() => void handleDepthStarToggle(row)}
                               />
@@ -2193,3 +2499,4 @@ export default function ResearchScreen({ route, navigation }: Props) {
     </SafeAreaView>
   );
 }
+
