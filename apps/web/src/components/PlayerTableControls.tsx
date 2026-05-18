@@ -188,7 +188,7 @@ export function PlayerTableControls({
             className={
               "pt-toggle pt-toggle--model" + (researchModelColumns ? " active" : "")
             }
-            title="Show catalog model rank and model tier columns (catalog / preseason buckets). Auction tier and rank stay in their own columns when Engine data is loaded."
+            title="Show catalog model rank and model tier columns (preseason buckets)."
             onClick={onResearchModelColumnsToggle}
           >
             <span className="pt-toggle__label pt-toggle__label--long">Model rank</span>

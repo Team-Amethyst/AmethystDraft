@@ -3,12 +3,11 @@ import PosBadge from "../PosBadge";
 import CustomPlayerHeadshot from "../CustomPlayerHeadshot";
 import type { Player } from "../../types/player";
 import type { CommandCenterTierKind } from "../../domain/auctionCenterValuation";
+import { USER_FACING_TIER_TOOLTIP } from "../../domain/displayTiers";
 import {
   AUCTION_RANK_TOOLTIP,
-  AUCTION_TIER_TOOLTIP,
   marketAdpDetailTooltip,
   MODEL_RANK_TOOLTIP,
-  MODEL_TIER_TOOLTIP,
 } from "../../domain/rankTierLabels";
 
 const TIER_BADGE_COLORS = [
@@ -58,8 +57,7 @@ export function PlayerIdentityCard({
     : null;
   const showTier =
     tierValue != null && Number.isFinite(tierValue) && tierValue > 0;
-  const tierTitle =
-    tierKind === "model" ? MODEL_TIER_TOOLTIP : AUCTION_TIER_TOOLTIP;
+  const tierTitle = USER_FACING_TIER_TOOLTIP;
   const showMarketAdp =
     marketAdp != null && Number.isFinite(marketAdp);
   const showAuctionRank =
@@ -123,7 +121,6 @@ export function PlayerIdentityCard({
       ),
     });
   }
-
   return (
     <div className="player-identity-card command-center-header">
       <div className="pic-layout">

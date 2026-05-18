@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { ENGINE_TIER_METADATA_TOOLTIP } from "../domain/displayTiers";
 
 export type ResearchPlayerMetaBadgeItem = { key: string; node: ReactNode };
 
@@ -8,8 +7,6 @@ export function buildResearchPlayerMetaBadgeItems(params: {
   isCustom: boolean;
   draftedTeamName?: string;
   draftedContractLabel?: string;
-  /** Engine auction tier when it differs from the Tiers page display tier. */
-  engineAuctionTier?: string | number;
 }): ResearchPlayerMetaBadgeItem[] {
   const items: ResearchPlayerMetaBadgeItem[] = [];
   if (params.isCustom) {
@@ -40,25 +37,6 @@ export function buildResearchPlayerMetaBadgeItems(params: {
         </span>
       ),
     });
-  }
-  if (params.engineAuctionTier != null) {
-    const n =
-      typeof params.engineAuctionTier === "number"
-        ? params.engineAuctionTier
-        : Number(params.engineAuctionTier);
-    if (Number.isFinite(n)) {
-      items.push({
-        key: "engine-tier",
-        node: (
-          <span
-            className="tag tag--engine-tier"
-            title={ENGINE_TIER_METADATA_TOOLTIP}
-          >
-            Engine T{n}
-          </span>
-        ),
-      });
-    }
   }
   return items;
 }

@@ -7,8 +7,7 @@ import {
 } from "@repo/player-stat-basis";
 import type { Player } from "../../types/player";
 import PosBadge from "../PosBadge";
-import { PlayerHeadshot, TierBadge } from "../PlayerTableParts";
-import { displayAuctionTier, tierBadgeTooltip } from "../../domain/playerRankTier";
+import { PlayerHeadshot } from "../PlayerTableParts";
 import {
   buildResearchPlayerMetaBadgeItems,
   ResearchPlayerMetaBadges,
@@ -50,9 +49,6 @@ export type ResearchPlayerTableRowProps = {
   showAuctionRank?: boolean;
   showRecommendedBid?: boolean;
   showTeamValue?: boolean;
-  /** Engine auction tier (secondary metadata on value-band views). */
-  showEngineTier?: boolean;
-  poolUsesAuctionTier?: boolean;
   /** Rendered after the auction value column (e.g. Command Center action). */
   trailingCells?: ReactNode;
 };
@@ -74,8 +70,6 @@ export function ResearchPlayerTableRow({
   showAuctionRank = true,
   showRecommendedBid = false,
   showTeamValue = false,
-  showEngineTier = false,
-  poolUsesAuctionTier = false,
   trailingCells,
 }: ResearchPlayerTableRowProps) {
   const { bat, pit } = resolveDisplayStats(player, statBasis);
@@ -218,22 +212,6 @@ export function ResearchPlayerTableRow({
           Number.isFinite(player.auction_rank)
             ? player.auction_rank
             : "—"}
-        </td>
-      ) : null}
-
-      {showEngineTier ? (
-        <td className="td-engine-tier td-rank-metric">
-          {(() => {
-            const tier = displayAuctionTier(player);
-            return tier != null ? (
-              <TierBadge
-                tier={tier}
-                title={tierBadgeTooltip(player, poolUsesAuctionTier)}
-              />
-            ) : (
-              "—"
-            );
-          })()}
         </td>
       ) : null}
 

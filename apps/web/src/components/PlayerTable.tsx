@@ -50,18 +50,12 @@ import {
 } from "../utils/valuation";
 import {
   AUCTION_RANK_TOOLTIP,
-  AUCTION_TIER_TOOLTIP,
   MARKET_ADP_COLUMN_TOOLTIP,
   MODEL_RANK_TOOLTIP,
   marketAdpDetailTooltip,
   MODEL_TIER_TOOLTIP,
 } from "../domain/rankTierLabels";
-import {
-  displayAuctionTier,
-  poolHasAuctionTier,
-  poolHasMarketAdp,
-  tierBadgeTooltip,
-} from "../domain/playerRankTier";
+import { poolHasMarketAdp } from "../domain/playerRankTier";
 import {
   researchTableNumericCell,
   researchTableTextCell,
@@ -120,6 +114,8 @@ interface PlayerTableProps {
   onResearchModelColumnsVisibleChange?: (visible: boolean) => void;
   /** League roster keys for Pos column (hides DH / UTIL / BN chips). */
   draftDisplaySlotKeys?: string[];
+  /** League auction budget; scales user-facing tier bands and sort. */
+  leagueBudget?: number;
 }
 
 type PlayerTableColumnLayout = "default" | "research";
@@ -189,6 +185,7 @@ export default function PlayerTable({
   researchModelColumnsVisible: researchModelColumnsVisibleProp,
   onResearchModelColumnsVisibleChange,
   draftDisplaySlotKeys,
+  leagueBudget,
 }: PlayerTableProps) {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const isResearchLayout = columnLayout === "research";
@@ -492,13 +489,17 @@ export default function PlayerTable({
             draftedIds,
             draftedPriceByPlayerId,
             draftedContractByPlayerId,
+            leagueBudget,
           }
-        : undefined,
+        : leagueBudget != null
+          ? { leagueBudget }
+          : undefined,
     [
       isResearchLayout,
       draftedIds,
       draftedPriceByPlayerId,
       draftedContractByPlayerId,
+      leagueBudget,
     ],
   );
 
@@ -539,10 +540,6 @@ export default function PlayerTable({
     [players],
   );
   const showMarketAdpCol = useMemo(() => poolHasMarketAdp(players), [players]);
-  const tierHeaderUsesAuction = useMemo(
-    () => poolHasAuctionTier(players),
-    [players],
-  );
   const showTierModelCols =
     columnLayout === "default" ||
     (columnLayout === "research" && researchModelColumns);
@@ -625,14 +622,10 @@ export default function PlayerTable({
               {showTierModelCols && (
                 <th
                   className="th-tier th-sortable th-rank-metric"
-                  title={
-                    tierHeaderUsesAuction
-                      ? AUCTION_TIER_TOOLTIP
-                      : MODEL_TIER_TOOLTIP
-                  }
+                  title={MODEL_TIER_TOOLTIP}
                   onClick={() => handleColSort("tier")}
                 >
-                  {tierHeaderUsesAuction ? "Auction tier" : "Model tier"}{" "}
+                  Model tier{" "}
                   <SortArrow col="tier" sort={clientSort} />
                 </th>
               )}
@@ -815,17 +808,7 @@ export default function PlayerTable({
                         : draftedContractLabel,
                     })
                   : [];
-                const tierBadgeTitle = tierBadgeTooltip(
-                  player,
-                  tierHeaderUsesAuction,
-                );
-                const tierCellTitle =
-                  typeof player.auction_tier === "number" &&
-                  Number.isFinite(player.auction_tier) &&
-                  typeof player.catalog_tier === "number" &&
-                  player.auction_tier !== player.catalog_tier
-                    ? `${tierBadgeTitle} Model tier ${player.catalog_tier}.`
-                    : tierBadgeTitle;
+                const tierCellTitle = MODEL_TIER_TOOLTIP;
 
                 return (
                   <tr
@@ -996,8 +979,13 @@ export default function PlayerTable({
                     {showTierModelCols && (
                       <td className="td-tier" title={tierCellTitle}>
                         <TierBadge
-                          tier={displayAuctionTier(player) ?? 1}
-                          title={tierBadgeTitle}
+                          tier={
+                            typeof player.catalog_tier === "number" &&
+                            Number.isFinite(player.catalog_tier)
+                              ? player.catalog_tier
+                              : 1
+                          }
+                          title={MODEL_TIER_TOOLTIP}
                         />
                       </td>
                     )}

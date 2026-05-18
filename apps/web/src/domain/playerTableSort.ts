@@ -2,7 +2,7 @@ import type { StatBasis } from "@repo/player-stat-basis";
 import type { DisplayBatting, DisplayPitching } from "@repo/player-stat-basis";
 import { getDisplayStatValue } from "@repo/player-stat-basis";
 import type { Player } from "../types/player";
-import { displayAuctionTier } from "./playerRankTier";
+import { userFacingDisplayTier } from "./displayTiers";
 import {
   researchTableAuctionDollars,
   type ResearchTableAuctionDollarsOptions,
@@ -70,9 +70,18 @@ export function sortPlayerTableRows(
         asFinite(b.player.market_adp),
         mult,
       );
-    if (col === "tier" || col === "auction_tier") {
-      const ta = displayAuctionTier(a.player);
-      const tb = displayAuctionTier(b.player);
+    if (col === "tier") {
+      const ta = asFinite(a.player.catalog_tier);
+      const tb = asFinite(b.player.catalog_tier);
+      return sortWithMissingLast(ta, tb, mult);
+    }
+    if (col === "auction_tier") {
+      const tierOpts =
+        researchAuction?.leagueBudget != null
+          ? { leagueBudget: researchAuction.leagueBudget }
+          : undefined;
+      const ta = userFacingDisplayTier(a.player, tierOpts);
+      const tb = userFacingDisplayTier(b.player, tierOpts);
       return mult * ((ta ?? 999) - (tb ?? 999));
     }
     if (col === "value") {
