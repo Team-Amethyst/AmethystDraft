@@ -170,7 +170,9 @@ export function DepthChartView({
           rosterEntries,
           leagueTeamNames,
         ),
-        watchlistEnabled: isDepthRowWatchlistActionable(resolution),
+        watchlistEnabled:
+          isDepthRowWatchlistActionable(resolution) &&
+          resolution.state !== "rostered",
         watchlistStarred: watchlistId ? isInWatchlist(watchlistId) : false,
       };
     });

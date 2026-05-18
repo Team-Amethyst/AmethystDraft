@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getPlayers } from "../api/players";
-import { getRoster, removeRosterEntry, updateRosterEntry } from "../api/roster";
+import {
+  getRoster,
+  getRosterCached,
+  removeRosterEntry,
+  updateRosterEntry,
+} from "../api/roster";
 import type { RosterEntry } from "../api/roster";
 import { useLeague, type League } from "../contexts/LeagueContext";
 import type { Player } from "../types/player";
@@ -54,7 +59,13 @@ export function useCommandCenterData({
   }, [leagueId]);
 
   useEffect(() => {
-    if (!leagueId || !token) return;
+    if (!leagueId) {
+      setRosterEntries([]);
+      setRosterLoaded(false);
+      return;
+    }
+    setRosterEntries(getRosterCached(leagueId) ?? []);
+    if (!token) return;
     setRosterLoaded(false);
     void getRoster(leagueId, token)
       .then((entries) => {

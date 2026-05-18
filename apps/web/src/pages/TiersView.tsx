@@ -45,6 +45,7 @@ import {
 import { RESEARCH_POSITION_DISPLAY_ORDER } from "../domain/playerTablePositions";
 import type { AppSelectOption } from "../components/AppSelect";
 import { ResearchViewSelectField } from "../components/research/ResearchViewSelectField";
+import type { BoardValuationUiPhase } from "../domain/boardValuationFetchPhase";
 
 type Props = {
   players: Player[];
@@ -62,6 +63,7 @@ type Props = {
   scoringCategories?: { name: string; type: string }[];
   getNote?: (playerId: string) => string;
   onNoteChange?: (playerId: string, note: string) => void;
+  researchBoardPhase?: BoardValuationUiPhase;
 };
 
 function tierBadgeNumber(tier: string | number): number | null {
@@ -467,14 +469,8 @@ function renderTierSection(
                     draftedPriceByPlayerId={args.draftedPriceByPlayerId}
                     draftedContractByPlayerId={args.draftedContractByPlayerId}
                     isStarred={args.isInWatchlist(player.id)}
+                    showWatchlist={false}
                     onPlayerClick={args.onPlayerClick}
-                    onToggleWatchlist={(p) => {
-                      if (args.isInWatchlist(p.id)) {
-                        args.removeFromWatchlist(p.id);
-                      } else {
-                        args.addToWatchlist(p);
-                      }
-                    }}
                     showMarketAdp={args.showMarketAdp}
                     showAuctionRank={args.showAuctionRank}
                     batCols={args.batCols}
@@ -511,6 +507,7 @@ export default function TiersView({
   scoringCategories,
   getNote,
   onNoteChange,
+  researchBoardPhase = "ready",
 }: Props) {
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortBy, setSortBy] = useState<TierSortField>("auction_value");
@@ -714,7 +711,18 @@ export default function TiersView({
       >
         {showPositionMix ? <TierSummaryColumnHeader showMix /> : null}
 
-        {!hasMainTiers && !outsideModel ? (
+        {researchBoardPhase === "loading" || researchBoardPhase === "refreshing" ? (
+          <p className="research-board-engine-hint">
+            {researchBoardPhase === "loading"
+              ? "Loading Engine valuation for this league…"
+              : "Updating tier values…"}
+          </p>
+        ) : null}
+
+        {!hasMainTiers &&
+        !outsideModel &&
+        researchBoardPhase !== "loading" &&
+        researchBoardPhase !== "refreshing" ? (
           <p className="depth-chart-empty-search">No players match this filter.</p>
         ) : null}
 

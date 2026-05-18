@@ -294,6 +294,20 @@ export default function Research() {
   }, [customPlayerIds]);
 
   useEffect(() => {
+    if (!leagueId) {
+      setRosterEntries([]);
+      setValuationsByPlayerId(new Map());
+      setLastResearchBoardValuation(null);
+      researchBoardSuccessKeyRef.current = null;
+      return;
+    }
+    setRosterEntries(getRosterCached(leagueId) ?? []);
+    setValuationsByPlayerId(new Map());
+    setLastResearchBoardValuation(null);
+    researchBoardSuccessKeyRef.current = null;
+  }, [leagueId]);
+
+  useEffect(() => {
     if (!leagueId || !token) return;
     void getRoster(leagueId, token).then(setRosterEntries);
   }, [leagueId, token]);
@@ -856,6 +870,7 @@ export default function Research() {
           {selectedView === "tiers" && (
             <TiersView
               players={mergedPlayersWithDraftable}
+              researchBoardPhase={researchBoardPhase}
               draftedIds={draftedIds}
               draftedByTeam={draftedByTeam}
               draftedPriceByPlayerId={draftedPriceByPlayerId}

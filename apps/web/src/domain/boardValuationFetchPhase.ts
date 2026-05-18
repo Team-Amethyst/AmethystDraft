@@ -47,7 +47,7 @@ export function shouldMaskResearchEngineColumns(
   phase: BoardValuationUiPhase,
   player: Pick<Player, "valuation_eligible" | "catalog_kind">,
 ): boolean {
-  if (phase !== "loading") return false;
+  if (phase !== "loading" && phase !== "refreshing") return false;
   if (player.valuation_eligible === false) return false;
   if (player.catalog_kind === "market_only") return false;
   return true;

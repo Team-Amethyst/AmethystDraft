@@ -68,10 +68,15 @@ export function CommandCenterLeftPanel({
     const engineTierValueMap =
       engineMarket != null
         ? new Map(
-            engineMarket.valuations.map((v) => [
-              v.player_id,
-              { tier: v.tier, value: v.auction_value ?? 0 },
-            ]),
+            engineMarket.valuations
+              .filter(
+                (v) =>
+                  v.auction_value != null && Number.isFinite(v.auction_value),
+              )
+              .map((v) => [
+                v.player_id,
+                { tier: v.tier, value: v.auction_value as number },
+              ]),
           )
         : undefined;
     return computePositionMarket(

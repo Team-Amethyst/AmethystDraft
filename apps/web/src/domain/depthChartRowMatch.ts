@@ -70,9 +70,6 @@ export function resolveAuctionValueForCatalogPlayer(
   if (row?.auction_value != null && Number.isFinite(row.auction_value)) {
     return row.auction_value;
   }
-  if (player.auction_value != null && Number.isFinite(player.auction_value)) {
-    return player.auction_value;
-  }
   return null;
 }
 

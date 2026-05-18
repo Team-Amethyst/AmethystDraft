@@ -62,6 +62,8 @@ export type TierExpandedPlayerRowProps = {
   draftedPriceByPlayerId?: ReadonlyMap<string, number>;
   draftedContractByPlayerId?: ReadonlyMap<string, string>;
   isStarred?: boolean;
+  /** When false, hides the watchlist star (e.g. drafted-from-tier rows). */
+  showWatchlist?: boolean;
   onPlayerClick?: (player: Player) => void;
   onToggleWatchlist?: (player: Player) => void;
   showMarketAdp?: boolean;
@@ -82,6 +84,7 @@ export function TierExpandedPlayerRow({
   draftedPriceByPlayerId,
   draftedContractByPlayerId,
   isStarred = false,
+  showWatchlist = true,
   onPlayerClick,
   onToggleWatchlist,
   showMarketAdp = false,
@@ -180,22 +183,24 @@ export function TierExpandedPlayerRow({
       <td className="td-rank">{listRank}</td>
 
       <td className="td-star" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className={"btn-star " + (isStarred ? "starred" : "")}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleWatchlist?.(player);
-          }}
-          title={isStarred ? "Remove from watchlist" : "Add to watchlist"}
-          aria-label={
-            isStarred
-              ? `Remove ${player.name} from watchlist`
-              : `Add ${player.name} to watchlist`
-          }
-        >
-          <Star size={15} fill={isStarred ? "#fbbf24" : "none"} />
-        </button>
+        {showWatchlist && onToggleWatchlist ? (
+          <button
+            type="button"
+            className={"btn-star " + (isStarred ? "starred" : "")}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleWatchlist(player);
+            }}
+            title={isStarred ? "Remove from watchlist" : "Add to watchlist"}
+            aria-label={
+              isStarred
+                ? `Remove ${player.name} from watchlist`
+                : `Add ${player.name} to watchlist`
+            }
+          >
+            <Star size={15} fill={isStarred ? "#fbbf24" : "none"} />
+          </button>
+        ) : null}
       </td>
 
       <td className="td-player">

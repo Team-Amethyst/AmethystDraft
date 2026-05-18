@@ -577,8 +577,11 @@ export function sortPlayersInTier(
     };
 
     switch (sortBy) {
-      case "auction_value":
-        return rawAuctionValue(b) - rawAuctionValue(a);
+      case "auction_value": {
+        const av = rawTierAuctionValue(a) ?? -Infinity;
+        const bv = rawTierAuctionValue(b) ?? -Infinity;
+        return bv - av;
+      }
       case "auction_rank": {
         const ar = cmpNum(a.auction_rank, b.auction_rank);
         return ar !== 0 ? ar : rawAuctionValue(b) - rawAuctionValue(a);
@@ -732,10 +735,12 @@ export function sortPlayersInTierWithDraftedDisplay(
   return [...players].sort((a, b) => {
     const av =
       tierPlayerDisplayDollars(a, displayOptions) ??
-      rawAuctionValue(a);
+      rawTierAuctionValue(a) ??
+      -Infinity;
     const bv =
       tierPlayerDisplayDollars(b, displayOptions) ??
-      rawAuctionValue(b);
+      rawTierAuctionValue(b) ??
+      -Infinity;
     return bv - av;
   });
 }

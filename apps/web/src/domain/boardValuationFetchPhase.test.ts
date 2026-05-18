@@ -69,25 +69,20 @@ describe("classifyBoardValuationFetchPhase", () => {
 });
 
 describe("shouldMaskResearchEngineColumns", () => {
-  it("masks only valuation rows while board is loading", () => {
-    expect(
-      shouldMaskResearchEngineColumns("loading", {
-        valuation_eligible: true,
-        catalog_kind: "valuation_eligible",
-      }),
-    ).toBe(true);
+  it("masks valuation rows while board is loading or refreshing", () => {
+    const eligible = {
+      valuation_eligible: true,
+      catalog_kind: "valuation_eligible" as const,
+    };
+    expect(shouldMaskResearchEngineColumns("loading", eligible)).toBe(true);
+    expect(shouldMaskResearchEngineColumns("refreshing", eligible)).toBe(true);
     expect(
       shouldMaskResearchEngineColumns("loading", {
         valuation_eligible: false,
         catalog_kind: "market_only",
       }),
     ).toBe(false);
-    expect(
-      shouldMaskResearchEngineColumns("ready", {
-        valuation_eligible: true,
-        catalog_kind: "valuation_eligible",
-      }),
-    ).toBe(false);
+    expect(shouldMaskResearchEngineColumns("ready", eligible)).toBe(false);
   });
 });
 

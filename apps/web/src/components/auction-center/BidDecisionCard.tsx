@@ -59,7 +59,7 @@ export function BidDecisionCard({
 
   const bidDecision =
     row != null
-      ? commandCenterBidDecision(row, selectedPlayer.value, walletCaps ?? null)
+      ? commandCenterBidDecision(row, undefined, walletCaps ?? null)
       : null;
 
   const cleanedPair = cleanedYourValueAndRecommendedBid(row, selectedPlayer);
@@ -140,9 +140,7 @@ export function BidDecisionCard({
     walletCaps,
   ]);
 
-  const displayLeagueAuction =
-    (row ? leagueWideAuctionDollars(row) : undefined) ??
-    leagueWideAuctionDollars(selectedPlayer);
+  const displayLeagueAuction = row ? leagueWideAuctionDollars(row) : undefined;
 
   const recommendedBidDisplay =
     displayBid == null ? null : formatSuggestedBidLine(displayBid);
