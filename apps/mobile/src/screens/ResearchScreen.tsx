@@ -33,6 +33,15 @@ import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
+import {
+  MOBILE_TIER_SORT_OPTIONS,
+  buildMobileTierView,
+  formatMobileTierAvailability,
+  getMobileTierMapValue,
+  sortPlayersForMobileTier,
+  type MobileTierBucket,
+  type MobileTierSortField,
+} from "../domain/researchTiers";
 import type { LeagueTabParamList } from "../navigation/types";
 import type { Player } from "../types/player";
 import {
@@ -47,6 +56,17 @@ import {
 } from "@repo/player-stat-basis";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "Research">;
+
+type DepthChartModalContext = {
+  position: DepthChartPosition;
+  rank: number;
+  status: string;
+  usageStarts: number;
+  usageAppearances: number;
+  outOfPosition?: boolean;
+  needsManualReview?: boolean;
+  reasons?: string[];
+};
 
 type ResearchView = "player-database" | "tiers" | "depth-charts";
 type AvailabilityFilter = "all" | "available" | "drafted";
@@ -1517,9 +1537,49 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
   const [rosterForValuation, setRosterForValuation] = useState<RosterEntry[]>([]);
   const [selectedModalPlayer, setSelectedModalPlayer] = useState<Player | null>(null);
+  const [selectedDepthContext, setSelectedDepthContext] =
+    useState<DepthChartModalContext | null>(null);
 
   const draftedIds = useMemo(() => {
     return new Set(rosterForValuation.map((entry) => entry.externalPlayerId));
+  }, [rosterForValuation]);
+
+  const draftedByTeam = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const entry of rosterForValuation) {
+      const teamNumber = Number(String(entry.teamId).replace("team_", ""));
+      const teamName =
+        Number.isFinite(teamNumber) && teamNumber > 0
+          ? league?.teamNames?.[teamNumber - 1] ?? entry.teamId
+          : entry.teamId;
+
+      map.set(entry.externalPlayerId, teamName);
+    }
+
+    return map;
+  }, [rosterForValuation, league?.teamNames]);
+
+  const draftedPriceByPlayerId = useMemo(() => {
+    const map = new Map<string, number>();
+
+    for (const entry of rosterForValuation) {
+      map.set(entry.externalPlayerId, entry.price);
+    }
+
+    return map;
+  }, [rosterForValuation]);
+
+  const draftedContractByPlayerId = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const entry of rosterForValuation) {
+      if (entry.keeperContract) {
+        map.set(entry.externalPlayerId, entry.keeperContract);
+      }
+    }
+
+    return map;
   }, [rosterForValuation]);
 
   useEffect(() => {
@@ -1600,6 +1660,9 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [selectedTags, setSelectedTags] = useState<TagFilter[]>([]);
   const [showEngineValues, setShowEngineValues] = useState(false);
   const [visiblePlayerCount, setVisiblePlayerCount] = useState(INITIAL_PLAYER_RENDER_COUNT);
+  const [tierSortBy, setTierSortBy] =
+    useState<MobileTierSortField>("auction_value");
+  const [expandedTierKeys, setExpandedTierKeys] = useState<Record<string, boolean>>({});
 
   const sortOptions = useMemo(
     () => sortOptionsForResearchStats(researchStatKeys, showEngineValues),
@@ -1623,6 +1686,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     () => getDepthChartCached(147) === null,
   );
   const [depthChartError, setDepthChartError] = useState("");
+  const [depthChartSearch, setDepthChartSearch] = useState("");
 
   const availablePositionFilters = useMemo(
     () => positionFiltersForStatView(statViewFilter),
@@ -1893,45 +1957,63 @@ export default function ResearchScreen({ route, navigation }: Props) {
     return sortedFilteredPlayers.slice(0, visiblePlayerCount);
   }, [sortedFilteredPlayers, visiblePlayerCount]);
 
-  const tierBuckets = useMemo(() => {
-    const grouped = new Map<number, Player[]>();
+  const tierCandidatePlayers = useMemo(() => {
+    const q = search.trim().toLowerCase();
 
-    for (const player of filteredPlayers) {
-      const engineRow = valuationsByPlayerId.get(player.id);
-      const tier = getDisplayTier(player, engineRow, showEngineValues);
+    return allPlayers.filter((player) => {
+      const nameMatch = player.name.toLowerCase().includes(q);
+      const teamMatch = player.team.toLowerCase().includes(q);
+      const positionText = [player.position, ...(player.positions ?? [])]
+        .join("/")
+        .toLowerCase();
+      const positionTextMatch = positionText.includes(q);
 
-      if (!grouped.has(tier)) {
-        grouped.set(tier, []);
+      if (q && !nameMatch && !teamMatch && !positionTextMatch) {
+        return false;
       }
 
-      grouped.get(tier)!.push(player);
+      return positionMatches(player, positionFilter);
+    });
+  }, [allPlayers, search, positionFilter]);
+
+  const mobileTierView = useMemo(
+    () =>
+      buildMobileTierView({
+        players: tierCandidatePlayers,
+        valuationsByPlayerId,
+        draftedIds,
+        draftedPriceByPlayerId,
+        draftedContractByPlayerId,
+        leagueBudget: league?.budget,
+      }),
+    [
+      tierCandidatePlayers,
+      valuationsByPlayerId,
+      draftedIds,
+      draftedPriceByPlayerId,
+      draftedContractByPlayerId,
+      league?.budget,
+    ],
+  );
+
+  const mobileTierBuckets = useMemo(() => {
+    const buckets: MobileTierBucket[] = mobileTierView.tiers.filter(
+      (bucket) => bucket.availableCount > 0,
+    );
+
+    if (mobileTierView.outsideModel) {
+      buckets.push(mobileTierView.outsideModel);
     }
 
-    const sortedTiers = Array.from(grouped.keys()).sort((a, b) => a - b);
+    return buckets;
+  }, [mobileTierView]);
 
-    return sortedTiers.map((tier) => ({
-      tier,
-      players: (grouped.get(tier) ?? []).sort((a, b) =>
-       comparePlayers(
-          a,
-          b,
-          valuationsByPlayerId.get(a.id),
-          valuationsByPlayerId.get(b.id),
-          sortBy,
-          sortDirection,
-          statBasis,
-          showEngineValues,
-        )
-      ),
+  function toggleTierExpanded(key: string) {
+    setExpandedTierKeys((current) => ({
+      ...current,
+      [key]: !current[key],
     }));
-  }, [
-    filteredPlayers,
-    valuationsByPlayerId,
-    sortBy,
-    sortDirection,
-    statBasis,
-    showEngineValues,
-  ]);
+  }
 
   const depthTotalSlots = DEPTH_POSITIONS.length * 3;
 
@@ -1943,6 +2025,40 @@ export default function ResearchScreen({ route, navigation }: Props) {
       0,
     );
   }, [depthChartData]);
+
+  const selectedDepthTeam = useMemo(
+    () => MLB_TEAMS.find((team) => team.id === selectedDepthTeamId) ?? MLB_TEAMS[0],
+    [selectedDepthTeamId],
+  );
+
+  const depthValuedCount = useMemo(() => {
+    if (!depthChartData) return 0;
+
+    let count = 0;
+
+    for (const position of DEPTH_POSITIONS) {
+      const rows = depthChartData.positions[position] ?? [];
+
+      for (const row of rows) {
+        const matchedPlayer =
+          allPlayers.find(
+            (player) =>
+              player.mlbId === row.playerId || player.id === String(row.playerId),
+          ) ?? null;
+
+        if (!matchedPlayer) continue;
+
+        const engineRow = valuationsByPlayerId.get(matchedPlayer.id);
+        const value = getAuctionValue(matchedPlayer, engineRow);
+
+        if (value > 0) {
+          count += 1;
+        }
+      }
+    }
+
+    return count;
+  }, [depthChartData, allPlayers, valuationsByPlayerId]);
 
   function resetCustomPlayerForm() {
     setEditingCustomPlayerId(null);
@@ -1966,13 +2082,18 @@ export default function ResearchScreen({ route, navigation }: Props) {
     setShowAddPlayer(true);
   }
 
-  function handleOpenPlayer(player: Player) {
+  function handleOpenPlayer(
+    player: Player,
+    depthContext: DepthChartModalContext | null = null,
+  ) {
+    setSelectedDepthContext(depthContext);
     setSelectedModalPlayer(player);
   }
 
   function handleMoveToCommandCenter(player: Player) {
     setSelectedPlayer(player);
     setSelectedModalPlayer(null);
+    setSelectedDepthContext(null);
     navigation.navigate("CommandCenter", { leagueId });
   }
 
@@ -2037,7 +2158,10 @@ export default function ResearchScreen({ route, navigation }: Props) {
     );
   }
 
-  async function handleDepthPlayerPress(slot: DepthChartPlayerRow) {
+  async function handleDepthPlayerPress(
+    slot: DepthChartPlayerRow,
+    position: DepthChartPosition,
+  ) {
     try {
       const player = await resolveDepthPlayer(slot);
 
@@ -2048,7 +2172,16 @@ export default function ResearchScreen({ route, navigation }: Props) {
         return;
       }
 
-      handleOpenPlayer(player);
+      handleOpenPlayer(player, {
+        position,
+        rank: slot.rank,
+        status: slot.status,
+        usageStarts: slot.usageStarts,
+        usageAppearances: slot.usageAppearances,
+        outOfPosition: slot.outOfPosition,
+        needsManualReview: slot.needsManualReview,
+        reasons: slot.reasons,
+      });
     } catch (err) {
       setDepthChartError(
         err instanceof Error ? err.message : "Failed to open player",
@@ -2206,7 +2339,9 @@ export default function ResearchScreen({ route, navigation }: Props) {
 
         {selectedView === "player-database" || selectedView === "tiers" ? (
           <>
-            <TextInput
+            {selectedView === "player-database" ? (
+              <>
+                <TextInput
               value={search}
               onChangeText={setSearch}
               placeholder="Search players by name..."
@@ -2418,6 +2553,9 @@ export default function ResearchScreen({ route, navigation }: Props) {
               </AppCard>
             ) : null}
 
+              </>
+            ) : null}
+
             {selectedView === "player-database" ? (
               <View style={{ marginBottom: 12, flexDirection: "row" }}>
                 <AppChip
@@ -2589,87 +2727,404 @@ export default function ResearchScreen({ route, navigation }: Props) {
               </>
             ) : (
               <>
-                <Text style={{ marginBottom: 12, color: "#a1a1aa", fontWeight: "800" }}>
-                  {filteredPlayers.length} filtered players across {tierBuckets.length} tiers
-                </Text>
-
-                {tierBuckets.length === 0 ? (
-                  <EmptyState label="No tiers found." />
-                ) : (
-                  tierBuckets.map((bucket) => (
-                    <AppCard
-                      key={bucket.tier}
-                      backgroundColor="#151021"
-                      borderColor="#31224f"
-                    >
+                <AppCard backgroundColor="#151021" borderColor="#31224f">
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 12 }}>
                       <Text
                         style={{
                           color: "#f9fafb",
                           fontSize: 18,
                           fontWeight: "900",
-                          marginBottom: 10,
+                          marginBottom: 6,
                         }}
                       >
-                        Tier {bucket.tier} • {bucket.players.length} players
+                        Auction tiers
                       </Text>
 
-                      {bucket.players.slice(0, 15).map((player) => {
-                        const engineRow = valuationsByPlayerId.get(player.id);
-                        const watched = isInWatchlist(leagueId, player.id);
-                        const custom = isCustomPlayer(player.id);
+                      <Text style={{ color: "#c4b5fd", lineHeight: 19 }}>
+                        Value bands from the current Engine auction board. Tiers
+                        and cliffs use auction values; drafted-only tiers are hidden
+                        from the main list.
+                      </Text>
+                    </View>
+                  </View>
 
-                        return (
-                          <PlayerResearchCard
-                            key={player.id}
-                            player={player}
-                            engineRow={engineRow}
-                            watched={watched}
-                            custom={custom}
-                            statBasis={statBasis}
-                            statViewFilter={statViewFilter}
-                            researchStatKeys={researchStatKeys}
-                            note={getNote(leagueId, player.id)}
-                            onChangeNote={(note) => setNote(leagueId, player.id, note)}
-                            showEngineValues={showEngineValues}
-                            onOpen={() => handleOpenPlayer(player)}
-                            onToggleWatchlist={() => void handleToggleWatchlist(player)}
-                            onEditCustom={() => startEditingCustomPlayer(player)}
-                            onRemoveCustom={() => void removeCustomPlayer(player.id)}
-                          />
-                        );
-                      })}
+                  <View style={{ marginBottom: 10 }}>
+                    <Text
+                      style={{
+                        color: "#a1a1aa",
+                        fontSize: 11,
+                        fontWeight: "900",
+                        marginBottom: 6,
+                      }}
+                    >
+                      POSITION
+                    </Text>
 
-                      {bucket.players.length > 15 ? (
-                        <Text style={{ color: "#a1a1aa", marginTop: 8 }}>
-                          +{bucket.players.length - 15} more players in this tier
-                        </Text>
-                      ) : null}
-                    </AppCard>
-                  ))
+                    <FilterRow>
+                      {ALL_POSITION_FILTERS.map((position) => (
+                        <FilterPill
+                          key={position}
+                          label={position === "ALL" ? "All Positions" : position}
+                          selected={positionFilter === position}
+                          onPress={() => setPositionFilter(position)}
+                        />
+                      ))}
+                    </FilterRow>
+                  </View>
+
+                  <View>
+                    <Text
+                      style={{
+                        color: "#a1a1aa",
+                        fontSize: 11,
+                        fontWeight: "900",
+                        marginBottom: 6,
+                      }}
+                    >
+                      SORT WITHIN TIER
+                    </Text>
+
+                    <FilterRow>
+                      {MOBILE_TIER_SORT_OPTIONS.map((option) => (
+                        <FilterPill
+                          key={option.value}
+                          label={option.label}
+                          selected={tierSortBy === option.value}
+                          onPress={() => setTierSortBy(option.value)}
+                        />
+                      ))}
+                    </FilterRow>
+                  </View>
+                </AppCard>
+
+                {mobileTierBuckets.length === 0 ? (
+                  <EmptyState label="No players match this tier filter." />
+                ) : (
+                  mobileTierBuckets.map((bucket) => {
+                    const expanded = expandedTierKeys[bucket.key] ?? false;
+                    const sortedAvailable = sortPlayersForMobileTier(
+                      bucket.availablePlayers,
+                      tierSortBy,
+                      valuationsByPlayerId,
+                      draftedIds,
+                      draftedPriceByPlayerId,
+                      draftedContractByPlayerId,
+                    );
+                    const sortedDrafted = sortPlayersForMobileTier(
+                      bucket.draftedPlayers,
+                      tierSortBy,
+                      valuationsByPlayerId,
+                      draftedIds,
+                      draftedPriceByPlayerId,
+                      draftedContractByPlayerId,
+                    );
+                    const mixText = Object.entries(bucket.positionCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 4)
+                      .map(([position, count]) => `${position} ${count}`)
+                      .join(" · ");
+
+                    return (
+                      <AppCard
+                        key={bucket.key}
+                        backgroundColor={bucket.muted ? "#100c18" : "#151021"}
+                        borderColor={bucket.depleted ? "#4b2b3d" : "#31224f"}
+                      >
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          onPress={() => toggleTierExpanded(bucket.key)}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
+                              marginBottom: 10,
+                            }}
+                          >
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "flex-start",
+                                flex: 1,
+                                paddingRight: 10,
+                              }}
+                            >
+                              {bucket.tier === "outside" ? (
+                                <View
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 8,
+                                    borderWidth: 1,
+                                    borderColor: "#6b7280",
+                                    backgroundColor: "#374151",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginRight: 10,
+                                  }}
+                                >
+                                  <Text style={{ color: "#f9fafb", fontWeight: "900" }}>
+                                    —
+                                  </Text>
+                                </View>
+                              ) : (
+                                <View style={{ marginRight: 10 }}>
+                                  <TierPill tier={bucket.tier} />
+                                </View>
+                              )}
+
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={{
+                                    color: "#f9fafb",
+                                    fontSize: 17,
+                                    fontWeight: "900",
+                                  }}
+                                >
+                                  {bucket.title}
+                                </Text>
+
+                                {bucket.semanticLabel ? (
+                                  <Text
+                                    style={{
+                                      color: "#c4b5fd",
+                                      fontWeight: "800",
+                                      marginTop: 1,
+                                    }}
+                                  >
+                                    {bucket.semanticLabel}
+                                    {bucket.shortRange ? ` · ${bucket.shortRange}` : ""}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </View>
+
+                            <Text style={{ color: "#c4b5fd", fontWeight: "900" }}>
+                              {expanded ? "Collapse" : "Expand"}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={{
+                              borderTopWidth: 1,
+                              borderTopColor: "#33294a",
+                              paddingTop: 10,
+                            }}
+                          >
+                            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                              <MetricCell
+                                label="Available"
+                                value={formatMobileTierAvailability(bucket)}
+                              />
+                              <MetricCell
+                                label="Value"
+                                value={
+                                  bucket.shelfNote
+                                    ? `${bucket.valueLabel} (${bucket.shelfNote})`
+                                    : bucket.valueLabel
+                                }
+                                highlight={!bucket.depleted}
+                              />
+                              <MetricCell
+                                label="Avg"
+                                value={bucket.averageValueLabel}
+                              />
+                              <MetricCell
+                                label="Cliff"
+                                value={bucket.cliffLabel}
+                              />
+                            </View>
+
+                            {mixText ? (
+                              <Text style={{ color: "#a1a1aa", marginTop: -2 }}>
+                                Mix: {mixText}
+                              </Text>
+                            ) : null}
+
+                            {bucket.topPlayerNames.length > 0 ? (
+                              <Text style={{ color: "#a1a1aa", marginTop: 5 }}>
+                                Top: {bucket.topPlayerNames.join(", ")}
+                              </Text>
+                            ) : null}
+                          </View>
+                        </TouchableOpacity>
+
+                        {expanded ? (
+                          <View style={{ marginTop: 12 }}>
+                            {sortedAvailable.length === 0 ? (
+                              <Text style={{ color: "#a1a1aa", marginBottom: 10 }}>
+                                No available players left in this tier.
+                              </Text>
+                            ) : (
+                              sortedAvailable.map((player, index) => {
+                                const engineRow = valuationsByPlayerId.get(player.id);
+                                const watched = isInWatchlist(leagueId, player.id);
+                                const custom = isCustomPlayer(player.id);
+
+                                return (
+                                  <PlayerResearchCard
+                                    key={`available-${bucket.key}-${player.id}`}
+                                    player={player}
+                                    engineRow={engineRow}
+                                    watched={watched}
+                                    custom={custom}
+                                    rankNumber={index + 1}
+                                    statBasis={statBasis}
+                                    statViewFilter={statViewFilter}
+                                    researchStatKeys={researchStatKeys}
+                                    note={getNote(leagueId, player.id)}
+                                    onChangeNote={(note) => setNote(leagueId, player.id, note)}
+                                    showEngineValues={showEngineValues}
+                                    onOpen={() => handleOpenPlayer(player)}
+                                    onToggleWatchlist={() => void handleToggleWatchlist(player)}
+                                    onEditCustom={() => startEditingCustomPlayer(player)}
+                                    onRemoveCustom={() => void removeCustomPlayer(player.id)}
+                                  />
+                                );
+                              })
+                            )}
+
+                            {sortedDrafted.length > 0 ? (
+                              <>
+                                <Text
+                                  style={{
+                                    color: "#f9fafb",
+                                    fontSize: 15,
+                                    fontWeight: "900",
+                                    marginTop: 8,
+                                    marginBottom: 10,
+                                  }}
+                                >
+                                  Drafted from this tier
+                                </Text>
+
+                                {sortedDrafted.map((player, index) => {
+                                  const engineRow = valuationsByPlayerId.get(player.id);
+                                  const watched = isInWatchlist(leagueId, player.id);
+                                  const custom = isCustomPlayer(player.id);
+                                  const draftedTeam = draftedByTeam.get(player.id);
+                                  const draftedPrice = draftedPriceByPlayerId.get(player.id);
+
+                                  return (
+                                    <View key={`drafted-${bucket.key}-${player.id}`}>
+                                      <Text
+                                        style={{
+                                          color: "#a1a1aa",
+                                          fontSize: 12,
+                                          fontWeight: "900",
+                                          marginBottom: 6,
+                                        }}
+                                      >
+                                        Drafted
+                                        {draftedTeam ? ` by ${draftedTeam}` : ""}
+                                        {draftedPrice !== undefined ? ` for $${draftedPrice}` : ""}
+                                      </Text>
+
+                                      <PlayerResearchCard
+                                        player={player}
+                                        engineRow={engineRow}
+                                        watched={watched}
+                                        custom={custom}
+                                        rankNumber={index + 1}
+                                        statBasis={statBasis}
+                                        statViewFilter={statViewFilter}
+                                        researchStatKeys={researchStatKeys}
+                                        note={getNote(leagueId, player.id)}
+                                        onChangeNote={(note) => setNote(leagueId, player.id, note)}
+                                        showEngineValues={showEngineValues}
+                                        onOpen={() => handleOpenPlayer(player)}
+                                        onToggleWatchlist={() => void handleToggleWatchlist(player)}
+                                        onEditCustom={() => startEditingCustomPlayer(player)}
+                                        onRemoveCustom={() => void removeCustomPlayer(player.id)}
+                                      />
+                                    </View>
+                                  );
+                                })}
+                              </>
+                            ) : null}
+                          </View>
+                        ) : null}
+                      </AppCard>
+                    );
+                  })
                 )}
               </>
             )}
           </>
         ) : (
           <>
-            <FilterRow>
-              {MLB_TEAMS.map((team) => (
-                <FilterPill
-                  key={team.id}
-                  label={team.abbr}
-                  selected={selectedDepthTeamId === team.id}
-                  onPress={() => setSelectedDepthTeamId(team.id)}
-                />
-              ))}
-            </FilterRow>
+            <AppCard backgroundColor="#151021" borderColor="#31224f">
+              <Text
+                style={{
+                  color: "#f9fafb",
+                  fontSize: 20,
+                  fontWeight: "900",
+                  marginBottom: 6,
+                }}
+              >
+                Depth Charts
+              </Text>
+              <Text style={{ color: "#c4b5fd", marginBottom: 12, lineHeight: 20 }}>
+                Fantasy-oriented active roster depth with starter, backup, and reserve rankings.
+              </Text>
 
-            <View style={{ flexDirection: "row", marginBottom: 12 }}>
-              <AppChip
-                label="Refresh"
-                selected
-                onPress={() => void loadDepthChart(selectedDepthTeamId, true)}
+              <TextInput
+                value={depthChartSearch}
+                onChangeText={setDepthChartSearch}
+                placeholder="Search depth chart players..."
+                placeholderTextColor="#71717a"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#3f335c",
+                  marginBottom: 12,
+                  padding: 12,
+                  borderRadius: 12,
+                  color: "#f9fafb",
+                  backgroundColor: "#0b0712",
+                }}
               />
-            </View>
+
+              <Text
+                style={{
+                  color: "#a1a1aa",
+                  fontSize: 11,
+                  fontWeight: "900",
+                  marginBottom: 6,
+                }}
+              >
+                MLB TEAM
+              </Text>
+              <FilterRow>
+                {MLB_TEAMS.map((team) => (
+                  <FilterPill
+                    key={team.id}
+                    label={team.abbr}
+                    selected={selectedDepthTeamId === team.id}
+                    onPress={() => setSelectedDepthTeamId(team.id)}
+                  />
+                ))}
+              </FilterRow>
+
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ color: "#f9fafb", fontWeight: "900" }}>
+                  {selectedDepthTeam?.abbr ?? "MLB"} · {selectedDepthTeam?.name ?? "Team"}
+                </Text>
+                <AppChip
+                  label="Refresh"
+                  selected
+                  onPress={() => void loadDepthChart(selectedDepthTeamId, true)}
+                />
+              </View>
+            </AppCard>
 
             {depthChartError ? <ErrorState label={depthChartError} /> : null}
 
@@ -2680,28 +3135,67 @@ export default function ResearchScreen({ route, navigation }: Props) {
             ) : (
               <>
                 <AppCard backgroundColor="#151021" borderColor="#31224f">
-                  <Text style={{ color: "#f9fafb", fontWeight: "900", marginBottom: 6 }}>
-                    Team Depth Summary
-                  </Text>
-                  <Text style={{ color: "#d1d5db" }}>
-                    Updated {new Date(depthChartData.generatedAt).toLocaleString()}
-                  </Text>
-                  <Text style={{ color: "#d1d5db" }}>
-                    Roster {depthChartData.rosterCount}/{depthChartData.rosterLimit}
-                  </Text>
-                  <Text style={{ color: "#d1d5db" }}>
-                    Assignments {depthAssignedCount}/{depthTotalSlots}
-                  </Text>
-                  <Text style={{ color: "#d1d5db" }}>
-                    Manual review {depthChartData.manualReview.length}
-                  </Text>
-                  <Text style={{ color: "#a1a1aa", marginTop: 4 }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                    <MetricCell
+                      label="Updated"
+                      value={new Date(depthChartData.generatedAt).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    />
+                    <MetricCell
+                      label="Roster"
+                      value={`${depthChartData.rosterCount}/${depthChartData.rosterLimit}`}
+                    />
+                    <MetricCell
+                      label="Assignments"
+                      value={`${depthAssignedCount}/${depthTotalSlots}`}
+                    />
+                    <MetricCell
+                      label="Valued"
+                      value={String(depthValuedCount)}
+                      highlight={depthValuedCount > 0}
+                    />
+                    <MetricCell
+                      label="Catalog-only"
+                      value={String(Math.max(0, depthAssignedCount - depthValuedCount))}
+                    />
+                    <MetricCell
+                      label="Manual review"
+                      value={String(depthChartData.manualReview.length)}
+                    />
+                  </View>
+
+                  <Text
+                    style={{
+                      color: depthChartData.constraints.rosterLimitRespected ? "#86efac" : "#fca5a5",
+                      marginTop: 4,
+                      fontWeight: "800",
+                    }}
+                  >
                     {depthChartData.constraints.note}
                   </Text>
                 </AppCard>
 
                 {DEPTH_POSITIONS.map((position) => {
                   const rows = depthChartData.positions[position] ?? [];
+                  const q = depthChartSearch.trim().toLowerCase();
+                  const visibleRanks = [1, 2, 3].filter((rank) => {
+                    if (!q) return true;
+
+                    const row = rows.find((item) => item.rank === rank);
+                    if (!row) return false;
+
+                    return (
+                      row.playerName.toLowerCase().includes(q) ||
+                      row.primaryPosition.toLowerCase().includes(q) ||
+                      row.status.toLowerCase().includes(q)
+                    );
+                  });
+
+                  if (visibleRanks.length === 0) {
+                    return null;
+                  }
 
                   return (
                     <AppCard
@@ -2709,18 +3203,66 @@ export default function ResearchScreen({ route, navigation }: Props) {
                       backgroundColor="#151021"
                       borderColor="#31224f"
                     >
-                      <Text
+                      <View
                         style={{
-                          color: "#f9fafb",
-                          fontSize: 18,
-                          fontWeight: "900",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
                           marginBottom: 10,
                         }}
                       >
-                        {position} • {rows.length}/3
-                      </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View
+                            style={{
+                              borderWidth: 1,
+                              borderColor: "#4c3575",
+                              backgroundColor: "#1b1428",
+                              borderRadius: 6,
+                              paddingHorizontal: 10,
+                              paddingVertical: 5,
+                              marginRight: 9,
+                            }}
+                          >
+                            <Text style={{ color: "#c4b5fd", fontWeight: "900" }}>
+                              {position}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              color: "#f9fafb",
+                              fontSize: 17,
+                              fontWeight: "900",
+                            }}
+                          >
+                            {position === "SP"
+                              ? "Starting Pitcher"
+                              : position === "RP"
+                                ? "Relief Pitcher"
+                                : position === "1B"
+                                  ? "First Base"
+                                  : position === "2B"
+                                    ? "Second Base"
+                                    : position === "3B"
+                                      ? "Third Base"
+                                      : position === "SS"
+                                        ? "Shortstop"
+                                        : position === "LF"
+                                          ? "Left Field"
+                                          : position === "CF"
+                                            ? "Center Field"
+                                            : position === "RF"
+                                              ? "Right Field"
+                                              : position === "DH"
+                                                ? "Designated Hitter"
+                                                : "Catcher"}
+                          </Text>
+                        </View>
+                        <Text style={{ color: "#a78bfa", fontWeight: "900" }}>
+                          {rows.length}/3
+                        </Text>
+                      </View>
 
-                      {[1, 2, 3].map((rank, index) => {
+                      {visibleRanks.map((rank, index) => {
                         const row = rows.find((item) => item.rank === rank);
 
                         if (!row) {
@@ -2728,15 +3270,15 @@ export default function ResearchScreen({ route, navigation }: Props) {
                             <View
                               key={`${position}-${rank}`}
                               style={{
-                                paddingVertical: 10,
+                                paddingVertical: 12,
                                 borderTopWidth: index === 0 ? 0 : 1,
                                 borderTopColor: "#33294a",
                               }}
                             >
-                              <Text style={{ color: "#f9fafb", fontWeight: "800", marginBottom: 4 }}>
+                              <Text style={{ color: "#a78bfa", fontWeight: "900" }}>
                                 #{rank}
                               </Text>
-                              <Text style={{ color: "#a1a1aa" }}>No assignment</Text>
+                              <Text style={{ color: "#a1a1aa", marginTop: 4 }}>No assignment</Text>
                             </View>
                           );
                         }
@@ -2748,46 +3290,126 @@ export default function ResearchScreen({ route, navigation }: Props) {
                               player.id === String(row.playerId),
                           ) ?? null;
 
+                        const engineRow = matchedPlayer
+                          ? valuationsByPlayerId.get(matchedPlayer.id)
+                          : undefined;
+                        const value = matchedPlayer
+                          ? getAuctionValue(matchedPlayer, engineRow)
+                          : null;
                         const isSaved = matchedPlayer
                           ? isInWatchlist(leagueId, matchedPlayer.id)
                           : false;
+                        const imageUrl = matchedPlayer ? getPlayerImageUrl(matchedPlayer) : null;
+                        const rowTone = matchedPlayer && value !== null && value > 0
+                          ? "VALUE"
+                          : matchedPlayer
+                            ? "CATALOG"
+                            : "DEPTH";
 
                         return (
                           <View
                             key={`${position}-${rank}`}
                             style={{
-                              paddingVertical: 10,
+                              paddingVertical: 12,
                               borderTopWidth: index === 0 ? 0 : 1,
                               borderTopColor: "#33294a",
                             }}
                           >
-                            <Text style={{ color: "#f9fafb", fontWeight: "800", marginBottom: 4 }}>
-                              #{rank}
-                            </Text>
+                            <View style={{ flexDirection: "row", alignItems: "center" }}>
+                              <Text
+                                style={{
+                                  color: "#c4b5fd",
+                                  fontWeight: "900",
+                                  width: 34,
+                                }}
+                              >
+                                #{rank}
+                              </Text>
 
-                            <TouchableOpacity onPress={() => void handleDepthPlayerPress(row)}>
-                              <Text style={{ color: "#f9fafb", fontWeight: "800" }}>
-                                {row.playerName}
-                              </Text>
-                              <Text style={{ color: "#d1d5db", marginTop: 2 }}>
-                                {row.primaryPosition} • {row.status}
-                              </Text>
-                              <Text style={{ color: "#d1d5db" }}>
-                                {row.usageStarts} starts • {row.usageAppearances} apps
-                              </Text>
-                              {row.outOfPosition || row.needsManualReview ? (
-                                <Text style={{ color: "#fca5a5", marginTop: 4, fontWeight: "800" }}>
-                                  OOF / Manual Review
+                              <TouchableOpacity
+                                activeOpacity={0.82}
+                                onPress={() => void handleDepthPlayerPress(row, position)}
+                                style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+                              >
+                                {imageUrl ? (
+                                  <Image
+                                    source={{ uri: imageUrl }}
+                                    style={{
+                                      width: 42,
+                                      height: 42,
+                                      borderRadius: 21,
+                                      marginRight: 10,
+                                      backgroundColor: "#272034",
+                                      borderWidth: 1,
+                                      borderColor: "#4c3575",
+                                    }}
+                                  />
+                                ) : (
+                                  <View
+                                    style={{
+                                      width: 42,
+                                      height: 42,
+                                      borderRadius: 21,
+                                      marginRight: 10,
+                                      backgroundColor: "#272034",
+                                      borderWidth: 1,
+                                      borderColor: "#4c3575",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <Text style={{ color: "#c4b5fd", fontWeight: "900" }}>
+                                      {row.playerName.slice(0, 1)}
+                                    </Text>
+                                  </View>
+                                )}
+
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ color: "#f9fafb", fontWeight: "900" }}>
+                                    {row.playerName}
+                                  </Text>
+                                  <Text style={{ color: "#d1d5db", marginTop: 2 }}>
+                                    {row.primaryPosition} • {row.status}
+                                  </Text>
+                                  <Text style={{ color: "#a1a1aa", marginTop: 1, fontSize: 12 }}>
+                                    {row.usageStarts} starts • {row.usageAppearances} apps
+                                  </Text>
+                                  {row.outOfPosition || row.needsManualReview ? (
+                                    <Text style={{ color: "#fca5a5", marginTop: 4, fontWeight: "800", fontSize: 12 }}>
+                                      Needs review
+                                    </Text>
+                                  ) : null}
+                                </View>
+                              </TouchableOpacity>
+
+                              <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
+                                <TouchableOpacity
+                                  activeOpacity={0.82}
+                                  onPress={() => void handleDepthStarToggle(row)}
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 16,
+                                    borderWidth: 1,
+                                    borderColor: isSaved ? "#facc15" : "#4c3575",
+                                    backgroundColor: isSaved ? "#3a2c13" : "#151021",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginBottom: 5,
+                                  }}
+                                >
+                                  <Text style={{ color: isSaved ? "#facc15" : "#8b7aa8", fontWeight: "900" }}>
+                                    {isSaved ? "★" : "☆"}
+                                  </Text>
+                                </TouchableOpacity>
+
+                                <Text style={{ color: value !== null && value > 0 ? "#4ade80" : "#a78bfa", fontSize: 10, fontWeight: "900" }}>
+                                  {rowTone}
                                 </Text>
-                              ) : null}
-                            </TouchableOpacity>
-
-                            <View style={{ marginTop: 8 }}>
-                              <AppChip
-                                label={isSaved ? "Starred" : "Star"}
-                                selected={isSaved}
-                                onPress={() => void handleDepthStarToggle(row)}
-                              />
+                                <Text style={{ color: "#f9fafb", fontWeight: "900" }}>
+                                  {value !== null && value > 0 ? formatMoney(value) : "—"}
+                                </Text>
+                              </View>
                             </View>
                           </View>
                         );
@@ -2831,7 +3453,32 @@ export default function ResearchScreen({ route, navigation }: Props) {
         displayValue={selectedDisplayValue}
         displayTier={selectedDisplayTier}
         statSummary={selectedStatSummary}
-        onClose={() => setSelectedModalPlayer(null)}
+        statBasis={statBasis}
+        engineRow={selectedEngineRow}
+        note={selectedModalPlayer ? getNote(leagueId, selectedModalPlayer.id) : ""}
+        onChangeNote={(note) => {
+          if (selectedModalPlayer) {
+            setNote(leagueId, selectedModalPlayer.id, note);
+          }
+        }}
+        draftedByTeam={
+          selectedModalPlayer ? draftedByTeam.get(selectedModalPlayer.id) : undefined
+        }
+        draftedPrice={
+          selectedModalPlayer
+            ? draftedPriceByPlayerId.get(selectedModalPlayer.id)
+            : undefined
+        }
+        draftedContract={
+          selectedModalPlayer
+            ? draftedContractByPlayerId.get(selectedModalPlayer.id)
+            : undefined
+        }
+        depthChartContext={selectedDepthContext}
+        onClose={() => {
+          setSelectedModalPlayer(null);
+          setSelectedDepthContext(null);
+        }}
         onToggleWatchlist={() => {
           if (selectedModalPlayer) {
             void handleToggleWatchlist(selectedModalPlayer);
@@ -2846,12 +3493,14 @@ export default function ResearchScreen({ route, navigation }: Props) {
           if (selectedModalPlayer) {
             startEditingCustomPlayer(selectedModalPlayer);
             setSelectedModalPlayer(null);
+            setSelectedDepthContext(null);
           }
         }}
         onRemoveCustom={() => {
           if (selectedModalPlayer) {
             void removeCustomPlayer(selectedModalPlayer.id);
             setSelectedModalPlayer(null);
+            setSelectedDepthContext(null);
           }
         }}
       />
