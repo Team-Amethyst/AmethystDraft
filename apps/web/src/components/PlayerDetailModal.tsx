@@ -20,7 +20,11 @@ import {
   valuationTooltip,
 } from "../utils/valuation";
 import { buildPlayerDetailValuationLadder } from "../domain/playerDetailValuationLadder";
-import { formatAuctionValueRaw } from "../domain/researchAuctionValueDisplay";
+import {
+  buildValuationMetricTooltip,
+  formatAuctionValueRaw,
+  researchAuctionValueCellTitle,
+} from "../domain/researchAuctionValueDisplay";
 import {
   formatSignedWhole,
   summarizeDriverReason,
@@ -468,6 +472,55 @@ export default function PlayerDetailModal({
   } = valuationLadder;
   const bidEdgeTone = bidEdgeDisplayTone(bidEdge);
 
+  const auctionValueRounded =
+    marketValue != null && Number.isFinite(marketValue)
+      ? formatCurrencyWhole(marketValue)
+      : null;
+  const auctionValueMetricTitle = maskEngineMetrics
+    ? RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE
+    : researchAuctionValueCellTitle({
+        maskEngineColumns: false,
+        valuationEligible: player.valuation_eligible,
+        showOutsideEnginePoolMinBidTooltip: false,
+        outsideEnginePoolTooltip: "",
+        auctionValueTooltip: RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE,
+        rawAuctionValue: marketValue ?? undefined,
+        auctionRank: player.auction_rank,
+        roundedDisplay: auctionValueRounded ?? undefined,
+      });
+  const recommendedBidMetricTitle = buildValuationMetricTooltip({
+    baseTooltip: valuationTooltip("recommended_bid"),
+    rawValue: recommendedBid,
+    roundedDisplay:
+      recommendedBid != null && Number.isFinite(recommendedBid)
+        ? formatCurrencyWhole(recommendedBid)
+        : null,
+  });
+  const teamValueMetricTitle = buildValuationMetricTooltip({
+    baseTooltip: RESEARCH_TABLE_TOOLTIP_TEAM_VALUE,
+    rawValue: yourValue,
+    roundedDisplay:
+      yourValue != null && Number.isFinite(yourValue)
+        ? formatCurrencyWhole(yourValue)
+        : null,
+  });
+  const bidEdgeMetricTitle = buildValuationMetricTooltip({
+    baseTooltip: BID_EDGE_TOOLTIP,
+    rawValue: bidEdge,
+    roundedDisplay:
+      bidEdge !== undefined && Number.isFinite(bidEdge)
+        ? formatSignedDollarWhole(bidEdge)
+        : null,
+  });
+  const maxBidMetricTitle = buildValuationMetricTooltip({
+    baseTooltip: RESEARCH_TABLE_TOOLTIP_MAX_BID,
+    rawValue: maxBid,
+    roundedDisplay:
+      maxBid != null && Number.isFinite(maxBid)
+        ? formatCurrencyWhole(maxBid)
+        : null,
+  });
+
   const showValuationContextDebug =
     isValuationContextDebugEnabled() &&
     valuationContextDev != null &&
@@ -692,33 +745,18 @@ export default function PlayerDetailModal({
               <>
               <div className="pdm-valuation-metric-grid pdm-valuation-strip__metrics" role="list">
                 <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_AUCTION_VALUE}>
-                    Auction Value
-                  </span>
-                  <span className="pdm-metric-value">
+                  <span className="pdm-metric-label">Auction Value</span>
+                  <span className="pdm-metric-value" title={auctionValueMetricTitle}>
                     {maskEngineMetrics && marketValue == null ? (
                       <ResearchEngineValueLoading label="Loading auction value" />
                     ) : (
                       formatCurrencyWhole(marketValue)
                     )}
                   </span>
-                  {!maskEngineMetrics &&
-                  marketValue != null &&
-                  Number.isFinite(marketValue) &&
-                  Math.round(marketValue) !== marketValue ? (
-                    <span className="pdm-metric-raw" title="Unrounded model auction value">
-                      {formatAuctionValueRaw(marketValue)} raw
-                    </span>
-                  ) : null}
                 </div>
                 <div className="pdm-metric" role="listitem">
-                  <span
-                    className="pdm-metric-label"
-                    title={valuationTooltip("recommended_bid")}
-                  >
-                    Recommended Bid
-                  </span>
-                  <span className="pdm-metric-value">
+                  <span className="pdm-metric-label">Recommended Bid</span>
+                  <span className="pdm-metric-value" title={recommendedBidMetricTitle}>
                     {maskEngineMetrics && recommendedBid == null ? (
                       <ResearchEngineValueLoading label="Loading recommended bid" />
                     ) : (
@@ -727,10 +765,8 @@ export default function PlayerDetailModal({
                   </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_TEAM_VALUE}>
-                    Team Value
-                  </span>
-                  <span className="pdm-metric-value">
+                  <span className="pdm-metric-label">Team Value</span>
+                  <span className="pdm-metric-value" title={teamValueMetricTitle}>
                     {maskEngineMetrics && yourValue == null ? (
                       <ResearchEngineValueLoading label="Loading team value" />
                     ) : (
@@ -739,14 +775,13 @@ export default function PlayerDetailModal({
                   </span>
                 </div>
                 <div className="pdm-metric" role="listitem">
-                  <span className="pdm-metric-label" title={BID_EDGE_TOOLTIP}>
-                    Bid Edge
-                  </span>
+                  <span className="pdm-metric-label">Bid Edge</span>
                   <span
                     className={
                       "pdm-metric-value pdm-metric-value--bid-edge pdm-metric-value--bid-edge-" +
                       bidEdgeTone
                     }
+                    title={bidEdgeMetricTitle}
                   >
                     {maskEngineMetrics && bidEdge === undefined ? (
                       <ResearchEngineValueLoading label="Loading bid edge" />
@@ -757,10 +792,8 @@ export default function PlayerDetailModal({
                 </div>
                 {!maxBidEqualsRecommended && maxBid != null ? (
                   <div className="pdm-metric pdm-metric--secondary" role="listitem">
-                    <span className="pdm-metric-label" title={RESEARCH_TABLE_TOOLTIP_MAX_BID}>
-                      Max Bid
-                    </span>
-                    <span className="pdm-metric-value">
+                    <span className="pdm-metric-label">Max Bid</span>
+                    <span className="pdm-metric-value" title={maxBidMetricTitle}>
                       {maskEngineMetrics ? (
                         <ResearchEngineValueLoading label="Loading max bid" />
                       ) : (

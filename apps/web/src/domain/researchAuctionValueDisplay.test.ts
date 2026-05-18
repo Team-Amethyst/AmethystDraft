@@ -3,6 +3,7 @@ import type { Player } from "../types/player";
 import {
   buildResearchAuctionShelfAuditRows,
   buildResearchAuctionValueTooltip,
+  buildValuationMetricTooltip,
   formatAuctionValueRaw,
   researchAuctionRankSubtext,
   researchAuctionValueCellTitle,
@@ -15,6 +16,17 @@ describe("researchAuctionValueDisplay", () => {
     expect(formatAuctionValueRaw(15.72)).toBe("$15.72");
     expect(formatAuctionValueRaw(16)).toBe("$16");
     expect(formatAuctionValueRaw(-3.5)).toBe("-$3.50");
+  });
+
+  it("buildValuationMetricTooltip adds raw and rounded lines", () => {
+    const tip = buildValuationMetricTooltip({
+      baseTooltip: "Suggested bid.",
+      rawValue: 34.25,
+      roundedDisplay: "$34",
+    });
+    expect(tip).toContain("Suggested bid.");
+    expect(tip).toContain("Raw: $34.25");
+    expect(tip).toContain("Displayed (rounded): $34");
   });
 
   it("builds tooltip with raw value and rank", () => {

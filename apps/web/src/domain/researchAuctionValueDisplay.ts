@@ -42,6 +42,23 @@ export function showAuctionRankInResearchValueCell(args: {
   return args.sortCol === "value";
 }
 
+/** Player modal / table cells: base field copy plus raw and rounded display when present. */
+export function buildValuationMetricTooltip(args: {
+  baseTooltip: string;
+  rawValue?: number | null;
+  roundedDisplay?: string | null;
+}): string {
+  const lines = [args.baseTooltip];
+  const raw = coerceNumber(args.rawValue ?? undefined);
+  if (raw !== undefined) {
+    lines.push(`Raw: ${formatAuctionValueRaw(raw)}`);
+    if (args.roundedDisplay) {
+      lines.push(`Displayed (rounded): ${args.roundedDisplay}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 export function buildResearchAuctionValueTooltip(args: {
   baseTooltip: string;
   rawAuctionValue?: number;

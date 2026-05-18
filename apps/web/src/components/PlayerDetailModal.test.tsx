@@ -30,7 +30,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
 describe("PlayerDetailModal valuation strip", () => {
   it("shows Command Center ladder labels and Bid Edge (not Roster Edge)", () => {
     const player = makePlayer({
-      auction_value: 22,
+      auction_value: 22.37,
       team_value: 47,
       recommended_bid: 34,
       max_bid: 34,
@@ -56,6 +56,15 @@ describe("PlayerDetailModal valuation strip", () => {
     expect(screen.getByText("Bid Edge")).toBeTruthy();
     expect(screen.queryByText("Roster Edge")).toBeNull();
 
+    const auctionValue = document.querySelector(
+      ".pdm-valuation-strip__metrics .pdm-metric-value",
+    ) as HTMLElement;
+    expect(auctionValue.textContent).toBe("$22");
+    expect(auctionValue.getAttribute("title")).toContain(
+      "Raw auction value: $22.37",
+    );
+    expect(auctionValue.getAttribute("title")).toContain("League-wide fair market");
+    expect(screen.queryByText(/raw$/i)).toBeNull();
     expect(screen.getAllByText("$22").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("$34")).toBeTruthy();
     expect(screen.getByText("$47")).toBeTruthy();
