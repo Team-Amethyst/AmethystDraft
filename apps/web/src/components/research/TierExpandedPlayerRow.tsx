@@ -72,7 +72,7 @@ export type TierExpandedPlayerRowProps = {
 
 export function TierExpandedPlayerRow({
   player,
-  displayTier,
+  displayTier: _displayTier,
   listRank,
   statBasis = "projections",
   draftDisplaySlotKeys,

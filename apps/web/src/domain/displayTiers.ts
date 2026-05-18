@@ -13,7 +13,6 @@ import {
 import { leagueWideAuctionDollars } from "../utils/valuation";
 import {
   bandForDisplayTier,
-  DISPLAY_TIER_BAND_SPECS,
   displayTierForRawWithConfig,
   REFERENCE_AUCTION_BUDGET,
   resolveDisplayTierConfig,
@@ -181,7 +180,7 @@ function isDrafted(
 export function displayTierGroupingRaw(
   player: Player,
   options?: DisplayTierGroupingOptions,
-): number | null {
+): DisplayTierNumber | null {
   const config = tierConfigFromOptions(options);
   const model = rawTierAuctionValueForDisplay(player);
   if (model != null) return displayTierForRaw(model, config);

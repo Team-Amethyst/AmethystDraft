@@ -77,8 +77,12 @@ export function teamAvgFromHitsAb(players: Player[]): number {
   let h = 0;
   let ab = 0;
   for (const p of players) {
-    const proj = p.projection?.batting;
-    const st = p.stats?.batting;
+    const proj = p.projection?.batting as
+      | { avg?: string; ab?: number; hits?: number; h?: number }
+      | undefined;
+    const st = p.stats?.batting as
+      | { avg?: string; ab?: number; hits?: number; h?: number }
+      | undefined;
     const inningsAb = proj?.ab ?? st?.ab ?? 0;
     const hits = proj?.hits ?? proj?.h ?? st?.hits ?? st?.h;
     if (inningsAb > 0 && hits != null && Number.isFinite(hits)) {

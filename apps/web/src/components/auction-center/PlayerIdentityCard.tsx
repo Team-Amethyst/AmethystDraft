@@ -31,7 +31,7 @@ export function PlayerIdentityCard({
   draftPrimaryTags,
   draftableSlots = [],
   tierValue,
-  tierKind = "auction",
+  tierKind: _tierKind = "auction",
   marketAdp,
   auctionRank,
   modelRank,
