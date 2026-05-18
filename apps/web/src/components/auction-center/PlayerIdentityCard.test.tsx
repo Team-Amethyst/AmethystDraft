@@ -143,6 +143,26 @@ describe("PlayerIdentityCard", () => {
     expect(screen.getByText(/Auction 88/)).toBeTruthy();
   });
 
+  it("renders all primary position tags in the name row", () => {
+    render(
+      <PlayerIdentityCard
+        {...defaultProps}
+        selectedPlayer={{
+          ...hitter,
+          positions: ["SS", "3B", "OF"],
+          position: "SS",
+        }}
+        draftPrimaryTags={["SS", "3B", "OF"]}
+        draftableSlots={["SS", "3B", "OF", "MI", "CI", "UTIL", "BN"]}
+      />,
+    );
+    const posGroup = document.querySelector(".pic-name-pos-group");
+    expect(posGroup).toBeTruthy();
+    expect(within(posGroup!).getByText("SS")).toBeTruthy();
+    expect(within(posGroup!).getByText("3B")).toBeTruthy();
+    expect(within(posGroup!).getByText("OF")).toBeTruthy();
+  });
+
   it("renders hitter metadata and slots", () => {
     render(
       <PlayerIdentityCard

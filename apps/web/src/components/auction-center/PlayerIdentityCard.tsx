@@ -51,7 +51,6 @@ export function PlayerIdentityCard({
   playerNote: string;
   setPlayerNote: (value: string) => void;
 }) {
-  const primaryPos = draftPrimaryTags[0] ?? null;
   const injuryLabel = selectedPlayer.injuryStatus
     ? selectedPlayer.injuryStatus.replace("DL", "IL")
     : null;
@@ -168,12 +167,18 @@ export function PlayerIdentityCard({
                     {selectedPlayer.team}
                   </span>
                 ) : null}
-                {primaryPos ? (
-                  <span className="pic-name-pos-group">
-                    <PosBadge
-                      pos={primaryPos}
-                      className="pic-primary-pos-badge"
-                    />
+                {draftPrimaryTags.length > 0 ? (
+                  <span
+                    className="pic-name-pos-group"
+                    title="Positions this player plays"
+                  >
+                    {draftPrimaryTags.map((pos) => (
+                      <PosBadge
+                        key={pos}
+                        pos={pos}
+                        className="pic-primary-pos-badge"
+                      />
+                    ))}
                   </span>
                 ) : null}
               </div>
