@@ -167,13 +167,10 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(payload.taxi).toEqual([]);
       expect(payload.drafted_players).toEqual([]);
       expect(payload.budget_by_team_id).toEqual({ team_1: 260, team_2: 260 });
-      expect(payload.position_overrides).toEqual([
-        { player_id: "660271", positions: ["SS", "2B"] },
-      ]);
-      expect(payload.injury_overrides).toEqual([
-        { player_id: "660271", injury_severity: 2 },
-      ]);
-      expect(payload.player_ids).toEqual(["660271"]);
+      expect(payload.position_overrides).toBeUndefined();
+      expect(payload.injury_overrides).toBeUndefined();
+      expect(payload.player_ids).toBeUndefined();
+      expect(vi.mocked(getOrRefreshCatalogPlayers)).not.toHaveBeenCalled();
     });
 
     it("forwards explain_valuation_rows to Engine when requested", async () => {
@@ -299,10 +296,50 @@ describe("engine routes (BFF → Amethyst)", () => {
           league_scope: "Mixed",
           user_team_id: "team_1",
           inflation_model: "replacement_slots_v2",
-          player_ids: ["660271"],
-          injury_overrides: [{ player_id: "660271", injury_severity: 2 }],
         }),
       );
+      const playerPayload = postMock.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(playerPayload.player_ids).toBeUndefined();
+      expect(playerPayload.position_overrides).toBeUndefined();
+      expect(playerPayload.injury_overrides).toBeUndefined();
+      expect(vi.mocked(getOrRefreshCatalogPlayers)).not.toHaveBeenCalled();
+    });
+
+    it("player explain with catalog sync env includes envelope", async () => {
+      const prev = process.env.DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE;
+      process.env.DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE = "1";
+      try {
+        postMock.mockResolvedValueOnce({
+          data: {
+            engine_contract_version: "1",
+            inflation_factor: 1.1,
+            player: { player_id: "660271" },
+            valuations: [],
+            calculated_at: "t",
+          },
+          headers: {},
+        });
+
+        await request(app)
+          .post(`/api/engine/leagues/${lid}/valuation/player`)
+          .set("Authorization", "Bearer t")
+          .send({ player_id: "660271" });
+
+        const playerPayload = postMock.mock.calls[0]?.[1] as {
+          injury_overrides?: unknown[];
+          player_ids?: string[];
+        };
+        expect(playerPayload.injury_overrides).toEqual([
+          { player_id: "660271", injury_severity: 2 },
+        ]);
+        expect(playerPayload.player_ids).toEqual(["660271"]);
+      } finally {
+        if (prev === undefined) {
+          delete process.env.DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE;
+        } else {
+          process.env.DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE = prev;
+        }
+      }
     });
 
     it("returns 400 when player_id is missing", async () => {

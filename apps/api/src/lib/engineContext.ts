@@ -67,17 +67,25 @@ export interface EngineValuationContext {
   hitter_budget_pct?: number;
   pos_eligibility_threshold?: number;
   /**
-   * Eligibility from Draftroom catalog for **`valuation_eligible`** rows only
-   * (`GET /api/players` pipeline). Excludes `market_only` / `roster_context` so Engine
-   * does not infer dollars from ADP-only catalog rows.
+   * Optional Draftroom-catalog eligibility (legacy envelope). Default Research/CC path
+   * omits these so Engine uses Mongo catalog — matches Stage 3b checkpoint acceptance.
+   * Set `DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE=1` to restore full-catalog overrides.
    */
   position_overrides?: EnginePositionOverride[];
-  /** Injury severity for **`valuation_eligible`** catalog rows only. */
+  /** Optional Draftroom-catalog injury rows (legacy envelope; see `position_overrides`). */
   injury_overrides?: EngineInjuryOverride[];
   minors?: EngineTeamPlayersSection[];
   taxi?: EngineTeamPlayersSection[];
-  /** Engine: optional subset of undrafted ids to value. */
+  /**
+   * Response filter only on Engine — does **not** narrow inflation/baseline universe.
+   * Production board path does not send this; use `eligible_player_ids` to narrow economics.
+   */
   player_ids?: string[];
+  /**
+   * Narrows baseline z-scores and replacement_slots_v2 inflation to this id set
+   * (after league_scope). Prefer Engine `draftable_player_ids` from a prior board when stable.
+   */
+  eligible_player_ids?: string[];
   /**
    * Pre-auction rosters (keepers); Engine validates, may ignore for v1 inflation.
    * Nested fixtures use team sections; flat may use record keyed by team_id.
@@ -403,11 +411,23 @@ export function playerDataToInjuryOverrides(
  * Amethyst MLB catalog and research UI only. The upstream engine ingests its own
  * player features from the ids and league rules in this payload; keep catalog
  * season definitions aligned with engine release notes when changing MLB season math.
+ *
+ * **Valuation universe (default):** league rules + roster state only. Engine loads eligibility
+ * and stats from Mongo (same as checkpoint / Stage 3b fixture path). Do not attach the full
+ * Draftroom catalog envelope (`position_overrides`, `injury_overrides`, `player_ids`) unless
+ * `syncCatalogEligibilityToEngine` or `DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE=1`.
  */
 export async function buildValuationContext(
   league: ILeague,
   rosterEntries: IRosterEntry[],
-  options?: { userTeamId?: string; auctionCurveModel?: AuctionCurveModel },
+  options?: {
+    userTeamId?: string;
+    auctionCurveModel?: AuctionCurveModel;
+    /** Push full Draftroom catalog overrides + undrafted `player_ids` (legacy; differs from Stage 3b). */
+    syncCatalogEligibilityToEngine?: boolean;
+    /** Narrow Engine baseline/inflation universe (e.g. prior `draftable_player_ids`). */
+    eligible_player_ids?: readonly string[];
+  },
 ): Promise<EngineValuationContext> {
   const rosterSlots = leagueRosterSlotsForEngine(league);
   const numTeams = resolveLeagueNumTeams(league);
@@ -428,34 +448,58 @@ export async function buildValuationContext(
   const keeperBudgetRows = toDraftedPlayers(keeperEntries);
   const budgetRows = [...keeperBudgetRows, ...drafted_players];
 
-  const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
+  const syncCatalog =
+    options?.syncCatalogEligibilityToEngine ??
+    process.env.DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE === "1";
+
   const diag = process.env.LOG_ENGINE_VALUATION_DIAGNOSTICS === "1";
-  const catalogT0 = Date.now();
-  const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
-  const catalogMs = Date.now() - catalogT0;
-  const syncT0 = Date.now();
-  const catalogForEngine = catalogPlayers.filter((p) => p.valuation_eligible);
-  const position_overrides = playerDataToPositionOverrides(catalogForEngine);
-  const injury_overrides = playerDataToInjuryOverrides(catalogForEngine);
+  let position_overrides: EnginePositionOverride[] | undefined;
+  let injury_overrides: EngineInjuryOverride[] | undefined;
+  let player_ids: string[] | undefined;
 
-  const draftedIdSet = new Set(
-    drafted_players.map((d) => String(d.player_id).trim()),
-  );
-  const valuationPlayerIds = catalogForEngine
-    .map((p) => String(p.id).trim())
-    .filter((id) => !draftedIdSet.has(id));
+  if (syncCatalog) {
+    const eligibilityThreshold = league.posEligibilityThreshold ?? 20;
+    const catalogT0 = Date.now();
+    const catalogPlayers = await getOrRefreshCatalogPlayers(eligibilityThreshold);
+    const catalogMs = Date.now() - catalogT0;
+    const catalogForEngine = catalogPlayers.filter((p) => p.valuation_eligible);
+    position_overrides = playerDataToPositionOverrides(catalogForEngine);
+    injury_overrides = playerDataToInjuryOverrides(catalogForEngine);
 
-  const syncMs = Date.now() - syncT0;
-  if (diag) {
+    const draftedIdSet = new Set(
+      drafted_players.map((d) => String(d.player_id).trim()),
+    );
+    const valuationPlayerIds = catalogForEngine
+      .map((p) => String(p.id).trim())
+      .filter((id) => !draftedIdSet.has(id));
+    if (valuationPlayerIds.length > 0) {
+      player_ids = valuationPlayerIds;
+    }
+
+    if (diag) {
+      console.info(
+        "[valuation-diag] buildValuationContext catalog envelope",
+        JSON.stringify({
+          catalog_ms: catalogMs,
+          valuation_eligible_count: catalogForEngine.length,
+          position_overrides_count: position_overrides.length,
+          player_ids_count: player_ids?.length ?? 0,
+        }),
+      );
+    }
+  } else if (diag) {
     console.info(
-      "[valuation-diag] buildValuationContext phases",
+      "[valuation-diag] buildValuationContext",
       JSON.stringify({
-        catalog_ms: catalogMs,
-        context_sync_ms: syncMs,
-        valuation_eligible_count: catalogForEngine.length,
+        catalog_envelope: false,
+        engine_catalog_source: "mongo",
       }),
     );
   }
+
+  const eligibleIds = options?.eligible_player_ids
+    ?.map((id) => String(id).trim())
+    .filter((id) => id.length > 0);
 
   return {
     roster_slots: rosterSlots,
@@ -478,9 +522,10 @@ export async function buildValuationContext(
     ...(league.posEligibilityThreshold !== undefined
       ? { pos_eligibility_threshold: league.posEligibilityThreshold }
       : {}),
-    position_overrides,
-    injury_overrides,
-    ...(valuationPlayerIds.length > 0 ? { player_ids: valuationPlayerIds } : {}),
+    ...(position_overrides?.length ? { position_overrides } : {}),
+    ...(injury_overrides?.length ? { injury_overrides } : {}),
+    ...(player_ids?.length ? { player_ids } : {}),
+    ...(eligibleIds?.length ? { eligible_player_ids: eligibleIds } : {}),
     user_team_id: options?.userTeamId ?? "team_1",
     inflation_model: "replacement_slots_v2",
     auction_curve_model: resolveAuctionCurveModelForDraftRequest({

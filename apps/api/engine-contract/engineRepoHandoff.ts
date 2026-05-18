@@ -26,7 +26,7 @@ export const ENGINE_NEWS_SIGNALS_WEBHOOK_DRAFT_PATH =
   "POST /api/internal/news-signals/hook (Bearer INTERNAL_WEBHOOK_SECRET | AMETHYST_API_KEY)";
 
 export const AMETHYST_ENGINE_REPO_CHECKLIST: readonly string[] = [
-  "POST /valuation/calculate: accept flat body (no wrapper). Draft sends finalizeEngineValuationPostPayload(): drafted_players = auction picks only; pre_draft_rosters optional (keepers); both schema_version and schemaVersion when version set; optional player_ids, minors, taxi, deterministic, seed; budget_by_team_id; scoring_format; hitter_budget_pct; pos_eligibility_threshold; position_overrides (catalog eligibility by MLB player_id); injury_overrides (catalog injury_severity 0–3 by MLB player_id).",
+  "POST /valuation/calculate: accept flat body (no wrapper). Draft sends finalizeEngineValuationPostPayload(): drafted_players = auction picks only; pre_draft_rosters optional (keepers); both schema_version and schemaVersion when version set; optional player_ids (response filter only), eligible_player_ids (narrows baseline/inflation), minors, taxi, deterministic, seed; budget_by_team_id; scoring_format; hitter_budget_pct; pos_eligibility_threshold. Default Research/CC path omits position_overrides and injury_overrides (Engine Mongo catalog); set DRAFTROOM_SYNC_CATALOG_ELIGIBILITY_TO_ENGINE=1 to push full Draftroom catalog envelope.",
   "Validate request bodies against valuation-request.v1.schema.json (or generated OpenAPI) and return 400 or 422 with { errors: [{ field, message }] } on failure (422 = output sanity per OpenAPI).",
   "Document player_id as MLB Stats API person id (string), matching Draft externalPlayerId.",
   "Honor deterministic + seed when present for reproducible Activity #9 grading.",

@@ -211,6 +211,45 @@ async function main() {
   );
   console.log("Aaron Judge:", cpJudge?.auction_value, "recommended", cpJudge?.recommended_bid);
 
+  const liveInfl = liveResp.inflation_factor as number | undefined;
+  const cpInfl = cpResp.inflation_factor as number | undefined;
+  const judgeDelta =
+    typeof judge?.auction_value === "number" &&
+    typeof cpJudge?.auction_value === "number"
+      ? Math.abs((judge.auction_value as number) - (cpJudge.auction_value as number))
+      : null;
+
+  console.log("\n=== Path alignment (Research buildValuationContext vs checkpoint) ===");
+  console.log({
+    live_has_player_ids: Array.isArray(payload.player_ids)
+      ? payload.player_ids.length
+      : 0,
+    live_has_position_overrides: Array.isArray(payload.position_overrides)
+      ? payload.position_overrides.length
+      : 0,
+    cp_has_player_ids: Array.isArray(cpPayload.player_ids)
+      ? cpPayload.player_ids.length
+      : 0,
+    inflation_factor_live: liveInfl,
+    inflation_factor_checkpoint: cpInfl,
+    judge_auction_delta: judgeDelta,
+    draftable_pool_live: (liveResp.draftable_player_ids as unknown[])?.length,
+    draftable_pool_checkpoint: (cpResp.draftable_player_ids as unknown[])?.length,
+  });
+
+  const inflOk =
+    typeof liveInfl === "number" &&
+    typeof cpInfl === "number" &&
+    Math.abs(liveInfl - cpInfl) < 0.02;
+  const judgeOk = judgeDelta != null && judgeDelta < 2;
+  if (!inflOk || !judgeOk) {
+    console.error(
+      "\nFAIL: Research/mongo path still diverges from checkpoint fixture (universe mismatch).",
+    );
+    process.exit(1);
+  }
+  console.log("\nPASS: Research path aligned with checkpoint on inflation + Judge auction_value.");
+
   await mongoose.disconnect();
 }
 

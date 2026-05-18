@@ -178,6 +178,7 @@ describe("resolveLeagueNumTeams", () => {
 
 describe("buildValuationContext", () => {
   beforeEach(() => {
+    vi.mocked(getOrRefreshCatalogPlayers).mockClear();
     vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([]);
   });
 
@@ -319,6 +320,83 @@ describe("buildValuationContext", () => {
     expect(ctx.user_team_id).toBe("team_2");
     expect(ctx.inflation_model).toBe("replacement_slots_v2");
 
+    expect(ctx.position_overrides).toBeUndefined();
+    expect(ctx.injury_overrides).toBeUndefined();
+    expect(ctx.player_ids).toBeUndefined();
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).not.toHaveBeenCalled();
+
+    const draftedRow = ctx.drafted_players.find((p) => p.player_id === "660272");
+    expect(draftedRow?.positions).toEqual(["OF"]);
+  });
+
+  it("syncCatalogEligibilityToEngine pushes full catalog envelope (legacy)", async () => {
+    const league = {
+      rosterSlots: { OF: 2 },
+      scoringCategories: [{ name: "HR", type: "batting" as const }],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+      posEligibilityThreshold: 15,
+    } as unknown as ILeague;
+
+    const entries = [
+      {
+        externalPlayerId: "660272",
+        playerName: "Auction Pick",
+        positions: ["OF"],
+        rosterSlot: "OF",
+        teamId: "team_1",
+        price: 18,
+        isKeeper: false,
+        playerTeam: "BOS",
+      },
+    ] as unknown as IRosterEntry[];
+
+    vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValue([
+      {
+        id: "660272",
+        mlbId: 660272,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Auction Pick",
+        team: "BOS",
+        position: "OF",
+        positions: ["LF", "OF"],
+        age: 28,
+        catalog_rank: 1,
+        value: 10,
+        catalog_tier: 2,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injurySeverity: 0,
+      } as PlayerData,
+      {
+        id: "660273",
+        mlbId: 660273,
+        catalog_kind: "valuation_eligible",
+        valuation_eligible: true,
+        name: "Undrafted",
+        team: "SEA",
+        position: "SP",
+        positions: ["SP"],
+        age: 22,
+        catalog_rank: 2,
+        value: 5,
+        catalog_tier: 4,
+        headshot: "",
+        stats: {},
+        projection: {},
+        outlook: "",
+        injurySeverity: 2,
+      } as PlayerData,
+    ]);
+
+    const ctx = await buildValuationContext(league, entries, {
+      syncCatalogEligibilityToEngine: true,
+    });
+
     expect(ctx.position_overrides).toEqual([
       { player_id: "660272", positions: ["LF", "OF"] },
       { player_id: "660273", positions: ["SP"] },
@@ -328,14 +406,6 @@ describe("buildValuationContext", () => {
       { player_id: "660273", injury_severity: 2 },
     ]);
     expect(ctx.player_ids).toEqual(["660273"]);
-
-    const draftedOverride = ctx.position_overrides?.find(
-      (o) => o.player_id === "660272",
-    );
-    const draftedRow = ctx.drafted_players.find((p) => p.player_id === "660272");
-    expect(draftedRow?.positions).toEqual(["OF"]);
-    expect(draftedOverride?.positions).toEqual(["LF", "OF"]);
-
     expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(15);
   });
 
@@ -397,7 +467,23 @@ describe("buildValuationContext", () => {
     expect(ctx.pre_draft_rosters).toHaveLength(2);
   });
 
-  it("passes League.posEligibilityThreshold into catalog fetch", async () => {
+  it("passes eligible_player_ids when provided", async () => {
+    const league = {
+      rosterSlots: {},
+      scoringCategories: [],
+      budget: 260,
+      teams: 2,
+      playerPool: "Mixed" as const,
+    } as unknown as ILeague;
+
+    const ctx = await buildValuationContext(league, [], {
+      eligible_player_ids: ["592450", "660271"],
+    });
+    expect(ctx.eligible_player_ids).toEqual(["592450", "660271"]);
+    expect(vi.mocked(getOrRefreshCatalogPlayers)).not.toHaveBeenCalled();
+  });
+
+  it("passes League.posEligibilityThreshold into catalog fetch when syncing catalog", async () => {
     const league = {
       rosterSlots: {},
       scoringCategories: [],
@@ -428,11 +514,13 @@ describe("buildValuationContext", () => {
       } as PlayerData,
     ]);
 
-    await buildValuationContext(league, [], {});
+    await buildValuationContext(league, [], {
+      syncCatalogEligibilityToEngine: true,
+    });
     expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(7);
   });
 
-  it("uses threshold 20 when league omits posEligibilityThreshold", async () => {
+  it("uses threshold 20 when league omits posEligibilityThreshold (catalog sync)", async () => {
     const league = {
       rosterSlots: {},
       scoringCategories: [],
@@ -442,11 +530,13 @@ describe("buildValuationContext", () => {
     } as unknown as ILeague;
 
     vi.mocked(getOrRefreshCatalogPlayers).mockResolvedValueOnce([]);
-    await buildValuationContext(league, [], {});
+    await buildValuationContext(league, [], {
+      syncCatalogEligibilityToEngine: true,
+    });
     expect(vi.mocked(getOrRefreshCatalogPlayers)).toHaveBeenCalledWith(20);
   });
 
-  it("excludes market_only from position_overrides, injury_overrides, and player_ids", async () => {
+  it("excludes market_only from catalog envelope when syncing", async () => {
     const league = {
       rosterSlots: {},
       scoringCategories: [],
@@ -514,7 +604,9 @@ describe("buildValuationContext", () => {
       } as PlayerData,
     ]);
 
-    const ctx = await buildValuationContext(league, [], {});
+    const ctx = await buildValuationContext(league, [], {
+      syncCatalogEligibilityToEngine: true,
+    });
     expect(ctx.position_overrides).toEqual([{ player_id: "660273", positions: ["SS"] }]);
     expect(ctx.injury_overrides).toEqual([{ player_id: "660273", injury_severity: 0 }]);
     expect(ctx.player_ids).toEqual(["660273"]);
