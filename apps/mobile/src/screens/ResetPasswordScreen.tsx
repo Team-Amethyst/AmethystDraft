@@ -11,39 +11,59 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { forgotPassword } from "../api/auth";
+import { resetPassword } from "../api/auth";
 import AppButton from "../components/ui/AppButton";
 import AppTextInput from "../components/ui/AppTextInput";
 import type { RootStackParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
 
-type Props = NativeStackScreenProps<RootStackParamList, "ForgotPassword">;
+type Props = NativeStackScreenProps<RootStackParamList, "ResetPassword">;
 
-export default function ForgotPasswordScreen({ navigation }: Props) {
-  const [email, setEmail] = useState("");
+export default function ResetPasswordScreen({ navigation, route }: Props) {
+  const [email, setEmail] = useState(route.params?.email ?? "");
+  const [token, setToken] = useState(route.params?.token ?? "");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit() {
+  async function handleResetPassword() {
     const cleanEmail = email.trim();
+    const cleanToken = token.trim();
 
-    if (!cleanEmail) {
-      Alert.alert("Missing email", "Please enter your account email.");
+    if (!cleanEmail || !cleanToken) {
+      Alert.alert("Missing reset link info", "Email and reset token are required.");
+      return;
+    }
+
+    if (!password || !confirmPassword) {
+      Alert.alert("Missing password", "Please enter and confirm your new password.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Passwords do not match", "Please retype the same password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Password too short", "Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
 
     try {
-      await forgotPassword(cleanEmail);
+      await resetPassword(cleanEmail, cleanToken, password);
+
       Alert.alert(
-        "Request sent",
-        "If password reset is enabled for this account, you will receive instructions.",
+        "Password reset",
+        "Your password was reset successfully. Please sign in.",
         [{ text: "OK", onPress: () => navigation.navigate("Login") }],
       );
     } catch (err) {
       Alert.alert(
-        "Request failed",
-        err instanceof Error ? err.message : "Password reset request failed.",
+        "Reset failed",
+        err instanceof Error ? err.message : "Password reset failed.",
       );
     } finally {
       setLoading(false);
@@ -76,7 +96,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           >
             <Ionicons name="arrow-back" size={18} color={colors.muted} />
             <Text style={{ color: colors.muted, marginLeft: 8, fontWeight: "800" }}>
-              Back to login
+              Back to sign in
             </Text>
           </TouchableOpacity>
 
@@ -116,7 +136,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 lineHeight: 22,
               }}
             >
-              Enter your email and we will request a reset from the Draftroom backend.
+              Enter the reset information from your email and choose a new password.
             </Text>
           </View>
 
@@ -143,11 +163,37 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
               autoComplete="email"
             />
 
+            <AppTextInput
+              label="Reset token"
+              placeholder="Paste token from reset link"
+              value={token}
+              onChangeText={setToken}
+              autoCapitalize="none"
+            />
+
+            <AppTextInput
+              label="New password"
+              placeholder="At least 6 characters"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="new-password"
+            />
+
+            <AppTextInput
+              label="Confirm new password"
+              placeholder="Retype password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              autoComplete="new-password"
+            />
+
             <AppButton
-              title={loading ? "Sending..." : "Send Reset Request"}
+              title={loading ? "Resetting..." : "Reset Password"}
               loading={loading}
               disabled={loading}
-              onPress={() => void handleSubmit()}
+              onPress={() => void handleResetPassword()}
               fullWidth
               style={{ marginTop: 4, paddingVertical: 14 }}
             />

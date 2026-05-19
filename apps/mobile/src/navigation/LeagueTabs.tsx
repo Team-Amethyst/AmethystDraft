@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LeagueHeaderActions from "../components/shell/LeagueHeaderActions";
 import ResearchScreen from "../screens/ResearchScreen";
@@ -29,22 +29,31 @@ function tabIcon(name: TabIconName) {
   );
 }
 
-function HeaderLogo() {
+function HeaderLogo({ onPress }: { onPress: () => void }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
+    <TouchableOpacity
+      activeOpacity={0.82}
+      onPress={onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        flexShrink: 0,
+      }}
+    >
       <Ionicons name="flash-outline" size={18} color={colors.purple2} />
+
       <Text
         style={{
           color: colors.text,
           fontWeight: "900",
           letterSpacing: 1.4,
           marginLeft: 6,
-          fontSize: 14,
+          fontSize: 13,
         }}
       >
         DRAFTROOM
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -54,6 +63,7 @@ export default function LeagueTabs({ route, navigation }: Props) {
 
   const bottomPadding = Math.max(insets.bottom, 14);
   const tabBarHeight = 58 + bottomPadding;
+  const headerHeight = Math.max(insets.top, 22) + 62;
 
   return (
     <Tab.Navigator
@@ -75,20 +85,44 @@ export default function LeagueTabs({ route, navigation }: Props) {
         tabBarIconStyle: {
           marginTop: 2,
         },
-        headerStyle: {
-          backgroundColor: colors.bg,
-          height: 58,
-        },
-        headerTintColor: colors.text,
-        headerShadowVisible: false,
-        headerTitle: HeaderLogo,
-        headerTitleAlign: "left",
-        headerRight: () => (
-          <LeagueHeaderActions
-            leagueId={leagueId}
-            leagueName={leagueName}
-            navigation={navigation}
-          />
+        header: () => (
+          <View
+            style={{
+              height: headerHeight,
+              paddingTop: Math.max(insets.top, 22),
+              backgroundColor: colors.bg,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+            }}
+          >
+            <View
+              style={{
+                height: 62,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingLeft: 16,
+                paddingRight: 8,
+              }}
+            >
+              <HeaderLogo onPress={() => navigation.navigate("Leagues")} />
+
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "flex-end",
+                  justifyContent: "center",
+                  marginLeft: 10,
+                }}
+              >
+                <LeagueHeaderActions
+                  leagueId={leagueId}
+                  leagueName={leagueName}
+                  navigation={navigation}
+                />
+              </View>
+            </View>
+          </View>
         ),
       }}
     >

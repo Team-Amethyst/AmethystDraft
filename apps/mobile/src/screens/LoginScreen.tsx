@@ -1,13 +1,68 @@
 import { useState } from "react";
-import { Alert, Button, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { loginUser } from "../api/auth";
+import AppButton from "../components/ui/AppButton";
+import AppTextInput from "../components/ui/AppTextInput";
 import { useAuth } from "../contexts/AuthContext";
 import type { RootStackParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
+
+function DraftroomLogo() {
+  return (
+    <View style={{ alignItems: "center", marginBottom: 28 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
+        <Ionicons name="flash-outline" size={24} color={colors.purple2} />
+        <Text
+          style={{
+            color: colors.text,
+            fontSize: 24,
+            fontWeight: "900",
+            letterSpacing: 4,
+            marginLeft: 8,
+          }}
+        >
+          DRAFTROOM
+        </Text>
+      </View>
+
+      <Text
+        style={{
+          color: colors.text,
+          fontSize: 36,
+          fontWeight: "900",
+          textAlign: "center",
+        }}
+      >
+        Sign In
+      </Text>
+
+      <Text
+        style={{
+          color: colors.muted,
+          fontSize: 16,
+          textAlign: "center",
+          marginTop: 8,
+          lineHeight: 22,
+        }}
+      >
+        Enter your credentials to access your fantasy baseball draft room.
+      </Text>
+    </View>
+  );
+}
 
 export default function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
@@ -40,76 +95,121 @@ export default function LoginScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        padding: 20,
-        justifyContent: "center",
-        backgroundColor: colors.bg,
-      }}
-    >
-      <Text style={{ fontSize: 32, fontWeight: "900", color: colors.text }}>
-        AmethystDraft
-      </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            paddingHorizontal: 22,
+            paddingVertical: 36,
+          }}
+        >
+          <View
+            style={{
+              position: "absolute",
+              top: 80,
+              left: 24,
+              width: 140,
+              height: 140,
+              borderRadius: 70,
+              backgroundColor: "#3b1d56",
+              opacity: 0.28,
+            }}
+          />
 
-      <Text style={{ color: colors.muted, marginTop: 6, marginBottom: 24 }}>
-        Sign in to your fantasy baseball draft room.
-      </Text>
+          <View
+            style={{
+              position: "absolute",
+              bottom: 120,
+              right: 12,
+              width: 190,
+              height: 190,
+              borderRadius: 95,
+              backgroundColor: "#1e3a8a",
+              opacity: 0.14,
+            }}
+          />
 
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor={colors.muted}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{
-          borderWidth: 1,
-          borderColor: colors.border,
-          color: colors.text,
-          marginBottom: 12,
-          padding: 12,
-          borderRadius: 10,
-          backgroundColor: colors.surface,
-        }}
-      />
+          <DraftroomLogo />
 
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor={colors.muted}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={{
-          borderWidth: 1,
-          borderColor: colors.border,
-          color: colors.text,
-          marginBottom: 12,
-          padding: 12,
-          borderRadius: 10,
-          backgroundColor: colors.surface,
-        }}
-      />
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              borderRadius: 24,
+              padding: 18,
+              shadowColor: colors.purple,
+              shadowOpacity: 0.18,
+              shadowRadius: 18,
+              elevation: 4,
+            }}
+          >
+            <AppTextInput
+              label="Email"
+              placeholder="you@email.com"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
 
-      <Button
-        title={loading ? "Signing in..." : "Sign In"}
-        onPress={() => void handleLogin()}
-        disabled={loading}
-      />
+            <AppTextInput
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="current-password"
+            />
 
-      <View style={{ height: 12 }} />
+            <AppButton
+              title={loading ? "Signing in..." : "Sign In"}
+              loading={loading}
+              disabled={loading}
+              onPress={() => void handleLogin()}
+              fullWidth
+              style={{ marginTop: 4, paddingVertical: 14 }}
+            />
 
-      <Button
-        title="Forgot Password"
-        onPress={() => navigation.navigate("ForgotPassword")}
-      />
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate("ForgotPassword")}
+              style={{ alignItems: "center", marginTop: 16 }}
+            >
+              <Text style={{ color: colors.purple2, fontWeight: "800" }}>
+                Forgot password?
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-      <View style={{ height: 12 }} />
+          <View
+            style={{
+              alignItems: "center",
+              marginTop: 22,
+              flexDirection: "row",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: colors.muted }}>Don&apos;t have an account? </Text>
 
-      <Button
-        title="Create Account"
-        onPress={() => navigation.navigate("Signup")}
-      />
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate("Signup")}
+            >
+              <Text style={{ color: colors.purple2, fontWeight: "900" }}>
+                Create one
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

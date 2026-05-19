@@ -15,6 +15,12 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
+  ResetPassword:
+    | {
+        email?: string;
+        token?: string;
+      }
+    | undefined;
   Leagues: undefined;
   CreateLeague:
     | {

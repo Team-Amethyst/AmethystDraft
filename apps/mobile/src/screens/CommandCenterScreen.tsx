@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import {
   Alert,
   Image,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -37,6 +38,7 @@ import {
   resolvePlayerDraftState,
 } from "../domain/draftState";
 import { EmptyState, LoadingState } from "../components/ui/ScreenState";
+import PositionBadge from "../components/ui/PositionBadge";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import { usePlayerNotes } from "../contexts/PlayerNotesContext";
@@ -859,18 +861,6 @@ function projectedStandingsRows(
   return rows.sort((a, b) => b.totalPoints - a.totalPoints);
 }
 
-function chipColor(position: string): { bg: string; border: string; text: string } {
-  const normalized = position.toUpperCase();
-
-  if (["C"].includes(normalized)) return { bg: "#3a1221", border: "#7f1d1d", text: "#fecaca" };
-  if (["1B", "3B"].includes(normalized)) return { bg: "#3a240b", border: "#92400e", text: "#fcd34d" };
-  if (["2B", "SS"].includes(normalized)) return { bg: "#082f49", border: "#0369a1", text: "#bae6fd" };
-  if (["OF", "LF", "CF", "RF"].includes(normalized)) return { bg: "#052e20", border: "#047857", text: "#bbf7d0" };
-  if (["SP", "RP", "P"].includes(normalized)) return { bg: "#1e1b4b", border: "#4f46e5", text: "#c7d2fe" };
-
-  return { bg: "#251a3b", border: "#4c3575", text: "#ddd6fe" };
-}
-
 function Panel({
   children,
   style,
@@ -1027,29 +1017,6 @@ function SmallButton({
         {label}
       </Text>
     </TouchableOpacity>
-  );
-}
-
-function PositionBadge({ position }: { position: string }) {
-  const colors = chipColor(position);
-
-  return (
-    <View
-      style={{
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.bg,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        marginRight: 5,
-        marginBottom: 5,
-      }}
-    >
-      <Text style={{ color: colors.text, fontSize: 11, fontWeight: "900" }}>
-        {position}
-      </Text>
-    </View>
   );
 }
 
@@ -1522,6 +1489,7 @@ export default function CommandCenterScreen({ route }: Props) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statSide, setStatSide] = useState<StatSide>("batting");
   const [price, setPrice] = useState("");
@@ -1831,6 +1799,86 @@ export default function CommandCenterScreen({ route }: Props) {
       setValuationMarketNotes(board.market_notes ?? []);
     }
   }, [league, leagueId, leagueValuationKey, token]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!token || !league) {
+      return;
+    }
+
+    setRefreshing(true);
+
+    try {
+      const [playerData, rosterData] = await Promise.all([
+        getPlayers("catalog_rank", league.posEligibilityThreshold, league.playerPool),
+        getRoster(leagueId, token),
+        loadNotes(leagueId),
+      ]);
+
+      setPlayers(playerData);
+      setRoster(rosterData);
+
+      const nextCacheContext = {
+        leagueConfigKey: leagueValuationKey,
+        rosterFingerprint: rosterValuationFingerprint(rosterData),
+      };
+
+      const board = await getValuation(
+        leagueId,
+        token,
+        myTeamId,
+        nextCacheContext,
+      ).catch(() => null);
+
+      if (board) {
+        setValuationSnapshot(board);
+        setValuationMarketNotes(board.market_notes ?? []);
+      }
+
+      const news = await getNewsSignals(token, { days: 7 }).catch(() => null);
+      setNewsStrip(
+        news && news.count > 0
+          ? `${news.count} news signal${news.count === 1 ? "" : "s"} (7d, Engine)`
+          : null,
+      );
+
+      if (selectedPlayer) {
+        const focused = await getValuationPlayer(
+          leagueId,
+          token,
+          selectedPlayer.id,
+          myTeamId,
+          {
+            cacheContext: nextCacheContext,
+            explainValuationRows: true,
+          },
+        ).catch(() => null);
+
+        if (focused) {
+          setValuationSnapshot(focused);
+          setValuationMarketNotes(focused.market_notes ?? []);
+        }
+      }
+
+      if (selectedPrimaryPosition) {
+        const scarcity = await getScarcity(
+          leagueId,
+          token,
+          selectedPrimaryPosition,
+        ).catch(() => null);
+        setEngineScarcity(scarcity);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    league,
+    leagueId,
+    leagueValuationKey,
+    loadNotes,
+    selectedPlayer,
+    selectedPrimaryPosition,
+    token,
+  ]);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -2330,7 +2378,7 @@ export default function CommandCenterScreen({ route }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.page, padding: 16 }}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: COLORS.page, padding: 16 }}>
         <LoadingState label="Loading command center..." />
       </SafeAreaView>
     );
@@ -2338,7 +2386,7 @@ export default function CommandCenterScreen({ route }: Props) {
 
   if (!league) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.page, padding: 16 }}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: COLORS.page, padding: 16 }}>
         <EmptyState label="League not found." />
       </SafeAreaView>
     );
@@ -2360,13 +2408,21 @@ export default function CommandCenterScreen({ route }: Props) {
   const selectedPosition = selectedPrimaryPosition ?? "—";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.page }}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: COLORS.page }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           padding: 14,
           paddingBottom: 110,
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={COLORS.purple2}
+            colors={[COLORS.purple2]}
+            onRefresh={() => void handleRefresh()}
+          />
+        }
       >
         <View style={{ marginBottom: 14 }}>
           <Text style={{ color: COLORS.text, fontSize: 26, fontWeight: "900" }}>
@@ -3087,4 +3143,3 @@ export default function CommandCenterScreen({ route }: Props) {
     </SafeAreaView>
   );
 }
-

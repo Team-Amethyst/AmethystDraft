@@ -9,7 +9,6 @@ const DEFAULT_API_BASE = "http://localhost:3001";
 const API_BASE = (
   process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_BASE
 ).replace(/\/$/, "");
-console.log("MOBILE API BASE:", API_BASE);
 
 type ValidationErr = { field?: string; message?: string };
 
@@ -57,9 +56,9 @@ export function authHeaders(token?: string): Record<string, string> {
 
 async function parseApiError(
   res: Response,
-  fallbackMessage: string,
+  fallbackErrorMessage: string,
 ): Promise<never> {
-  let message = fallbackMessage;
+  let message = fallbackErrorMessage;
 
   try {
     const data = (await res.json()) as ErrorShape;
@@ -72,10 +71,10 @@ async function parseApiError(
     } else if (Array.isArray(data.errors) && data.errors.length > 0) {
       message = messageFromEngineValidation(data.errors);
     } else {
-      message = data.error?.message ?? data.message ?? fallbackMessage;
+      message = data.error?.message ?? data.message ?? fallbackErrorMessage;
     }
   } catch {
-    // ignore parse failures
+    // Ignore JSON parse failures and use fallback message.
   }
 
   throw new Error(message);
@@ -109,20 +108,15 @@ export async function requestJson<T>(
 ): Promise<T> {
   const url = buildApiUrl(path);
 
-  console.log("API request:", url);
-  
   let res: Response;
 
   try {
     res = await fetchWithTimeout(url, init);
-  } catch (err) {
-    console.log("API request failed:", err);
+  } catch {
     throw new Error(
       "Could not reach the API. Check that the backend is running and reachable.",
     );
   }
-
-  console.log("API response:", res.status, url);
 
   if (!res.ok) {
     return parseApiError(res, fallbackErrorMessage);
@@ -138,20 +132,15 @@ export async function requestVoid(
 ): Promise<void> {
   const url = buildApiUrl(path);
 
-  console.log("API request:", url);
-
   let res: Response;
 
   try {
     res = await fetchWithTimeout(url, init);
-  } catch (err) {
-    console.log("API request failed:", err);
+  } catch {
     throw new Error(
       "Could not reach the API. Check that the backend is running and reachable.",
     );
   }
-
-  console.log("API response:", res.status, url);
 
   if (!res.ok) {
     return parseApiError(res, fallbackErrorMessage);

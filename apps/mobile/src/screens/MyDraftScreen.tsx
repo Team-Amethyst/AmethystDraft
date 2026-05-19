@@ -10,13 +10,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import type { EngineCheckpointCatalogEntry } from "../api/checkpoints";
+import {
+  fetchEngineCheckpointCatalog,
+  fetchEngineCheckpointJson,
+} from "../api/checkpoints";
 import { getValuation, type ValuationResult } from "../api/engine";
 import { getPlayers, getPlayersCached } from "../api/players";
 import { getRoster, type RosterEntry } from "../api/roster";
 import type { WatchlistPlayer } from "../api/watchlist";
+import type { EngineCheckpointKey } from "../api/leagues";
 import AppButton from "../components/ui/AppButton";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
+import PositionBadge from "../components/ui/PositionBadge";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -24,8 +31,9 @@ import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import { useWatchlist } from "../contexts/WatchlistContext";
 import { buildRosterDraftMaps, resolvePlayerDraftState } from "../domain/draftState";
+import { planMockDraftFromCheckpointJson } from "../domain/checkpointMockDraft";
 import { useCustomPlayers } from "../hooks/useCustomPlayers";
-import { useDraftPlan, type Priority } from "../hooks/useDraftPlan";
+import { POSITION_PLAN, useDraftPlan, type Priority } from "../hooks/useDraftPlan";
 import { useMockDraft } from "../hooks/useMockDraft";
 import type { LeagueTabParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
@@ -200,10 +208,10 @@ function resolveValuationNumber(
 }
 
 function valuationLabel(field: ValuationSortField): string {
-  if (field === "team_value") return "Team Value";
-  if (field === "recommended_bid") return "Suggested Bid";
   if (field === "auction_value") return "Auction Value";
-  return "Baseline";
+  if (field === "team_value") return "Your team value";
+  if (field === "recommended_bid") return "Suggested bid";
+  return "Baseline Strength";
 }
 
 function supportingFieldFor(field: ValuationSortField): ValuationSortField {
@@ -235,6 +243,21 @@ function formatSignedMoney(value: number): string {
   if (rounded > 0) return `+$${rounded}`;
   if (rounded < 0) return `-$${Math.abs(rounded)}`;
   return "$0";
+}
+
+function checkpointDisplayLabel(
+  checkpoint: EngineCheckpointCatalogEntry | undefined,
+  key: string,
+): string {
+  if (key === "") return "— Fresh draft —";
+
+  if (checkpoint?.title?.trim()) {
+    return checkpoint.title.trim();
+  }
+
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function playerSearch(players: Player[], query: string): Player[] {
@@ -333,39 +356,6 @@ function MetricPill({
         }}
       >
         {value}
-      </Text>
-    </View>
-  );
-}
-
-function PositionBadge({
-  label,
-  color,
-}: {
-  label: string;
-  color?: string;
-}) {
-  return (
-    <View
-      style={{
-        minWidth: 38,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: color ?? "#5b3a89",
-        backgroundColor: "#241638",
-        paddingVertical: 4,
-        paddingHorizontal: 7,
-        alignItems: "center",
-      }}
-    >
-      <Text
-        style={{
-          color: color ?? "#ddd6fe",
-          fontSize: 11,
-          fontWeight: "900",
-        }}
-      >
-        {label}
       </Text>
     </View>
   );
@@ -495,7 +485,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
   const [screenMode, setScreenMode] = useState<ScreenMode>("plan");
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
   const [valuationSortField, setValuationSortField] =
-    useState<ValuationSortField>("team_value");
+    useState<ValuationSortField>("auction_value");
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
@@ -509,6 +499,55 @@ export default function MyDraftScreen({ route, navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [mockSearchQuery, setMockSearchQuery] = useState("");
   const [bidRaw, setBidRaw] = useState("2");
+  const [checkpointCatalog, setCheckpointCatalog] = useState<
+    EngineCheckpointCatalogEntry[]
+  >([]);
+  const [selectedCheckpointKey, setSelectedCheckpointKey] = useState<
+    "" | EngineCheckpointKey
+  >("");
+  const [checkpointCatalogPhase, setCheckpointCatalogPhase] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [checkpointCatalogError, setCheckpointCatalogError] = useState("");
+  const [checkpointBusy, setCheckpointBusy] = useState(false);
+  const [checkpointError, setCheckpointError] = useState("");
+
+  useEffect(() => {
+    if (!token) {
+      setCheckpointCatalog([]);
+      setSelectedCheckpointKey("");
+      setCheckpointCatalogPhase("idle");
+      setCheckpointCatalogError("");
+      return;
+    }
+
+    let active = true;
+
+    setCheckpointCatalogPhase("loading");
+    setCheckpointCatalogError("");
+
+    void fetchEngineCheckpointCatalog(token)
+      .then((catalog) => {
+        if (!active) return;
+        setCheckpointCatalog(catalog);
+        setCheckpointCatalogPhase("ready");
+        setCheckpointCatalogError("");
+      })
+      .catch((err) => {
+        if (!active) return;
+        setCheckpointCatalog([]);
+        setCheckpointCatalogPhase("error");
+        setCheckpointCatalogError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load Engine checkpoint catalog.",
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   const teamNames = useMemo(() => {
     if (!league) return [];
@@ -536,6 +575,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
     hasSavedDraft,
     startDraft,
     resetDraft,
+    hydrateFromCheckpoint,
     nominatePlayer,
     placeBid,
     keepBidding,
@@ -807,6 +847,14 @@ export default function MyDraftScreen({ route, navigation }: Props) {
     void setPositionTargets(next);
   }
 
+  function handleResetPositionTargets() {
+    const next = Object.fromEntries(
+      POSITION_PLAN.map((row) => [row.pos, row.target]),
+    ) as Record<string, number>;
+
+    void setPositionTargets(next);
+  }
+
   function handleChangePlayerTarget(playerId: string, raw: string) {
     const parsed = Number(raw);
 
@@ -845,7 +893,59 @@ export default function MyDraftScreen({ route, navigation }: Props) {
     startDraft();
     setMockSearchQuery("");
     setBidRaw("2");
+    setCheckpointError("");
     setScreenMode("mock");
+  }
+
+  async function handleStartMockDraftFromCheckpoint() {
+    if (!token) {
+      Alert.alert("Sign in required", "You need to be signed in to load a checkpoint.");
+      return;
+    }
+
+    if (!selectedCheckpointKey) {
+      handleStartMockDraft();
+      return;
+    }
+
+    if (allPlayers.length === 0) {
+      Alert.alert(
+        "Players still loading",
+        "Wait for player data to finish loading before starting from a checkpoint.",
+      );
+      return;
+    }
+
+    setCheckpointBusy(true);
+    setCheckpointError("");
+
+    try {
+      const json = await fetchEngineCheckpointJson(token, selectedCheckpointKey);
+      const plan = planMockDraftFromCheckpointJson({
+        checkpointKey: selectedCheckpointKey,
+        checkpointJson: json,
+        leagueTeamNames: teamNames,
+        allPlayers,
+      });
+
+      if ("error" in plan) {
+        setCheckpointError(plan.error);
+        Alert.alert("Checkpoint error", plan.error);
+        return;
+      }
+
+      await hydrateFromCheckpoint(plan.mockDraftState);
+      setMockSearchQuery("");
+      setBidRaw("2");
+      setScreenMode("mock");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start from checkpoint.";
+      setCheckpointError(message);
+      Alert.alert("Checkpoint error", message);
+    } finally {
+      setCheckpointBusy(false);
+    }
   }
 
   function handleResetMockDraft() {
@@ -877,7 +977,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
 
   if (!league) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, padding: 16 }}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: colors.bg, padding: 16 }}>
         <EmptyState label="League not found." />
       </SafeAreaView>
     );
@@ -885,13 +985,15 @@ export default function MyDraftScreen({ route, navigation }: Props) {
 
   if (screenMode === "mock") {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: 16 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
+              tintColor={colors.purple2}
+              colors={[colors.purple2]}
               onRefresh={() => void loadData("refresh")}
             />
           }
@@ -934,27 +1036,97 @@ export default function MyDraftScreen({ route, navigation }: Props) {
           ) : state.phase === "setup" ? (
             <AppCard backgroundColor={colors.surface} borderColor={colors.border}>
               <SectionHeader
-                title="Mock Draft Setup"
-                meta="User team is first; all other league teams are AI-controlled."
+                title="AI Mock Draft"
+                meta="Simulate your auction draft against AI-controlled teams. Snake nomination order · Strategic AI bidding."
               />
 
               <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                <MetricPill label="Teams" value={String(teamNames.length)} />
-                <MetricPill label="Budget" value={formatMoney(league.budget)} />
+                <MetricPill label="Your team" value={teamNames[0] ?? "Team 1"} />
                 <MetricPill
-                  label="AI Teams"
+                  label="AI teams"
                   value={String(Math.max(0, teamNames.length - 1))}
                 />
-                <MetricPill
-                  label="Players"
-                  value={String(allPlayers.length)}
-                  highlight
-                />
+                <MetricPill label="Budget per team" value={formatMoney(league.budget)} />
+                <MetricPill label="Order" value="Snake" highlight />
+              </View>
+
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface2,
+                  borderRadius: 14,
+                  padding: 12,
+                  marginTop: 8,
+                  marginBottom: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.purple2,
+                    fontSize: 11,
+                    fontWeight: "900",
+                    letterSpacing: 0.8,
+                    textTransform: "uppercase",
+                    marginBottom: 8,
+                  }}
+                >
+                  Engine Checkpoint (Optional)
+                </Text>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <AppChip
+                    label="— Fresh draft —"
+                    selected={selectedCheckpointKey === ""}
+                    onPress={() => {
+                      setSelectedCheckpointKey("");
+                      setCheckpointError("");
+                    }}
+                    style={{ marginRight: 8 }}
+                  />
+
+                  {checkpointCatalog.map((checkpoint) => (
+                    <AppChip
+                      key={checkpoint.id}
+                      label={checkpointDisplayLabel(checkpoint, checkpoint.id)}
+                      selected={selectedCheckpointKey === checkpoint.id}
+                      onPress={() => {
+                        setSelectedCheckpointKey(checkpoint.id);
+                        setCheckpointError("");
+                      }}
+                      style={{ marginRight: 8 }}
+                    />
+                  ))}
+                </ScrollView>
+
+                <Text style={{ color: colors.muted, marginTop: 10, lineHeight: 19 }}>
+                  {selectedCheckpointKey
+                    ? "Loads the selected bundled Draft fixture, including already drafted players, rosters, budgets, and the next auction state."
+                    : "Fresh draft starts from your current league settings and the current player pool."}
+                </Text>
+
+                {checkpointCatalogPhase === "loading" ? (
+                  <Text style={{ color: colors.muted, marginTop: 8 }}>
+                    Loading Engine checkpoints...
+                  </Text>
+                ) : null}
+
+                {checkpointCatalogPhase === "error" ? (
+                  <Text style={{ color: "#fecaca", marginTop: 8 }}>
+                    {checkpointCatalogError || "Unable to load checkpoints."}
+                  </Text>
+                ) : null}
+
+                {checkpointError ? (
+                  <Text style={{ color: "#fecaca", marginTop: 8 }}>
+                    {checkpointError}
+                  </Text>
+                ) : null}
               </View>
 
               <Text style={{ color: colors.muted, marginBottom: 10 }}>
                 Your team:{" "}
-                <Text style={{ color: colors.text, fontWeight: "900" }}>
+                <Text style={{ color: colors.green, fontWeight: "900" }}>
                   {teamNames[0] ?? "Team 1"}
                 </Text>
               </Text>
@@ -994,15 +1166,20 @@ export default function MyDraftScreen({ route, navigation }: Props) {
 
               {hasSavedDraft ? (
                 <Text style={{ color: colors.gold, marginBottom: 12 }}>
-                  Saved draft found. Starting will replace it; if it already
-                  restored, use the live draft view.
+                  Saved draft found. Starting again will replace the saved mobile mock draft.
                 </Text>
               ) : null}
 
               <AppButton
-                title="Start Mock Draft"
+                title={selectedCheckpointKey ? "Start from checkpoint" : "Start Mock Draft"}
                 fullWidth
-                onPress={handleStartMockDraft}
+                loading={checkpointBusy}
+                disabled={checkpointBusy || loadingPlayers || allPlayers.length === 0}
+                onPress={
+                  selectedCheckpointKey
+                    ? handleStartMockDraftFromCheckpoint
+                    : handleStartMockDraft
+                }
               />
 
               <AppButton
@@ -1084,7 +1261,14 @@ export default function MyDraftScreen({ route, navigation }: Props) {
                       </Text>
                     </Text>
 
-                    <Text style={{ color: colors.gold, marginTop: 6 }}>
+                    <Text
+                      style={{
+                        color: state.phase === "sold" ? colors.green : colors.gold,
+                        marginTop: 6,
+                        fontWeight: "900",
+                        fontSize: state.phase === "sold" ? 16 : 14,
+                      }}
+                    >
                       {state.message || "Mock draft running."}
                     </Text>
                   </View>
@@ -1268,6 +1452,43 @@ export default function MyDraftScreen({ route, navigation }: Props) {
                     />
                   </View>
 
+                  {state.phase === "sold" ? (
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: "rgba(34,197,94,0.45)",
+                        backgroundColor: "rgba(34,197,94,0.12)",
+                        borderRadius: 14,
+                        padding: 14,
+                        marginTop: 4,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: colors.green,
+                          fontSize: 20,
+                          fontWeight: "900",
+                          letterSpacing: 0.7,
+                        }}
+                      >
+                        SOLD!
+                      </Text>
+
+                      <Text
+                        style={{
+                          color: colors.text,
+                          fontSize: 16,
+                          fontWeight: "900",
+                          marginTop: 4,
+                        }}
+                      >
+                        {state.currentBidder} wins {state.nominatedPlayer.name} for{" "}
+                        {formatMoney(state.currentBid)}.
+                      </Text>
+                    </View>
+                  ) : null}
+
                   {state.phase === "bidding" ? (
                     <>
                       <Text style={{ color: colors.muted, marginBottom: 6 }}>
@@ -1302,7 +1523,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
                       />
 
                       <AppButton
-                        title="Sold / Confirm Winner"
+                        title="Done — Let Them Have It"
                         variant="secondary"
                         fullWidth
                         style={{ marginTop: 10 }}
@@ -1416,7 +1637,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16 }}
@@ -1445,17 +1666,23 @@ export default function MyDraftScreen({ route, navigation }: Props) {
         {valuationError ? <ErrorState label={valuationError} /> : null}
 
         <AppCard backgroundColor={colors.surface} borderColor={colors.border}>
-          <SectionHeader title="Draft Planning Board" meta={league.name} />
+          <SectionHeader
+            title="Planning Summary"
+            meta="Position plan, buffer, and watchlist targets."
+          />
 
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             <MetricPill label="Total Budget" value={formatMoney(totalBudget)} highlight />
-            <MetricPill label="Planned" value={formatMoney(totalPlannedBudget)} />
+            <MetricPill label="Position plan" value={formatMoney(totalPlannedBudget)} />
             <MetricPill
-              label="Buffer"
+              label="Plan buffer"
               value={formatSignedMoney(plannedRemaining)}
               highlight={plannedRemaining >= 0}
             />
-            <MetricPill label="Starred" value={String(watchlist.length)} />
+            <MetricPill
+              label="Watchlist targets"
+              value={formatMoney(watchlistTargetTotal)}
+            />
           </View>
 
           {valuationStatus === "loading" ? (
@@ -1500,11 +1727,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
           </View>
 
           <AppButton
-            title={
-              state.phase !== "setup"
-                ? "Continue AI Mock Draft"
-                : "Start AI Mock Draft"
-            }
+            title="AI Mock Draft"
             fullWidth
             style={{ marginTop: 8 }}
             onPress={() => {
@@ -1566,10 +1789,27 @@ export default function MyDraftScreen({ route, navigation }: Props) {
         </AppCard>
 
         <AppCard backgroundColor={colors.surface} borderColor={colors.border}>
-          <SectionHeader
-            title="Position Targets"
-            meta="Edit target dollars; the allocation bar updates automatically."
-          />
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              marginBottom: 10,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <SectionHeader
+                title="Position Allocation"
+                meta="Edit target dollars; the allocation bar updates automatically."
+              />
+            </View>
+
+            <AppButton
+              title="Reset Defaults"
+              variant="secondary"
+              onPress={handleResetPositionTargets}
+            />
+          </View>
 
           {allocationRows.map((row, index) => (
             <View
@@ -1587,7 +1827,7 @@ export default function MyDraftScreen({ route, navigation }: Props) {
                   marginBottom: 8,
                 }}
               >
-                <PositionBadge label={row.pos} color={row.color} />
+                <PositionBadge label={row.pos} style={{ marginBottom: 0 }} />
 
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={{ color: colors.text, fontWeight: "900" }}>
@@ -1651,9 +1891,9 @@ export default function MyDraftScreen({ route, navigation }: Props) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             {(
               [
+                "auction_value",
                 "team_value",
                 "recommended_bid",
-                "auction_value",
                 "baseline_value",
               ] as ValuationSortField[]
             ).map((field) => (

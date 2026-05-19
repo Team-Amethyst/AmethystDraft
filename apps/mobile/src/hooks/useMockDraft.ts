@@ -20,9 +20,9 @@ import {
   saveMockDraftState,
 } from "../utils/mockDraftPersistence";
 
-const AI_BID_DELAY_MS = 700;
-const SOLD_DELAY_MS = 900;
-const NOMINATE_DELAY_MS = 700;
+const AI_BID_DELAY_MS = 850;
+const SOLD_DELAY_MS = 1600;
+const NOMINATE_DELAY_MS = 1100;
 
 export function useMockDraft(
   leagueId: string,
@@ -68,6 +68,7 @@ export function useMockDraft(
         setState({
           ...saved,
           pendingAIBids: [],
+          isRebidRound: false,
           phase:
             saved.phase === "bidding" || saved.phase === "sold"
               ? "nomination"
@@ -115,10 +116,13 @@ export function useMockDraft(
     setState({
       ...initialMockDraftState,
       phase: "nomination",
+      checkpointHydration: undefined,
       rosters,
       undraftedPlayers,
       snakeOrder,
       currentOrderIdx: 0,
+      log: [],
+      isRebidRound: false,
       message: "Mock draft started.",
     });
   }, [teamNames, budget, totalSlots, allPlayers]);
@@ -128,6 +132,16 @@ export function useMockDraft(
     setState(initialMockDraftState);
     setHasSavedDraft(false);
   }, [leagueId]);
+
+  const hydrateFromCheckpoint = useCallback(
+    async (full: MockDraftState) => {
+      await clearMockDraftState(leagueId);
+      setState(full);
+      await saveMockDraftState(leagueId, full);
+      setHasSavedDraft(true);
+    },
+    [leagueId],
+  );
 
   const nominatePlayer = useCallback((player: Player) => {
     setState((prev) => {
@@ -145,6 +159,7 @@ export function useMockDraft(
         currentBidder: nomTeam?.teamName ?? "",
         userBid: 2,
         pendingAIBids: otherAI,
+        isRebidRound: false,
         message: `${player.name} is nominated. Bidding starts at $1.`,
       };
     });
@@ -157,8 +172,9 @@ export function useMockDraft(
       const userRoster = prev.rosters.find((r) => r.isUser);
       if (!userRoster) return prev;
 
+      const slots = prev.checkpointHydration?.rosterSlots ?? rosterSlots;
       const remaining = userRoster.budget - userRoster.spent;
-      const open = openSlots(userRoster, rosterSlots);
+      const open = openSlots(userRoster, slots);
       const maxAllowed = remaining - Math.max(0, open - 1);
 
       if (amount <= prev.currentBid) {
@@ -175,6 +191,7 @@ export function useMockDraft(
         currentBidder: userRoster.teamName,
         userBid: amount + 1,
         pendingAIBids: allAITeams(prev),
+        isRebidRound: false,
         message: `You bid $${amount}. AI teams are responding.`,
       };
     });
@@ -185,6 +202,7 @@ export function useMockDraft(
       ...prev,
       phase: "bidding",
       pendingAIBids: allAITeams(prev),
+      isRebidRound: true,
       message: "Bidding continues.",
     }));
   }, [allAITeams]);
@@ -196,15 +214,16 @@ export function useMockDraft(
     const winner = s.rosters.find((r) => r.teamName === s.currentBidder);
     if (!winner) return;
 
+    const slots = s.checkpointHydration?.rosterSlots ?? rosterSlots;
     const pos = player.positions?.[0] ?? player.position ?? "UTIL";
     const filled = winner.picks.filter((pick) => pick.slot === pos).length;
-    const slotCount = rosterSlots[pos] ?? 0;
+    const slotCount = slots[pos] ?? 0;
 
     let slot = pos;
 
     if (filled >= slotCount) {
       const utilFilled = winner.picks.filter((pick) => pick.slot === "UTIL").length;
-      const utilCount = rosterSlots.UTIL ?? 0;
+      const utilCount = slots.UTIL ?? 0;
       const pitcher = ["SP", "RP", "P"].includes(pos);
       slot = !pitcher && utilFilled < utilCount ? "UTIL" : "BN";
     }
@@ -244,6 +263,7 @@ export function useMockDraft(
       currentBidder: "",
       userBid: 1,
       pendingAIBids: [],
+      isRebidRound: false,
       log: [...s.log, logEntry],
       message: done
         ? "Mock draft complete."
@@ -252,7 +272,18 @@ export function useMockDraft(
   }, [rosterSlots]);
 
   const confirmSell = useCallback(() => {
-    setState((prev) => ({ ...prev, phase: "sold" }));
+    setState((prev) => {
+      const playerName = prev.nominatedPlayer?.name ?? "player";
+      const bidder = prev.currentBidder || "Winning team";
+      const amount = prev.currentBid;
+
+      return {
+        ...prev,
+        phase: "sold",
+        message: `${bidder} wins ${playerName} for $${amount}.`,
+      };
+    });
+
     setTimeout(() => sellPlayer(stateRef.current), SOLD_DELAY_MS);
   }, [sellPlayer]);
 
@@ -262,15 +293,24 @@ export function useMockDraft(
     const team = currentTeam(state);
     if (!team?.isUser) return;
 
+    const slots = state.checkpointHydration?.rosterSlots ?? rosterSlots;
+
     const suggestion = suggestNomination(
       team,
       watchlist,
       state.undraftedPlayers,
-      rosterSlots,
+      slots,
     );
 
     setState((prev) => ({ ...prev, suggestion }));
-  }, [state.phase, state.currentOrderIdx, currentTeam, watchlist, rosterSlots]);
+  }, [
+    state.phase,
+    state.currentOrderIdx,
+    state.checkpointHydration,
+    currentTeam,
+    watchlist,
+    rosterSlots,
+  ]);
 
   useEffect(() => {
     if (state.phase !== "nomination") return;
@@ -284,10 +324,12 @@ export function useMockDraft(
 
       if (current.phase !== "nomination" || !roster || roster.isUser) return;
 
+      const slots = current.checkpointHydration?.rosterSlots ?? rosterSlots;
+
       const nominated = aiNominate(
         roster,
         current.undraftedPlayers,
-        rosterSlots,
+        slots,
       );
 
       if (nominated) nominatePlayer(nominated);
@@ -321,11 +363,13 @@ export function useMockDraft(
         return;
       }
 
+      const slots = current.checkpointHydration?.rosterSlots ?? rosterSlots;
+
       const bid = aiMaxBid(
         current.nominatedPlayer,
         roster,
         current.currentBid,
-        rosterSlots,
+        slots,
         current.undraftedPlayers,
       );
 
@@ -340,6 +384,7 @@ export function useMockDraft(
           currentBidder: nextAIName,
           userBid: bid + 1,
           pendingAIBids: otherAI,
+          isRebidRound: false,
           message: `${nextAIName} bids $${bid}.`,
         }));
       } else {
@@ -360,6 +405,7 @@ export function useMockDraft(
     hasSavedDraft,
     startDraft,
     resetDraft,
+    hydrateFromCheckpoint,
     nominatePlayer,
     placeBid,
     keepBidding,

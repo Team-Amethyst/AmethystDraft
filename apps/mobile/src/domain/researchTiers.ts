@@ -332,22 +332,23 @@ function rawAuctionValueForTier(
   player: Player,
   row: ValuationResult | undefined,
 ): number | null {
-  const value =
-    valuationNumber(row, "auction_value") ??
-    playerNumber(player, "auction_value") ??
-    valuationNumber(row, "recommended_bid") ??
-    playerNumber(player, "recommended_bid") ??
-    valuationNumber(row, "team_value") ??
-    playerNumber(player, "team_value") ??
-    valuationNumber(row, "baseline_value") ??
-    playerNumber(player, "value") ??
-    finiteNumber(player.value);
+  const rowAuctionValue = valuationNumber(row, "auction_value");
 
-  if (value === null || !Number.isFinite(value)) {
+  if (rowAuctionValue !== null && Number.isFinite(rowAuctionValue)) {
+    return rowAuctionValue;
+  }
+
+  if (playerRecord(player).valuation_eligible === false) {
     return null;
   }
 
-  return value;
+  const playerAuctionValue = playerNumber(player, "auction_value");
+
+  if (playerAuctionValue !== null && Number.isFinite(playerAuctionValue)) {
+    return playerAuctionValue;
+  }
+
+  return null;
 }
 
 function displayDollarsForPlayer(
@@ -860,4 +861,5 @@ export function formatMobileTierAvailability(bucket: MobileTierBucket): string {
 
   return `${bucket.availableCount} left`;
 }
+
 

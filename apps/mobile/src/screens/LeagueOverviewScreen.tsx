@@ -4,7 +4,6 @@ import {
   RefreshControl,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -15,26 +14,20 @@ import {
   getRoster,
   getRosterCached,
   removeRosterEntry,
-  updateRosterEntry,
   type RosterEntry,
 } from "../api/roster";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
+import PositionBadge from "../components/ui/PositionBadge";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
 import type { LeagueTabParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
 import type { Player } from "../types/player";
+import { normalizePlayerPositions, slotAllowsPosition } from "../utils/eligibility";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "Overview">;
-
-type EntryEdit = {
-  price: string;
-  rosterSlot: string;
-  teamId: string;
-  keeperContract: string;
-};
 
 type SlotRow = {
   position: string;
@@ -42,15 +35,12 @@ type SlotRow = {
   playerTeam: string | null;
   price: number | null;
   isKeeper: boolean;
-  keeperContract?: string;
 };
 
 type ReserveRow = {
   playerName: string;
   playerTeam: string | null;
   rosterSlot: string;
-  price: number;
-  isKeeper: boolean;
 };
 
 type TeamCardData = {
@@ -59,7 +49,6 @@ type TeamCardData = {
   slots: SlotRow[];
   rosterFilled: number;
   rosterTotal: number;
-  spent: number;
   budgetRemaining: number;
   bidAvg: number;
   maxBid: number;
@@ -73,6 +62,11 @@ type ScoringCategory = {
   type: "batting" | "pitching";
 };
 
+type StandingCategory = ScoringCategory & {
+  key: string;
+  label: string;
+};
+
 type StandingRow = {
   teamName: string;
   stats: Record<string, number>;
@@ -80,11 +74,12 @@ type StandingRow = {
 
 type RotoSummary = {
   totalPoints: number;
-  ranks: Record<string, number>;
-  points: Record<string, number>;
+  overallRank: number;
 };
 
-const SLOT_ORDER = [
+type RankMap = Record<string, Map<string, number>>;
+
+const ROSTER_SLOT_PICK_ORDER = [
   "C",
   "1B",
   "2B",
@@ -93,27 +88,27 @@ const SLOT_ORDER = [
   "MI",
   "CI",
   "OF",
-  "UTIL",
   "SP",
   "RP",
+  "P",
+  "UTIL",
   "BN",
-];
+] as const;
 
 const FALLBACK_CATS: ScoringCategory[] = [
-  { name: "R", type: "batting" },
   { name: "HR", type: "batting" },
   { name: "RBI", type: "batting" },
   { name: "SB", type: "batting" },
   { name: "AVG", type: "batting" },
   { name: "W", type: "pitching" },
   { name: "SV", type: "pitching" },
-  { name: "K", type: "pitching" },
   { name: "ERA", type: "pitching" },
   { name: "WHIP", type: "pitching" },
 ];
 
 const LOWER_IS_BETTER = new Set(["ERA", "WHIP"]);
-const ROTO_POINTS_SORT_KEY = "PTS";
+const ROTO_RATE_BATTING_CATEGORIES = new Set(["AVG", "OBP", "SLG"]);
+const ROTO_POINTS_SORT_KEY = "__roto_pts__";
 
 function teamIdFromIndex(index: number): string {
   return `team_${index + 1}`;
@@ -154,25 +149,65 @@ function formatMlbTeam(team: string | null | undefined): string | null {
 }
 
 function normalizeCatName(name: string): string {
-  return name.trim().toUpperCase();
+  const upper = name.trim().toUpperCase();
+  const inParens = upper.match(/\(([^)]+)\)$/)?.[1];
+  const base = inParens ?? upper;
+
+  if (base === "RUNS") return "R";
+  if (base === "HOME RUNS") return "HR";
+  if (base === "RUNS BATTED IN") return "RBI";
+  if (base === "STOLEN BASES") return "SB";
+  if (base === "BATTING AVERAGE") return "AVG";
+  if (base === "ON-BASE PERCENTAGE") return "OBP";
+  if (base === "SLUGGING PERCENTAGE") return "SLG";
+  if (base === "TOTAL BASES") return "TB";
+  if (base === "HITS") return "H";
+  if (base === "WALKS") return "BB";
+  if (base === "WINS") return "W";
+  if (base === "STRIKEOUTS") return "K";
+  if (base === "EARNED RUN AVERAGE") return "ERA";
+  if (base === "WALKS + HITS PER IP") return "WHIP";
+  if (base === "SAVES") return "SV";
+  if (base === "HOLDS") return "HLD";
+  if (base === "INNINGS PITCHED") return "IP";
+  if (base === "COMPLETE GAMES") return "CG";
+
+  return base;
 }
 
-function normalizePosition(position: string): string {
-  return position.trim().toUpperCase();
+function standingCategoryKey(cat: ScoringCategory, index: number): string {
+  return `${cat.type}:${normalizeCatName(cat.name)}:${index}`;
+}
+
+function makeStandingCategories(scoringCats: ScoringCategory[]): StandingCategory[] {
+  return scoringCats.map((cat, index) => {
+    const label = normalizeCatName(cat.name);
+
+    return {
+      ...cat,
+      name: label,
+      label,
+      key: standingCategoryKey(cat, index),
+    };
+  });
+}
+
+function normalizeRosterSlot(slot: string): string {
+  return slot.trim().toUpperCase();
+}
+
+function orderedSlotKeys(rosterSlots: Record<string, number>): string[] {
+  const keys = Object.keys(rosterSlots);
+  const preferred = ROSTER_SLOT_PICK_ORDER.filter((key) => keys.includes(key));
+  const preferredSet = new Set<string>(preferred);
+  const rest = keys.filter((key) => !preferredSet.has(key));
+
+  return [...preferred, ...rest];
 }
 
 function isReserveRosterSlot(rosterSlot: string | undefined | null): boolean {
-  const slot = normalizePosition(rosterSlot ?? "");
+  const slot = normalizeRosterSlot(rosterSlot ?? "");
   return slot.includes("MIN") || slot.includes("TAXI");
-}
-
-function isTaxiReserveEntry(entry: RosterEntry): boolean {
-  const slot = normalizePosition(entry.rosterSlot ?? "");
-  return slot.includes("TAXI") && !slot.includes("MIN");
-}
-
-function isMinorsReserveEntry(entry: RosterEntry): boolean {
-  return normalizePosition(entry.rosterSlot ?? "").includes("MIN");
 }
 
 function isReserveEntry(entry: RosterEntry): boolean {
@@ -187,47 +222,77 @@ function isDraftAuctionEntry(entry: RosterEntry): boolean {
   return isActiveAuctionEntry(entry) && !entry.isKeeper;
 }
 
-function orderedRosterSlots(rosterSlots: Record<string, number>): string[] {
-  return [
-    ...SLOT_ORDER.filter((pos) => rosterSlots[pos] !== undefined),
-    ...Object.keys(rosterSlots).filter((pos) => !SLOT_ORDER.includes(pos)),
-  ];
+function isMinorsReserveEntry(entry: RosterEntry): boolean {
+  return normalizeRosterSlot(entry.rosterSlot).includes("MIN");
 }
 
-function sortRosterEntries(entries: RosterEntry[]): RosterEntry[] {
-  const order = new Map(SLOT_ORDER.map((slot, index) => [slot, index]));
-
-  return [...entries].sort((a, b) => {
-    const aSlot = normalizePosition(a.rosterSlot);
-    const bSlot = normalizePosition(b.rosterSlot);
-    const aIndex = order.get(aSlot) ?? 999;
-    const bIndex = order.get(bSlot) ?? 999;
-
-    if (aIndex !== bIndex) return aIndex - bIndex;
-
-    const slotCompare = aSlot.localeCompare(bSlot);
-    if (slotCompare !== 0) return slotCompare;
-
-    return a.playerName.localeCompare(b.playerName);
-  });
+function isTaxiReserveEntry(entry: RosterEntry): boolean {
+  const slot = normalizeRosterSlot(entry.rosterSlot);
+  return slot.includes("TAXI") && !slot.includes("MIN");
 }
 
 function sortDraftLog(entries: RosterEntry[]): RosterEntry[] {
   return [...entries].sort((a, b) => {
-    const at = new Date(a.acquiredAt ?? a.createdAt).getTime();
-    const bt = new Date(b.acquiredAt ?? b.createdAt).getTime();
+    const at = new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime();
+    const bt = new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime();
 
     return at - bt;
   });
 }
 
-function buildReserveRow(entry: RosterEntry): ReserveRow {
+function assignTeamEntriesToRosterRows(
+  rosterSlots: Record<string, number>,
+  teamEntries: RosterEntry[],
+): Array<{ position: string; entry: RosterEntry | null }> {
+  const rows: Array<{ position: string; entry: RosterEntry | null }> = [];
+
+  for (const position of orderedSlotKeys(rosterSlots)) {
+    const count = rosterSlots[position] ?? 0;
+
+    for (let i = 0; i < count; i += 1) {
+      rows.push({ position, entry: null });
+    }
+  }
+
+  const sorted = [...teamEntries].sort(
+    (a, b) =>
+      new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
+      new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
+  );
+
+  for (const entry of sorted) {
+    const positions = normalizePlayerPositions(entry.positions, entry.rosterSlot);
+
+    if (positions.length === 0) {
+      continue;
+    }
+
+    for (const row of rows) {
+      if (row.entry) {
+        continue;
+      }
+
+      if (!positions.some((position) => slotAllowsPosition(row.position, position))) {
+        continue;
+      }
+
+      row.entry = entry;
+      break;
+    }
+  }
+
+  return rows;
+}
+
+function countAssignedRosterRows(rows: Array<{ entry: RosterEntry | null }>): number {
+  return rows.filter((row) => row.entry !== null).length;
+}
+
+function reserveRow(entry: RosterEntry): ReserveRow {
   return {
     playerName: entry.playerName,
     playerTeam: formatMlbTeam(entry.playerTeam),
     rosterSlot: entry.rosterSlot,
-    price: entry.price,
-    isKeeper: entry.isKeeper,
   };
 }
 
@@ -240,71 +305,29 @@ function buildTeamCardData(
 ): TeamCardData {
   const teamId = teamIdFromIndex(teamIndex);
   const teamEntries = entries.filter((entry) => entry.teamId === teamId);
-  const activeEntries = sortRosterEntries(teamEntries.filter(isActiveAuctionEntry));
+  const activeEntries = teamEntries.filter(isActiveAuctionEntry);
   const reserveEntries = teamEntries.filter(isReserveEntry);
-  const orderedPositions = orderedRosterSlots(rosterSlots);
-  const usedIds = new Set<string>();
-  const slots: SlotRow[] = [];
+  const assigned = assignTeamEntriesToRosterRows(rosterSlots, activeEntries);
 
-  for (const position of orderedPositions) {
-    const count = rosterSlots[position] ?? 0;
-    const entriesAtSlot = activeEntries.filter(
-      (entry) =>
-        normalizePosition(entry.rosterSlot) === normalizePosition(position) &&
-        !usedIds.has(entry._id),
-    );
+  const slots = assigned.map((row) => ({
+    position: row.position,
+    playerName: row.entry?.playerName ?? null,
+    playerTeam: formatMlbTeam(row.entry?.playerTeam),
+    price: row.entry?.price ?? null,
+    isKeeper: row.entry?.isKeeper ?? false,
+  }));
 
-    for (let i = 0; i < count; i++) {
-      const entry = entriesAtSlot[i];
-
-      if (entry) {
-        usedIds.add(entry._id);
-      }
-
-      slots.push({
-        position,
-        playerName: entry?.playerName ?? null,
-        playerTeam: formatMlbTeam(entry?.playerTeam),
-        price: entry?.price ?? null,
-        isKeeper: entry?.isKeeper ?? false,
-        keeperContract: entry?.keeperContract,
-      });
-    }
-  }
-
-  const unassignedActive = activeEntries.filter((entry) => !usedIds.has(entry._id));
-
-  for (const entry of unassignedActive) {
-    slots.push({
-      position: entry.rosterSlot,
-      playerName: entry.playerName,
-      playerTeam: formatMlbTeam(entry.playerTeam),
-      price: entry.price,
-      isKeeper: entry.isKeeper,
-      keeperContract: entry.keeperContract,
-    });
-  }
-
-  const rosterFilled = slots.filter((slot) => slot.playerName !== null).length;
-  const rosterTotal = orderedPositions.reduce(
-    (sum, position) => sum + (rosterSlots[position] ?? 0),
-    0,
-  );
+  const rosterFilled = countAssignedRosterRows(assigned);
+  const rosterTotal = slots.length;
   const spent = activeEntries.reduce((sum, entry) => sum + entry.price, 0);
   const budgetRemaining = Math.max(0, budget - spent);
   const open = Math.max(0, rosterTotal - rosterFilled);
 
-  const minors = reserveEntries
-    .filter(isMinorsReserveEntry)
-    .map(buildReserveRow);
-
-  const taxi = reserveEntries
-    .filter(isTaxiReserveEntry)
-    .map(buildReserveRow);
-
+  const minors = reserveEntries.filter(isMinorsReserveEntry).map(reserveRow);
+  const taxi = reserveEntries.filter(isTaxiReserveEntry).map(reserveRow);
   const otherReserves = reserveEntries
     .filter((entry) => !isMinorsReserveEntry(entry) && !isTaxiReserveEntry(entry))
-    .map(buildReserveRow);
+    .map(reserveRow);
 
   return {
     teamId,
@@ -312,7 +335,6 @@ function buildTeamCardData(
     slots,
     rosterFilled,
     rosterTotal,
-    spent,
     budgetRemaining,
     bidAvg: open > 0 ? Math.round(budgetRemaining / open) : 0,
     maxBid: open > 0 ? Math.max(1, budgetRemaining - (open - 1)) : 0,
@@ -322,103 +344,25 @@ function buildTeamCardData(
   };
 }
 
-function playerKeyCandidates(player: Player): string[] {
-  const keys: string[] = [];
-
-  function push(value: unknown) {
-    if (value === undefined || value === null) return;
-
-    const text = String(value).trim();
-
-    if (!text) return;
-    if (!keys.includes(text)) keys.push(text);
-  }
-
-  push(player.id);
-  push(player.mlbId);
-
-  return keys;
-}
-
-function buildPlayerMap(players: Player[]): Map<string, Player> {
+function buildPlayerMapForStandings(players: Player[]): Map<string, Player> {
   const map = new Map<string, Player>();
 
   for (const player of players) {
-    for (const key of playerKeyCandidates(player)) {
-      map.set(key, player);
-    }
+    map.set(player.id, player);
   }
 
   return map;
 }
 
-function numberFromUnknown(value: unknown): number | null {
+function numberFromUnknown(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
 
   if (typeof value === "string") {
-    const parsed = Number(value);
+    const parsed = Number.parseFloat(value);
 
     if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return null;
-}
-
-function playerStat(
-  player: Player,
-  catName: string,
-  catType: "batting" | "pitching",
-): number {
-  const cat = normalizeCatName(catName);
-  const data = player as unknown as {
-    stats?: {
-      batting?: Record<string, unknown>;
-      pitching?: Record<string, unknown>;
-    };
-    projection?: {
-      batting?: Record<string, unknown>;
-      pitching?: Record<string, unknown>;
-    };
-  };
-
-  const source =
-    catType === "batting"
-      ? data.projection?.batting ?? data.stats?.batting
-      : data.projection?.pitching ?? data.stats?.pitching;
-
-  if (!source) return 0;
-
-  const aliases: Record<string, string[]> = {
-    R: ["runs", "r"],
-    HR: ["hr", "homeRuns"],
-    RBI: ["rbi"],
-    SB: ["sb", "stolenBases"],
-    AVG: ["avg"],
-    OBP: ["obp"],
-    SLG: ["slg"],
-    TB: ["tb", "totalBases"],
-    H: ["hits", "h"],
-    BB: ["walks", "bb"],
-    W: ["wins", "w"],
-    K: ["strikeouts", "k", "so"],
-    ERA: ["era"],
-    WHIP: ["whip"],
-    SV: ["saves", "sv"],
-    HLD: ["holds", "hld"],
-    IP: ["innings", "ip"],
-    CG: ["completeGames", "cg"],
-  };
-
-  const keys = aliases[cat] ?? [cat.toLowerCase()];
-
-  for (const key of keys) {
-    const parsed = numberFromUnknown(source[key]);
-
-    if (parsed !== null) {
       return parsed;
     }
   }
@@ -426,42 +370,178 @@ function playerStat(
   return 0;
 }
 
+function getProjStat(
+  player: Player,
+  catName: string,
+  catType: "batting" | "pitching",
+): number {
+  const n = normalizeCatName(catName).trim().toUpperCase();
+
+  if (catType === "batting") {
+    const b = player.projection?.batting ?? player.stats?.batting;
+
+    if (!b) return 0;
+
+    const battingStats = player.stats?.batting as Record<string, unknown> | undefined;
+
+    if (n === "HR") return numberFromUnknown(b.hr);
+    if (n === "RBI") return numberFromUnknown(b.rbi);
+    if (n === "R" || n === "RUNS") return numberFromUnknown(b.runs);
+    if (n === "SB") return numberFromUnknown(b.sb);
+    if (n === "AVG") return numberFromUnknown(b.avg);
+    if (n === "OBP") return numberFromUnknown(battingStats?.obp);
+    if (n === "SLG") return numberFromUnknown(battingStats?.slg);
+
+    return 0;
+  }
+
+  const p = player.projection?.pitching ?? player.stats?.pitching;
+
+  if (!p) return 0;
+
+  if (n === "W" || n === "WINS") return numberFromUnknown(p.wins);
+  if (n === "K" || n === "SO") return numberFromUnknown(p.strikeouts);
+  if (n === "ERA") return numberFromUnknown(p.era);
+  if (
+    n === "WHIP" ||
+    n === "WALKS + HITS PER IP" ||
+    n === "W+H/IP" ||
+    (n.includes("WHIP") && n.includes("IP"))
+  ) {
+    return numberFromUnknown(p.whip);
+  }
+  if (n === "SV" || n === "SAVES") return numberFromUnknown(p.saves);
+
+  return 0;
+}
+
+function battingHitsAbFromPlayer(player: Player): { h: number; ab: number } | null {
+  const projection = player.projection?.batting as
+    | { h?: number; hits?: number; ab?: number; avg?: string | number }
+    | undefined;
+  const stats = player.stats?.batting as
+    | { h?: number; hits?: number; ab?: number; avg?: string | number }
+    | undefined;
+  const spring = player.springStats?.batting as
+    | { ab?: number; avg?: string | number }
+    | undefined;
+  const ab = Math.max(0, projection?.ab ?? stats?.ab ?? spring?.ab ?? 0);
+  const explicitHits = projection?.hits ?? projection?.h ?? stats?.hits ?? stats?.h;
+
+  if (ab > 0 && explicitHits !== undefined && Number.isFinite(Number(explicitHits))) {
+    return { h: Number(explicitHits), ab };
+  }
+
+  const avg = numberFromUnknown(projection?.avg ?? stats?.avg);
+
+  if (ab > 0 && Number.isFinite(avg) && avg > 0 && avg <= 1) {
+    return { h: avg * ab, ab };
+  }
+
+  return null;
+}
+
+function teamBattingRatePaceForCategory(players: Player[], catName: string): number {
+  const n = normalizeCatName(catName).trim().toUpperCase();
+
+  if (n === "AVG") {
+    let hits = 0;
+    let atBats = 0;
+
+    for (const player of players) {
+      const chunk = battingHitsAbFromPlayer(player);
+
+      if (chunk) {
+        hits += chunk.h;
+        atBats += chunk.ab;
+      }
+    }
+
+    if (atBats > 0) {
+      return hits / atBats;
+    }
+  }
+
+  const batters = players.filter(
+    (player) => Boolean(player.projection?.batting ?? player.stats?.batting),
+  );
+  const weights = batters.map((player) => {
+    const batting = player.projection?.batting ?? player.stats?.batting;
+    return numberFromUnknown(batting?.hr) + 1;
+  });
+  const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+
+  if (totalWeight <= 0) {
+    return 0;
+  }
+
+  const weighted = batters.reduce(
+    (sum, player, index) =>
+      sum + getProjStat(player, catName, "batting") * (weights[index] ?? 0),
+    0,
+  );
+
+  return weighted / totalWeight;
+}
+
+function teamPitchingRatePaceForCategory(players: Player[], catName: string): number {
+  const pitchers = players.filter(
+    (player) => Boolean(player.projection?.pitching ?? player.stats?.pitching),
+  );
+
+  let weightedSum = 0;
+  let totalIp = 0;
+
+  for (const player of pitchers) {
+    const rate = getProjStat(player, catName, "pitching");
+    const ip =
+      numberFromUnknown(player.projection?.pitching?.innings) ||
+      numberFromUnknown(player.stats?.pitching?.innings);
+
+    if (ip > 0 && Number.isFinite(rate)) {
+      weightedSum += rate * ip;
+      totalIp += ip;
+    }
+  }
+
+  if (totalIp > 0) {
+    return weightedSum / totalIp;
+  }
+
+  const values = pitchers
+    .map((player) => getProjStat(player, catName, "pitching"))
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  return values.length > 0
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : 0;
+}
+
 function buildProjectedStandings(
   teamNames: string[],
   entries: RosterEntry[],
   playerMap: Map<string, Player>,
-  scoringCats: ScoringCategory[],
+  standingCategories: StandingCategory[],
 ): StandingRow[] {
   return teamNames.map((teamName, index) => {
     const teamId = teamIdFromIndex(index);
     const teamPlayers = entries
       .filter((entry) => entry.teamId === teamId)
-      .map((entry) => playerMap.get(String(entry.externalPlayerId)))
+      .map((entry) => playerMap.get(entry.externalPlayerId))
       .filter((player): player is Player => Boolean(player));
 
     const stats: Record<string, number> = {};
 
-    for (const cat of scoringCats) {
-      const catName = normalizeCatName(cat.name);
+    for (const cat of standingCategories) {
+      const normalized = normalizeCatName(cat.name).trim().toUpperCase();
 
-      if (
-        catName === "AVG" ||
-        catName === "OBP" ||
-        catName === "SLG" ||
-        catName === "ERA" ||
-        catName === "WHIP"
-      ) {
-        const values = teamPlayers
-          .map((player) => playerStat(player, catName, cat.type))
-          .filter((value) => value > 0);
-
-        stats[catName] =
-          values.length > 0
-            ? values.reduce((sum, value) => sum + value, 0) / values.length
-            : 0;
+      if (cat.type === "batting" && ROTO_RATE_BATTING_CATEGORIES.has(normalized)) {
+        stats[cat.key] = teamBattingRatePaceForCategory(teamPlayers, cat.name);
+      } else if (cat.type === "pitching" && LOWER_IS_BETTER.has(normalized)) {
+        stats[cat.key] = teamPitchingRatePaceForCategory(teamPlayers, cat.name);
       } else {
-        stats[catName] = teamPlayers.reduce(
-          (sum, player) => sum + playerStat(player, catName, cat.type),
+        stats[cat.key] = teamPlayers.reduce(
+          (sum, player) => sum + getProjStat(player, cat.name, cat.type),
           0,
         );
       }
@@ -471,103 +551,99 @@ function buildProjectedStandings(
   });
 }
 
-function formatStatCell(cat: string, value: number): string {
-  if (!Number.isFinite(value) || value === 0) return "—";
+function isStatCellEmpty(value: number): boolean {
+  return value === 0;
+}
 
-  const normalized = normalizeCatName(cat);
+function formatStatCell(catName: string, value: number): string {
+  if (value === 0) return "—";
 
-  if (normalized === "AVG" || normalized === "OBP" || normalized === "SLG") {
-    return value.toFixed(3);
-  }
+  const n = normalizeCatName(catName).trim().toUpperCase();
 
-  if (normalized === "ERA" || normalized === "WHIP") {
-    return value.toFixed(2);
-  }
+  if (n === "AVG" || n === "OBP" || n === "SLG") return value.toFixed(3);
+  if (n === "ERA" || n === "WHIP") return value.toFixed(2);
 
   return String(Math.round(value));
 }
 
-function rankColor(rank: number, teamCount: number): string {
-  if (rank <= Math.max(1, Math.ceil(teamCount * 0.25))) return colors.green;
-  if (rank >= Math.max(1, Math.floor(teamCount * 0.75))) return "#fb7185";
-  return colors.gold;
-}
+function computeRanks(rows: StandingRow[], catKey: string): Map<string, number> {
+  const normalized = catKey.split(":")[1] ?? catKey;
+  const isLower = LOWER_IS_BETTER.has(normalizeCatName(normalized).trim().toUpperCase());
+  const sorted = [...rows].sort((a, b) => {
+    const av = a.stats[catKey] ?? 0;
+    const bv = b.stats[catKey] ?? 0;
 
-function isEmptyStatValue(value: number): boolean {
-  return !Number.isFinite(value) || value === 0;
-}
-
-function compareCategoryValues(cat: string, a: number, b: number): number {
-  const lowerIsBetter = LOWER_IS_BETTER.has(normalizeCatName(cat));
-
-  if (lowerIsBetter) {
-    if (a === 0 && b === 0) return 0;
-    if (a === 0) return 1;
-    if (b === 0) return -1;
-    return a - b;
-  }
-
-  return b - a;
-}
-
-function computeRankMaps(
-  standings: StandingRow[],
-  catNames: string[],
-): Record<string, Map<string, { rank: number; points: number }>> {
-  const output: Record<string, Map<string, { rank: number; points: number }>> = {};
-  const teamCount = standings.length;
-
-  for (const cat of catNames) {
-    const sorted = [...standings].sort((a, b) =>
-      compareCategoryValues(cat, a.stats[cat] ?? 0, b.stats[cat] ?? 0),
-    );
-
-    const map = new Map<string, { rank: number; points: number }>();
-
-    sorted.forEach((row, index) => {
-      const value = row.stats[cat] ?? 0;
-      const rank = index + 1;
-      const points = isEmptyStatValue(value)
-        ? 0
-        : Math.max(1, teamCount - index);
-
-      map.set(row.teamName, { rank, points });
-    });
-
-    output[cat] = map;
-  }
-
-  return output;
-}
-
-function computeRotoSummaries(
-  teamNames: string[],
-  catNames: string[],
-  rankMaps: Record<string, Map<string, { rank: number; points: number }>>,
-): Map<string, RotoSummary> {
-  const summaries = new Map<string, RotoSummary>();
-
-  for (const teamName of teamNames) {
-    const ranks: Record<string, number> = {};
-    const points: Record<string, number> = {};
-    let totalPoints = 0;
-
-    for (const cat of catNames) {
-      const row = rankMaps[cat]?.get(teamName);
-      const categoryRank = row?.rank ?? teamNames.length;
-      const categoryPoints = row?.points ?? 0;
-
-      ranks[cat] = categoryRank;
-      points[cat] = categoryPoints;
-      totalPoints += categoryPoints;
+    if (isLower) {
+      if (av === 0 && bv === 0) return 0;
+      if (av === 0) return 1;
+      if (bv === 0) return -1;
+      return av - bv;
     }
 
-    summaries.set(teamName, {
-      totalPoints,
-      ranks,
-      points,
-    });
+    return bv - av;
+  });
+  const ranks = new Map<string, number>();
+
+  sorted.forEach((row, index) => {
+    ranks.set(row.teamName, index + 1);
+  });
+
+  return ranks;
+}
+
+function rotoPointsForRank(rank: number, teamCount: number): number {
+  if (!Number.isFinite(rank) || rank < 1) {
+    return 1;
   }
+
+  return Math.max(1, teamCount - rank + 1);
+}
+
+function totalRotoPointsForTeam(
+  teamName: string,
+  standingCategories: StandingCategory[],
+  rankMaps: RankMap,
+  teamCount: number,
+): number {
+  let total = 0;
+
+  for (const cat of standingCategories) {
+    const rank = rankMaps[cat.label]?.get(teamName);
+
+    if (rank !== undefined) {
+      total += rotoPointsForRank(rank, teamCount);
+    }
+  }
+
+  return total;
+}
+
+function computeTeamRotoSummaries(
+  teamNames: string[],
+  standingCategories: StandingCategory[],
+  rankMaps: RankMap,
+): Map<string, RotoSummary> {
+  const teamCount = Math.max(teamNames.length, 1);
+  const pointsByTeam = new Map<string, number>();
+
+  for (const teamName of teamNames) {
+    pointsByTeam.set(
+      teamName,
+      totalRotoPointsForTeam(teamName, standingCategories, rankMaps, teamCount),
+    );
+  }
+
+  const sorted = [...teamNames].sort(
+    (a, b) => (pointsByTeam.get(b) ?? 0) - (pointsByTeam.get(a) ?? 0),
+  );
+  const summaries = new Map<string, RotoSummary>();
+
+  sorted.forEach((teamName, index) => {
+    summaries.set(teamName, {
+      totalPoints: pointsByTeam.get(teamName) ?? 0,
+      overallRank: index + 1,
+    });
+  });
 
   return summaries;
 }
@@ -575,34 +651,35 @@ function computeRotoSummaries(
 function compareStandingRows(
   a: StandingRow,
   b: StandingRow,
-  sortCat: string,
+  sortKey: string,
   sortAsc: boolean,
   summaries: Map<string, RotoSummary>,
 ): number {
-  if (sortCat === ROTO_POINTS_SORT_KEY) {
-    const av = summaries.get(a.teamName)?.totalPoints ?? 0;
-    const bv = summaries.get(b.teamName)?.totalPoints ?? 0;
-    const diff = bv - av;
+  if (sortKey === ROTO_POINTS_SORT_KEY) {
+    const diff =
+      (summaries.get(b.teamName)?.totalPoints ?? 0) -
+      (summaries.get(a.teamName)?.totalPoints ?? 0);
 
     return sortAsc ? -diff : diff;
   }
 
-  const diff = compareCategoryValues(
-    sortCat,
-    a.stats[sortCat] ?? 0,
-    b.stats[sortCat] ?? 0,
-  );
+  const diff = (a.stats[sortKey] ?? 0) - (b.stats[sortKey] ?? 0);
+  const statName = sortKey.split(":")[1] ?? sortKey;
+  const isLower = LOWER_IS_BETTER.has(normalizeCatName(statName).trim().toUpperCase());
+  const ranked = isLower ? diff : -diff;
 
-  return sortAsc ? -diff : diff;
+  return sortAsc ? -ranked : ranked;
 }
 
-function TeamStatPill({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function rankColor(rank: number, total: number): string {
+  const pct = rank / Math.max(total, 1);
+
+  if (pct <= 0.33) return colors.green;
+  if (pct <= 0.66) return colors.gold;
+  return "#fb7185";
+}
+
+function TeamStatPill({ label, value }: { label: string; value: string }) {
   return (
     <View
       style={{
@@ -641,28 +718,6 @@ function TeamStatPill({
   );
 }
 
-function PositionBadge({ label }: { label: string }) {
-  return (
-    <View
-      style={{
-        minWidth: 34,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: "#5b3a89",
-        backgroundColor: "#2c1a47",
-        paddingVertical: 3,
-        paddingHorizontal: 6,
-        marginRight: 8,
-        alignItems: "center",
-      }}
-    >
-      <Text style={{ color: "#f4e9ff", fontSize: 11, fontWeight: "900" }}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 function FilledSlotRow({ slot }: { slot: SlotRow }) {
   return (
     <View
@@ -689,7 +744,7 @@ function FilledSlotRow({ slot }: { slot: SlotRow }) {
           : "— empty —"}
       </Text>
 
-      {slot.price !== null ? (
+      {slot.price !== null && slot.price > 0 ? (
         <Text style={{ color: colors.gold, marginLeft: 6, fontWeight: "900" }}>
           {formatMoney(slot.price)}
         </Text>
@@ -707,23 +762,11 @@ function ReserveSummary({
   taxi: ReserveRow[];
   otherReserves: ReserveRow[];
 }) {
-  const total = minors.length + taxi.length + otherReserves.length;
-
-  if (total === 0) {
-    return (
-      <Text style={{ color: colors.muted, marginTop: 8 }}>
-        Minors 0 · Taxi 0
-      </Text>
-    );
-  }
-
   return (
-    <View style={{ marginTop: 10 }}>
-      <Text style={{ color: colors.muted, fontWeight: "800" }}>
-        Minors {minors.length} · Taxi {taxi.length}
-        {otherReserves.length > 0 ? ` · Reserves ${otherReserves.length}` : ""}
-      </Text>
-    </View>
+    <Text style={{ color: colors.muted, marginTop: 8 }}>
+      Minors {minors.length} · Taxi {taxi.length}
+      {otherReserves.length > 0 ? ` · Reserves ${otherReserves.length}` : ""}
+    </Text>
   );
 }
 
@@ -789,15 +832,11 @@ export default function LeagueOverviewScreen({ route }: Props) {
         league?.playerPool,
       ) ?? [],
   );
-  const [selectedTeamId, setSelectedTeamId] = useState("team_1");
-  const [edits, setEdits] = useState<Record<string, EntryEdit>>({});
   const [sortCat, setSortCat] = useState(ROTO_POINTS_SORT_KEY);
   const [sortAsc, setSortAsc] = useState(false);
   const [loading, setLoading] = useState(() => getRosterCached(leagueId) === null);
   const [refreshing, setRefreshing] = useState(false);
-  const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [showSelectedReserves, setShowSelectedReserves] = useState(false);
 
   const loadOverview = useCallback(
     async (mode: "load" | "refresh" = "load") => {
@@ -847,35 +886,8 @@ export default function LeagueOverviewScreen({ route }: Props) {
     void loadOverview("load");
   }, [loadOverview]);
 
-  useEffect(() => {
-    if (teamNames.length === 0) {
-      setSelectedTeamId("");
-      return;
-    }
-
-    setSelectedTeamId((previous) => {
-      if (previous) {
-        const index = Number.parseInt(previous.replace("team_", ""), 10) - 1;
-
-        if (index >= 0 && index < teamNames.length) {
-          return previous;
-        }
-      }
-
-      return "team_1";
-    });
-  }, [teamNames.length]);
-
-  const rosterSlotOptions = useMemo(() => {
-    return orderedRosterSlots(league?.rosterSlots ?? {});
-  }, [league]);
-
   const activeEntries = useMemo(() => {
     return entries.filter(isActiveAuctionEntry);
-  }, [entries]);
-
-  const reserveEntries = useMemo(() => {
-    return entries.filter(isReserveEntry);
   }, [entries]);
 
   const draftLog = useMemo(() => {
@@ -896,28 +908,12 @@ export default function LeagueOverviewScreen({ route }: Props) {
     );
   }, [league, teamNames, entries]);
 
-  const selectedTeamCard = useMemo(() => {
-    return teamCards.find((team) => team.teamId === selectedTeamId) ?? teamCards[0] ?? null;
-  }, [teamCards, selectedTeamId]);
-
   const totalActiveSpent = useMemo(() => {
     return activeEntries.reduce((sum, entry) => sum + entry.price, 0);
   }, [activeEntries]);
 
-  const selectedTeamActiveEntries = useMemo(() => {
-    return sortRosterEntries(
-      activeEntries.filter((entry) => entry.teamId === selectedTeamId),
-    );
-  }, [activeEntries, selectedTeamId]);
-
-  const selectedTeamReserveEntries = useMemo(() => {
-    return sortRosterEntries(
-      reserveEntries.filter((entry) => entry.teamId === selectedTeamId),
-    );
-  }, [reserveEntries, selectedTeamId]);
-
   const playerMap = useMemo(() => {
-    return buildPlayerMap(allPlayers);
+    return buildPlayerMapForStandings(allPlayers);
   }, [allPlayers]);
 
   const scoringCats = useMemo(() => {
@@ -930,21 +926,44 @@ export default function LeagueOverviewScreen({ route }: Props) {
     }));
   }, [league]);
 
-  const allCatNames = useMemo(() => {
-    return scoringCats.map((cat) => cat.name);
+  const standingCategories = useMemo(() => {
+    return makeStandingCategories(scoringCats);
   }, [scoringCats]);
 
-  const standings = useMemo(() => {
-    return buildProjectedStandings(teamNames, activeEntries, playerMap, scoringCats);
-  }, [teamNames, activeEntries, playerMap, scoringCats]);
+  useEffect(() => {
+    if (
+      sortCat !== ROTO_POINTS_SORT_KEY &&
+      !standingCategories.some((cat) => cat.key === sortCat)
+    ) {
+      setSortCat(ROTO_POINTS_SORT_KEY);
+      setSortAsc(false);
+    }
+  }, [sortCat, standingCategories]);
 
-  const rankMaps = useMemo(() => {
-    return computeRankMaps(standings, allCatNames);
-  }, [standings, allCatNames]);
+  const standings = useMemo(() => {
+    return buildProjectedStandings(
+      teamNames,
+      activeEntries,
+      playerMap,
+      standingCategories,
+    );
+  }, [teamNames, activeEntries, playerMap, standingCategories]);
+
+  const uniqueRankMaps = useMemo(() => {
+    return Object.fromEntries(
+      standingCategories.map((cat) => [cat.key, computeRanks(standings, cat.key)]),
+    );
+  }, [standings, standingCategories]);
+
+  const rotoRankMaps = useMemo(() => {
+    return Object.fromEntries(
+      standingCategories.map((cat) => [cat.label, computeRanks(standings, cat.key)]),
+    );
+  }, [standings, standingCategories]);
 
   const rotoSummaries = useMemo(() => {
-    return computeRotoSummaries(teamNames, allCatNames, rankMaps);
-  }, [teamNames, allCatNames, rankMaps]);
+    return computeTeamRotoSummaries(teamNames, standingCategories, rotoRankMaps);
+  }, [teamNames, standingCategories, rotoRankMaps]);
 
   const sortedStandings = useMemo(() => {
     return [...standings].sort((a, b) =>
@@ -969,91 +988,6 @@ export default function LeagueOverviewScreen({ route }: Props) {
     } else {
       setSortCat(cat);
       setSortAsc(false);
-    }
-  }
-
-  function getEdit(entry: RosterEntry): EntryEdit {
-    return (
-      edits[entry._id] ?? {
-        price: String(entry.price),
-        rosterSlot: entry.rosterSlot,
-        teamId: entry.teamId,
-        keeperContract: entry.keeperContract ?? "",
-      }
-    );
-  }
-
-  function updateEdit(entryId: string, patch: Partial<EntryEdit>) {
-    setEdits((current) => {
-      const entry = entries.find((item) => item._id === entryId);
-
-      if (!entry) return current;
-
-      const previous =
-        current[entryId] ?? {
-          price: String(entry.price),
-          rosterSlot: entry.rosterSlot,
-          teamId: entry.teamId,
-          keeperContract: entry.keeperContract ?? "",
-        };
-
-      return {
-        ...current,
-        [entryId]: {
-          ...previous,
-          ...patch,
-        },
-      };
-    });
-  }
-
-  async function handleSaveEntry(entry: RosterEntry) {
-    if (!token || !league) return;
-
-    const edit = getEdit(entry);
-    const parsedPrice = Number.parseInt(edit.price, 10);
-
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-      Alert.alert("Invalid price", "Price must be at least $0.");
-      return;
-    }
-
-    if (!edit.rosterSlot.trim()) {
-      Alert.alert("Invalid roster slot", "Roster slot cannot be empty.");
-      return;
-    }
-
-    setSavingEntryId(entry._id);
-
-    try {
-      const updated = await updateRosterEntry(
-        league.id,
-        entry._id,
-        {
-          price: parsedPrice,
-          rosterSlot: edit.rosterSlot.trim().toUpperCase(),
-          teamId: edit.teamId,
-          keeperContract: edit.keeperContract.trim() || undefined,
-        },
-        token,
-      );
-
-      setEntries((current) =>
-        current.map((item) => (item._id === entry._id ? updated : item)),
-      );
-
-      setEdits((current) => {
-        const next = { ...current };
-        delete next[entry._id];
-        return next;
-      });
-    } catch (err) {
-      Alert.alert(
-        "Save failed",
-        err instanceof Error ? err.message : "Could not save this roster entry.",
-      );
-    } finally {
-      setSavingEntryId(null);
     }
   }
 
@@ -1088,127 +1022,16 @@ export default function LeagueOverviewScreen({ route }: Props) {
     );
   }
 
-  function renderEditableEntry(entry: RosterEntry) {
-    const edit = getEdit(entry);
-    const isSaving = savingEntryId === entry._id;
-
-    return (
-      <View
-        key={entry._id}
-        style={{
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          paddingVertical: 12,
-        }}
-      >
-        <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
-          {entry.playerName}
-        </Text>
-
-        <Text style={{ color: colors.muted, marginTop: 2 }}>
-          {formatMlbTeam(entry.playerTeam) || "FA"} • {(entry.positions ?? []).join("/") || entry.rosterSlot}
-          {entry.isKeeper ? " • Keeper" : ""}
-          {entry.keeperContract ? ` • ${entry.keeperContract}` : ""}
-        </Text>
-
-        <View style={{ flexDirection: "row", marginTop: 10 }}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={{ color: colors.muted, marginBottom: 4 }}>Price</Text>
-            <TextInput
-              value={edit.price}
-              keyboardType="number-pad"
-              onChangeText={(value) => updateEdit(entry._id, { price: value })}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: 8,
-                padding: 10,
-              }}
-            />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.muted, marginBottom: 4 }}>Contract</Text>
-            <TextInput
-              value={edit.keeperContract}
-              onChangeText={(value) =>
-                updateEdit(entry._id, { keeperContract: value })
-              }
-              placeholder="Arb / 3Y"
-              placeholderTextColor={colors.muted}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: 8,
-                padding: 10,
-              }}
-            />
-          </View>
-        </View>
-
-        <Text style={{ color: colors.muted, marginTop: 10 }}>Slot</Text>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-          {[...rosterSlotOptions, "MIN", "TAXI"].map((slot) => (
-            <AppChip
-              key={slot}
-              label={slot}
-              selected={edit.rosterSlot === slot}
-              onPress={() => updateEdit(entry._id, { rosterSlot: slot })}
-              style={{ marginRight: 8 }}
-            />
-          ))}
-        </ScrollView>
-
-        <Text style={{ color: colors.muted, marginTop: 10 }}>Move to team</Text>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-          {teamNames.map((teamName, index) => {
-            const teamId = teamIdFromIndex(index);
-
-            return (
-              <AppChip
-                key={teamId}
-                label={teamName}
-                selected={edit.teamId === teamId}
-                onPress={() => updateEdit(entry._id, { teamId })}
-                style={{ marginRight: 8 }}
-              />
-            );
-          })}
-        </ScrollView>
-
-        <View style={{ flexDirection: "row", marginTop: 12 }}>
-          <DraftButton
-            label={isSaving ? "Saving..." : "Save"}
-            onPress={() => void handleSaveEntry(entry)}
-          />
-
-          <DraftButton
-            label="Remove"
-            tone="danger"
-            onPress={() => handleRemoveEntry(entry)}
-          />
-        </View>
-      </View>
-    );
-  }
-
   if (!league) {
     return (
-      <SafeAreaView style={{ flex: 1, padding: 16, backgroundColor: colors.bg }}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, padding: 16, backgroundColor: colors.bg }}>
         <EmptyState label="League not found." />
       </SafeAreaView>
     );
   }
 
-  const selectedTeamName = teamNameFromId(selectedTeamId, teamNames);
-  const selectedTeamRemaining = selectedTeamCard?.budgetRemaining ?? league.budget;
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16 }}
@@ -1315,23 +1138,16 @@ export default function LeagueOverviewScreen({ route }: Props) {
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {teamCards.map((team) => (
-                  <TouchableOpacity
+                  <View
                     key={team.teamId}
-                    activeOpacity={0.86}
-                    onPress={() => {
-                      setSelectedTeamId(team.teamId);
-                      setShowSelectedReserves(false);
-                    }}
                     style={{
                       width: 278,
                       borderWidth: 1,
-                      borderColor:
-                        selectedTeamId === team.teamId ? colors.purple2 : colors.border,
+                      borderColor: colors.border,
                       borderRadius: 16,
                       padding: 12,
                       marginRight: 12,
-                      backgroundColor:
-                        selectedTeamId === team.teamId ? colors.surface2 : colors.surface,
+                      backgroundColor: colors.surface,
                     }}
                   >
                     <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
@@ -1352,18 +1168,12 @@ export default function LeagueOverviewScreen({ route }: Props) {
                     </View>
 
                     <View style={{ marginTop: 4 }}>
-                      {team.slots.slice(0, 13).map((slot, index) => (
+                      {team.slots.map((slot, index) => (
                         <FilledSlotRow
                           key={`${team.teamId}-${slot.position}-${index}`}
                           slot={slot}
                         />
                       ))}
-
-                      {team.slots.length > 13 ? (
-                        <Text style={{ color: colors.muted, marginTop: 6 }}>
-                          +{team.slots.length - 13} more active slots
-                        </Text>
-                      ) : null}
                     </View>
 
                     <ReserveSummary
@@ -1371,28 +1181,7 @@ export default function LeagueOverviewScreen({ route }: Props) {
                       taxi={team.taxi}
                       otherReserves={team.otherReserves}
                     />
-
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      onPress={() => {
-                        setSelectedTeamId(team.teamId);
-                        setShowSelectedReserves(true);
-                      }}
-                      style={{
-                        marginTop: 10,
-                        borderWidth: 1,
-                        borderColor: "#6d3fb8",
-                        backgroundColor: "#2a1845",
-                        borderRadius: 8,
-                        paddingVertical: 8,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text style={{ color: "#e9d5ff", fontWeight: "900", fontSize: 12 }}>
-                        VIEW ROSTER
-                      </Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
+                  </View>
                 ))}
               </ScrollView>
             </AppCard>
@@ -1414,14 +1203,20 @@ export default function LeagueOverviewScreen({ route }: Props) {
               </Text>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {[ROTO_POINTS_SORT_KEY, ...allCatNames].map((cat) => (
+                {[
+                  { key: ROTO_POINTS_SORT_KEY, label: "Pts" },
+                  ...standingCategories.map((cat) => ({
+                    key: cat.key,
+                    label: cat.label,
+                  })),
+                ].map((cat) => (
                   <AppChip
-                    key={cat}
-                    label={`${cat === ROTO_POINTS_SORT_KEY ? "Pts" : cat}${
-                      sortCat === cat ? (sortAsc ? " ↑" : " ↓") : ""
+                    key={cat.key}
+                    label={`${cat.label}${
+                      sortCat === cat.key ? (sortAsc ? " ↑" : " ↓") : ""
                     }`}
-                    selected={sortCat === cat}
-                    onPress={() => toggleSort(cat)}
+                    selected={sortCat === cat.key}
+                    onPress={() => toggleSort(cat.key)}
                     style={{ marginRight: 8 }}
                   />
                 ))}
@@ -1429,14 +1224,17 @@ export default function LeagueOverviewScreen({ route }: Props) {
 
               {sortedStandings.map((row, index) => {
                 const summary = rotoSummaries.get(row.teamName);
+                const selectedCategory = standingCategories.find(
+                  (cat) => cat.key === sortCat,
+                );
                 const sortValue =
                   sortCat === ROTO_POINTS_SORT_KEY
                     ? summary?.totalPoints ?? 0
                     : row.stats[sortCat] ?? 0;
                 const sortRank =
                   sortCat === ROTO_POINTS_SORT_KEY
-                    ? index + 1
-                    : summary?.ranks[sortCat] ?? index + 1;
+                    ? summary?.overallRank ?? index + 1
+                    : uniqueRankMaps[sortCat]?.get(row.teamName) ?? index + 1;
 
                 return (
                   <View
@@ -1454,7 +1252,7 @@ export default function LeagueOverviewScreen({ route }: Props) {
                     <Text style={{ color: colors.muted, marginTop: 3 }}>
                       {sortCat === ROTO_POINTS_SORT_KEY
                         ? `Total roto points: ${summary?.totalPoints ?? 0}`
-                        : `${sortCat}: ${formatStatCell(sortCat, sortValue)} · rank #${sortRank}`}
+                        : `${selectedCategory?.label ?? sortCat}: ${formatStatCell(selectedCategory?.label ?? sortCat, sortValue)} · rank #${sortRank}`}
                     </Text>
 
                     <View
@@ -1464,29 +1262,29 @@ export default function LeagueOverviewScreen({ route }: Props) {
                         marginTop: 8,
                       }}
                     >
-                      {allCatNames.map((cat) => {
-                        const value = row.stats[cat] ?? 0;
-                        const rank = summary?.ranks[cat] ?? 0;
-                        const points = summary?.points[cat] ?? 0;
-                        const empty = isEmptyStatValue(value);
+                      {standingCategories.map((cat) => {
+                        const value = row.stats[cat.key] ?? 0;
+                        const rank = rotoRankMaps[cat.label]?.get(row.teamName) ?? teamNames.length;
+                        const points = rotoPointsForRank(rank, teamNames.length);
+                        const empty = isStatCellEmpty(value);
 
                         return (
                           <Text
-                            key={cat}
+                            key={cat.key}
                             style={{
                               width: "50%",
-                              color: cat === sortCat ? colors.gold : colors.muted,
+                              color: cat.key === sortCat ? colors.gold : colors.muted,
                               fontSize: 12,
                               marginBottom: 4,
                             }}
                           >
-                            <Text style={{ fontWeight: "900" }}>{cat}</Text>{" "}
+                            <Text style={{ fontWeight: "900" }}>{cat.label}</Text>{" "}
                             <Text
                               style={{
                                 color: empty ? colors.muted : rankColor(rank, teamNames.length),
                               }}
                             >
-                              {formatStatCell(cat, value)}
+                              {formatStatCell(cat.label, value)}
                             </Text>{" "}
                             · {points} pts
                           </Text>
@@ -1496,70 +1294,6 @@ export default function LeagueOverviewScreen({ route }: Props) {
                   </View>
                 );
               })}
-            </AppCard>
-
-            <AppCard>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  marginBottom: 4,
-                }}
-              >
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
-                    {selectedTeamName} Roster
-                  </Text>
-
-                  <Text style={{ color: colors.muted, marginTop: 4 }}>
-                    Active {selectedTeamCard?.rosterFilled ?? 0}/{selectedTeamCard?.rosterTotal ?? 0}
-                    {" · "}
-                    Minors {selectedTeamCard?.minors.length ?? 0}
-                    {" · "}
-                    Taxi {selectedTeamCard?.taxi.length ?? 0}
-                    {" · "}
-                    {formatMoney(selectedTeamRemaining)} remaining
-                  </Text>
-                </View>
-
-                <AppChip
-                  label={showSelectedReserves ? "Active" : "Reserves"}
-                  selected
-                  onPress={() => setShowSelectedReserves((value) => !value)}
-                />
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 12 }}>
-                {teamNames.map((teamName, index) => {
-                  const teamId = teamIdFromIndex(index);
-
-                  return (
-                    <AppChip
-                      key={teamId}
-                      label={teamName}
-                      selected={selectedTeamId === teamId}
-                      onPress={() => {
-                        setSelectedTeamId(teamId);
-                        setShowSelectedReserves(false);
-                      }}
-                      style={{ marginRight: 8 }}
-                    />
-                  );
-                })}
-              </ScrollView>
-
-              {showSelectedReserves ? (
-                selectedTeamReserveEntries.length === 0 ? (
-                  <EmptyState label="No reserve, minors, or taxi players for this team." />
-                ) : (
-                  selectedTeamReserveEntries.map(renderEditableEntry)
-                )
-              ) : selectedTeamActiveEntries.length === 0 ? (
-                <EmptyState label="No active players on this team yet." />
-              ) : (
-                selectedTeamActiveEntries.map(renderEditableEntry)
-              )}
             </AppCard>
 
             <AppCard>
@@ -1606,22 +1340,27 @@ export default function LeagueOverviewScreen({ route }: Props) {
                           {entry.playerName}
                         </Text>
 
-                        <Text style={{ color: colors.muted, marginTop: 2 }}>
-                          {formatMlbTeam(entry.playerTeam) || "FA"} ·{" "}
-                          {teamNameFromId(entry.teamId, teamNames)} ·{" "}
-                          {entry.rosterSlot} · {formatMoney(entry.price)}
-                        </Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            marginTop: 4,
+                          }}
+                        >
+                          <Text style={{ color: colors.muted, marginRight: 4 }}>
+                            {formatMlbTeam(entry.playerTeam) || "FA"} ·{" "}
+                            {teamNameFromId(entry.teamId, teamNames)} ·
+                          </Text>
+                          <PositionBadge label={entry.rosterSlot} small />
+                          <Text style={{ color: colors.muted }}>
+                            {formatMoney(entry.price)}
+                          </Text>
+                        </View>
                       </View>
                     </View>
 
                     <View style={{ flexDirection: "row", marginTop: 8 }}>
-                      <DraftButton
-                        label="Edit in roster"
-                        onPress={() => {
-                          setSelectedTeamId(entry.teamId);
-                          setShowSelectedReserves(false);
-                        }}
-                      />
                       <DraftButton
                         label="Remove"
                         tone="danger"

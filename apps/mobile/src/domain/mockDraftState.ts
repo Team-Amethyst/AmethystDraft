@@ -30,7 +30,14 @@ export interface MockDraftState {
   log: DraftLogEntry[];
   suggestion: { player: Player; reason: string } | null;
   pendingAIBids: string[];
+  isRebidRound: boolean;
   message: string;
+  checkpointHydration?: {
+    checkpointKey: string;
+    rosterSlots: Record<string, number>;
+    budget: number;
+    teamNames: string[];
+  };
 }
 
 export const initialMockDraftState: MockDraftState = {
@@ -46,5 +53,6 @@ export const initialMockDraftState: MockDraftState = {
   log: [],
   suggestion: null,
   pendingAIBids: [],
+  isRebidRound: false,
   message: "",
 };

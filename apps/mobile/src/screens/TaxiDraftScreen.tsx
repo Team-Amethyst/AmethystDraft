@@ -17,6 +17,7 @@ import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import AppButton from "../components/ui/AppButton";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
+import PositionBadge from "../components/ui/PositionBadge";
 import { EmptyState, ErrorState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -40,26 +41,6 @@ import {
 } from "../utils/taxiDraftPersistence";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "TaxiDraft">;
-
-const positionColors: Record<string, string> = {
-  C: "#ef4444",
-  "1B": "#f59e0b",
-  "2B": "#38bdf8",
-  SS: "#22d3ee",
-  "3B": "#f97316",
-  MI: "#8b5cf6",
-  CI: "#8b5cf6",
-  OF: "#22c55e",
-  LF: "#22c55e",
-  CF: "#22c55e",
-  RF: "#22c55e",
-  UTIL: "#94a3b8",
-  SP: "#818cf8",
-  RP: "#ec4899",
-  P: "#818cf8",
-  BN: "#64748b",
-  DH: "#a855f7",
-};
 
 function teamIdFromIndex(index: number): string {
   return index.toString();
@@ -113,6 +94,19 @@ function displayPositions(player: Player | undefined): string {
   return positions.filter(Boolean).join(", ");
 }
 
+function positionTokens(player: Player | undefined): string[] {
+  if (!player) return [];
+
+  const positions = player.positions?.length
+    ? player.positions
+    : [player.position];
+
+  return positions
+    .flatMap((position) => String(position ?? "").split(/[/,|]/))
+    .map((position) => position.trim().toUpperCase())
+    .filter(Boolean);
+}
+
 function primaryPosition(player: Player | undefined): string {
   if (!player) return "—";
 
@@ -137,36 +131,6 @@ function SectionLabel({ children }: { children: string }) {
     >
       {children}
     </Text>
-  );
-}
-
-function PositionBadge({ label }: { label: string }) {
-  const normalized = label.toUpperCase();
-  const color = positionColors[normalized] ?? colors.purple2;
-
-  return (
-    <View
-      style={{
-        minWidth: 42,
-        borderWidth: 1,
-        borderColor: color,
-        backgroundColor: `${color}22`,
-        borderRadius: 7,
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-        alignItems: "center",
-      }}
-    >
-      <Text
-        style={{
-          color,
-          fontSize: 11,
-          fontWeight: "900",
-        }}
-      >
-        {normalized}
-      </Text>
-    </View>
   );
 }
 
@@ -459,14 +423,14 @@ export default function TaxiDraftScreen({ route }: Props) {
 
   if (!league) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, padding: 16 }}>
+      <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: colors.bg, padding: 16 }}>
         <EmptyState label="League not found." />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
@@ -739,10 +703,26 @@ export default function TaxiDraftScreen({ route }: Props) {
                         {player.name}
                       </Text>
 
-                      <Text style={{ color: colors.muted, marginTop: 3 }}>
-                        {player.team} · {displayPositions(player)} · ADP{" "}
-                        {player.adp ?? "—"}
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          marginTop: 5,
+                        }}
+                      >
+                        <Text style={{ color: colors.muted, marginRight: 7, marginBottom: 5 }}>
+                          {player.team}
+                        </Text>
+
+                        {positionTokens(player).map((position) => (
+                          <PositionBadge key={position} label={position} small />
+                        ))}
+
+                        <Text style={{ color: colors.muted, marginBottom: 5 }}>
+                          ADP {player.adp ?? "—"}
+                        </Text>
+                      </View>
                     </View>
 
                     <Text style={{ color: colors.gold, fontWeight: "900" }}>

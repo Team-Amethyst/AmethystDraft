@@ -249,11 +249,13 @@ function Sheet({
   title,
   onClose,
   children,
+  height = "68%",
 }: {
   visible: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
+  height?: `${number}%` | number;
 }) {
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
@@ -263,7 +265,7 @@ function Sheet({
           backgroundColor: "rgba(0, 0, 0, 0.55)",
           justifyContent: "flex-start",
           alignItems: "flex-end",
-          paddingTop: 76,
+          paddingTop: 78,
           paddingHorizontal: 12,
         }}
       >
@@ -282,7 +284,7 @@ function Sheet({
           style={{
             width: "100%",
             maxWidth: 410,
-            height: "78%",
+            height,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.surface,
@@ -407,6 +409,15 @@ export default function LeagueHeaderActions({
     });
   }
 
+  function openLeagueSettings(league: League) {
+    setLeagueSheetOpen(false);
+
+    navigation.navigate("LeagueSettings", {
+      leagueId: league.id,
+      leagueName: league.name,
+    });
+  }
+
   async function handleLogout() {
     setAccountSheetOpen(false);
     await logout();
@@ -420,7 +431,7 @@ export default function LeagueHeaderActions({
   return (
     <>
       <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
-        <ShellButton minWidth={116} onPress={() => void openLeagueSheet()}>
+        <ShellButton minWidth={104} onPress={() => void openLeagueSheet()}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text
               numberOfLines={1}
@@ -428,7 +439,7 @@ export default function LeagueHeaderActions({
                 color: colors.text,
                 fontSize: 12,
                 fontWeight: "900",
-                maxWidth: 96,
+                maxWidth: 88,
               }}
             >
               {currentLeague?.name ?? leagueName}
@@ -481,6 +492,7 @@ export default function LeagueHeaderActions({
         visible={leagueSheetOpen}
         title={currentLeague?.name ?? leagueName}
         onClose={() => setLeagueSheetOpen(false)}
+        height="58%"
       >
         <ScrollView style={{ flex: 1 }}>
           {allLeagues.length === 0 ? (
@@ -492,64 +504,86 @@ export default function LeagueHeaderActions({
               const selected = league.id === leagueId;
 
               return (
-                <TouchableOpacity
+                <View
                   key={league.id}
-                  activeOpacity={0.84}
-                  onPress={() => switchLeague(league)}
                   style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
+                    flexDirection: "row",
+                    alignItems: "stretch",
                     borderBottomWidth: 1,
                     borderBottomColor: colors.border,
                     backgroundColor: selected ? "#2a1d45" : colors.surface,
                   }}
                 >
-                  <View
+                  <TouchableOpacity
+                    activeOpacity={0.84}
+                    onPress={() => switchLeague(league)}
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
+                      flex: 1,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
                     }}
                   >
-                    <View style={{ flex: 1, paddingRight: 12 }}>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          color: colors.text,
-                          fontWeight: "900",
-                          fontSize: 15,
-                        }}
-                      >
-                        {league.name}
-                      </Text>
-
-                      <Text style={{ color: colors.muted, marginTop: 4, fontSize: 12 }}>
-                        {league.teams} teams · ${league.budget} budget
-                      </Text>
-                    </View>
-
                     <View
                       style={{
-                        borderWidth: 1,
-                        borderColor: selected ? colors.purple2 : colors.border,
-                        backgroundColor: selected ? colors.purple : colors.surface2,
-                        borderRadius: 999,
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                       }}
                     >
-                      <Text
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            color: colors.text,
+                            fontWeight: "900",
+                            fontSize: 15,
+                          }}
+                        >
+                          {league.name}
+                        </Text>
+
+                        <Text style={{ color: colors.muted, marginTop: 4, fontSize: 12 }}>
+                          {league.teams} teams · ${league.budget} budget
+                        </Text>
+                      </View>
+
+                      <View
                         style={{
-                          color: selected ? colors.white : colors.purple2,
-                          fontSize: 11,
-                          fontWeight: "900",
+                          borderWidth: 1,
+                          borderColor: selected ? colors.purple2 : colors.border,
+                          backgroundColor: selected ? colors.purple : colors.surface2,
+                          borderRadius: 999,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
                         }}
                       >
-                        {leagueStatusLabel(league)}
-                      </Text>
+                        <Text
+                          style={{
+                            color: selected ? colors.white : colors.purple2,
+                            fontSize: 11,
+                            fontWeight: "900",
+                          }}
+                        >
+                          {leagueStatusLabel(league)}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.84}
+                    onPress={() => openLeagueSettings(league)}
+                    style={{
+                      width: 52,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderLeftWidth: 1,
+                      borderLeftColor: colors.border,
+                    }}
+                  >
+                    <Ionicons name="settings-outline" size={20} color={colors.purple2} />
+                  </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -576,6 +610,7 @@ export default function LeagueHeaderActions({
         visible={alertsSheetOpen}
         title="Intelligence Alerts"
         onClose={() => setAlertsSheetOpen(false)}
+        height="84%"
       >
         <View style={{ flex: 1 }}>
           <View
@@ -769,6 +804,7 @@ export default function LeagueHeaderActions({
         visible={accountSheetOpen}
         title={`Hi, ${displayName}`}
         onClose={() => setAccountSheetOpen(false)}
+        height="48%"
       >
         <View style={{ padding: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>

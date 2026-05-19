@@ -70,6 +70,18 @@ const STEP_LABELS: Record<LeagueWizardStep, string> = {
   4: "Keepers",
 };
 
+function demoLeagueName(key: EngineCheckpointKey): string {
+  const label = checkpointLabel(key).replace(/-/g, " ").toLowerCase();
+  return "[Demo] " + label;
+}
+
+function demoTeamNames(count: number): string[] {
+  return Array.from({ length: Math.max(1, count) }, (_, index) => {
+    if (index < 26) return "Team " + String.fromCharCode(65 + index);
+    return "Team " + String(index + 1);
+  });
+}
+
 function fieldLabel(label: string) {
   return (
     <Text
@@ -455,38 +467,41 @@ export default function CreateLeagueScreen({ navigation, route }: Props) {
       const raw = await fetchEngineCheckpointJson(token, selectedCheckpoint);
       const preset = extractCheckpointPreset(raw);
 
-      if (!preset) {
-        if (!silent) {
-          Alert.alert(
-            "Preset loaded",
-            "The checkpoint was reachable, but it did not expose editable league settings. You can still create the demo league directly.",
-          );
-        }
-        return;
-      }
+      const nextTeamCount = clampNumber(
+        preset?.teams ?? 9,
+        LEAGUE_TEAMS_MIN,
+        LEAGUE_TEAMS_MAX,
+      );
 
-      if (preset.name) setName(preset.name);
-      if (preset.teams) setTeamsRaw(String(preset.teams));
-      if (preset.budget) setBudgetRaw(String(preset.budget));
-      if (preset.posEligibilityThreshold) {
+      setName(demoLeagueName(selectedCheckpoint));
+      setTeamsRaw(String(nextTeamCount));
+      setTeamNames(
+        normalizeTeamNames(
+          nextTeamCount,
+          preset?.teamNames?.length ? preset.teamNames : demoTeamNames(nextTeamCount),
+        ),
+      );
+
+      if (preset?.budget) setBudgetRaw(String(preset.budget));
+
+      if (preset?.posEligibilityThreshold) {
         setPosEligibilityRaw(String(preset.posEligibilityThreshold));
       }
-      if (preset.seasonYear) setSeasonYearRaw(String(preset.seasonYear));
-      if (preset.playerPool) setPlayerPool(preset.playerPool);
-      if (preset.rosterSlots) {
+
+      if (preset?.seasonYear) setSeasonYearRaw(String(preset.seasonYear));
+      if (preset?.playerPool) setPlayerPool(preset.playerPool);
+
+      if (preset?.rosterSlots) {
         setRosterSlots(normalizeRosterSlots(preset.rosterSlots));
       }
-      if (preset.teamNames?.length) {
-        setTeamNames(
-          normalizeTeamNames(preset.teams ?? teamCount, preset.teamNames),
-        );
-      }
-      if (preset.scoringCategories?.length) {
+
+      if (preset?.scoringCategories?.length) {
         setHittingStats(
           preset.scoringCategories
             .filter((category) => category.type === "batting")
             .map((category) => category.name),
         );
+
         setPitchingStats(
           preset.scoringCategories
             .filter((category) => category.type === "pitching")
@@ -518,7 +533,7 @@ export default function CreateLeagueScreen({ navigation, route }: Props) {
     try {
       const league = await createLeagueFromEngineCheckpoint(token, {
         checkpoint_key: selectedCheckpoint,
-        name: name.trim() || DEFAULT_LEAGUE_NAME,
+        name: demoLeagueName(selectedCheckpoint),
         seasonYear,
       });
 
@@ -690,7 +705,7 @@ export default function CreateLeagueScreen({ navigation, route }: Props) {
 
                   <View style={{ flex: 1 }}>
                     <AppButton
-                      title={`Create ${checkpointLabel(selectedCheckpoint)} demo & open`}
+                      title="Create demo league & open"
                       loading={loadingCheckpoint}
                       disabled={loadingCheckpoint}
                       onPress={() => void handleCreateDemoLeague()}

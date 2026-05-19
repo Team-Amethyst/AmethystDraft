@@ -1,6 +1,7 @@
 import { Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import AppButton from "./ui/AppButton";
 import AppCard from "./ui/AppCard";
+import PositionBadge from "./ui/PositionBadge";
 import { colors } from "../theme/colors";
 import type { ValuationResult } from "../api/engine";
 import type { Player } from "../types/player";
@@ -339,25 +340,6 @@ function ProfileLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PositionBadge({ label }: { label: string }) {
-  return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: "#4c3575",
-        backgroundColor: "#1b1428",
-        borderRadius: 5,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        marginRight: 5,
-        marginTop: 5,
-      }}
-    >
-      <Text style={{ color: "#ddd6fe", fontSize: 11, fontWeight: "900" }}>{label}</Text>
-    </View>
-  );
-}
-
 function ExplanationList({ engineRow }: { engineRow?: ValuationResult }) {
   const rows: string[] = [];
 
@@ -502,7 +484,7 @@ export default function PlayerDetailModal({
                   {player.name}
                 </Text>
                 <Text style={{ color: colors.muted, fontSize: 15, marginTop: 7 }}>
-                  {player.team || "FA"} • {player.position || "—"}
+                  {player.team || "FA"}
                 </Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 7 }}>
                   {positions.slice(0, 5).map((position) => (
@@ -663,4 +645,5 @@ export default function PlayerDetailModal({
     </Modal>
   );
 }
+
 

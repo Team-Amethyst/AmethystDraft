@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -26,6 +27,7 @@ import {
 import PlayerDetailModal from "../components/PlayerDetailModal";
 import AppCard from "../components/ui/AppCard";
 import AppChip from "../components/ui/AppChip";
+import PositionBadge from "../components/ui/PositionBadge";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLeague } from "../contexts/LeagueContext";
@@ -55,7 +57,9 @@ import {
 import {
   type StatBasis,
   formatResearchStatSummaryLine,
+  getDisplayStatValue,
   parseStatBasis,
+  resolveDisplayStats,
   RESEARCH_STAT_BASIS_STORAGE_KEY_MOBILE,
 } from "@repo/player-stat-basis";
 
@@ -84,19 +88,9 @@ type ResearchSort =
   | "auction_value"
   | "auction_rank"
   | "market_adp"
-  | "r_w"
-  | "hr_k"
-  | "rbi_era"
-  | "sb_whip"
-  | "avg_sv"
-  | "obp_ip"
-  | "slg_hld"
-  | "tb_cg"
-  | "h"
-  | "bb"
-  | "k"
   | "model_tier"
-  | "model_rank";
+  | "model_rank"
+  | `stat:${string}:${string}`;
 
 type PositionFilter =
   | "ALL"
@@ -159,49 +153,90 @@ const CORE_SORT_OPTIONS: SortOption[] = [
   { label: "Auction Value", value: "auction_value" },
 ];
 
-const STAT_SORT_OPTIONS: StatSortOption[] = [
-  { label: "R / W", value: "r_w", hitting: "R", pitching: "W" },
-  { label: "HR / K", value: "hr_k", hitting: "HR", pitching: "K" },
-  { label: "RBI / ERA", value: "rbi_era", hitting: "RBI", pitching: "ERA" },
-  { label: "SB / WHIP", value: "sb_whip", hitting: "SB", pitching: "WHIP" },
-  { label: "AVG / SV", value: "avg_sv", hitting: "AVG", pitching: "SV" },
-  { label: "OBP / IP", value: "obp_ip", hitting: "OBP", pitching: "IP" },
-  { label: "SLG / HLD", value: "slg_hld", hitting: "SLG", pitching: "HLD" },
-  { label: "TB / CG", value: "tb_cg", hitting: "TB", pitching: "CG" },
-  { label: "H", value: "h", hitting: "H" },
-  { label: "BB", value: "bb", hitting: "BB" },
-  { label: "K", value: "k", hitting: "K", pitching: "K" },
-];
-
 const MODEL_SORT_OPTIONS: SortOption[] = [
   { label: "Model Tier", value: "model_tier" },
   { label: "Model Rank", value: "model_rank" },
 ];
 
-function statSortOptionIsAvailable(
-  option: StatSortOption,
+function makeStatSortValue(
+  hitting: string | undefined,
+  pitching: string | undefined,
+): ResearchSort {
+  return `stat:${hitting ?? ""}:${pitching ?? ""}` as ResearchSort;
+}
+
+function parseStatSortValue(
+  sortBy: ResearchSort,
+): { hitting?: string; pitching?: string } | null {
+  if (!sortBy.startsWith("stat:")) {
+    return null;
+  }
+
+  const parts = sortBy.split(":");
+  const hitting = parts[1] || undefined;
+  const pitching = parts[2] || undefined;
+
+  return { hitting, pitching };
+}
+
+function buildDynamicStatSortOptions(
   researchStatKeys: ResearchStatKeys,
-): boolean {
-  if (option.hitting && researchStatKeys.hitting.includes(option.hitting)) {
-    return true;
+  statViewFilter: StatViewFilter,
+): StatSortOption[] {
+  if (statViewFilter === "hitting") {
+    return researchStatKeys.hitting.map((key) => ({
+      label: key,
+      value: makeStatSortValue(key, undefined),
+      hitting: key,
+    }));
   }
 
-  if (option.pitching && researchStatKeys.pitching.includes(option.pitching)) {
-    return true;
+  if (statViewFilter === "pitching") {
+    return researchStatKeys.pitching.map((key) => ({
+      label: key,
+      value: makeStatSortValue(undefined, key),
+      pitching: key,
+    }));
   }
 
-  return false;
+  const options: StatSortOption[] = [];
+  const maxLength = Math.max(
+    researchStatKeys.hitting.length,
+    researchStatKeys.pitching.length,
+  );
+
+  for (let i = 0; i < maxLength; i += 1) {
+    const hitting = researchStatKeys.hitting[i];
+    const pitching = researchStatKeys.pitching[i];
+
+    if (!hitting && !pitching) {
+      continue;
+    }
+
+    const label =
+      hitting && pitching
+        ? `${hitting} / ${pitching}`
+        : hitting ?? pitching ?? "";
+
+    options.push({
+      label,
+      value: makeStatSortValue(hitting, pitching),
+      hitting,
+      pitching,
+    });
+  }
+
+  return options;
 }
 
 function sortOptionsForResearchStats(
   researchStatKeys: ResearchStatKeys,
   showEngineValues: boolean,
+  statViewFilter: StatViewFilter,
 ): SortOption[] {
   const baseOptions = [
     ...CORE_SORT_OPTIONS,
-    ...STAT_SORT_OPTIONS.filter((option) =>
-      statSortOptionIsAvailable(option, researchStatKeys),
-    ),
+    ...buildDynamicStatSortOptions(researchStatKeys, statViewFilter),
   ];
 
   if (showEngineValues) {
@@ -260,8 +295,8 @@ const MLB_TEAMS = [
   { id: 158, abbr: "MIL", name: "Milwaukee Brewers" },
 ];
 
-const HITTER_STAT_KEYS = ["R", "HR", "RBI", "SB", "AVG"];
-const PITCHER_STAT_KEYS = ["W", "K", "ERA", "WHIP", "SV"];
+const HITTER_STAT_KEYS = ["AVG", "HR", "RBI", "R", "SB"];
+const PITCHER_STAT_KEYS = ["ERA", "K", "W", "SV", "WHIP"];
 
 const SUPPORTED_HITTER_STAT_KEYS = [
   "R",
@@ -321,10 +356,16 @@ function normalizeStatKey(value: unknown): string | null {
   if (normalized === "RUNS") return "R";
   if (normalized === "HOME_RUNS" || normalized === "HOMERUNS" || normalized === "HOME RUNS") return "HR";
   if (normalized === "STOLEN_BASES" || normalized === "STOLEN BASES") return "SB";
+  if (normalized === "RUNS_BATTED_IN" || normalized === "RUNS BATTED IN") return "RBI";
   if (normalized === "BATTING_AVERAGE" || normalized === "BATTING AVERAGE") return "AVG";
+  if (normalized === "ON_BASE_PERCENTAGE" || normalized === "ON-BASE PERCENTAGE" || normalized === "ON BASE PERCENTAGE") return "OBP";
+  if (normalized === "SLUGGING_PERCENTAGE" || normalized === "SLUGGING PERCENTAGE") return "SLG";
   if (normalized === "TOTAL_BASES" || normalized === "TOTAL BASES") return "TB";
+  if (normalized === "WALKS") return "BB";
   if (normalized === "WINS") return "W";
   if (normalized === "STRIKEOUTS" || normalized === "SO") return "K";
+  if (normalized === "EARNED_RUN_AVERAGE" || normalized === "EARNED RUN AVERAGE") return "ERA";
+  if (normalized === "WALKS_+_HITS_PER_IP" || normalized === "WALKS + HITS PER IP" || normalized === "WALKS AND HITS PER IP") return "WHIP";
   if (normalized === "SAVES") return "SV";
   if (normalized === "HOLDS") return "HLD";
   if (normalized === "INNINGS_PITCHED" || normalized === "INNINGS PITCHED") return "IP";
@@ -333,11 +374,50 @@ function normalizeStatKey(value: unknown): string | null {
   return normalized;
 }
 
+function statAbbrevFromScoringCategoryName(name: string): string {
+  const match = name.match(/\(([^)]+)\)\s*$/);
+  return normalizeStatKey(match?.[1] ?? name) ?? name.trim().toUpperCase();
+}
+
+function scoringCategoryType(value: unknown): "hitting" | "pitching" | null {
+  if (!value || typeof value !== "object") return null;
+
+  const record = value as Record<string, unknown>;
+  const rawType = typeof record.type === "string" ? record.type.toLowerCase() : "";
+
+  if (rawType === "batting" || rawType === "hitting" || rawType === "hitters" || rawType === "offense") {
+    return "hitting";
+  }
+
+  if (rawType === "pitching" || rawType === "pitchers") {
+    return "pitching";
+  }
+
+  return null;
+}
+
+function scoringCategoryName(value: unknown): string | null {
+  if (typeof value === "string") return value;
+
+  if (!value || typeof value !== "object") return null;
+
+  const record = value as Record<string, unknown>;
+
+  if (typeof record.name === "string") return record.name;
+  if (typeof record.label === "string") return record.label;
+  if (typeof record.key === "string") return record.key;
+
+  return null;
+}
+
 function uniqueSupportedStats(values: unknown[], supported: string[], fallback: string[]): string[] {
   const result: string[] = [];
 
   for (const value of values) {
-    const normalized = normalizeStatKey(value);
+    const name = scoringCategoryName(value);
+    const normalized = name
+      ? statAbbrevFromScoringCategoryName(name)
+      : normalizeStatKey(value);
 
     if (normalized && supported.includes(normalized) && !result.includes(normalized)) {
       result.push(normalized);
@@ -395,23 +475,50 @@ function getLeagueResearchStatKeys(league: unknown): ResearchStatKeys {
   const scoringCategories = record?.scoringCategories;
 
   if (Array.isArray(scoringCategories)) {
-    const normalized = scoringCategories
-      .map(normalizeStatKey)
-      .filter((value): value is string => Boolean(value));
+    const hittingRaw: string[] = [];
+    const pitchingRaw: string[] = [];
+    const untypedRaw: string[] = [];
 
-    const hitting = uniqueSupportedStats(
-      normalized.filter((value) => SUPPORTED_HITTER_STAT_KEYS.includes(value)),
-      SUPPORTED_HITTER_STAT_KEYS,
-      HITTER_STAT_KEYS,
-    );
+    for (const category of scoringCategories) {
+      const name = scoringCategoryName(category);
+      if (!name) continue;
 
-    const pitching = uniqueSupportedStats(
-      normalized.filter((value) => SUPPORTED_PITCHER_STAT_KEYS.includes(value)),
-      SUPPORTED_PITCHER_STAT_KEYS,
-      PITCHER_STAT_KEYS,
-    );
+      const abbrev = statAbbrevFromScoringCategoryName(name);
+      const type = scoringCategoryType(category);
 
-    return { hitting, pitching };
+      if (type === "hitting") {
+        hittingRaw.push(abbrev);
+      } else if (type === "pitching") {
+        pitchingRaw.push(abbrev);
+      } else {
+        untypedRaw.push(abbrev);
+      }
+    }
+
+    if (untypedRaw.length > 0) {
+      for (const abbrev of untypedRaw) {
+        if (SUPPORTED_HITTER_STAT_KEYS.includes(abbrev)) {
+          hittingRaw.push(abbrev);
+        }
+
+        if (SUPPORTED_PITCHER_STAT_KEYS.includes(abbrev)) {
+          pitchingRaw.push(abbrev);
+        }
+      }
+    }
+
+    return {
+      hitting: uniqueSupportedStats(
+        hittingRaw,
+        SUPPORTED_HITTER_STAT_KEYS,
+        HITTER_STAT_KEYS,
+      ),
+      pitching: uniqueSupportedStats(
+        pitchingRaw,
+        SUPPORTED_PITCHER_STAT_KEYS,
+        PITCHER_STAT_KEYS,
+      ),
+    };
   }
 
   return {
@@ -545,6 +652,71 @@ function getAuctionValue(player: Player, row?: ValuationResult): number {
   );
 }
 
+function lookupDraftedPrice(
+  map: ReadonlyMap<string, number> | undefined,
+  player: Player,
+): number | null {
+  if (!map) return null;
+
+  const direct = map.get(player.id);
+  if (typeof direct === "number" && Number.isFinite(direct)) return direct;
+
+  if (player.mlbId !== undefined && player.mlbId !== null) {
+    const byMlbId = map.get(String(player.mlbId));
+    if (typeof byMlbId === "number" && Number.isFinite(byMlbId)) return byMlbId;
+  }
+
+  return null;
+}
+
+function lookupDraftedContract(
+  map: ReadonlyMap<string, string> | undefined,
+  player: Player,
+): string | undefined {
+  if (!map) return undefined;
+
+  const direct = map.get(player.id);
+  if (direct) return direct;
+
+  if (player.mlbId !== undefined && player.mlbId !== null) {
+    return map.get(String(player.mlbId));
+  }
+
+  return undefined;
+}
+
+function parseDraftedPriceFromContract(contract: string | undefined): number | null {
+  if (!contract) return null;
+
+  const match = contract.match(/\$\s*(\d+(?:\.\d+)?)/);
+  if (!match?.[1]) return null;
+
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAuctionSortValue(
+  player: Player,
+  row: ValuationResult | undefined,
+  draftedIds: ReadonlySet<string> | undefined,
+  draftedPriceByPlayerId: ReadonlyMap<string, number> | undefined,
+  draftedContractByPlayerId: ReadonlyMap<string, string> | undefined,
+): number | null {
+  if (draftedIds && draftSetHasPlayer(draftedIds, player)) {
+    const paidPrice =
+      lookupDraftedPrice(draftedPriceByPlayerId, player) ??
+      parseDraftedPriceFromContract(
+        lookupDraftedContract(draftedContractByPlayerId, player),
+      );
+
+    if (paidPrice !== null) {
+      return paidPrice;
+    }
+  }
+
+  return getAuctionValue(player, row);
+}
+
 function getAuctionRank(player: Player, row?: ValuationResult): number | null {
   return (
     valuationNumber(row, "auction_rank") ??
@@ -611,6 +783,15 @@ function displayPosition(player: Player): string {
   return positions || "—";
 }
 
+function positionTokens(player: Player): string[] {
+  const source = player.positions?.length ? player.positions : [player.position];
+
+  return source
+    .flatMap((position) => String(position ?? "").split(/[/,|]/))
+    .map((position) => position.trim().toUpperCase())
+    .filter(Boolean);
+}
+
 function tierColor(tier: number): { backgroundColor: string; borderColor: string; color: string } {
   if (tier === 1) {
     return { backgroundColor: "#a855f7", borderColor: "#c084fc", color: "#ffffff" };
@@ -669,78 +850,9 @@ function parseStatSummary(summary: string): Record<string, number> {
   return stats;
 }
 
-function getNestedStat(player: Player, key: string, statBasis: StatBasis): number | null {
-  const data = player as unknown as {
-    stats?: {
-      batting?: Record<string, unknown>;
-      pitching?: Record<string, unknown>;
-    };
-    projection?: {
-      batting?: Record<string, unknown>;
-      pitching?: Record<string, unknown>;
-    };
-    projections?: {
-      batting?: Record<string, unknown>;
-      pitching?: Record<string, unknown>;
-    };
-    stats3yr?: {
-      batting?: Record<string, unknown>;
-      pitching?: Record<string, unknown>;
-    };
-  };
-
-  const normalizedKey = normalizeStatKey(key) ?? key.toUpperCase();
-  const hittingKey = SUPPORTED_HITTER_STAT_KEYS.includes(normalizedKey);
-  const pitchingKey = SUPPORTED_PITCHER_STAT_KEYS.includes(normalizedKey);
-  const side =
-    pitchingKey && (!hittingKey || isPitcher(player) || !hasHittingProfile(player))
-      ? "pitching"
-      : "batting";
-
-  const source =
-    statBasis === "projections"
-      ? data.projection?.[side] ?? data.projections?.[side]
-      : statBasis === "3-year-avg"
-        ? data.stats3yr?.[side] ??
-          data.stats?.[side] ??
-          data.projection?.[side] ??
-          data.projections?.[side]
-        : data.stats?.[side] ?? data.projection?.[side] ?? data.projections?.[side];
-
-  if (!source) return null;
-
-  const aliases: Record<string, string[]> = {
-    R: ["R", "r", "runs"],
-    HR: ["HR", "hr", "homeRuns"],
-    RBI: ["RBI", "rbi"],
-    SB: ["SB", "sb", "stolenBases"],
-    AVG: ["AVG", "avg"],
-    OBP: ["OBP", "obp"],
-    SLG: ["SLG", "slg"],
-    TB: ["TB", "tb", "totalBases"],
-    H: ["H", "h", "hits"],
-    BB: ["BB", "bb", "walks", "baseOnBalls"],
-    W: ["W", "w", "wins"],
-    K: ["K", "k", "so", "strikeouts"],
-    ERA: ["ERA", "era"],
-    WHIP: ["WHIP", "whip"],
-    SV: ["SV", "sv", "saves"],
-    IP: ["IP", "ip", "inningsPitched"],
-    HLD: ["HLD", "hld", "holds"],
-    CG: ["CG", "cg", "completeGames"],
-  };
-
-  const keys = aliases[normalizedKey] ?? [normalizedKey, key];
-
-  for (const candidate of keys) {
-    const value = finiteNumber(source[candidate]);
-
-    if (value !== null) {
-      return value;
-    }
-  }
-
-  return null;
+function playerUsesBattingStats(player: Player, statBasis: StatBasis): boolean {
+  const { bat, pit } = resolveDisplayStats(player, statBasis);
+  return Boolean(bat) || !pit;
 }
 
 function getStatValue(
@@ -749,14 +861,25 @@ function getStatValue(
   statBasis: StatBasis,
   statSummary: string,
 ): number | null {
-  const nested = getNestedStat(player, key, statBasis);
+  const { bat, pit } = resolveDisplayStats(player, statBasis);
+  const normalizedKey = normalizeStatKey(key) ?? key.toUpperCase();
+  const isBatter = Boolean(bat) || !pit;
+  const side = isBatter ? "batting" : "pitching";
+  const displayValue = getDisplayStatValue(
+    normalizedKey,
+    side,
+    bat,
+    pit,
+    player,
+    statBasis,
+  );
+  const parsedDisplayValue = finiteNumber(displayValue);
 
-  if (nested !== null) {
-    return nested;
+  if (parsedDisplayValue !== null) {
+    return parsedDisplayValue;
   }
 
   const parsed = parseStatSummary(statSummary);
-  const normalizedKey = normalizeStatKey(key) ?? key.toUpperCase();
 
   return parsed[normalizedKey] ?? parsed[key] ?? null;
 }
@@ -781,19 +904,22 @@ function statKeysForPlayer(
   return isPitcher(player) ? researchStatKeys.pitching : researchStatKeys.hitting;
 }
 
-function statSortKey(sortBy: ResearchSort, pitcher: boolean): string | null {
-  if (sortBy === "r_w") return pitcher ? "W" : "R";
-  if (sortBy === "hr_k") return pitcher ? "K" : "HR";
-  if (sortBy === "rbi_era") return pitcher ? "ERA" : "RBI";
-  if (sortBy === "sb_whip") return pitcher ? "WHIP" : "SB";
-  if (sortBy === "avg_sv") return pitcher ? "SV" : "AVG";
-  if (sortBy === "obp_ip") return pitcher ? "IP" : "OBP";
-  if (sortBy === "slg_hld") return pitcher ? "HLD" : "SLG";
-  if (sortBy === "tb_cg") return pitcher ? "CG" : "TB";
-  if (sortBy === "h") return "H";
-  if (sortBy === "bb") return "BB";
-  if (sortBy === "k") return "K";
-  return null;
+function statSortKeyForPlayer(
+  sortBy: ResearchSort,
+  player: Player,
+  statBasis: StatBasis,
+): string | null {
+  const parsed = parseStatSortValue(sortBy);
+
+  if (!parsed) {
+    return null;
+  }
+
+  if (playerUsesBattingStats(player, statBasis)) {
+    return parsed.hitting ?? parsed.pitching ?? null;
+  }
+
+  return parsed.pitching ?? parsed.hitting ?? null;
 }
 
 function sortMissingLast(
@@ -824,11 +950,26 @@ function comparePlayers(
   direction: SortDirection,
   statBasis: StatBasis,
   showEngineValues: boolean,
+  draftedIds?: ReadonlySet<string>,
+  draftedPriceByPlayerId?: ReadonlyMap<string, number>,
+  draftedContractByPlayerId?: ReadonlyMap<string, string>,
 ): number {
   if (sortBy === "auction_value") {
     return sortMissingLast(
-      getAuctionValue(a, rowA),
-      getAuctionValue(b, rowB),
+      getAuctionSortValue(
+        a,
+        rowA,
+        draftedIds,
+        draftedPriceByPlayerId,
+        draftedContractByPlayerId,
+      ),
+      getAuctionSortValue(
+        b,
+        rowB,
+        draftedIds,
+        draftedPriceByPlayerId,
+        draftedContractByPlayerId,
+      ),
       direction,
     );
   }
@@ -865,8 +1006,8 @@ function comparePlayers(
     );
   }
 
-  const keyA = statSortKey(sortBy, isPitcher(a));
-  const keyB = statSortKey(sortBy, isPitcher(b));
+  const keyA = statSortKeyForPlayer(sortBy, a, statBasis);
+  const keyB = statSortKeyForPlayer(sortBy, b, statBasis);
   const summaryA = formatResearchStatSummaryLine(a, statBasis) ?? "";
   const summaryB = formatResearchStatSummaryLine(b, statBasis) ?? "";
   const valueA = keyA ? getStatValue(a, keyA, statBasis, summaryA) : null;
@@ -1073,6 +1214,36 @@ function MetricCell({
       >
         {value}
       </Text>
+    </View>
+  );
+}
+
+function MetricPositionCell({ player }: { player: Player }) {
+  const positions = positionTokens(player);
+
+  return (
+    <View
+      style={{
+        width: "50%",
+        paddingRight: 8,
+        marginBottom: 10,
+      }}
+    >
+      <Text style={{ color: "#a1a1aa", fontSize: 11, fontWeight: "800" }}>
+        Pos
+      </Text>
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 4 }}>
+        {positions.length > 0 ? (
+          positions.map((position) => (
+            <PositionBadge key={position} label={position} small />
+          ))
+        ) : (
+          <Text style={{ color: "#f9fafb", fontSize: 15, fontWeight: "900" }}>
+            —
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -1304,9 +1475,29 @@ function PlayerResearchCard({
               {custom ? " • Custom" : ""}
             </Text>
 
-            <Text style={{ color: "#c4b5fd", fontWeight: "800" }}>
-              Team: {player.team || "FA"} • Pos: {displayPosition(player)}
-            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flexWrap: "wrap",
+                marginTop: 2,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#c4b5fd",
+                  fontWeight: "800",
+                  marginRight: 6,
+                  marginBottom: 5,
+                }}
+              >
+                Team: {player.team || "FA"} • Pos:
+              </Text>
+
+              {positionTokens(player).map((position) => (
+                <PositionBadge key={position} label={position} small />
+              ))}
+            </View>
 
             {cardTags.length > 0 ? (
               <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 6 }}>
@@ -1364,17 +1555,20 @@ function PlayerResearchCard({
             label="Team"
             value={player.team || "FA"}
           />
-          <MetricCell
-            label="Pos"
-            value={displayPosition(player)}
-          />
+          <MetricPositionCell player={player} />
           <MetricCell
             label="Market ADP"
-            value={formatNumber(marketAdp, 2)}
+            value={isDrafted ? "—" : formatNumber(marketAdp, 2)}
           />
           <MetricCell
             label="Auction Rank"
-            value={auctionRank === null ? "—" : `#${Math.round(auctionRank)}`}
+            value={
+              isDrafted
+                ? "—"
+                : auctionRank === null
+                  ? "—"
+                  : `#${Math.round(auctionRank)}`
+            }
           />
           <MetricCell
             label={isDrafted ? "Drafted" : "Auction Value"}
@@ -1659,6 +1853,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
         league?.playerPool,
       ) === null,
   );
+  const [refreshing, setRefreshing] = useState(false);
 
   const [valuationsByPlayerId, setValuationsByPlayerId] = useState<
     ReadonlyMap<string, ValuationResult>
@@ -1686,8 +1881,13 @@ export default function ResearchScreen({ route, navigation }: Props) {
   const [expandedTierKeys, setExpandedTierKeys] = useState<Record<string, boolean>>({});
 
   const sortOptions = useMemo(
-    () => sortOptionsForResearchStats(researchStatKeys, showEngineValues),
-    [researchStatKeys, showEngineValues],
+    () =>
+      sortOptionsForResearchStats(
+        researchStatKeys,
+        showEngineValues,
+        statViewFilter,
+      ),
+    [researchStatKeys, showEngineValues, statViewFilter],
   );
 
   const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -1871,6 +2071,90 @@ export default function ResearchScreen({ route, navigation }: Props) {
     [],
   );
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setPlayersError("");
+
+    try {
+      await Promise.all([
+        loadWatchlist(leagueId),
+        loadNotes(leagueId),
+      ]);
+
+      let nextPlayers = players;
+
+      if (selectedView === "player-database" || selectedView === "tiers") {
+        nextPlayers = await getPlayers(
+          "catalog_rank",
+          league?.posEligibilityThreshold,
+          league?.playerPool,
+        );
+        setPlayers(nextPlayers);
+      }
+
+      let nextRosterForValuation = rosterForValuation;
+
+      if (token && leagueId) {
+        nextRosterForValuation = await getRoster(leagueId, token).catch(() => []);
+        setRosterForValuation(nextRosterForValuation);
+      }
+
+      if (token && leagueId && nextPlayers.length > 0) {
+        const response = await getValuation(leagueId, token, "team_1", {
+          leagueConfigKey: leagueValuationKey,
+          rosterFingerprint: rosterValuationFingerprint(nextRosterForValuation),
+        }).catch(() => null);
+
+        if (response) {
+          const customPlayerIdSet = new Set(
+            customPlayerIdsKey.length > 0 ? customPlayerIdsKey.split("\u0001") : [],
+          );
+          const merged = new Map<string, ValuationResult>();
+
+          for (const row of response.valuations) {
+            if (customPlayerIdSet.has(row.player_id)) continue;
+
+            merged.set(row.player_id, row);
+
+            const matchedPlayer = nextPlayers.find((player) =>
+              playerMatchesValuationRow(player, row),
+            );
+
+            if (matchedPlayer) {
+              merged.set(matchedPlayer.id, row);
+            }
+          }
+
+          setValuationsByPlayerId(merged);
+        }
+      }
+
+      if (selectedView === "depth-charts") {
+        await loadDepthChart(selectedDepthTeamId, true);
+      }
+    } catch (err) {
+      setPlayersError(
+        err instanceof Error ? err.message : "Failed to refresh research.",
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    customPlayerIdsKey,
+    league?.playerPool,
+    league?.posEligibilityThreshold,
+    leagueId,
+    leagueValuationKey,
+    loadDepthChart,
+    loadNotes,
+    loadWatchlist,
+    players,
+    rosterForValuation,
+    selectedDepthTeamId,
+    selectedView,
+    token,
+  ]);
+
   useEffect(() => {
     if (selectedView !== "depth-charts") return;
     void loadDepthChart(selectedDepthTeamId);
@@ -1946,6 +2230,9 @@ export default function ResearchScreen({ route, navigation }: Props) {
         sortDirection,
         statBasis,
         showEngineValues,
+        draftedIds,
+        draftedPriceByPlayerId,
+        draftedContractByPlayerId,
       ),
     );
   }, [
@@ -1955,6 +2242,9 @@ export default function ResearchScreen({ route, navigation }: Props) {
     sortDirection,
     statBasis,
     showEngineValues,
+    draftedIds,
+    draftedPriceByPlayerId,
+    draftedContractByPlayerId,
   ]);
 
   useEffect(() => {
@@ -2018,9 +2308,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
   );
 
   const mobileTierBuckets = useMemo(() => {
-    const buckets: MobileTierBucket[] = mobileTierView.tiers.filter(
-      (bucket) => bucket.availableCount > 0,
-    );
+    const buckets: MobileTierBucket[] = [...mobileTierView.tiers];
 
     if (mobileTierView.outsideModel) {
       buckets.push(mobileTierView.outsideModel);
@@ -2330,7 +2618,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
     : "";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0b0712" }}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: "#0b0712" }}>
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -2338,6 +2626,14 @@ export default function ResearchScreen({ route, navigation }: Props) {
           padding: 16,
           paddingBottom: 110,
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor="#a78bfa"
+            colors={["#a78bfa"]}
+            onRefresh={() => void handleRefresh()}
+          />
+        }
       >
         <View style={{ flexDirection: "row", marginBottom: 14 }}>
           <View style={{ flex: 1, marginRight: 8 }}>
@@ -2965,24 +3261,32 @@ export default function ResearchScreen({ route, navigation }: Props) {
                             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                               <MetricCell
                                 label="Available"
-                                value={formatMobileTierAvailability(bucket)}
+                                value={
+                                  bucket.availableCount <= 0
+                                    ? bucket.draftedCount > 0
+                                      ? `Depleted · ${bucket.draftedCount} drafted`
+                                      : "Depleted"
+                                    : formatMobileTierAvailability(bucket)
+                                }
                               />
                               <MetricCell
                                 label="Value"
                                 value={
-                                  bucket.shelfNote
-                                    ? `${bucket.valueLabel} (${bucket.shelfNote})`
-                                    : bucket.valueLabel
+                                  bucket.depleted
+                                    ? "—"
+                                    : bucket.shelfNote
+                                      ? `${bucket.valueLabel} (${bucket.shelfNote})`
+                                      : bucket.valueLabel
                                 }
                                 highlight={!bucket.depleted}
                               />
                               <MetricCell
                                 label="Avg"
-                                value={bucket.averageValueLabel}
+                                value={bucket.depleted ? "—" : bucket.averageValueLabel}
                               />
                               <MetricCell
                                 label="Cliff"
-                                value={bucket.cliffLabel}
+                                value={bucket.depleted ? "—" : bucket.cliffLabel}
                               />
                             </View>
 
@@ -3003,9 +3307,11 @@ export default function ResearchScreen({ route, navigation }: Props) {
                         {expanded ? (
                           <View style={{ marginTop: 12 }}>
                             {sortedAvailable.length === 0 ? (
-                              <Text style={{ color: "#a1a1aa", marginBottom: 10 }}>
-                                No available players left in this tier.
-                              </Text>
+                              sortedDrafted.length === 0 ? (
+                                <Text style={{ color: "#a1a1aa", marginBottom: 10 }}>
+                                  No players match this tier.
+                                </Text>
+                              ) : null
                             ) : (
                               sortedAvailable.map((player, index) => {
                                 const engineRow = valuationsByPlayerId.get(player.id);
@@ -3057,7 +3363,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                                     marginBottom: 10,
                                   }}
                                 >
-                                  Drafted from this tier
+                                  DRAFTED FROM THIS TIER
                                 </Text>
 
                                 {sortedDrafted.map((player, index) => {
@@ -3276,21 +3582,7 @@ export default function ResearchScreen({ route, navigation }: Props) {
                         }}
                       >
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View
-                            style={{
-                              borderWidth: 1,
-                              borderColor: "#4c3575",
-                              backgroundColor: "#1b1428",
-                              borderRadius: 6,
-                              paddingHorizontal: 10,
-                              paddingVertical: 5,
-                              marginRight: 9,
-                            }}
-                          >
-                            <Text style={{ color: "#c4b5fd", fontWeight: "900" }}>
-                              {position}
-                            </Text>
-                          </View>
+                          <PositionBadge label={position} style={{ marginRight: 9, marginBottom: 0 }} />
                           <Text
                             style={{
                               color: "#f9fafb",
@@ -3432,9 +3724,19 @@ export default function ResearchScreen({ route, navigation }: Props) {
                                   <Text style={{ color: "#f9fafb", fontWeight: "900" }}>
                                     {row.playerName}
                                   </Text>
-                                  <Text style={{ color: "#d1d5db", marginTop: 2 }}>
-                                    {row.primaryPosition} • {row.status}
-                                  </Text>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      flexWrap: "wrap",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    <PositionBadge label={row.primaryPosition} small />
+                                    <Text style={{ color: "#d1d5db", marginBottom: 5 }}>
+                                      {row.status}
+                                    </Text>
+                                  </View>
                                   <Text style={{ color: "#a1a1aa", marginTop: 1, fontSize: 12 }}>
                                     {row.usageStarts} starts • {row.usageAppearances} apps
                                   </Text>
@@ -3562,5 +3864,3 @@ export default function ResearchScreen({ route, navigation }: Props) {
     </SafeAreaView>
   );
 }
-
-

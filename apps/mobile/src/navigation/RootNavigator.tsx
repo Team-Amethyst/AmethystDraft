@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import LeaguesScreen from "../screens/LeaguesScreen";
 import CreateLeagueScreen from "../screens/CreateLeagueScreen";
 import LeagueSettingsScreen from "../screens/LeagueSettingsScreen";
@@ -43,23 +44,42 @@ export default function RootNavigator() {
     >
       {!isAuthenticated ? (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+
+          <Stack.Screen
+            name="Signup"
+            component={SignupScreen}
+            options={{ headerShown: false }}
+          />
+
           <Stack.Screen
             name="ForgotPassword"
             component={ForgotPasswordScreen}
-            options={{ title: "Forgot Password" }}
+            options={{ headerShown: false }}
+          />
+
+          <Stack.Screen
+            name="ResetPassword"
+            component={ResetPasswordScreen}
+            options={{ headerShown: false }}
           />
         </>
       ) : (
         <>
           <Stack.Screen name="Leagues" component={LeaguesScreen} />
+
           <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
+
           <Stack.Screen
             name="Account"
             component={AccountScreen}
             options={{ headerShown: false }}
           />
+
           <Stack.Screen
             name="LeagueSettings"
             component={LeagueSettingsScreen}
@@ -67,6 +87,7 @@ export default function RootNavigator() {
               title: `${route.params.leagueName} Settings`,
             })}
           />
+
           <Stack.Screen
             name="KeeperSettings"
             component={KeeperSettingsScreen}
@@ -74,6 +95,7 @@ export default function RootNavigator() {
               title: `${route.params.leagueName} Keepers`,
             })}
           />
+
           <Stack.Screen
             name="LeagueTabs"
             component={LeagueTabs}

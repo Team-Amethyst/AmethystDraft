@@ -36,12 +36,7 @@ function logValuationCacheDev(
   detail: { reason: string; key: string },
 ): void {
   if (typeof __DEV__ === "undefined" || !__DEV__) return;
-  console.info("[valuation-cache]", {
-    event,
-    scope,
-    reason: detail.reason,
-    cacheKey: detail.key,
-  });
+
 }
 
 export function buildValuationBoardCacheKey(
