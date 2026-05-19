@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import {
   Alert,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   Text,
@@ -45,11 +46,26 @@ import { usePlayerNotes } from "../contexts/PlayerNotesContext";
 import { useSelectedPlayer } from "../contexts/SelectedPlayerContext";
 import type { LeagueTabParamList } from "../navigation/types";
 import type { Player } from "../types/player";
-import { computeTeamData } from "../utils/commandCenterUtils";
+import {
+  assignTeamEntriesToRosterRows,
+  computeTeamData,
+  rosterSlotsToRecord,
+} from "../utils/commandCenterUtils";
+import {
+  buildMobileCategoryImpactRows,
+  buildMobileProjectedStandings,
+} from "../utils/commandCenterRoto";
+import {
+  resolvedLeagueTeamNames,
+  resolveUserTeamId,
+  teamDisplayNameForTeamId,
+  teamIndexFromTeamId,
+} from "../utils/team";
 import {
   leagueValuationConfigKey,
   rosterValuationFingerprint,
 } from "../utils/valuationDeps";
+import { loadTaxiDraftState } from "../utils/taxiDraftPersistence";
 
 type Props = BottomTabScreenProps<LeagueTabParamList, "CommandCenter">;
 
@@ -61,6 +77,9 @@ type CommandView =
   | "Log";
 
 type StatSide = "batting" | "pitching";
+type LiqCol = "name" | "remaining" | "open" | "maxBid" | "ppSpot";
+type SortDir = "asc" | "desc";
+const STANDINGS_POINTS_SORT_KEY = "__PTS__";
 
 type ScoringCategory = {
   name: string;
@@ -112,6 +131,60 @@ const LOWER_IS_BETTER = new Set(["ERA", "WHIP"]);
 
 const FALLBACK_HITTING_CATS = ["R", "HR", "RBI", "SB", "AVG"];
 const FALLBACK_PITCHING_CATS = ["W", "K", "ERA", "WHIP", "SV"];
+
+function sortArrow(active: boolean, dir: SortDir): string {
+  if (!active) {
+    return "";
+  }
+
+  return dir === "asc" ? " ↑" : " ↓";
+}
+
+function collectTaxiDraftPlayerIds(saved: unknown): Set<string> {
+  const ids = new Set<string>();
+  const record = saved && typeof saved === "object" ? saved as Record<string, unknown> : {};
+  const taxiRosters = record.taxiRosters;
+
+  if (!taxiRosters || typeof taxiRosters !== "object") {
+    return ids;
+  }
+
+  for (const entries of Object.values(taxiRosters as Record<string, unknown>)) {
+    if (!Array.isArray(entries)) {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (typeof entry === "string") {
+        const value = entry.trim();
+        if (value) ids.add(value);
+        continue;
+      }
+
+      if (entry && typeof entry === "object") {
+        const entryRecord = entry as Record<string, unknown>;
+        const raw = entryRecord.playerId ?? entryRecord.externalPlayerId ?? entryRecord.id;
+        const value = String(raw ?? "").trim();
+        if (value) ids.add(value);
+      }
+    }
+  }
+
+  return ids;
+}
+
+function compareText(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
+function compareNumber(a: number, b: number): number {
+  return a - b;
+}
+
+function invertForDir(value: number, dir: SortDir): number {
+  return dir === "asc" ? value : -value;
+}
+
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -290,6 +363,33 @@ function playerSearchText(player: Player): string {
   return `${player.name} ${player.team} ${player.position} ${(player.positions ?? []).join(" ")}`.toLowerCase();
 }
 
+function catalogRankForSearch(player: Player): number {
+  return (
+    valueFromPlayer(player, "catalog_rank") ??
+    valueFromPlayer(player, "auction_rank") ??
+    finiteNumber(player.adp) ??
+    9999
+  );
+}
+
+function searchMatchScore(player: Player, query: string): number {
+  const q = query.trim().toLowerCase();
+  const name = player.name.trim().toLowerCase();
+  const team = player.team.trim().toLowerCase();
+  const positionText = [player.position, ...(player.positions ?? [])]
+    .join(" ")
+    .toLowerCase();
+
+  if (!q) return 99;
+  if (name === q) return 0;
+  if (name.startsWith(q)) return 1;
+  if (name.includes(q)) return 2;
+  if (team === q) return 3;
+  if (positionText.split(/\s+|\//).includes(q)) return 4;
+  if (`${name} ${team} ${positionText}`.includes(q)) return 5;
+  return 99;
+}
+
 function playerRecord(player: Player): Record<string, unknown> {
   return player as unknown as Record<string, unknown>;
 }
@@ -409,12 +509,6 @@ function teamValue(player: Player | null, row: ValuationResult | null): number |
 }
 
 function bidEdge(player: Player | null, row: ValuationResult | null): number | null {
-  const explicit = valueFromValuation(row, "edge");
-
-  if (explicit !== null) {
-    return explicit;
-  }
-
   const bid = recommendedBid(player, row);
   const value = teamValue(player, row);
 
@@ -468,126 +562,6 @@ function getObjectNumber(source: unknown, keys: string[]): number | null {
   return null;
 }
 
-function getCategoryValue(player: Player, cat: string): number {
-  const battingProj = player.projection?.batting as Record<string, unknown> | undefined;
-  const battingStats = player.stats?.batting as Record<string, unknown> | undefined;
-  const pitchingProj = player.projection?.pitching as Record<string, unknown> | undefined;
-  const pitchingStats = player.stats?.pitching as Record<string, unknown> | undefined;
-
-  switch (cat) {
-    case "R":
-      return toNumber(battingProj?.runs ?? battingStats?.runs);
-    case "HR":
-      return toNumber(battingProj?.hr ?? battingStats?.hr);
-    case "RBI":
-      return toNumber(battingProj?.rbi ?? battingStats?.rbi);
-    case "SB":
-      return toNumber(battingProj?.sb ?? battingStats?.sb);
-    case "AVG":
-      return toNumber(battingProj?.avg ?? battingStats?.avg);
-    case "OBP":
-      return toNumber(battingStats?.obp);
-    case "SLG":
-      return toNumber(battingStats?.slg);
-    case "TB":
-      return toNumber(battingStats?.tb);
-    case "H":
-      return toNumber(battingStats?.h ?? battingStats?.hits);
-    case "BB":
-      return toNumber(battingStats?.bb ?? battingStats?.walks);
-    case "W":
-      return toNumber(pitchingProj?.wins ?? pitchingStats?.wins);
-    case "K":
-      return toNumber(pitchingProj?.strikeouts ?? pitchingStats?.strikeouts);
-    case "ERA":
-      return toNumber(pitchingProj?.era ?? pitchingStats?.era);
-    case "WHIP":
-      return toNumber(pitchingProj?.whip ?? pitchingStats?.whip);
-    case "SV":
-      return toNumber(pitchingProj?.saves ?? pitchingStats?.saves);
-    case "HLD":
-      return toNumber(pitchingProj?.holds ?? pitchingStats?.holds);
-    case "CG":
-      return toNumber(pitchingProj?.completeGames ?? pitchingStats?.completeGames);
-    case "IP":
-      return toNumber(pitchingProj?.innings ?? pitchingStats?.innings);
-    default:
-      return 0;
-  }
-}
-
-function getRatioValueAndWeight(
-  player: Player,
-  cat: string,
-): { value: number; weight: number } | null {
-  const battingProj = player.projection?.batting as Record<string, unknown> | undefined;
-  const battingStats = player.stats?.batting as Record<string, unknown> | undefined;
-  const pitchingProj = player.projection?.pitching as Record<string, unknown> | undefined;
-  const pitchingStats = player.stats?.pitching as Record<string, unknown> | undefined;
-
-  if (cat === "AVG") {
-    const value =
-      getObjectNumber(battingProj, ["avg", "AVG"]) ??
-      getObjectNumber(battingStats, ["avg", "AVG"]);
-    const weight =
-      getObjectNumber(battingProj, ["ab", "atBats", "at_bats", "AB"]) ??
-      getObjectNumber(battingStats, ["ab", "atBats", "at_bats", "AB"]) ??
-      1;
-
-    return value === null ? null : { value, weight };
-  }
-
-  if (cat === "OBP") {
-    const value =
-      getObjectNumber(battingProj, ["obp", "OBP"]) ??
-      getObjectNumber(battingStats, ["obp", "OBP"]);
-    const weight =
-      getObjectNumber(battingProj, ["pa", "plateAppearances", "plate_appearances"]) ??
-      getObjectNumber(battingStats, ["pa", "plateAppearances", "plate_appearances"]) ??
-      1;
-
-    return value === null ? null : { value, weight };
-  }
-
-  if (cat === "SLG") {
-    const value =
-      getObjectNumber(battingProj, ["slg", "SLG"]) ??
-      getObjectNumber(battingStats, ["slg", "SLG"]);
-    const weight =
-      getObjectNumber(battingProj, ["ab", "atBats", "at_bats", "AB"]) ??
-      getObjectNumber(battingStats, ["ab", "atBats", "at_bats", "AB"]) ??
-      1;
-
-    return value === null ? null : { value, weight };
-  }
-
-  if (cat === "ERA") {
-    const value =
-      getObjectNumber(pitchingProj, ["era", "ERA"]) ??
-      getObjectNumber(pitchingStats, ["era", "ERA"]);
-    const weight =
-      getObjectNumber(pitchingProj, ["innings", "ip", "inningsPitched", "innings_pitched"]) ??
-      getObjectNumber(pitchingStats, ["innings", "ip", "inningsPitched", "innings_pitched"]) ??
-      1;
-
-    return value === null ? null : { value, weight };
-  }
-
-  if (cat === "WHIP") {
-    const value =
-      getObjectNumber(pitchingProj, ["whip", "WHIP"]) ??
-      getObjectNumber(pitchingStats, ["whip", "WHIP"]);
-    const weight =
-      getObjectNumber(pitchingProj, ["innings", "ip", "inningsPitched", "innings_pitched"]) ??
-      getObjectNumber(pitchingStats, ["innings", "ip", "inningsPitched", "innings_pitched"]) ??
-      1;
-
-    return value === null ? null : { value, weight };
-  }
-
-  return null;
-}
-
 function formatCategoryValue(cat: string, value: number): string {
   if (cat === "AVG" || cat === "OBP" || cat === "SLG") {
     return formatNumber(value, 3);
@@ -600,28 +574,6 @@ function formatCategoryValue(cat: string, value: number): string {
   return formatNumber(value, 0);
 }
 
-function rankCategory(
-  rows: Array<{ teamId: string; value: number }>,
-  lowerIsBetter: boolean,
-): Record<string, number> {
-  const sorted = [...rows].sort((a, b) => {
-    if (lowerIsBetter) {
-      return a.value - b.value;
-    }
-
-    return b.value - a.value;
-  });
-
-  const teams = sorted.length;
-  const result: Record<string, number> = {};
-
-  sorted.forEach((row, index) => {
-    result[row.teamId] = teams - index;
-  });
-
-  return result;
-}
-
 function average(values: number[]): number {
   if (values.length === 0) {
     return 0;
@@ -630,25 +582,23 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function isReserveRosterSlot(rosterSlot: string | undefined | null): boolean {
+  const slot = (rosterSlot ?? "").toUpperCase();
+  return slot.includes("MIN") || slot.includes("TAXI");
+}
+
 function activeAuctionEntries(entries: RosterEntry[]): RosterEntry[] {
-  return entries.filter((entry) => !entry.isKeeper);
+  return entries.filter((entry) => !isReserveRosterSlot(entry.rosterSlot));
+}
+
+function draftAuctionEntries(entries: RosterEntry[]): RosterEntry[] {
+  return activeAuctionEntries(entries).filter((entry) => !entry.isKeeper);
 }
 
 function entriesForTeam(entries: RosterEntry[], teamId: string): RosterEntry[] {
   return activeAuctionEntries(entries).filter((entry) => entry.teamId === teamId);
 }
 
-function rosterSlotList(rosterSlots: Record<string, number>): string[] {
-  const result: string[] = [];
-
-  for (const [slot, count] of Object.entries(rosterSlots)) {
-    for (let i = 0; i < count; i += 1) {
-      result.push(slot);
-    }
-  }
-
-  return result;
-}
 
 function preferredSlotForPlayer(player: Player | null, leagueSlots: Record<string, number>): string {
   if (!player) {
@@ -714,23 +664,6 @@ function teamHasEligibleOpenSlot(
   return false;
 }
 
-function currentCategoryNames(
-  categories: ScoringCategory[] | undefined,
-  side: StatSide,
-): string[] {
-  const filtered =
-    categories
-      ?.filter((category) => !category.type || category.type === side)
-      .map((category) => normalizeCatName(category.name))
-      .filter(Boolean) ?? [];
-
-  if (filtered.length > 0) {
-    return filtered;
-  }
-
-  return side === "batting" ? FALLBACK_HITTING_CATS : FALLBACK_PITCHING_CATS;
-}
-
 function playerSideAvailable(player: Player | null, side: StatSide): boolean {
   if (!player) {
     return false;
@@ -747,119 +680,41 @@ function categoryImpactRows(
   player: Player | null,
   side: StatSide,
   scoringCategories: ScoringCategory[] | undefined,
+  league: {
+    id?: string;
+    teamNames?: string[];
+    teams?: number;
+    scoringCategories?: ScoringCategory[];
+  } | null,
+  players: Player[],
+  roster: RosterEntry[],
+  myTeamId: string,
 ): Array<{ cat: string; value: number; before: number; after: number; points: number }> {
-  if (!player) {
-    return [];
-  }
-
-  const cats = currentCategoryNames(scoringCategories, side);
-
-  return cats.map((cat) => {
-    const value = getCategoryValue(player, cat);
-
-    return {
-      cat,
-      value,
-      before: 0,
-      after: value,
-      points: 0,
-    };
+  return buildMobileCategoryImpactRows({
+    player,
+    side,
+    scoringCategories,
+    league,
+    allPlayers: players,
+    rosterEntries: roster,
+    myTeamId,
   });
 }
 
+
 function projectedStandingsRows(
   league: {
-    teamNames: string[];
-    scoringCategories: ScoringCategory[];
+    id?: string;
+    teamNames?: string[];
+    teams?: number;
+    scoringCategories?: ScoringCategory[];
   } | null,
   players: Player[],
   roster: RosterEntry[],
 ): TeamProjectionRow[] {
-  if (!league) {
-    return [];
-  }
-
-  const categories = league.scoringCategories ?? [];
-  const playerMap = new Map(players.map((player) => [player.id, player]));
-
-  const rows: TeamProjectionRow[] = league.teamNames.map((teamName, index) => {
-    const teamId = `team_${index + 1}`;
-    const teamEntries = activeAuctionEntries(roster).filter((entry) => entry.teamId === teamId);
-    const categoryValues: Record<string, number> = {};
-
-    for (const category of categories) {
-      const cat = normalizeCatName(category.name);
-      const isRatio =
-        cat === "AVG" ||
-        cat === "OBP" ||
-        cat === "SLG" ||
-        cat === "ERA" ||
-        cat === "WHIP";
-
-      if (isRatio) {
-        let weightedSum = 0;
-        let totalWeight = 0;
-
-        for (const entry of teamEntries) {
-          const player = playerMap.get(entry.externalPlayerId);
-
-          if (!player) {
-            continue;
-          }
-
-          const ratio = getRatioValueAndWeight(player, cat);
-
-          if (!ratio) {
-            continue;
-          }
-
-          weightedSum += ratio.value * ratio.weight;
-          totalWeight += ratio.weight;
-        }
-
-        categoryValues[cat] = totalWeight > 0 ? weightedSum / totalWeight : 0;
-      } else {
-        categoryValues[cat] = teamEntries.reduce((sum, entry) => {
-          const player = playerMap.get(entry.externalPlayerId);
-
-          return sum + (player ? getCategoryValue(player, cat) : 0);
-        }, 0);
-      }
-    }
-
-    return {
-      teamId,
-      teamName,
-      totalPoints: 0,
-      categoryValues,
-      categoryPoints: {},
-    };
-  });
-
-  for (const category of categories) {
-    const cat = normalizeCatName(category.name);
-    const pointsByTeam = rankCategory(
-      rows.map((row) => ({
-        teamId: row.teamId,
-        value: row.categoryValues[cat] ?? 0,
-      })),
-      LOWER_IS_BETTER.has(cat),
-    );
-
-    rows.forEach((row) => {
-      row.categoryPoints[cat] = pointsByTeam[row.teamId] ?? 0;
-    });
-  }
-
-  rows.forEach((row) => {
-    row.totalPoints = Object.values(row.categoryPoints).reduce(
-      (sum, value) => sum + value,
-      0,
-    );
-  });
-
-  return rows.sort((a, b) => b.totalPoints - a.totalPoints);
+  return buildMobileProjectedStandings(league, players, roster);
 }
+
 
 function Panel({
   children,
@@ -1015,6 +870,42 @@ function SmallButton({
         }}
       >
         {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+
+function SortChip({
+  label,
+  active,
+  dir,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={{
+        minHeight: 34,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: active ? COLORS.purple2 : COLORS.borderStrong,
+        backgroundColor: active ? COLORS.purple : COLORS.panel3,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 10,
+        marginRight: 8,
+        marginBottom: 8,
+      }}
+    >
+      <Text style={{ color: COLORS.text, fontWeight: "900", fontSize: 12 }}>
+        {label}{sortArrow(active, dir)}
       </Text>
     </TouchableOpacity>
   );
@@ -1200,12 +1091,16 @@ function SearchBox({
   setQuery,
   suggestions,
   onSelect,
+  selectedPlayer,
+  searchValueForPlayer,
   onAddMissingPlayer,
 }: {
   query: string;
   setQuery: (value: string) => void;
   suggestions: Player[];
   onSelect: (player: Player) => void;
+  selectedPlayer?: Player | null;
+  searchValueForPlayer?: (player: Player) => number | null;
   onAddMissingPlayer?: () => void;
 }) {
   return (
@@ -1213,7 +1108,11 @@ function SearchBox({
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="Search player to load into auction..."
+        placeholder={
+          selectedPlayer
+            ? `${selectedPlayer.name} — type to switch...`
+            : "Search player to load into auction..."
+        }
         placeholderTextColor={COLORS.dim}
         style={{
           minHeight: 46,
@@ -1253,18 +1152,20 @@ function SearchBox({
                   </Text>
                 </View>
                 <Text style={{ color: COLORS.yellow, fontWeight: "900" }}>
-                  {money(player.value)}
+                  {money(searchValueForPlayer?.(player) ?? finiteNumber(player.value))}
                 </Text>
               </TouchableOpacity>
             ))
           ) : (
             <View>
               <Text style={{ color: COLORS.muted, marginBottom: 8 }}>
-                No matching available players.
+                {query.trim().length >= 2
+                  ? `No players found for "${query.trim()}"`
+                  : "Type at least 2 letters to search available players."}
               </Text>
-              {onAddMissingPlayer ? (
+              {onAddMissingPlayer && query.trim().length >= 2 ? (
                 <SmallButton
-                  label="Add missing player"
+                  label={`Add "${query.trim()}" as custom player`}
                   tone="primary"
                   onPress={onAddMissingPlayer}
                 />
@@ -1282,13 +1183,34 @@ function CategoryImpactSection({
   side,
   setSide,
   scoringCategories,
+  league,
+  players,
+  roster,
+  myTeamId,
 }: {
   player: Player;
   side: StatSide;
   setSide: (side: StatSide) => void;
   scoringCategories: ScoringCategory[];
+  league: {
+    id?: string;
+    teamNames?: string[];
+    teams?: number;
+    scoringCategories?: ScoringCategory[];
+  } | null;
+  players: Player[];
+  roster: RosterEntry[];
+  myTeamId: string;
 }) {
-  const rows = categoryImpactRows(player, side, scoringCategories);
+  const rows = categoryImpactRows(
+    player,
+    side,
+    scoringCategories,
+    league,
+    players,
+    roster,
+    myTeamId,
+  );
 
   return (
     <View style={{ marginBottom: 12 }}>
@@ -1466,12 +1388,249 @@ function LogPickPanel({
       ) : null}
 
       <SmallButton
-        label={disabled ? "Logging..." : "Log Pick"}
+        label={disabled ? "Logging…" : "Log"}
         tone="primary"
         disabled={disabled}
         onPress={onSubmit}
       />
     </Panel>
+  );
+}
+
+
+function modalBackdropStyle() {
+  return {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    justifyContent: "center" as const,
+    padding: 18,
+  };
+}
+
+function modalCardStyle() {
+  return {
+    maxHeight: "86%" as const,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    backgroundColor: COLORS.panel,
+    overflow: "hidden" as const,
+  };
+}
+
+function ModalHeader({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+}) {
+  return (
+    <View
+      style={{
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        padding: 16,
+        flexDirection: "row",
+        alignItems: "flex-start",
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: COLORS.text, fontWeight: "900", fontSize: 18 }}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={{ color: COLORS.muted, marginTop: 4 }}>{subtitle}</Text>
+        ) : null}
+      </View>
+
+      <TouchableOpacity activeOpacity={0.8} onPress={onClose}>
+        <Text style={{ color: COLORS.muted, fontSize: 22, fontWeight: "700" }}>
+          ×
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function displayContract(entry: RosterEntry | null): string {
+  if (!entry) {
+    return "—";
+  }
+
+  if (entry.keeperContract?.trim()) {
+    return entry.keeperContract;
+  }
+
+  return `${money(entry.price)} auction`;
+}
+
+function EditPickModal({
+  entry,
+  teamNames,
+  editTeamNumber,
+  editSlot,
+  editPrice,
+  slotOptions,
+  playerImage,
+  saving,
+  onChangeTeamNumber,
+  onChangeSlot,
+  onChangePrice,
+  onCancel,
+  onSave,
+}: {
+  entry: RosterEntry | null;
+  teamNames: string[];
+  editTeamNumber: string;
+  editSlot: string;
+  editPrice: string;
+  slotOptions: string[];
+  playerImage: string | null;
+  saving: boolean;
+  onChangeTeamNumber: (value: string) => void;
+  onChangeSlot: (value: string) => void;
+  onChangePrice: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <Modal
+      visible={entry !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View style={modalBackdropStyle()}>
+        <View style={modalCardStyle()}>
+          <ModalHeader title="EDIT PICK" onClose={onCancel} />
+
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+                paddingBottom: 14,
+                marginBottom: 16,
+              }}
+            >
+              {playerImage ? (
+                <Image
+                  source={{ uri: playerImage }}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    marginRight: 12,
+                    backgroundColor: COLORS.panel2,
+                  }}
+                />
+              ) : null}
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: COLORS.text,
+                    fontSize: 17,
+                    fontWeight: "900",
+                  }}
+                >
+                  {entry?.playerName ?? "Player"}
+                </Text>
+                <Text style={{ color: COLORS.muted, marginTop: 3 }}>
+                  {entry?.playerTeam || "FA"}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: "900", letterSpacing: 1.1, marginBottom: 8 }}>
+              TEAM
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {teamNames.map((teamName, index) => {
+                const value = String(index + 1);
+                return (
+                  <SmallButton
+                    key={`${teamName}-${index}`}
+                    label={teamName}
+                    tone={editTeamNumber === value ? "primary" : "default"}
+                    onPress={() => onChangeTeamNumber(value)}
+                  />
+                );
+              })}
+            </ScrollView>
+
+            <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: "900", letterSpacing: 1.1, marginBottom: 8 }}>
+              ROSTER SLOT
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {slotOptions.map((slot) => (
+                <SmallButton
+                  key={slot}
+                  label={slot}
+                  tone={editSlot.toUpperCase() === slot.toUpperCase() ? "primary" : "default"}
+                  onPress={() => onChangeSlot(slot)}
+                />
+              ))}
+            </ScrollView>
+
+            <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: "900", letterSpacing: 1.1, marginBottom: 8 }}>
+              PRICE PAID
+            </Text>
+            <TextInput
+              value={editPrice}
+              onChangeText={onChangePrice}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={COLORS.dim}
+              style={{
+                color: COLORS.text,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                backgroundColor: COLORS.page,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                marginBottom: 14,
+                fontWeight: "800",
+              }}
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                borderTopWidth: 1,
+                borderTopColor: COLORS.border,
+                paddingTop: 12,
+                marginBottom: 18,
+              }}
+            >
+              <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: "900", letterSpacing: 1.1 }}>
+                CONTRACT
+              </Text>
+              <Text style={{ color: COLORS.green, fontWeight: "900" }}>
+                {displayContract(entry)}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <SmallButton label="Cancel" disabled={saving} onPress={onCancel} />
+              <SmallButton
+                label={saving ? "Saving..." : "Save"}
+                tone="primary"
+                disabled={saving}
+                onPress={onSave}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1483,7 +1642,12 @@ export default function CommandCenterScreen({ route }: Props) {
   const { getNote, loadNotes, setNote } = usePlayerNotes();
 
   const league = allLeagues.find((item) => item.id === leagueId) ?? null;
-  const myTeamId = "team_1";
+  const leagueTeamNames = useMemo(() => resolvedLeagueTeamNames(league), [league]);
+  const myTeamId = useMemo(
+    () => resolveUserTeamId(league, user?.id),
+    [league?.id, league?.memberIds?.join(","), user?.id],
+  );
+  const myTeamIndex = teamIndexFromTeamId(myTeamId);
 
   const [activeView, setActiveView] = useState<CommandView>("Auction");
   const [players, setPlayers] = useState<Player[]>([]);
@@ -1494,7 +1658,7 @@ export default function CommandCenterScreen({ route }: Props) {
   const [statSide, setStatSide] = useState<StatSide>("batting");
   const [price, setPrice] = useState("");
   const [rosterSlot, setRosterSlot] = useState("");
-  const [teamNumber, setTeamNumber] = useState("1");
+  const [teamNumber, setTeamNumber] = useState(teamNumberFromId(myTeamId));
   const [addingPick, setAddingPick] = useState(false);
   const [workingPickId, setWorkingPickId] = useState<string | null>(null);
   const [editingPickId, setEditingPickId] = useState<string | null>(null);
@@ -1502,7 +1666,15 @@ export default function CommandCenterScreen({ route }: Props) {
   const [editPrice, setEditPrice] = useState("");
   const [editSlot, setEditSlot] = useState("");
   const [selectedMakeupTeamId, setSelectedMakeupTeamId] = useState(myTeamId);
-  const [liquidityMode, setLiquidityMode] = useState<"Liquidity" | "Standings">("Liquidity");
+  const [liqSort, setLiqSort] = useState<{ col: LiqCol; dir: SortDir }>({
+    col: "remaining",
+    dir: "desc",
+  });
+  const [standingsSort, setStandingsSort] = useState<{ key: string; dir: SortDir }>({
+    key: STANDINGS_POINTS_SORT_KEY,
+    dir: "desc",
+  });
+  const [taxiDraftedIds, setTaxiDraftedIds] = useState<Set<string>>(() => new Set());
   const [valuationSnapshot, setValuationSnapshot] =
     useState<ValuationPlayerResponse | null>(null);
   const [valuationMarketNotes, setValuationMarketNotes] = useState<string[]>([]);
@@ -1512,6 +1684,16 @@ export default function CommandCenterScreen({ route }: Props) {
   const [loadingMockPicks, setLoadingMockPicks] = useState(false);
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   const [redoStack, setRedoStack] = useState<UndoAction[]>([]);
+
+  const valuationTeamId = useMemo(
+    () => teamIdFromNumber(teamNumber),
+    [teamNumber],
+  );
+
+  useEffect(() => {
+    setTeamNumber(teamNumberFromId(myTeamId));
+    setSelectedMakeupTeamId(myTeamId);
+  }, [league?.id, myTeamId]);
 
   const leagueValuationKey = useMemo(
     () => leagueValuationConfigKey(league),
@@ -1548,40 +1730,39 @@ export default function CommandCenterScreen({ route }: Props) {
       league
         ? computeTeamData(
             {
-              teamNames: league.teamNames,
+              teamNames: leagueTeamNames,
               rosterSlots: league.rosterSlots,
               budget: league.budget,
+              teams: league.teams,
             },
-            activeAuctionEntries(roster),
+            roster,
           )
         : [],
-    [league, roster],
+    [league, leagueTeamNames, roster],
   );
 
-  const selectedTeamData = useMemo(() => {
-    const index = Number(teamNumber) - 1;
 
-    return teamData[index] ?? teamData[0] ?? null;
-  }, [teamData, teamNumber]);
 
-  const myTeamData = teamData[0] ?? null;
+  const myTeamData = teamData[myTeamIndex] ?? teamData[0] ?? null;
 
   const scoringCategories = (league?.scoringCategories ?? []) as ScoringCategory[];
 
   const allSearchPlayers = useMemo(
     () =>
       players
-        .filter((player) => !draftSetHasPlayer(draftedIds, player))
+        .filter((player) =>
+          !draftSetHasPlayer(draftedIds, player) &&
+          !draftSetHasPlayer(taxiDraftedIds, player),
+        )
         .sort((a, b) => {
-          const valueDiff = (b.value ?? 0) - (a.value ?? 0);
+          const rankA = catalogRankForSearch(a);
+          const rankB = catalogRankForSearch(b);
 
-          if (Math.abs(valueDiff) > 0.001) {
-            return valueDiff;
-          }
+          if (rankA !== rankB) return rankA - rankB;
 
-          return (a.adp ?? 9999) - (b.adp ?? 9999);
+          return a.name.localeCompare(b.name);
         }),
-    [players, draftedIds],
+    [players, draftedIds, taxiDraftedIds],
   );
 
   const playerSuggestions = useMemo(() => {
@@ -1593,6 +1774,19 @@ export default function CommandCenterScreen({ route }: Props) {
 
     return allSearchPlayers
       .filter((player) => playerSearchText(player).includes(q))
+      .sort((a, b) => {
+        const scoreA = searchMatchScore(a, q);
+        const scoreB = searchMatchScore(b, q);
+
+        if (scoreA !== scoreB) return scoreA - scoreB;
+
+        const rankA = catalogRankForSearch(a);
+        const rankB = catalogRankForSearch(b);
+
+        if (rankA !== rankB) return rankA - rankB;
+
+        return a.name.localeCompare(b.name);
+      })
       .slice(0, 8);
   }, [allSearchPlayers, searchQuery]);
 
@@ -1616,6 +1810,7 @@ export default function CommandCenterScreen({ route }: Props) {
     const undraftedAtPos = players.filter(
       (player) =>
         !draftSetHasPlayer(draftedIds, player) &&
+        !draftSetHasPlayer(taxiDraftedIds, player) &&
         playerMatchesPosition(player, selectedPrimaryPosition),
     );
     const draftedAtPos = activeAuctionEntries(roster).filter((entry) => {
@@ -1634,18 +1829,21 @@ export default function CommandCenterScreen({ route }: Props) {
     const paidValues = draftedAtPos.map((entry) => entry.price);
     const avgCatalogValue = average(catalogValues);
     const avgPaid = average(paidValues);
-    const delta = avgPaid - avgCatalogValue;
+    const inflation =
+      avgPaid > 0 && avgCatalogValue > 0
+        ? Math.round((avgPaid / avgCatalogValue - 1) * 100)
+        : 0;
 
     return {
       position: selectedPrimaryPosition,
       avgCatalogValue,
       avgPaid,
-      delta,
+      inflation,
       eliteLeft: undraftedAtPos.filter((player) => (player.tier ?? 99) <= 2).length,
       midLeft: undraftedAtPos.filter((player) => (player.tier ?? 99) === 3).length,
       totalLeft: undraftedAtPos.length,
     };
-  }, [draftedIds, players, roster, selectedPrimaryPosition]);
+  }, [draftedIds, taxiDraftedIds, players, roster, selectedPrimaryPosition]);
 
   const enginePosRow = useMemo(() => {
     if (!engineScarcity || !selectedPrimaryPosition) {
@@ -1682,10 +1880,10 @@ export default function CommandCenterScreen({ route }: Props) {
   );
 
   const currentTeamStanding = useMemo(() => {
-    const teamName = teamNameFromId(myTeamId, league?.teamNames);
+    const teamName = teamDisplayNameForTeamId(league, myTeamId);
 
     return projectedStandings.find((row) => row.teamName === teamName) ?? projectedStandings[0] ?? null;
-  }, [league?.teamNames, projectedStandings]);
+  }, [league, myTeamId, projectedStandings]);
 
   const currentTeamRank = useMemo(() => {
     if (!currentTeamStanding) {
@@ -1697,10 +1895,104 @@ export default function CommandCenterScreen({ route }: Props) {
     return index >= 0 ? index + 1 : null;
   }, [currentTeamStanding, projectedStandings]);
 
-  const rosterSlots = useMemo(
-    () => rosterSlotList(league?.rosterSlots ?? {}),
-    [league?.rosterSlots],
+
+  const selectedPlayerPositions = useMemo(
+    () => (selectedPlayer ? positionList(selectedPlayer) : []),
+    [selectedPlayer],
   );
+
+  const sortedTeamData = useMemo(() => {
+    return [...teamData].sort((a, b) => {
+      let diff = 0;
+
+      if (liqSort.col === "name") {
+        diff = compareText(a.name, b.name);
+      } else if (liqSort.col === "remaining") {
+        diff = compareNumber(a.remaining, b.remaining);
+      } else if (liqSort.col === "open") {
+        diff = compareNumber(a.open, b.open);
+      } else if (liqSort.col === "maxBid") {
+        diff = compareNumber(a.maxBid, b.maxBid);
+      } else {
+        diff = compareNumber(a.ppSpot, b.ppSpot);
+      }
+
+      if (diff === 0) {
+        diff = compareText(a.name, b.name);
+      }
+
+      return invertForDir(diff, liqSort.dir);
+    });
+  }, [teamData, liqSort]);
+
+  const sortedProjectedStandings = useMemo(() => {
+    return [...projectedStandings].sort((a, b) => {
+      let diff = 0;
+
+      if (standingsSort.key === STANDINGS_POINTS_SORT_KEY) {
+        diff = compareNumber(a.totalPoints, b.totalPoints);
+      } else {
+        const aValue = a.categoryValues[standingsSort.key] ?? 0;
+        const bValue = b.categoryValues[standingsSort.key] ?? 0;
+        const lowerIsBetter = LOWER_IS_BETTER.has(normalizeCatName(standingsSort.key));
+        diff = lowerIsBetter
+          ? compareNumber(bValue, aValue)
+          : compareNumber(aValue, bValue);
+      }
+
+      if (diff === 0) {
+        diff = compareText(a.teamName, b.teamName);
+      }
+
+      return invertForDir(diff, standingsSort.dir);
+    });
+  }, [projectedStandings, standingsSort]);
+
+  const recentPicks = useMemo(
+    () =>
+      [...draftAuctionEntries(roster)].sort(
+        (a, b) =>
+          new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
+          new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
+      ),
+    [roster],
+  );
+
+  const marketPressureRows = useMemo(() => {
+    const pickCount = recentPicks.length;
+    const inflationFactor = finiteNumber(valuationSnapshot?.inflation_factor);
+    const inflationPct = inflationFactor === null ? null : (inflationFactor - 1) * 100;
+    const openSpots = teamData.reduce((sum, team) => sum + team.open, 0);
+    const avgPpSpot = teamData.length > 0
+      ? teamData.reduce((sum, team) => sum + team.ppSpot, 0) / teamData.length
+      : 0;
+    const keeperCount = roster.filter((entry) => entry.isKeeper && !isReserveRosterSlot(entry.rosterSlot)).length;
+
+    return {
+      phase: pickCount === 0 ? "PRE-DRAFT" : pickCount < Math.max(league?.teams ?? 1, 1) ? "EARLY" : "LIVE",
+      rows: [
+        {
+          label: "Market inflation",
+          value: pickCount === 0
+            ? "Not started"
+            : inflationPct === null
+              ? "—"
+              : `${inflationPct >= 0 ? "+" : ""}${inflationPct.toFixed(0)}%`,
+        },
+        {
+          label: "Budget pressure",
+          value: avgPpSpot >= 15 ? "Loose" : avgPpSpot >= 8 ? "Balanced" : "Tight",
+        },
+        {
+          label: "Keeper compression",
+          value: keeperCount > 0 ? `${keeperCount} keepers` : "None",
+        },
+      ],
+      detail: `${openSpots} open slots · ${valuationSnapshot?.players_remaining ?? "—"} players remaining`,
+    };
+  }, [league?.teams, recentPicks.length, roster, teamData, valuationSnapshot]);
+
+
 
   const selectedTeamEntries = useMemo(
     () => entriesForTeam(roster, selectedMakeupTeamId),
@@ -1712,59 +2004,26 @@ export default function CommandCenterScreen({ route }: Props) {
       return [];
     }
 
-    const entries = [...selectedTeamEntries];
-    const rows = rosterSlots.map((slot, index) => {
-      const foundIndex = entries.findIndex((entry) => {
-        const entrySlot = entry.rosterSlot.toUpperCase();
+    const normalizedRosterSlots = rosterSlotsToRecord(league.rosterSlots);
+    const assigned = assignTeamEntriesToRosterRows(
+      normalizedRosterSlots,
+      selectedTeamEntries,
+    );
+    const totalSlots = Math.max(assigned.length, 1);
 
-        if (entrySlot === slot.toUpperCase()) {
-          return true;
-        }
-
-        if (slot === "OF") {
-          return (entry.positions ?? []).some((position) =>
-            ["OF", "LF", "CF", "RF"].includes(position.toUpperCase()),
-          );
-        }
-
-        if (slot === "UTIL") {
-          return ["C", "1B", "2B", "3B", "SS", "OF", "DH"].some((position) =>
-            (entry.positions ?? []).map((p) => p.toUpperCase()).includes(position),
-          );
-        }
-
-        if (slot === "BN") {
-          return true;
-        }
-
-        return false;
-      });
-      const entry = foundIndex >= 0 ? entries.splice(foundIndex, 1)[0] : null;
-      const totalSlots = rosterSlots.length || 1;
+    return assigned.map((row, index) => {
       const target = Math.round(((league.budget ?? 260) / totalSlots) * 10) / 10;
 
       return {
-        key: `${slot}-${index}`,
-        slot,
-        playerName: entry?.playerName ?? "— empty —",
+        key: `${row.position}-${index}`,
+        slot: row.position,
+        playerName: row.entry?.playerName ?? "— empty —",
         target,
-        price: entry?.price ?? null,
-        filled: entry !== null,
+        price: row.entry?.price ?? null,
+        filled: row.entry !== null,
       };
     });
-
-    return rows;
-  }, [league, rosterSlots, selectedTeamEntries]);
-
-  const recentPicks = useMemo(
-    () =>
-      [...activeAuctionEntries(roster)].sort(
-        (a, b) =>
-          new Date(a.acquiredAt ?? a.createdAt ?? 0).getTime() -
-          new Date(b.acquiredAt ?? b.createdAt ?? 0).getTime(),
-      ),
-    [roster],
-  );
+  }, [league, selectedTeamEntries]);
 
   const draftRoomNote = getNote(leagueId, "__draft__");
   const playerNote = selectedPlayer ? getNote(leagueId, selectedPlayer.id) : "";
@@ -1790,7 +2049,7 @@ export default function CommandCenterScreen({ route }: Props) {
       rosterFingerprint: rosterValuationFingerprint(rosterData),
     };
 
-    const board = await getValuation(leagueId, token, myTeamId, nextCacheContext).catch(
+    const board = await getValuation(leagueId, token, valuationTeamId, nextCacheContext).catch(
       () => null,
     );
 
@@ -1798,7 +2057,7 @@ export default function CommandCenterScreen({ route }: Props) {
       setValuationSnapshot(board);
       setValuationMarketNotes(board.market_notes ?? []);
     }
-  }, [league, leagueId, leagueValuationKey, token]);
+  }, [league, leagueId, leagueValuationKey, token, valuationTeamId]);
 
   const handleRefresh = useCallback(async () => {
     if (!token || !league) {
@@ -1817,6 +2076,9 @@ export default function CommandCenterScreen({ route }: Props) {
       setPlayers(playerData);
       setRoster(rosterData);
 
+      const savedTaxiState = await loadTaxiDraftState(league.id, token).catch(() => null);
+      setTaxiDraftedIds(collectTaxiDraftPlayerIds(savedTaxiState));
+
       const nextCacheContext = {
         leagueConfigKey: leagueValuationKey,
         rosterFingerprint: rosterValuationFingerprint(rosterData),
@@ -1825,7 +2087,7 @@ export default function CommandCenterScreen({ route }: Props) {
       const board = await getValuation(
         leagueId,
         token,
-        myTeamId,
+        valuationTeamId,
         nextCacheContext,
       ).catch(() => null);
 
@@ -1846,7 +2108,7 @@ export default function CommandCenterScreen({ route }: Props) {
           leagueId,
           token,
           selectedPlayer.id,
-          myTeamId,
+          valuationTeamId,
           {
             cacheContext: nextCacheContext,
             explainValuationRows: true,
@@ -1878,6 +2140,7 @@ export default function CommandCenterScreen({ route }: Props) {
     selectedPlayer,
     selectedPrimaryPosition,
     token,
+    valuationTeamId,
   ]);
 
   useEffect(() => {
@@ -1897,12 +2160,15 @@ export default function CommandCenterScreen({ route }: Props) {
         setPlayers(playerData);
         setRoster(rosterData);
 
+        const savedTaxiState = await loadTaxiDraftState(league.id, token).catch(() => null);
+        setTaxiDraftedIds(collectTaxiDraftPlayerIds(savedTaxiState));
+
         const nextCacheContext = {
           leagueConfigKey: leagueValuationKey,
           rosterFingerprint: rosterValuationFingerprint(rosterData),
         };
 
-        const board = await getValuation(leagueId, token, myTeamId, nextCacheContext).catch(
+        const board = await getValuation(leagueId, token, valuationTeamId, nextCacheContext).catch(
           () => null,
         );
 
@@ -1922,7 +2188,33 @@ export default function CommandCenterScreen({ route }: Props) {
     leagueValuationKey,
     loadNotes,
     token,
+    valuationTeamId,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!league) {
+      setTaxiDraftedIds(new Set());
+      return;
+    }
+
+    void loadTaxiDraftState(league.id, token)
+      .then((saved) => {
+        if (!cancelled) {
+          setTaxiDraftedIds(collectTaxiDraftPlayerIds(saved));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTaxiDraftedIds(new Set());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [league?.id, token]);
 
   useEffect(() => {
     if (!selectedPlayer) {
@@ -1991,7 +2283,7 @@ export default function CommandCenterScreen({ route }: Props) {
 
     let cancelled = false;
 
-    void getValuationPlayer(leagueId, token, selectedPlayer.id, myTeamId, {
+    void getValuationPlayer(leagueId, token, selectedPlayer.id, valuationTeamId, {
       cacheContext,
       explainValuationRows: true,
     })
@@ -2016,6 +2308,7 @@ export default function CommandCenterScreen({ route }: Props) {
     leagueValuationKey,
     selectedPlayer?.id,
     token,
+    valuationTeamId,
   ]);
 
   useEffect(() => {
@@ -2050,7 +2343,7 @@ export default function CommandCenterScreen({ route }: Props) {
     }
 
     const budgetByTeamId = Object.fromEntries(
-      league.teamNames.map((_, index) => {
+      leagueTeamNames.map((_, index) => {
         const key = `team_${index + 1}`;
         const team = teamData[index];
 
@@ -2086,7 +2379,7 @@ export default function CommandCenterScreen({ route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [allSearchPlayers, league, leagueId, players.length, teamData, token]);
+  }, [allSearchPlayers, league, leagueId, leagueTeamNames, players.length, teamData, token]);
 
   function handleSelectPlayer(player: Player) {
     setSelectedPlayer(player);
@@ -2130,12 +2423,23 @@ export default function CommandCenterScreen({ route }: Props) {
 
     const teamId = teamIdFromNumber(teamNumber);
     const teamEntries = entriesForTeam(roster, teamId);
+    const teamIndex = teamIndexFromTeamId(teamId);
+    const targetTeamData = teamData[teamIndex] ?? null;
+
+    if (targetTeamData && priceValue > targetTeamData.maxBid) {
+      Alert.alert(
+        "Price exceeds max bid",
+        `$${priceValue} exceeds ${teamNameFromId(teamId, leagueTeamNames)}'s max bid of ${money(targetTeamData.maxBid)}.`,
+      );
+      return;
+    }
 
     if (!teamHasEligibleOpenSlot(teamEntries, selectedPlayer, league.rosterSlots)) {
       Alert.alert(
-        "No eligible slot",
-        `${teamNameFromId(teamId, league.teamNames)} does not appear to have an open eligible slot for ${selectedPlayer.name}. You can still change the slot if your league allows an override.`,
+        "No open roster slot",
+        `${teamNameFromId(teamId, leagueTeamNames)} does not have an open eligible slot for ${selectedPlayer.name}.`,
       );
+      return;
     }
 
     setAddingPick(true);
@@ -2158,8 +2462,10 @@ export default function CommandCenterScreen({ route }: Props) {
       setRedoStack([]);
       await refreshRosterAndEngine();
       setPrice("");
+      setRosterSlot("");
       setSearchQuery("");
-      Alert.alert("Pick logged", `${selectedPlayer.name} was drafted by ${teamNameFromId(teamId, league.teamNames)}.`);
+      setSelectedPlayer(null);
+      Alert.alert("Pick logged", `${selectedPlayer.name} was drafted by ${teamNameFromId(teamId, leagueTeamNames)}.`);
     } catch (err) {
       Alert.alert(
         "Failed to log pick",
@@ -2365,6 +2671,20 @@ export default function CommandCenterScreen({ route }: Props) {
     }
   }
 
+  function toggleLiqSort(col: LiqCol) {
+    setLiqSort((current) => ({
+      col,
+      dir: current.col === col && current.dir === "desc" ? "asc" : "desc",
+    }));
+  }
+
+  function toggleStandingsSort(key: string) {
+    setStandingsSort((current) => ({
+      key,
+      dir: current.key === key && current.dir === "desc" ? "asc" : "desc",
+    }));
+  }
+
   function openPlayerById(playerId: string) {
     const found = players.find((player) => player.id === playerId);
 
@@ -2406,6 +2726,15 @@ export default function CommandCenterScreen({ route }: Props) {
   const selectedTeamValue = currentPlayerDrafted ? null : rawSelectedTeamValue;
   const selectedEdge = currentPlayerDrafted ? null : rawSelectedEdge;
   const selectedPosition = selectedPrimaryPosition ?? "—";
+  const editingPick = editingPickId
+    ? recentPicks.find((pick) => pick._id === editingPickId) ??
+      roster.find((entry) => entry._id === editingPickId) ??
+      null
+    : null;
+  const editingPickPlayer = editingPick
+    ? players.find((player) => player.id === editingPick.externalPlayerId) ?? null
+    : null;
+  const editingPickImage = editingPickPlayer ? getPlayerImageUrl(editingPickPlayer) : null;
 
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} style={{ flex: 1, backgroundColor: COLORS.page }}>
@@ -2437,6 +2766,10 @@ export default function CommandCenterScreen({ route }: Props) {
           query={searchQuery}
           setQuery={setSearchQuery}
           suggestions={playerSuggestions}
+          selectedPlayer={selectedPlayer}
+          searchValueForPlayer={(player) =>
+            auctionValue(player, boardRowMap.get(player.id) ?? null)
+          }
           onSelect={handleSelectPlayer}
         />
 
@@ -2450,14 +2783,6 @@ export default function CommandCenterScreen({ route }: Props) {
             />
           ))}
         </View>
-
-        {newsStrip ? (
-          <Panel style={{ backgroundColor: "#111c2e", borderColor: "#2563eb" }}>
-            <Text style={{ color: "#bfdbfe", fontWeight: "900" }}>
-              {newsStrip}
-            </Text>
-          </Panel>
-        ) : null}
 
         {activeView === "Auction" ? (
           <>
@@ -2497,27 +2822,31 @@ export default function CommandCenterScreen({ route }: Props) {
                   side={statSide}
                   setSide={setStatSide}
                   scoringCategories={scoringCategories}
+                  league={league}
+                  players={players}
+                  roster={roster}
+                  myTeamId={myTeamId}
                 />
 
                 <Panel>
                   <SectionTitle title="Bid Recommendation" />
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                     <MetricTile
-                      label="Auction Value"
+                      label="Auction value"
                       value={money(selectedAuctionValue)}
                       highlight
                     />
                     <MetricTile
-                      label="Suggested Bid"
+                      label="Suggested bid"
                       value={money(selectedBid)}
                       highlight
                     />
                     <MetricTile
-                      label="Your Team Value"
+                      label="Your team value"
                       value={money(selectedTeamValue)}
                     />
                     <MetricTile
-                      label="Bid Edge"
+                      label="Bid edge"
                       value={signedMoney(selectedEdge)}
                     />
                   </View>
@@ -2541,7 +2870,7 @@ export default function CommandCenterScreen({ route }: Props) {
                 ) : null}
 
                 <LogPickPanel
-                  leagueTeams={league.teamNames}
+                  leagueTeams={leagueTeamNames}
                   selectedTeamNumber={teamNumber}
                   setSelectedTeamNumber={setTeamNumber}
                   price={price}
@@ -2589,7 +2918,7 @@ export default function CommandCenterScreen({ route }: Props) {
                   No player loaded
                 </Text>
                 <Text style={{ color: COLORS.dim, marginTop: 8, textAlign: "center" }}>
-                  Search above or open a player from Research to begin the auction workflow.
+                  Search for a player above to begin the auction
                 </Text>
               </Panel>
             )}
@@ -2603,7 +2932,7 @@ export default function CommandCenterScreen({ route }: Props) {
               <RowText
                 left="Avg winning price"
                 right={
-                  localPositionMarket
+                  localPositionMarket && localPositionMarket.avgPaid > 0
                     ? money(localPositionMarket.avgPaid)
                     : "—"
                 }
@@ -2611,7 +2940,7 @@ export default function CommandCenterScreen({ route }: Props) {
               <RowText
                 left="Draftroom avg $"
                 right={
-                  localPositionMarket
+                  localPositionMarket && localPositionMarket.avgCatalogValue > 0
                     ? money(localPositionMarket.avgCatalogValue)
                     : "—"
                 }
@@ -2619,8 +2948,8 @@ export default function CommandCenterScreen({ route }: Props) {
               <RowText
                 left="Draftroom spend vs $"
                 right={
-                  localPositionMarket
-                    ? signedMoney(localPositionMarket.delta)
+                  localPositionMarket && localPositionMarket.avgPaid > 0
+                    ? `${localPositionMarket.inflation > 0 ? "+" : ""}${localPositionMarket.inflation}%`
                     : "—"
                 }
               />
@@ -2684,7 +3013,7 @@ export default function CommandCenterScreen({ route }: Props) {
             <Panel>
               <SectionTitle title="Team Makeup" />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-                {league.teamNames.map((teamName, index) => {
+                {leagueTeamNames.map((teamName, index) => {
                   const teamId = `team_${index + 1}`;
 
                   return (
@@ -2839,68 +3168,87 @@ export default function CommandCenterScreen({ route }: Props) {
             </Panel>
 
             <Panel>
-              <SectionTitle title="Liquidity" />
-              <View
-                style={{
-                  flexDirection: "row",
-                  borderBottomWidth: 1,
-                  borderBottomColor: "#271b3d",
-                  paddingBottom: 6,
-                  marginBottom: 4,
-                }}
-              >
-                <Text style={{ color: COLORS.muted, flex: 1, fontWeight: "900" }}>Team</Text>
-                <Text style={{ color: COLORS.muted, width: 54, textAlign: "right", fontWeight: "900" }}>Left</Text>
-                <Text style={{ color: COLORS.muted, width: 48, textAlign: "right", fontWeight: "900" }}>Open</Text>
-                <Text style={{ color: COLORS.muted, width: 54, textAlign: "right", fontWeight: "900" }}>Max</Text>
-                <Text style={{ color: COLORS.muted, width: 58, textAlign: "right", fontWeight: "900" }}>$ / spot</Text>
-              </View>
+              <SectionTitle title="Liquidity" right="Sortable" />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                {([
+                  ["name", "Team"],
+                  ["remaining", "Left"],
+                  ["open", "Open"],
+                  ["maxBid", "Max"],
+                  ["ppSpot", "$/Spot"],
+                ] as [LiqCol, string][]).map(([col, label]) => (
+                  <SortChip
+                    key={col}
+                    label={label}
+                    active={liqSort.col === col}
+                    dir={liqSort.dir}
+                    onPress={() => toggleLiqSort(col)}
+                  />
+                ))}
+              </ScrollView>
 
-              {teamData.map((team, index) => {
-                const teamId = `team_${index + 1}`;
-                const ineligible =
-                  selectedPlayer !== null &&
-                  !teamHasEligibleOpenSlot(
-                    entriesForTeam(roster, teamId),
-                    selectedPlayer,
-                    league.rosterSlots,
-                  );
+              {sortedTeamData.length === 0 ? (
+                <Text style={{ color: COLORS.muted, textAlign: "center", paddingVertical: 18 }}>
+                  No picks logged yet
+                </Text>
+              ) : (
+                sortedTeamData.map((team) => {
+                  const teamIndex = Math.max(0, teamData.findIndex((item) => item.name === team.name));
+                  const teamId = `team_${teamIndex + 1}`;
+                  const ineligible =
+                    selectedPlayerPositions.length > 0 &&
+                    !teamHasEligibleOpenSlot(
+                      entriesForTeam(roster, teamId),
+                      selectedPlayer,
+                      league.rosterSlots,
+                    );
 
-                return (
-                  <View
-                    key={team.name}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: teamId === myTeamId ? "#2a1d43" : "transparent",
-                      opacity: ineligible ? 0.5 : 1,
-                      paddingVertical: 8,
-                      paddingHorizontal: 6,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={{ color: COLORS.text, flex: 1, fontWeight: "900" }}
+                  return (
+                    <View
+                      key={team.name}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: teamId === myTeamId ? "#2a1d43" : "transparent",
+                        opacity: ineligible ? 0.5 : 1,
+                        paddingVertical: 8,
+                        paddingHorizontal: 6,
+                        borderRadius: 8,
+                      }}
                     >
-                      {team.name}
-                      {teamId === myTeamId ? " (You)" : ""}
-                    </Text>
-                    <Text style={{ color: COLORS.text, width: 54, textAlign: "right" }}>
-                      {money(team.remaining)}
-                    </Text>
-                    <Text style={{ color: COLORS.text, width: 48, textAlign: "right" }}>
-                      {team.open}
-                    </Text>
-                    <Text style={{ color: COLORS.text, width: 54, textAlign: "right" }}>
-                      {money(team.maxBid)}
-                    </Text>
-                    <Text style={{ color: COLORS.text, width: 58, textAlign: "right" }}>
-                      ${formatNumber(team.ppSpot, 1)}
-                    </Text>
-                  </View>
-                );
-              })}
+                      <Text
+                        numberOfLines={1}
+                        style={{ color: COLORS.text, flex: 1, fontWeight: "900" }}
+                      >
+                        {team.name}
+                        {teamId === myTeamId ? " (You)" : ""}
+                      </Text>
+                      <Text style={{ color: COLORS.text, width: 54, textAlign: "right" }}>
+                        {money(team.remaining)}
+                      </Text>
+                      <Text style={{ color: COLORS.text, width: 48, textAlign: "right" }}>
+                        {team.open}
+                      </Text>
+                      <Text style={{ color: COLORS.text, width: 54, textAlign: "right" }}>
+                        {money(team.maxBid)}
+                      </Text>
+                      <Text style={{ color: COLORS.text, width: 58, textAlign: "right" }}>
+                        ${formatNumber(team.ppSpot, 1)}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
+            </Panel>
+
+            <Panel>
+              <SectionTitle title="Market Pressure" right={marketPressureRows.phase} />
+              {marketPressureRows.rows.map((row) => (
+                <RowText key={row.label} left={row.label} right={row.value} />
+              ))}
+              <Text style={{ color: COLORS.dim, marginTop: 8 }}>
+                {marketPressureRows.detail}
+              </Text>
             </Panel>
 
             {loadingMockPicks ? (
@@ -2920,7 +3268,7 @@ export default function CommandCenterScreen({ route }: Props) {
                     }}
                   >
                     <Text style={{ color: COLORS.text, fontWeight: "900" }}>
-                      {teamNameFromId(prediction.team_id, league.teamNames)} · Pick{" "}
+                      {teamNameFromId(prediction.team_id, leagueTeamNames)} · Pick{" "}
                       {prediction.pick_position}
                     </Text>
                     <Text style={{ color: COLORS.muted, marginTop: 2 }}>
@@ -2949,15 +3297,36 @@ export default function CommandCenterScreen({ route }: Props) {
 
         {activeView === "Standings" ? (
           <Panel>
-            <SectionTitle title="Projected Standings" right="Sortable on web" />
+            <SectionTitle title="Projected Standings" right="Sortable" />
             <Text style={{ color: COLORS.muted, marginBottom: 10 }}>
-              Lightweight projected roto standings from current rostered players.
+              Projected roto standings from current rostered players.
             </Text>
 
-            {projectedStandings.length === 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+              <SortChip
+                label="Pts"
+                active={standingsSort.key === STANDINGS_POINTS_SORT_KEY}
+                dir={standingsSort.dir}
+                onPress={() => toggleStandingsSort(STANDINGS_POINTS_SORT_KEY)}
+              />
+              {scoringCategories.map((category) => {
+                const cat = normalizeCatName(category.name);
+                return (
+                  <SortChip
+                    key={cat}
+                    label={cat}
+                    active={standingsSort.key === cat}
+                    dir={standingsSort.dir}
+                    onPress={() => toggleStandingsSort(cat)}
+                  />
+                );
+              })}
+            </ScrollView>
+
+            {sortedProjectedStandings.length === 0 ? (
               <EmptyState label="No standings data available yet." />
             ) : (
-              projectedStandings.map((row, index) => (
+              sortedProjectedStandings.map((row, index) => (
                 <View
                   key={row.teamId}
                   style={{
@@ -2972,7 +3341,7 @@ export default function CommandCenterScreen({ route }: Props) {
                     {row.teamId === myTeamId ? " (You)" : ""}
                   </Text>
                   <Text style={{ color: COLORS.muted, marginTop: 2 }}>
-                    Total roto points: {row.totalPoints}
+                    Pts: {row.totalPoints}
                   </Text>
 
                   <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
@@ -2990,7 +3359,13 @@ export default function CommandCenterScreen({ route }: Props) {
                             marginBottom: 8,
                           }}
                         >
-                          <Text style={{ color: COLORS.muted, fontSize: 11, fontWeight: "900" }}>
+                          <Text
+                            style={{
+                              color: standingsSort.key === cat ? COLORS.yellow : COLORS.muted,
+                              fontSize: 11,
+                              fontWeight: "900",
+                            }}
+                          >
                             {cat}
                           </Text>
                           <Text style={{ color: COLORS.text }}>
@@ -3036,16 +3411,16 @@ export default function CommandCenterScreen({ route }: Props) {
                         #{index + 1} {pick.playerName}
                       </Text>
                       <Text style={{ color: COLORS.muted, marginTop: 2 }}>
-                        {teamNameFromId(pick.teamId, league.teamNames)} · {pick.rosterSlot} ·{" "}
+                        {teamNameFromId(pick.teamId, leagueTeamNames)} · {pick.rosterSlot} ·{" "}
                         {money(pick.price)}
                       </Text>
 
-                      {isEditing ? (
+                      {isEditing && false ? (
                         <View style={{ marginTop: 10 }}>
                           <TextInput
                             value={editTeamNumber}
                             onChangeText={setEditTeamNumber}
-                            placeholder={`Team 1-${league.teams}`}
+                            placeholder={`Team 1-${league?.teams ?? 1}`}
                             keyboardType="numeric"
                             placeholderTextColor={COLORS.dim}
                             style={{
@@ -3107,7 +3482,7 @@ export default function CommandCenterScreen({ route }: Props) {
                               onPress={cancelEditingPick}
                             />
                             <SmallButton
-                              label={isWorking ? "Deleting..." : "Delete"}
+                              label={isWorking ? "Removing..." : "Remove"}
                               tone="danger"
                               disabled={isWorking}
                               onPress={() => void handleDeletePick(pick)}
@@ -3117,15 +3492,11 @@ export default function CommandCenterScreen({ route }: Props) {
                       ) : (
                         <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
                           <SmallButton
-                            label="Open"
-                            onPress={() => openPlayerById(pick.externalPlayerId)}
-                          />
-                          <SmallButton
                             label="Edit"
                             onPress={() => startEditingPick(pick)}
                           />
                           <SmallButton
-                            label={isWorking ? "Deleting..." : "Delete"}
+                            label={isWorking ? "Removing..." : "Remove"}
                             tone="danger"
                             disabled={isWorking}
                             onPress={() => void handleDeletePick(pick)}
@@ -3140,6 +3511,27 @@ export default function CommandCenterScreen({ route }: Props) {
           </>
         ) : null}
       </ScrollView>
+
+      <EditPickModal
+        entry={editingPick}
+        teamNames={leagueTeamNames}
+        editTeamNumber={editTeamNumber}
+        editSlot={editSlot}
+        editPrice={editPrice}
+        slotOptions={Object.keys(league.rosterSlots)}
+        playerImage={editingPickImage}
+        saving={workingPickId === editingPick?._id}
+        onChangeTeamNumber={setEditTeamNumber}
+        onChangeSlot={setEditSlot}
+        onChangePrice={setEditPrice}
+        onCancel={cancelEditingPick}
+        onSave={() => {
+          if (editingPick) {
+            void handleSavePick(editingPick);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
+

@@ -89,12 +89,6 @@ function getRecommendedBid(row: ValuationResult | null, player: Player): number 
 }
 
 function getEdge(row: ValuationResult | null, player: Player): number | null {
-  const explicit = finiteNumber(row?.edge);
-
-  if (explicit !== null) {
-    return explicit;
-  }
-
   const teamValue = getTeamValue(row, player);
   const bid = getRecommendedBid(row, player);
 
@@ -225,7 +219,7 @@ export default function BidDecisionCard({
             textTransform: "uppercase",
           }}
         >
-          Bid Decision
+          Bid recommendation
         </Text>
         <Text style={{ color, fontWeight: "900" }}>
           {label}
@@ -233,10 +227,10 @@ export default function BidDecisionCard({
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-        <Metric label="Auction Value" value={money(auctionValue)} highlight />
-        <Metric label="Recommended Bid" value={money(recommendedBid)} highlight />
-        <Metric label="Team Value" value={money(teamValue)} />
-        <Metric label="Bid Edge" value={signedMoney(edge)} />
+        <Metric label="Auction value" value={money(auctionValue)} highlight />
+        <Metric label="Suggested bid" value={money(recommendedBid)} highlight />
+        <Metric label="Your team value" value={money(teamValue)} />
+        <Metric label="Bid edge" value={signedMoney(edge)} />
       </View>
 
       {valuationRow?.recommended_bid_note ? (
@@ -306,3 +300,4 @@ export default function BidDecisionCard({
     </View>
   );
 }
+

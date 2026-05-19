@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
+  Modal,
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,6 +17,7 @@ import {
   getRoster,
   getRosterCached,
   removeRosterEntry,
+  updateRosterEntry,
   type RosterEntry,
 } from "../api/roster";
 import AppCard from "../components/ui/AppCard";
@@ -679,6 +683,456 @@ function rankColor(rank: number, total: number): string {
   return "#fb7185";
 }
 
+
+function uniqueStrings(values: string[]): string[] {
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeRosterSlot(value);
+
+    if (!normalized) continue;
+    if (!result.includes(normalized)) result.push(normalized);
+  }
+
+  return result;
+}
+
+function isUniversalRosterSlot(slot: string): boolean {
+  const normalized = normalizeRosterSlot(slot);
+  return normalized === "BN" || normalized === "UTIL";
+}
+
+function rosterSlotOptionsForEntry(
+  entry: RosterEntry | null,
+  rosterSlots: Record<string, number>,
+): string[] {
+  if (!entry) return orderedSlotKeys(rosterSlots);
+
+  const activeSlots = orderedSlotKeys(rosterSlots).filter(
+    (slot) => !isReserveRosterSlot(slot),
+  );
+  const playerPositions = normalizePlayerPositions(
+    entry.positions,
+    entry.rosterSlot,
+  );
+
+  const eligibleSlots = activeSlots.filter((slot) => {
+    if (isUniversalRosterSlot(slot)) return true;
+
+    return playerPositions.some((position) =>
+      slotAllowsPosition(slot, position),
+    );
+  });
+
+  return uniqueStrings([entry.rosterSlot, ...eligibleSlots]);
+}
+
+function entryPlayerImage(entry: RosterEntry | null, playerMap: Map<string, Player>): string {
+  if (!entry) return "";
+  return playerMap.get(entry.externalPlayerId)?.headshot?.trim() ?? "";
+}
+
+function displayContract(entry: RosterEntry | null): string {
+  return entry?.keeperContract?.trim() || "Arb / 3Y";
+}
+
+function modalBackdropStyle() {
+  return {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    justifyContent: "center" as const,
+    padding: 18,
+  };
+}
+
+function modalCardStyle() {
+  return {
+    maxHeight: "86%" as const,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    overflow: "hidden" as const,
+  };
+}
+
+function ModalHeader({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+}) {
+  return (
+    <View
+      style={{
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        padding: 16,
+        flexDirection: "row",
+        alignItems: "flex-start",
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.text, fontWeight: "900", fontSize: 18 }}>
+          {title}
+        </Text>
+
+        {subtitle ? (
+          <Text style={{ color: colors.muted, marginTop: 4 }}>{subtitle}</Text>
+        ) : null}
+      </View>
+
+      <TouchableOpacity activeOpacity={0.8} onPress={onClose}>
+        <Text style={{ color: colors.muted, fontSize: 22, fontWeight: "700" }}>
+          ×
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ReserveColumn({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: ReserveRow[];
+}) {
+  return (
+    <View style={{ flex: 1, minWidth: 130, marginRight: 12 }}>
+      <Text
+        style={{
+          color: colors.purple2,
+          fontSize: 11,
+          fontWeight: "900",
+          letterSpacing: 1.4,
+          marginBottom: 10,
+        }}
+      >
+        {title} ({rows.length})
+      </Text>
+
+      {rows.length === 0 ? (
+        <Text style={{ color: colors.muted }}>—</Text>
+      ) : (
+        rows.map((row, index) => (
+          <View
+            key={`${title}-${row.playerName}-${row.playerTeam ?? "FA"}-${index}`}
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 8,
+            }}
+          >
+            <Text
+              numberOfLines={1}
+              style={{ color: colors.text, flex: 1, marginRight: 8 }}
+            >
+              {row.playerName}
+            </Text>
+
+            {row.playerTeam ? (
+              <Text style={{ color: colors.muted, fontWeight: "800" }}>
+                {row.playerTeam}
+              </Text>
+            ) : null}
+          </View>
+        ))
+      )}
+    </View>
+  );
+}
+
+function TeamReservesModal({
+  team,
+  onClose,
+}: {
+  team: TeamCardData | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={team !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={modalBackdropStyle()}>
+        <View style={modalCardStyle()}>
+          <ModalHeader
+            title={team?.teamName ?? "Team"}
+            subtitle={
+              team
+                ? `Reserves: ${team.minors.length} minors · ${team.taxi.length} taxi`
+                : undefined
+            }
+            onClose={onClose}
+          />
+
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              <ReserveColumn title="MINORS" rows={team?.minors ?? []} />
+              <ReserveColumn title="TAXI" rows={team?.taxi ?? []} />
+
+              {team && team.otherReserves.length > 0 ? (
+                <ReserveColumn title="RESERVES" rows={team.otherReserves} />
+              ) : null}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function OptionPill({
+  label,
+  selected,
+  disabled = false,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.82}
+      disabled={disabled}
+      onPress={onPress}
+      style={{
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: selected ? colors.purple2 : colors.border,
+        backgroundColor: selected ? colors.purple : colors.surface2,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        marginRight: 8,
+        marginBottom: 8,
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      <Text
+        style={{
+          color: selected ? colors.white : colors.text,
+          fontWeight: "900",
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function EditPickModal({
+  entry,
+  teamNames,
+  editTeamId,
+  editSlot,
+  editPrice,
+  slotOptions,
+  playerImage,
+  saving,
+  onChangeTeamId,
+  onChangeSlot,
+  onChangePrice,
+  onCancel,
+  onSave,
+}: {
+  entry: RosterEntry | null;
+  teamNames: string[];
+  editTeamId: string;
+  editSlot: string;
+  editPrice: string;
+  slotOptions: string[];
+  playerImage: string;
+  saving: boolean;
+  onChangeTeamId: (value: string) => void;
+  onChangeSlot: (value: string) => void;
+  onChangePrice: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <Modal
+      visible={entry !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View style={modalBackdropStyle()}>
+        <View style={modalCardStyle()}>
+          <ModalHeader title="EDIT PICK" onClose={onCancel} />
+
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                paddingBottom: 14,
+                marginBottom: 16,
+              }}
+            >
+              {playerImage ? (
+                <Image
+                  source={{ uri: playerImage }}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    marginRight: 12,
+                    backgroundColor: colors.surface2,
+                  }}
+                />
+              ) : null}
+
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 17,
+                  fontWeight: "900",
+                  flex: 1,
+                }}
+              >
+                {entry?.playerName ?? "Player"}
+              </Text>
+            </View>
+
+            <Text
+              style={{
+                color: colors.muted,
+                fontSize: 11,
+                fontWeight: "900",
+                letterSpacing: 1.1,
+                marginBottom: 8,
+              }}
+            >
+              TEAM
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 14 }}
+            >
+              {teamNames.map((teamName, index) => {
+                const teamId = teamIdFromIndex(index);
+
+                return (
+                  <OptionPill
+                    key={teamId}
+                    label={teamName}
+                    selected={editTeamId === teamId}
+                    onPress={() => onChangeTeamId(teamId)}
+                  />
+                );
+              })}
+            </ScrollView>
+
+            <Text
+              style={{
+                color: colors.muted,
+                fontSize: 11,
+                fontWeight: "900",
+                letterSpacing: 1.1,
+                marginBottom: 8,
+              }}
+            >
+              ROSTER SLOT
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 14 }}
+            >
+              {slotOptions.map((slot) => (
+                <OptionPill
+                  key={slot}
+                  label={slot}
+                  selected={editSlot === slot}
+                  onPress={() => onChangeSlot(slot)}
+                />
+              ))}
+            </ScrollView>
+
+            <Text
+              style={{
+                color: colors.muted,
+                fontSize: 11,
+                fontWeight: "900",
+                letterSpacing: 1.1,
+                marginBottom: 8,
+              }}
+            >
+              PRICE PAID
+            </Text>
+
+            <TextInput
+              value={editPrice}
+              onChangeText={onChangePrice}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={colors.muted}
+              style={{
+                color: colors.text,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface2,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                marginBottom: 14,
+                fontWeight: "800",
+              }}
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+                paddingTop: 12,
+                marginBottom: 18,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.muted,
+                  fontSize: 11,
+                  fontWeight: "900",
+                  letterSpacing: 1.1,
+                }}
+              >
+                CONTRACT
+              </Text>
+
+              <Text style={{ color: colors.green, fontWeight: "900" }}>
+                {displayContract(entry)}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <DraftButton label="Cancel" onPress={onCancel} />
+              <DraftButton
+                label={saving ? "Saving..." : "Save"}
+                onPress={onSave}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function TeamStatPill({ label, value }: { label: string; value: string }) {
   return (
     <View
@@ -757,16 +1211,49 @@ function ReserveSummary({
   minors,
   taxi,
   otherReserves,
+  onViewReserves,
 }: {
   minors: ReserveRow[];
   taxi: ReserveRow[];
   otherReserves: ReserveRow[];
+  onViewReserves: () => void;
 }) {
+  const totalReserves = minors.length + taxi.length + otherReserves.length;
+
   return (
-    <Text style={{ color: colors.muted, marginTop: 8 }}>
-      Minors {minors.length} · Taxi {taxi.length}
-      {otherReserves.length > 0 ? ` · Reserves ${otherReserves.length}` : ""}
-    </Text>
+    <View style={{ marginTop: 8 }}>
+      <Text style={{ color: colors.muted }}>
+        Minors {minors.length} · Taxi {taxi.length}
+        {otherReserves.length > 0 ? ` · Reserves ${otherReserves.length}` : ""}
+      </Text>
+
+      {totalReserves > 0 ? (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onViewReserves}
+          style={{
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 10,
+            paddingVertical: 9,
+            alignItems: "center",
+            marginTop: 10,
+            backgroundColor: "#241638",
+          }}
+        >
+          <Text
+            style={{
+              color: colors.purple2,
+              fontSize: 12,
+              fontWeight: "900",
+              letterSpacing: 0.4,
+            }}
+          >
+            VIEW RESERVES
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
@@ -837,6 +1324,12 @@ export default function LeagueOverviewScreen({ route }: Props) {
   const [loading, setLoading] = useState(() => getRosterCached(leagueId) === null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [reserveModalTeam, setReserveModalTeam] = useState<TeamCardData | null>(null);
+  const [editingEntry, setEditingEntry] = useState<RosterEntry | null>(null);
+  const [editTeamId, setEditTeamId] = useState("");
+  const [editSlot, setEditSlot] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadOverview = useCallback(
     async (mode: "load" | "refresh" = "load") => {
@@ -982,6 +1475,14 @@ export default function LeagueOverviewScreen({ route }: Props) {
     return perTeam * league.teams;
   }, [league]);
 
+  const editSlotOptions = useMemo(() => {
+    return rosterSlotOptionsForEntry(editingEntry, league?.rosterSlots ?? {});
+  }, [editingEntry, league]);
+
+  const editingPlayerImage = useMemo(() => {
+    return entryPlayerImage(editingEntry, playerMap);
+  }, [editingEntry, playerMap]);
+
   function toggleSort(cat: string) {
     if (cat === sortCat) {
       setSortAsc((value) => !value);
@@ -1020,6 +1521,71 @@ export default function LeagueOverviewScreen({ route }: Props) {
         },
       ],
     );
+  }
+
+  function startEditingEntry(entry: RosterEntry) {
+    setEditingEntry(entry);
+    setEditTeamId(entry.teamId);
+    setEditSlot(normalizeRosterSlot(entry.rosterSlot));
+    setEditPrice(String(Math.round(entry.price)));
+  }
+
+  function cancelEditingEntry() {
+    setEditingEntry(null);
+    setEditTeamId("");
+    setEditSlot("");
+    setEditPrice("");
+    setSavingEdit(false);
+  }
+
+  async function handleSaveEditedEntry() {
+    if (!token || !league || !editingEntry) return;
+
+    const nextPrice = Number(editPrice);
+    const nextSlot = normalizeRosterSlot(editSlot);
+    const validTeamIds = new Set(teamNames.map((_, index) => teamIdFromIndex(index)));
+
+    if (!validTeamIds.has(editTeamId)) {
+      Alert.alert("Invalid team", "Choose a valid team.");
+      return;
+    }
+
+    if (!nextSlot) {
+      Alert.alert("Invalid roster slot", "Choose a valid roster slot.");
+      return;
+    }
+
+    if (!Number.isFinite(nextPrice) || nextPrice < 0) {
+      Alert.alert("Invalid price", "Enter a non-negative price.");
+      return;
+    }
+
+    setSavingEdit(true);
+
+    try {
+      const updated = await updateRosterEntry(
+        league.id,
+        editingEntry._id,
+        {
+          teamId: editTeamId,
+          rosterSlot: nextSlot,
+          price: nextPrice,
+          keeperContract: editingEntry.keeperContract,
+        },
+        token,
+      );
+
+      setEntries((current) =>
+        current.map((item) => (item._id === updated._id ? updated : item)),
+      );
+      cancelEditingEntry();
+    } catch (err) {
+      Alert.alert(
+        "Update failed",
+        err instanceof Error ? err.message : "Could not update this pick.",
+      );
+      setSavingEdit(false);
+    }
   }
 
   if (!league) {
@@ -1180,6 +1746,7 @@ export default function LeagueOverviewScreen({ route }: Props) {
                       minors={team.minors}
                       taxi={team.taxi}
                       otherReserves={team.otherReserves}
+                      onViewReserves={() => setReserveModalTeam(team)}
                     />
                   </View>
                 ))}
@@ -1362,6 +1929,10 @@ export default function LeagueOverviewScreen({ route }: Props) {
 
                     <View style={{ flexDirection: "row", marginTop: 8 }}>
                       <DraftButton
+                        label="Edit"
+                        onPress={() => startEditingEntry(entry)}
+                      />
+                      <DraftButton
                         label="Remove"
                         tone="danger"
                         onPress={() => handleRemoveEntry(entry)}
@@ -1374,6 +1945,27 @@ export default function LeagueOverviewScreen({ route }: Props) {
           </>
         )}
       </ScrollView>
+
+      <TeamReservesModal
+        team={reserveModalTeam}
+        onClose={() => setReserveModalTeam(null)}
+      />
+
+      <EditPickModal
+        entry={editingEntry}
+        teamNames={teamNames}
+        editTeamId={editTeamId}
+        editSlot={editSlot}
+        editPrice={editPrice}
+        slotOptions={editSlotOptions}
+        playerImage={editingPlayerImage}
+        saving={savingEdit}
+        onChangeTeamId={setEditTeamId}
+        onChangeSlot={setEditSlot}
+        onChangePrice={setEditPrice}
+        onCancel={cancelEditingEntry}
+        onSave={() => void handleSaveEditedEntry()}
+      />
     </SafeAreaView>
   );
 }

@@ -516,13 +516,37 @@ export default function PlayerDetailModal({
             </Text>
             <ProfileLine label="Age" value={formatNumber(player.age)} />
             <ProfileLine label="MLB ID" value={getMlbId(player)} />
-            <ProfileLine label="Auction rank" value={auctionRank === null ? "—" : `#${Math.round(auctionRank)}`} />
-            <ProfileLine label="Market ADP" value={marketAdp === null ? "—" : formatNumber(marketAdp, 2)} />
-            <ProfileLine label="Auction tier" value={displayTier ? String(Math.round(displayTier)) : "—"} />
-            <ProfileLine label="Indicator" value={typeof indicator === "string" ? indicator : "—"} />
-            <ProfileLine label="Drafted" value={isDrafted ? draftedByTeam ?? "Drafted" : "Available"} />
-            {draftedPrice !== undefined ? <ProfileLine label="Paid" value={formatMoney(draftedPrice)} /> : null}
-            {draftedContract ? <ProfileLine label="Contract" value={draftedContract} /> : null}
+
+            {!isDrafted ? (
+              <>
+                <ProfileLine
+                  label="Auction rank"
+                  value={auctionRank === null ? "—" : String(Math.round(auctionRank))}
+                />
+                <ProfileLine
+                  label="Market ADP"
+                  value={marketAdp === null ? "—" : formatNumber(marketAdp, 2)}
+                />
+                <ProfileLine
+                  label="Auction tier"
+                  value={displayTier ? String(Math.round(displayTier)) : "—"}
+                />
+              </>
+            ) : null}
+
+            <ProfileLine
+              label="Indicator"
+              value={typeof indicator === "string" ? indicator : "—"}
+            />
+            <ProfileLine
+              label="Drafted"
+              value={isDrafted ? `Yes - ${draftedByTeam ?? "Drafted"}` : "Available"}
+            />
+
+            {!isDrafted && draftedContract ? (
+              <ProfileLine label="Contract" value={draftedContract} />
+            ) : null}
+
             {injury ? <ProfileLine label="Injury" value={injury} /> : null}
           </AppCard>
 

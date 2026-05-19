@@ -16,7 +16,6 @@ import { getPlayers, getPlayersCached } from "../api/players";
 import { getRoster, getRosterCached, type RosterEntry } from "../api/roster";
 import AppButton from "../components/ui/AppButton";
 import AppCard from "../components/ui/AppCard";
-import AppChip from "../components/ui/AppChip";
 import PositionBadge from "../components/ui/PositionBadge";
 import { EmptyState, ErrorState } from "../components/ui/ScreenState";
 import { useAuth } from "../contexts/AuthContext";
@@ -745,13 +744,62 @@ export default function TaxiDraftScreen({ route }: Props) {
               const count = (taxiRosters[teamId] ?? []).length;
 
               return (
-                <AppChip
+                <TouchableOpacity
                   key={teamId}
-                  label={`${teamName}  ${count}`}
-                  selected={selected}
+                  activeOpacity={0.84}
                   onPress={() => setActiveTeamId(teamId)}
-                  style={{ marginRight: 8 }}
-                />
+                  style={{
+                    borderWidth: 1,
+                    borderColor: selected ? colors.purple2 : colors.border,
+                    backgroundColor: selected ? colors.purple : colors.surface2,
+                    borderRadius: 14,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    marginRight: 8,
+                    minHeight: 44,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: selected ? colors.text : colors.muted,
+                      fontWeight: "900",
+                      marginRight: 8,
+                    }}
+                  >
+                    {teamName}
+                  </Text>
+
+                  <View
+                    style={{
+                      minWidth: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      paddingHorizontal: 7,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: selected
+                        ? "rgba(10, 8, 18, 0.55)"
+                        : "rgba(255,255,255,0.06)",
+                      borderWidth: 1,
+                      borderColor: selected
+                        ? "rgba(255,255,255,0.12)"
+                        : colors.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: selected ? colors.text : colors.muted,
+                        fontSize: 12,
+                        fontWeight: "900",
+                      }}
+                    >
+                      {count}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               );
             })}
           </ScrollView>
