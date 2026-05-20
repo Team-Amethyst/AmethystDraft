@@ -481,7 +481,10 @@ export function mergeFocusedExplainIntoBoardRow(
     merged.auction_tier = boardTier;
   }
 
-  if (boardRowHasFinite(boardRow, "auction_rank")) {
+  if (
+    typeof boardRow.auction_rank === "number" &&
+    Number.isFinite(boardRow.auction_rank)
+  ) {
     merged.auction_rank = boardRow.auction_rank;
     merged.adp = boardRow.auction_rank;
   }
