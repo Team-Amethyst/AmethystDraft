@@ -438,6 +438,57 @@ export function mergeValuationBoardRowIntoPrevious(
   return merged;
 }
 
+const BOARD_PRESERVED_DOLLAR_FIELDS = [
+  "auction_value",
+  "recommended_bid",
+  "team_value",
+  "max_bid",
+  "baseline_value",
+  "edge",
+] as const satisfies readonly (keyof ValuationResult)[];
+
+function boardRowHasFinite(
+  row: ValuationResult | undefined,
+  field: (typeof BOARD_PRESERVED_DOLLAR_FIELDS)[number],
+): boolean {
+  if (!row) return false;
+  const v = row[field];
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+/**
+ * Merges focused `/valuation/player` into an existing board row: explain and notes
+ * from the player call, but board-backed dollar fields stay when the board already
+ * sent finite values (matches Research modal / {@link mergePlayerWithFocusedExplainEnrichment}).
+ */
+export function mergeFocusedExplainIntoBoardRow(
+  boardRow: ValuationResult | undefined,
+  focused: ValuationResult,
+): ValuationResult {
+  if (!boardRow) return focused;
+
+  const merged = mergeValuationBoardRowIntoPrevious(boardRow, focused);
+
+  for (const field of BOARD_PRESERVED_DOLLAR_FIELDS) {
+    if (boardRowHasFinite(boardRow, field)) {
+      merged[field] = boardRow[field] as number;
+    }
+  }
+
+  const boardTier = mergeAuctionTierNumbers(boardRow, boardRow);
+  if (boardTier > 0) {
+    merged.tier = boardTier;
+    merged.auction_tier = boardTier;
+  }
+
+  if (boardRowHasFinite(boardRow, "auction_rank")) {
+    merged.auction_rank = boardRow.auction_rank;
+    merged.adp = boardRow.auction_rank;
+  }
+
+  return merged;
+}
+
 function pickEngineDraftablePlayerIds(
   o: Record<string, unknown>,
 ): string[] | undefined {
@@ -524,7 +575,7 @@ export function normalizeValuationPlayerResponseBody(
       (v) => String(v.player_id).trim() === pidFocus,
     );
     if (fromList && base.player) {
-      base.player = mergeValuationBoardRowIntoPrevious(fromList, base.player);
+      base.player = mergeFocusedExplainIntoBoardRow(fromList, base.player);
     } else if (fromList && !base.player) {
       base.player = fromList;
     }

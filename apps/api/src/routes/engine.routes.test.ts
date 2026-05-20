@@ -189,6 +189,51 @@ describe("engine routes (BFF → Amethyst)", () => {
       expect(payload).toMatchObject({ explain_valuation_rows: true });
     });
 
+    it("board and player BFF payloads share league context; only explain differs by default", async () => {
+      postMock
+        .mockResolvedValueOnce({
+          data: { inflation_factor: 1, valuations: [], calculated_at: "x" },
+          headers: {},
+        })
+        .mockResolvedValueOnce({
+          data: {
+            inflation_factor: 1,
+            player: { player_id: "660271" },
+            valuations: [],
+            calculated_at: "x",
+          },
+          headers: {},
+        });
+
+      await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation`)
+        .set("Authorization", "Bearer t")
+        .send({ user_team_id: "team_1" })
+        .expect(200);
+
+      await request(app)
+        .post(`/api/engine/leagues/${lid}/valuation/player`)
+        .set("Authorization", "Bearer t")
+        .send({
+          player_id: "660271",
+          user_team_id: "team_1",
+          explain_valuation_rows: true,
+        })
+        .expect(200);
+
+      const boardPayload = postMock.mock.calls[0]?.[1] as Record<string, unknown>;
+      const playerPayload = postMock.mock.calls[1]?.[1] as Record<string, unknown>;
+      expect(boardPayload.explain_valuation_rows).toBeUndefined();
+      expect(playerPayload.explain_valuation_rows).toBe(true);
+      expect(playerPayload.player_id).toBe("660271");
+      expect(boardPayload.player_id).toBeUndefined();
+
+      const { explain_valuation_rows: _pe, player_id: _pid, ...playerRest } =
+        playerPayload;
+      const { explain_valuation_rows: _be, ...boardRest } = boardPayload;
+      expect(playerRest).toEqual(boardRest);
+    });
+
     it("sends keepers/minors/taxi/drafted context sections", async () => {
       vi.mocked(RosterEntry.find).mockResolvedValueOnce(
         [

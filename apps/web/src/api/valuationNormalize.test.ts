@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   findRawValuationEntry,
+  mergeFocusedExplainIntoBoardRow,
   mergeValuationBoardRowIntoPrevious,
+  normalizeValuationPlayerResponseBody,
   normalizeValuationResponseBody,
   normalizeValuationResultRow,
 } from "./valuationNormalize";
@@ -351,5 +353,84 @@ describe("valuationNormalize", () => {
     expect(merged.market_adp_max).toBe(18);
     expect(merged.market_pick_count).toBe(40);
     expect(merged.auction_value).toBe(99);
+  });
+});
+
+describe("mergeFocusedExplainIntoBoardRow", () => {
+  it("pins board auction_value and merges explain from focused row", () => {
+    const board = baseRow({ auction_value: 36, recommended_bid: 32 });
+    const focused = baseRow({
+      auction_value: 40,
+      recommended_bid: 38,
+      valuation_explain: { surplus_basis: "ta_minus_rb" },
+    });
+    const merged = mergeFocusedExplainIntoBoardRow(board, focused);
+    expect(merged.auction_value).toBe(36);
+    expect(merged.recommended_bid).toBe(32);
+    expect(merged.valuation_explain?.surplus_basis).toBe("ta_minus_rb");
+  });
+
+  it("fills dollars from focused when board row omitted them", () => {
+    const board = baseRow({ auction_value: undefined as unknown as number });
+    const focused = baseRow({ auction_value: 40 });
+    const merged = mergeFocusedExplainIntoBoardRow(board, focused);
+    expect(merged.auction_value).toBe(40);
+  });
+});
+
+describe("normalizeValuationPlayerResponseBody (board vs player HTTP)", () => {
+  it("pins board auction_value on player when valuations[0] disagrees with player", () => {
+    const out = normalizeValuationPlayerResponseBody({
+      inflation_factor: 1,
+      valuations: [
+        {
+          player_id: "660271",
+          name: "Ohtani",
+          position: "DH",
+          tier: 1,
+          baseline_value: 35,
+          auction_value: 36,
+          indicator: "Fair Value",
+        },
+      ],
+      player: {
+        player_id: "660271",
+        name: "Ohtani",
+        position: "DH",
+        tier: 1,
+        baseline_value: 35,
+        auction_value: 40,
+        indicator: "Fair Value",
+      },
+    });
+    expect(out.player?.auction_value).toBe(36);
+    expect(out.valuations[0]?.auction_value).toBe(36);
+  });
+
+  it("keeps identical auction_value when board and player rows match", () => {
+    const out = normalizeValuationPlayerResponseBody({
+      inflation_factor: 1,
+      valuations: [
+        {
+          player_id: "1",
+          name: "A",
+          position: "OF",
+          tier: 1,
+          baseline_value: 10,
+          auction_value: 36,
+          indicator: "Fair Value",
+        },
+      ],
+      player: {
+        player_id: "1",
+        name: "A",
+        position: "OF",
+        tier: 1,
+        baseline_value: 10,
+        auction_value: 36,
+        indicator: "Fair Value",
+      },
+    });
+    expect(out.player?.auction_value).toBe(36);
   });
 });

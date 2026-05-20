@@ -37,6 +37,7 @@ import {
   type ValuationResult,
 } from "../api/engine";
 import {
+  mergeFocusedExplainIntoBoardRow,
   mergeValuationBoardRowIntoPrevious,
   normalizeValuationResultRow,
 } from "../api/valuationNormalize";
@@ -440,7 +441,7 @@ export function AuctionCenter({
           }
           setValuationMap((prev) => {
             const cur = prev.get(playerId);
-            const mergedRow = mergeValuationBoardRowIntoPrevious(
+            const mergedRow = mergeFocusedExplainIntoBoardRow(
               cur,
               normalizedRow,
             );
